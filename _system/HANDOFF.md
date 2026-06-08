@@ -2,53 +2,45 @@ Last updated: 2026-06-08
 
 ## Current phase
 
-Phase 1 — LocalStorage provider complete.
+Phase 1 — COMPLETE. All 9 Phase 1 issues shipped.
 
 ## Active agent for next session
 
-**Next: activate agents in this order:**
-1. Gate — API key management (#10)
-2. Atlas — Claude integration (#5)
+**Next: Coda — Phase 2 kickoff**
+Check Arch issues (#12, #14, #15) — Phase 2 requires type changes before agents can build.
+Arch must go first (single-PR rule).
 
-## Last issue closed
+## Last issues closed
 
-Issue #30 — [Gate] Theme storage. Implemented `getThemePreference()`,
-`saveThemePreference()`, `setActiveTheme()`, and `clearThemePreference()` in
-`src/auth/theme.ts`. All functions build on `ThemeId` / `ThemePreferences` from
-`/src/types/index.ts` (no types changes required). Storage key is
-`roundtable:theme`. Corrupt/missing stored values fall back to `slate` silently.
-Exported from `src/auth/index.ts`. lint + build pass.
+- #7 [Atlas] Parallel broadcast — Promise.allSettled + runProviderIsolated, one failure never kills others
+- #4 [Aria] Model selector panel — ModelSelectorPanel above InputBar, shake UX on last-active guard, prefers-reduced-motion
 
-## Decisions this session
+## Phase 1 complete — all shipped
 
-- Storage key: `roundtable:theme` (JSON-serialised ThemePreferences object)
-- Default fallback theme: `slate` (matches the theme already applied at startup in main.tsx)
-- `isThemeId()` guard validates stored value against the exact ThemeId union — corrupt entries fall back to default, no throw
-- `setActiveTheme()` convenience helper merges new ThemeId with existing customTheme, avoiding accidental erasure
-- `clearThemePreference()` is a full reset helper for dev/testing
+#3 Aria chat layout · #4 Aria model selector · #5 Atlas Claude · #6 Atlas GPT-5.5
+#7 Atlas parallel broadcast · #8 Vault LocalStorage · #9 Vault ghost mode
+#10 Gate API keys · #30 Gate theme storage
 
-## Cross-agent dependencies (unresolved — carry forward)
+## Phase 2 issues (priority order)
 
-1. **Atlas**: Streaming state flag — Aria reads `isStreaming` prop; Atlas must supply via context
-2. **Atlas**: Retry method — Aria renders Retry button with `onRetry` callback; Atlas wires re-request
-3. **Atlas**: Mid-stream model deactivation — stream completes, then model goes inactive
-4. **Gate**: Ghost mode state — Aria reads `isGhostMode` prop; Gate wires toggle
+Arch first (type changes required before any agent builds):
+1. [Arch] #12 — Interaction mode switcher types
+2. [Arch] #14 — Directed reply routing types
+3. [Arch] #15 — Token usage tracking types
 
-## Next issues (priority order)
-
-1. [Gate] API key management (#10)
-2. [Atlas] Claude integration (#5)
-3. [Atlas] GPT integration (#6)
-4. [Atlas] #7
-5. [Vault] #9
-6. [Aria] Model selector (#4) — unblocked after Gate and Atlas land
+After Arch PRs merge, agents unblock in parallel:
+4. [Atlas] Directed reply routing (#14 dependency)
+5. [Atlas] Token usage tracking (#15 dependency)
+6. [Aria] Directed reply UI (#11, needs Atlas #14)
+7. [Aria] Interaction mode switcher (#12 dependency)
+8. [Aria] Per-model system prompt UI (#13)
+9. [Aria] Token usage display (#16, needs Atlas #15)
 
 ## Gotchas
 
-- Arch owns `/src/types/index.ts` and `CLAUDE.md` — no other agent touches these
-- Single-PR rule for types
+- Single-PR rule on types/index.ts — Arch issues must not overlap
 - Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
-- `src/ui/index.ts` now exports all Phase 1 components
-- Markdown rendering inside MessageBubble is deferred — plain text with whitespace-pre-wrap
-- `LocalStorageProvider` is exported from `src/storage/index.ts` — ready for Aria/Gate to consume via React context
-- `getThemePreference()` / `saveThemePreference()` are exported from `src/auth/index.ts` — Aria can wire these to a theme context/toggle
+- Gate's ApiKeyPanel requiredKeys prop wired — Aria passes active model keys
+- getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
+- Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
+- Subagents must be prompted to commit before reporting back (learned pattern this session)
