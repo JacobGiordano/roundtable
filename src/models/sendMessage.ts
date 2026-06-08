@@ -9,9 +9,10 @@
 
 import type { SendMessageOptions, StreamHandler, Conversation } from '@/types';
 import { claudeProvider } from './claude';
+import { gpt55Provider } from './gpt';
 
 // Registry of all active providers — extend when new providers are added.
-const PROVIDERS = [claudeProvider];
+const PROVIDERS = [claudeProvider, gpt55Provider];
 
 /**
  * Given a conversation, return providers whose modelId is active in the
