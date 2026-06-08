@@ -87,13 +87,13 @@ Implement the Anthropic API ModelProvider.
 
 ---
 
-**Issue: [Atlas] GPT-4o integration**
+**Issue: [Atlas] GPT-5.5 integration**
 Labels: `phase-1`, `atlas`
 Milestone: Phase 1 — MVP
 
 Implement the OpenAI API ModelProvider.
 
-- [ ] `GPT4oModelProvider` implementing `ModelProvider` interface
+- [ ] `GPT55ModelProvider` implementing `ModelProvider` interface
 - [ ] Streaming response support
 - [ ] Error handling (auth failure, rate limit, network)
 - [ ] Respects `getCredentials()` from Gate for API key

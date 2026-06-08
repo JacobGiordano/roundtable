@@ -112,7 +112,7 @@ StorageProvider (interface)
 **Goal:** Usable core. Two models working, conversations persist, ghost mode available.
 
 **Aria:** Chat interface, input field, message bubbles, model color-coding  
-**Atlas:** Claude + GPT-4o integration, streaming responses  
+**Atlas:** Claude + GPT-5.5 integration, streaming responses  
 **Vault:** LocalStorage provider, basic session save/load, ghost mode  
 **Gate:** API key entry and local storage  
 
