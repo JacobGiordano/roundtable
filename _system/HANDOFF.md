@@ -2,52 +2,50 @@ Last updated: 2026-06-08
 
 ## Current phase
 
-Phase 1 — scaffold complete, implementation not yet started.
+Phase 1 — chat interface layout complete.
 
 ## Active agent for next session
 
 **Next: activate agents in this order:**
-1. Aria — Chat interface layout (#3)
-2. Gate — API key management (#10)
-3. Atlas — Claude integration (#5)
-4. Vault — LocalStorage provider (#8)
+1. Gate — API key management (#10)
+2. Atlas — Claude integration (#5)
+3. Vault — LocalStorage provider (#8)
 
 ## Last issue closed
 
-Issue #2 — [Coda] Project scaffold. Created package.json (React 18, TypeScript 5, Vite 5, Tailwind v3, Vitest, ESLint v9), vite.config.ts with `@/` alias, tsconfig.json (strict), postcss.config.js, tailwind.config.js, index.html, src/main.tsx, src/App.tsx, src/index.css, placeholder index.ts per agent directory, .github/workflows/ci.yml, and .env.example. Merged to main.
+Issue #3 — [Aria] Chat interface layout. Built AppLayout, MessageBubble, MessageThread, InputBar, Sidebar. Wired Tailwind token extension block. Created theme.ts + applyTheme(). Loaded Slate theme at startup in main.tsx. Added all @keyframes (chunkFadeIn, cursorBlink, streamingShimmer, bubbleEntrance, threadEntrance) to index.css with prefers-reduced-motion handling. Mock data in App.tsx renders two conversations and 6 messages across Claude and GPT-5.5. lint + build pass.
 
 ## Decisions this session
 
-- ESLint v9 flat config (`eslint.config.js`) — matches Vite 5 default
-- Tailwind v3 (not v4) per CLAUDE.md
-- `@/` alias wired in both vite.config.ts and tsconfig.json paths
-- Placeholder `index.ts` files created in /src/ui, /src/models, /src/storage, /src/auth — no implementation
-- `src/main.tsx` + `src/App.tsx` are minimal shells; Aria will replace App content
+- tailwind.config.js now uses `export default` (ESM) to match Vite 5 convention; confirmed working
+- Tailwind `border-l-[3px]` used as arbitrary value for bubble accent — spec says 3px solid left border
+- `max-w-[720px]` applied to MessageThread inner column per spec recommendation
+- No markdown renderer added (spec says "Aria owns markdown styling" — deferred to a follow-up; whitespace-pre-wrap handles plain newlines for now)
+- Ghost mode and retry are prop-driven shells; Atlas and Gate wire the real logic later
+- `isStreaming` prop on InputBar disables Enter-to-submit but allows typing (per spec: "textarea accepts input but pressing Enter does not submit")
+
+## Cross-agent dependencies (unresolved — carry forward)
+
+1. **Atlas**: Streaming state flag — Aria reads `isStreaming` prop; Atlas must supply it via context or prop drilling when real model integration lands
+2. **Atlas**: Retry method — Aria renders the Retry button with an `onRetry` callback; Atlas wires the actual re-request
+3. **Atlas**: Mid-stream model deactivation behavior — confirmed lean from Luma: stream completes, then model goes inactive
+4. **Gate**: Ghost mode state — Aria reads `isGhostMode` prop; Gate wires toggle
 
 ## Next issues (priority order)
 
-1. [Aria] Chat interface layout (#3)
-2. [Aria] Model selector (#4)
-3. [Gate] API key management (#10)
-4. [Gate] #30
-5. [Atlas] Claude integration (#5)
-6. [Atlas] GPT integration (#6)
-7. [Atlas] #7
-8. [Vault] LocalStorage provider (#8)
-9. [Vault] #9
-
-## Cross-agent dependencies (unresolved)
-
-1. **Atlas**: What happens when a model is deactivated mid-stream? Needs Atlas confirmation before Aria implements.
-2. **Atlas**: Must expose a streaming state flag for Aria (disable send while streaming).
-3. **Atlas**: Must expose a retry method for Aria (error state bubble retry button).
-4. **Gate**: Must expose ghost mode state for Aria (input bar indicator).
+1. [Gate] API key management (#10)
+2. [Gate] #30
+3. [Atlas] Claude integration (#5)
+4. [Atlas] GPT integration (#6)
+5. [Atlas] #7
+6. [Vault] LocalStorage provider (#8)
+7. [Vault] #9
+8. [Aria] Model selector (#4) — unblocked after Gate and Atlas land
 
 ## Gotchas
 
-- Arch owns `/src/types/index.ts` and `CLAUDE.md` — no other agent touches these files
-- Single-PR rule for types: all changes to `/src/types/index.ts` ship in one PR at a time
-- Aria must NOT make design decisions — all values come from `/_design` specs
-- Outrun shadow values use rgba neon glow — Aria must not flatten them to a standard drop shadow
-- API keys: never log, never export, never transmit except to the provider's own API
-- `src/App.tsx` is a scaffold placeholder — Aria owns the final layout, not this file
+- Arch owns `/src/types/index.ts` and `CLAUDE.md` — no other agent touches these
+- Single-PR rule for types
+- Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
+- `src/ui/index.ts` now exports all Phase 1 components
+- Markdown rendering inside MessageBubble is deferred — currently plain text with whitespace-pre-wrap

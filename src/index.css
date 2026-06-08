@@ -1,3 +1,163 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Keyframe Animations ──────────────────────────────────────────────────── */
+
+@keyframes chunkFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes streamingShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes bubbleEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes threadEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Animation Utility Classes ────────────────────────────────────────────── */
+
+.chunk-entering {
+  animation: chunkFadeIn var(--timing-fast, 100ms) ease-out forwards;
+}
+
+.cursor-blink {
+  animation: cursorBlink 1s step-end infinite;
+  color: var(--text-muted);
+}
+
+.bubble-entering {
+  animation: bubbleEntrance var(--timing-slow, 350ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.thread-entering {
+  animation: threadEntrance var(--timing-medium, 200ms) ease-out both;
+}
+
+/* ─── Streaming Shimmer Bottom Border ──────────────────────────────────────── */
+
+.streaming-shimmer {
+  position: relative;
+}
+
+.streaming-shimmer::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--accent-claude) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-claude) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* Shimmer color varies per model — applied via data-model attribute */
+.streaming-shimmer[data-model="claude"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-claude) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-claude) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
+.streaming-shimmer[data-model="gpt"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-gpt) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-gpt) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
+/* ─── Theme Transition (applied to all elements during theme switch) ────────── */
+
+.theme-transitioning * {
+  transition: background-color var(--timing-slow, 350ms) ease,
+              color var(--timing-slow, 350ms) ease,
+              border-color var(--timing-slow, 350ms) ease !important;
+}
+
+/* ─── prefers-reduced-motion overrides ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .chunk-entering {
+    animation: none;
+    opacity: 1;
+  }
+
+  .cursor-blink {
+    animation: none;
+    opacity: 1;
+  }
+
+  .bubble-entering {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .thread-entering {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Static streaming bottom border — no shimmer */
+  .streaming-shimmer::after {
+    animation: none;
+    background: var(--accent-claude);
+    background-size: 100% 100%;
+  }
+
+  .streaming-shimmer[data-model="gpt"]::after {
+    background: var(--accent-gpt);
+    animation: none;
+  }
+
+  .streaming-shimmer[data-model="gemini"]::after {
+    background: var(--accent-gemini);
+    animation: none;
+  }
+
+  .theme-transitioning * {
+    transition: none !important;
+  }
+}
