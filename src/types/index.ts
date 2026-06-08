@@ -170,6 +170,8 @@ export interface SendMessageOptions {
   content: string;
   /** Phase 2 — omit to broadcast to all active models. */
   targetModelId?: ModelId;
+  /** Phase 2 — omit for parallel/manual modes. Atlas uses this to sequence auto-chain calls. */
+  chainConfig?: AutoChainConfig;
 }
 
 /**
