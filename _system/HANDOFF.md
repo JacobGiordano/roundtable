@@ -2,11 +2,11 @@ Last updated: 2026-06-08
 
 ## Current phase
 
-Pre-Phase 1 — design system complete, project scaffold not yet started.
+Phase 1 — scaffold complete, implementation not yet started.
 
 ## Active agent for next session
 
-**Next: scaffold the project.** Once scaffold is in place, activate agents in this order:
+**Next: activate agents in this order:**
 1. Aria — Chat interface layout (#3)
 2. Gate — API key management (#10)
 3. Atlas — Claude integration (#5)
@@ -14,27 +14,27 @@ Pre-Phase 1 — design system complete, project scaffold not yet started.
 
 ## Last issue closed
 
-Issue #29 — [Arch] Bootstrap `/src/types/index.ts`. Added `ThemeId`, `CustomThemeJSON`, and `ThemePreferences` types alongside the full initial type contract. Merged to main.
+Issue #2 — [Coda] Project scaffold. Created package.json (React 18, TypeScript 5, Vite 5, Tailwind v3, Vitest, ESLint v9), vite.config.ts with `@/` alias, tsconfig.json (strict), postcss.config.js, tailwind.config.js, index.html, src/main.tsx, src/App.tsx, src/index.css, placeholder index.ts per agent directory, .github/workflows/ci.yml, and .env.example. Merged to main.
 
 ## Decisions this session
 
-- `ThemeId` is a string union of all 7 built-in identifiers: `slate | linen | midnight | ash | ember | chalk | outrun`
-- `CustomThemeJSON` maps the full Luma token schema to TypeScript — all fields required, `shadow.none` typed as literal `'none'`
-- `ThemePreferences` is `{ activeThemeId: ThemeId; customTheme?: CustomThemeJSON }` — Gate stores it, Aria reads it
-- No lint/build check possible yet (no scaffold); types validated with standalone `tsc --noEmit --strict`
+- ESLint v9 flat config (`eslint.config.js`) — matches Vite 5 default
+- Tailwind v3 (not v4) per CLAUDE.md
+- `@/` alias wired in both vite.config.ts and tsconfig.json paths
+- Placeholder `index.ts` files created in /src/ui, /src/models, /src/storage, /src/auth — no implementation
+- `src/main.tsx` + `src/App.tsx` are minimal shells; Aria will replace App content
 
 ## Next issues (priority order)
 
-1. Scaffold the project (Vite + React + TypeScript + Tailwind) — no open issue yet, needs creation
-2. [Aria] Chat interface layout (#3)
-3. [Aria] Model selector (#4)
-4. [Gate] API key management (#10)
-5. [Gate] #30
-6. [Atlas] Claude integration (#5)
-7. [Atlas] GPT integration (#6)
-8. [Atlas] #7
-9. [Vault] LocalStorage provider (#8)
-10. [Vault] #9
+1. [Aria] Chat interface layout (#3)
+2. [Aria] Model selector (#4)
+3. [Gate] API key management (#10)
+4. [Gate] #30
+5. [Atlas] Claude integration (#5)
+6. [Atlas] GPT integration (#6)
+7. [Atlas] #7
+8. [Vault] LocalStorage provider (#8)
+9. [Vault] #9
 
 ## Cross-agent dependencies (unresolved)
 
@@ -45,9 +45,9 @@ Issue #29 — [Arch] Bootstrap `/src/types/index.ts`. Added `ThemeId`, `CustomTh
 
 ## Gotchas
 
-- No `package.json` yet — project scaffold is the next blocker before any agent can run lint/build
 - Arch owns `/src/types/index.ts` and `CLAUDE.md` — no other agent touches these files
 - Single-PR rule for types: all changes to `/src/types/index.ts` ship in one PR at a time
 - Aria must NOT make design decisions — all values come from `/_design` specs
 - Outrun shadow values use rgba neon glow — Aria must not flatten them to a standard drop shadow
 - API keys: never log, never export, never transmit except to the provider's own API
+- `src/App.tsx` is a scaffold placeholder — Aria owns the final layout, not this file
