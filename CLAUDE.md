@@ -36,7 +36,8 @@ automatically — no installation required.
 | Auth & settings (`/src/auth`) | `Gate` |
 | Design system (`/_design`) | `Luma` |
 | Whimsy & micro-interactions | `Spark` (called by Aria in Phase 2+) |
-| `/src/types/index.ts` changes | `Coda` (coordinates cross-agent review) |
+| `/src/types/index.ts` changes | `Arch` 🏛️ |
+| `CLAUDE.md` changes | `Arch` 🏛️ |
 | New phase kickoff | `Coda` |
 | Multi-agent coordination | `Coda` |
 | Pre-merge or pre-launch review | `Flint` |
@@ -57,6 +58,7 @@ Each agent owns exactly one directory. These are hard walls:
 | Vault | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | Gate  | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
 | Luma  | `/_design` | `/src/**` (specs only — no code) |
+| Arch 🏛️ | `/src/types/index.ts`, `CLAUDE.md` | `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`, `/_design` |
 | Spark | *(none — called by Aria)* | owns nothing; produces specs Aria applies |
 | Coda  | *(none — coordinates)* | owns nothing; sequences agents, no implementation |
 | Flint | *(none — reviews live app)* | owns nothing; read-only phase gate verification |
@@ -74,10 +76,10 @@ exception with a comment.
 This file is the contract between all agents. It is the most critical file in
 the project.
 
-- No agent may modify it unilaterally
-- Changes require a PR reviewed and approved by all active agents
+- No agent may modify it unilaterally — `Arch` is the only agent authorized to write to this file
+- **Single-PR rule**: all changes to `/src/types/index.ts` ship in exactly one PR at a time, reviewed and approved by all active agents before any agent proceeds with implementation. Concurrent types PRs are forbidden — they produce merge conflicts that break all four agent domains simultaneously.
 - No implementation code — types and interfaces only
-- Activate `Software Architect` for any work on this file
+- Activate `Arch` 🏛️ for any work on this file
 - If in doubt, read it before writing any code
 
 ## Core rules
