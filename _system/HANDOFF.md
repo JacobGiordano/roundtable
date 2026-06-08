@@ -6,31 +6,26 @@ Phase 2 — IN PROGRESS
 
 ## Active agents for next session
 
-All agents unblocked after Arch PR #31 merged.
-
-Parallel track A (no dependencies):
-- Atlas — issue #14 (directed reply routing)
-- Atlas — issue #15 (token usage tracking)
+Parallel track A (in flight / unblocked):
+- Atlas — issue #15 (token usage tracking) — next up for Atlas
 - Aria  — issue #12 (interaction mode switcher)
 - Aria  — issue #13 (per-model system prompt UI)
 
-Parallel track B (depends on Atlas shipping first):
-- Aria  — issue #11 (directed reply UI) → needs Atlas #14
+Parallel track B (unblocked — Atlas #14 now merged):
+- Aria  — issue #11 (directed reply UI)
 - Aria  — issue #16 (token usage display) → needs Atlas #15
 
 ## Last closed
 
-- #12 [Arch] Interaction mode switcher types — InteractionModeConfig added
-- #14 [Arch] Directed reply routing types — ChainStep, AutoChainConfig, chainConfig on SendMessageOptions
-- #15 [Arch] Token usage tracking types — SessionTokenUsage, getSessionTokenUsage() on ConversationStore
+- #14 [Atlas] Directed reply routing — sendMessage() now supports three routing modes
 
 ## Decisions made this session
 
-- Arch issues #12+#14+#15 batched into single PR (all additive, no conflicts)
-- Atlas review caught missing chainConfig on SendMessageOptions — fixed before merge
-- ChainStep.appendToContext controls context-feeding in auto-chain sequencer
-- AutoChainConfig.maxPasses is the loop-termination guard for Atlas
-- getSessionTokenUsage() returns SessionTokenUsage[] — Atlas aggregates, Vault implements, Aria reads
+- sendMessage() mode priority: chainConfig > targetModelId > parallel broadcast
+- Auto-chain: appendToContext=true steps accumulate into sharedMessages; false steps run against frozen context
+- Inactive model in directed/chain mode: emits synthetic error StreamChunk, chain continues (no halt)
+- collectingChunkHandler wraps onChunk to capture response text for context injection without blocking UI streaming
+- Pre-existing UI changes on branch left unstaged — Atlas boundary rule
 
 ## Gotchas
 
