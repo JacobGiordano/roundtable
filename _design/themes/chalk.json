@@ -1,0 +1,66 @@
+{
+  "name": "Chalk",
+  "mode": "light",
+  "surfaces": {
+    "background": "#F8F8F8",
+    "card": "#FFFFFF",
+    "sidebar": "#F0F0F0",
+    "input": "#FFFFFF"
+  },
+  "text": {
+    "primary": "#111111",
+    "secondary": "#404040",
+    "muted": "#737373",
+    "inverse": "#FFFFFF"
+  },
+  "borders": {
+    "default": "#DCDCDC",
+    "subtle": "#EBEBEB",
+    "strong": "#B0B0B0"
+  },
+  "accents": {
+    "model-claude": "#B45309",
+    "model-gpt": "#0F766E",
+    "model-gemini": "#6D28D9",
+    "model-other": "#C2410C"
+  },
+  "interactive": {
+    "hover": "#F0F0F0",
+    "active": "#E4E4E4",
+    "focusRing": "#6D28D9"
+  },
+  "semantic": {
+    "success": "#166534",
+    "warning": "#854D0E",
+    "error": "#991B1B",
+    "info": "#1E40AF"
+  },
+  "radius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "full": "9999px"
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "shadow": {
+    "none": "none",
+    "sm": "0 1px 2px rgba(0,0,0,0.07)",
+    "md": "0 4px 12px rgba(0,0,0,0.09)",
+    "lg": "0 8px 32px rgba(0,0,0,0.12)"
+  },
+  "timing": {
+    "instant": "0ms",
+    "fast": "100ms",
+    "medium": "200ms",
+    "slow": "350ms"
+  }
+}

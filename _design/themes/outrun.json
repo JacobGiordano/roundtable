@@ -1,0 +1,66 @@
+{
+  "name": "Outrun",
+  "mode": "dark",
+  "surfaces": {
+    "background": "#0D0D0D",
+    "card": "#130A1A",
+    "sidebar": "#0A070F",
+    "input": "#180E22"
+  },
+  "text": {
+    "primary": "#F0E8FF",
+    "secondary": "#C880FF",
+    "muted": "#A468CC",
+    "inverse": "#0D0D0D"
+  },
+  "borders": {
+    "default": "#FF00AA",
+    "subtle": "#4A1060",
+    "strong": "#00FFFF"
+  },
+  "accents": {
+    "model-claude": "#FFE600",
+    "model-gpt": "#00FFFF",
+    "model-gemini": "#BF00FF",
+    "model-other": "#FF00AA"
+  },
+  "interactive": {
+    "hover": "#1F0F2E",
+    "active": "#2A1040",
+    "focusRing": "#00FFFF"
+  },
+  "semantic": {
+    "success": "#00FF88",
+    "warning": "#FFE600",
+    "error": "#FF3366",
+    "info": "#00FFFF"
+  },
+  "radius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "full": "9999px"
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "shadow": {
+    "none": "none",
+    "sm": "0 0 8px rgba(255,0,170,0.4)",
+    "md": "0 0 20px rgba(0,255,255,0.35), 0 4px 16px rgba(0,0,0,0.7)",
+    "lg": "0 0 40px rgba(191,0,255,0.4), 0 8px 40px rgba(0,0,0,0.8)"
+  },
+  "timing": {
+    "instant": "0ms",
+    "fast": "100ms",
+    "medium": "200ms",
+    "slow": "350ms"
+  }
+}
