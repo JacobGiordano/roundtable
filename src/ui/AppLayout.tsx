@@ -26,6 +26,8 @@ interface AppLayoutProps {
   activeMode: InteractionMode;
   /** Called when the user switches interaction modes. Parent persists the change. */
   onModeChange: (mode: InteractionMode) => void;
+  /** Called when user edits or clears a per-model system prompt. */
+  onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
 }
 
 export function AppLayout({
@@ -44,6 +46,7 @@ export function AppLayout({
   onAddModel,
   activeMode,
   onModeChange,
+  onUpdateSystemPrompt,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -72,6 +75,7 @@ export function AppLayout({
               models={allModels}
               onToggleModel={onToggleModel}
               onAddModel={onAddModel}
+              onUpdateSystemPrompt={onUpdateSystemPrompt}
             />
             {/* Interaction mode switcher — persisted per conversation via onModeChange */}
             <div className="mb-2 flex-shrink-0">

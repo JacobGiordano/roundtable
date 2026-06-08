@@ -175,6 +175,15 @@ export default function App() {
     );
   };
 
+  const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
+    const updated = (prev: ModelConfig[]) =>
+      prev.map((m) => (m.modelId === modelId ? { ...m, systemPrompt: value || undefined } : m));
+    setModels(updated);
+    setConversations((prev) =>
+      prev.map((conv) => ({ ...conv, models: updated(conv.models) }))
+    );
+  };
+
   return (
     <AppLayout
       conversations={conversations}
@@ -189,8 +198,10 @@ export default function App() {
       onNewConversation={handleNewConversation}
       onToggleModel={handleToggleModel}
       onAddModel={handleAddModel}
+<<<<<<< HEAD
       activeMode={activeConversation?.interactionMode ?? 'parallel'}
       onModeChange={handleModeChange}
+      onUpdateSystemPrompt={handleUpdateSystemPrompt}
     />
   );
 }

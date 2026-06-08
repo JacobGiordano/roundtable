@@ -12,6 +12,10 @@ function getModelDotStyle(modelId: ModelId): React.CSSProperties {
   }
 }
 
+/** Default placeholder text for the system prompt textarea. */
+const SYSTEM_PROMPT_PLACEHOLDER =
+  'Give this model a persona, set context, or restrict its behavior…';
+
 // ─── ModelPill ────────────────────────────────────────────────────────────────
 
 interface ModelPillProps {
@@ -220,22 +224,188 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
   );
 }
 
+// ─── SystemPromptRow ──────────────────────────────────────────────────────────
+
+interface SystemPromptRowProps {
+  model: ModelConfig;
+  onUpdate: (modelId: ModelId, value: string) => void;
+}
+
+/**
+ * A single row in the system prompt section. Shows the model name, a color dot,
+ * an expandable textarea for the system prompt, and a clear button when
+ * a prompt is set.
+ */
+function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasPrompt = Boolean(model.systemPrompt && model.systemPrompt.trim().length > 0);
+
+  const handleToggle = useCallback(() => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        // Focus textarea once it mounts
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
+      return next;
+    });
+  }, []);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onUpdate(model.modelId, e.target.value);
+      // Auto-resize
+      const el = e.target;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    },
+    [model.modelId, onUpdate],
+  );
+
+  const handleClear = useCallback(() => {
+    onUpdate(model.modelId, '');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
+    }
+  }, [model.modelId, onUpdate]);
+
+  const rowId = `system-prompt-${model.modelId}`;
+
+  return (
+    <div className="border-b border-border-subtle last:border-b-0">
+      {/* Header row — always visible */}
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={rowId}
+        onClick={handleToggle}
+        className={[
+          'w-full flex items-center gap-2 h-9 px-1',
+          'text-left cursor-pointer select-none',
+          'hover:bg-hover rounded',
+          'transition-colors duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
+        ].join(' ')}
+      >
+        {/* Color dot */}
+        <span
+          className="w-[7px] h-[7px] rounded-full flex-shrink-0"
+          style={getModelDotStyle(model.modelId)}
+          aria-hidden="true"
+        />
+
+        {/* Model name */}
+        <span className="text-[13px] font-medium text-text-primary flex-1">
+          {model.name}
+        </span>
+
+        {/* "Set" badge — shown when a prompt exists and row is collapsed */}
+        {hasPrompt && !isExpanded && (
+          <span
+            className={[
+              'text-[10px] font-semibold uppercase tracking-wider',
+              'px-[6px] py-[2px] rounded-full',
+              'bg-hover text-text-secondary border border-border-subtle',
+            ].join(' ')}
+            aria-label="System prompt is set"
+          >
+            Set
+          </span>
+        )}
+
+        {/* Chevron */}
+        <ChevronIcon isOpen={isExpanded} />
+      </button>
+
+      {/* Expandable body */}
+      {isExpanded && (
+        <div
+          id={rowId}
+          className="pb-3 pt-1 px-1"
+        >
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={model.systemPrompt ?? ''}
+              onChange={handleChange}
+              placeholder={SYSTEM_PROMPT_PLACEHOLDER}
+              rows={3}
+              aria-label={`System prompt for ${model.name}`}
+              className={[
+                'w-full resize-none rounded-md',
+                'bg-input border border-border',
+                'text-[13px] leading-[1.5] text-text-primary',
+                'placeholder:text-text-muted',
+                'px-3 py-2',
+                'min-h-[72px] max-h-[160px]',
+                'transition-[border-color] duration-fast',
+                'focus:outline-none focus:border-border-strong',
+                hasPrompt ? 'pr-10' : '',
+              ].join(' ')}
+              style={{ overflowY: 'auto' }}
+            />
+
+            {/* Clear button — only shown when prompt is non-empty */}
+            {hasPrompt && (
+              <button
+                type="button"
+                onClick={handleClear}
+                aria-label={`Clear system prompt for ${model.name}`}
+                title="Clear system prompt"
+                className={[
+                  'absolute top-2 right-2',
+                  'w-5 h-5 flex items-center justify-center',
+                  'rounded text-text-muted',
+                  'hover:text-text-primary hover:bg-hover',
+                  'transition-colors duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+                ].join(' ')}
+              >
+                {/* × icon */}
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <path
+                    d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Character hint */}
+          <p className="mt-1 text-[11px] text-text-muted">
+            Sent as the system message before every reply from {model.name}.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ModelSelectorPanel ───────────────────────────────────────────────────────
 
 interface ModelSelectorPanelProps {
   models: ModelConfig[];
   onToggleModel: (modelId: ModelId) => void;
   onAddModel: (modelId: ModelId) => void;
+  /** Called when the user edits or clears a model's system prompt. */
+  onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
 }
 
 /**
  * Full model selector: trigger chip + slide-up panel with pills.
  * Sits directly above the InputBar in AppLayout.
+ * Phase 2: includes a per-model system prompt sub-section.
  */
 export function ModelSelectorPanel({
   models,
   onToggleModel,
   onAddModel,
+  onUpdateSystemPrompt,
 }: ModelSelectorPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -243,6 +413,11 @@ export function ModelSelectorPanel({
   const activeModels = models.filter((m) => m.isActive);
   const inactiveModels = models.filter((m) => !m.isActive);
   const activeCount = activeModels.length;
+
+  // Count how many active models have a system prompt set
+  const promptsSetCount = activeModels.filter(
+    (m) => m.systemPrompt && m.systemPrompt.trim().length > 0,
+  ).length;
 
   const handleTriggerClick = useCallback(() => {
     if (isOpen) {
@@ -284,7 +459,7 @@ export function ModelSelectorPanel({
             'p-4 mb-2',
           ].join(' ')}
         >
-          {/* Section label */}
+          {/* ── Active models section ── */}
           <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
             Active models
           </p>
@@ -300,6 +475,30 @@ export function ModelSelectorPanel({
               />
             ))}
             <AddModelButton availableModels={inactiveModels} onAdd={onAddModel} />
+          </div>
+
+          {/* ── System prompts section ── */}
+          <div className="mt-4 pt-4 border-t border-border-subtle">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
+                System prompts
+              </p>
+              {promptsSetCount > 0 && (
+                <span className="text-[11px] text-text-muted">
+                  {promptsSetCount} of {activeCount} set
+                </span>
+              )}
+            </div>
+
+            <div className="rounded-md border border-border-subtle overflow-hidden">
+              {activeModels.map((model) => (
+                <SystemPromptRow
+                  key={model.modelId}
+                  model={model}
+                  onUpdate={onUpdateSystemPrompt}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
