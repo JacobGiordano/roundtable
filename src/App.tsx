@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import type { Conversation, InteractionMode, Message, ModelConfig, ModelId } from '@/types';
+import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
+// Cross-agent exception: sendMessage is a pure utility exported from @/models
+// per the documented exception in CLAUDE.md.
+import { sendMessage } from '@/models';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -123,6 +126,10 @@ export default function App() {
       timestamp: Date.now(),
     };
 
+    // Snapshot the active conversation (with its per-model systemPrompts) before
+    // the state update so sendMessage receives a consistent view.
+    const conversationSnapshot = conversations.find((c) => c.id === activeConversationId);
+
     setConversations((prev) =>
       prev.map((conv) =>
         conv.id === activeConversationId
@@ -130,6 +137,26 @@ export default function App() {
           : conv,
       ),
     );
+
+    if (conversationSnapshot) {
+      // Pass the conversation so sendMessage can resolve per-model systemPrompts
+      // from each ModelConfig.systemPrompt on the conversation's models array.
+      void sendMessage(
+        {
+          conversationId: activeConversationId,
+          content,
+          conversation: {
+            ...conversationSnapshot,
+            messages: [...conversationSnapshot.messages, userMessage],
+          },
+        },
+        (chunk: StreamChunk) => {
+          // TODO (Phase 2): wire streaming chunks into conversation message state.
+          // For now, chunks are received but not yet applied to UI state.
+          void chunk;
+        },
+      );
+    }
   };
 
   const handleNewConversation = () => {
@@ -164,6 +191,7 @@ export default function App() {
     );
   };
 
+<<<<<<< HEAD
   /** Persists the chosen interaction mode on the active conversation. */
   const handleModeChange = (mode: InteractionMode) => {
     setConversations((prev) =>
@@ -171,7 +199,36 @@ export default function App() {
         conv.id === activeConversationId
           ? { ...conv, interactionMode: mode, updatedAt: Date.now() }
           : conv,
+=======
+  const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
+    const updatedSystemPrompt = value || undefined;
+
+    // Keep top-level models mirror in sync.
+    setModels((prev) =>
+      prev.map((m) =>
+        m.modelId === modelId ? { ...m, systemPrompt: updatedSystemPrompt } : m,
+>>>>>>> f3c0c6c (fix(ui): wire per-model systemPrompt through to sendMessage)
       ),
+    );
+
+    // Also sync into conversations[x].models so the prompt survives persistence
+    // and is available to sendMessage when it reads conversation.models.
+    setConversations((prev) =>
+      prev.map((conv) => ({
+        ...conv,
+        models: conv.models.map((m) =>
+          m.modelId === modelId ? { ...m, systemPrompt: updatedSystemPrompt } : m,
+        ),
+      })),
+    );
+  };
+
+  const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
+    const updated = (prev: ModelConfig[]) =>
+      prev.map((m) => (m.modelId === modelId ? { ...m, systemPrompt: value || undefined } : m));
+    setModels(updated);
+    setConversations((prev) =>
+      prev.map((conv) => ({ ...conv, models: updated(conv.models) }))
     );
   };
 
@@ -189,8 +246,10 @@ export default function App() {
       onNewConversation={handleNewConversation}
       onToggleModel={handleToggleModel}
       onAddModel={handleAddModel}
+<<<<<<< HEAD
       activeMode={activeConversation?.interactionMode ?? 'parallel'}
       onModeChange={handleModeChange}
+      onUpdateSystemPrompt={handleUpdateSystemPrompt}
     />
   );
 }
