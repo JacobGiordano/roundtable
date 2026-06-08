@@ -113,19 +113,26 @@ function collectingChunkHandler(
 /**
  * Mode 1 — Parallel broadcast.
  * Fans out to all active providers simultaneously.
+ * Each provider resolves its own systemPrompt from conversation.models,
+ * falling back to the shared systemPrompt parameter if none is set on the model.
  */
 async function runParallel(
   providers: Provider[],
   messages: Message[],
   systemPrompt: string | undefined,
-  onChunk: StreamHandler
+  onChunk: StreamHandler,
+  conversation?: Conversation
 ): Promise<void> {
   // Fire all providers in parallel. Promise.allSettled ensures every provider
   // runs to completion regardless of whether siblings succeed or fail.
   await Promise.allSettled(
-    providers.map((provider) =>
-      runProviderIsolated(provider, messages, systemPrompt, onChunk)
-    )
+    providers.map((provider) => {
+      const modelConfig = conversation?.models.find(
+        (m) => m.modelId === provider.config.modelId
+      );
+      const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk);
+    })
   );
 }
 
@@ -133,13 +140,16 @@ async function runParallel(
  * Mode 2 — Directed reply.
  * Routes to a single model (targetModelId). The model must be active.
  * Emits a synthetic error chunk if the target is not active or not found.
+ * Resolves per-model systemPrompt from conversation.models, falling back to
+ * the shared systemPrompt parameter.
  */
 async function runDirected(
   targetModelId: ModelId,
   activeProviders: Provider[],
   messages: Message[],
   systemPrompt: string | undefined,
-  onChunk: StreamHandler
+  onChunk: StreamHandler,
+  conversation?: Conversation
 ): Promise<void> {
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
@@ -157,7 +167,11 @@ async function runDirected(
     return;
   }
 
-  await runProviderIsolated(target, messages, systemPrompt, onChunk);
+  const modelConfig = conversation?.models.find(
+    (m) => m.modelId === target.config.modelId
+  );
+  const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk);
 }
 
 /**
@@ -204,10 +218,16 @@ async function runAutoChain(
         continue;
       }
 
+      // Resolve per-model systemPrompt, falling back to shared systemPrompt.
+      const modelConfig = conversation?.models.find(
+        (m) => m.modelId === step.modelId
+      );
+      const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, sharedMessages, systemPrompt, handler);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler);
 
         // Append the model's response as an assistant message for subsequent steps.
         const responseText = getText();
@@ -225,7 +245,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, sharedMessages, systemPrompt, onChunk);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk);
       }
     }
   }
@@ -291,13 +311,13 @@ export async function sendMessage(
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation);
     return;
   }
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, onChunk);
+  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation);
 }
 
 /**
