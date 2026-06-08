@@ -26,16 +26,33 @@ Orchestrator coordinates which agents work which issues, in what order, and flag
 
 ---
 
+## Bootstrap Responsibility
+
+Coda owns issue #2 (scaffold) as a one-time pre-project task — before any domain agent begins work.
+
+Bootstrap includes:
+- Initializing the repo structure
+- Creating `package.json`, `vite.config.ts`, `tsconfig.json`
+- Creating the four domain directories: `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`
+- Creating `/_design` and `_system/`
+- Creating a stub `src/types/index.ts` with placeholder comments for each agent's types
+- Creating `HANDOFF.md` with Phase 1 as the current phase and all Phase 1 issues listed as not started
+
+This responsibility does not recur after bootstrap is complete. Once `HANDOFF.md` exists and Phase 1 is listed as current, bootstrap is done and Coda returns to its coordination role.
+
+---
+
 ## Session Start Checklist
 
 Before making any recommendations:
-1. Read `HANDOFF.md` — understand current phase and what's in flight
-2. Run `gh issue list` to get current open issues and their state
-3. Run `git branch -a` to identify issues that already have branches in progress
-4. Identify the dependency chain for the current phase (see below)
-5. Identify any `/src/types/index.ts` changes that are pending or in progress
-6. Report the current state to the user before recommending any action
-7. **Orchestrator authorizes one issue per agent per session. Do not sequence a second issue for any agent without explicit user authorization.**
+1. If `HANDOFF.md` does not exist, run bootstrap (issue #2) before proceeding with any other step.
+2. Read `HANDOFF.md` — understand current phase and what's in flight
+3. Run `gh issue list` to get current open issues and their state
+4. Run `git branch -a` to identify issues that already have branches in progress
+5. Identify the dependency chain for the current phase (see below)
+6. Identify any `/src/types/index.ts` changes that are pending or in progress
+7. Report the current state to the user before recommending any action
+8. **Coda authorizes one issue per agent per session. Do not sequence a second issue for any agent without explicit user authorization.**
 
 ---
 
