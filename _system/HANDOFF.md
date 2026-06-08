@@ -2,43 +2,38 @@ Last updated: 2026-06-08
 
 ## Current phase
 
-Phase 1 — COMPLETE. All 9 Phase 1 issues shipped.
+Phase 2 — IN PROGRESS. Arch PR open; all agents blocked until merge.
 
 ## Active agent for next session
 
-**Next: Coda — Phase 2 kickoff**
-Check Arch issues (#12, #14, #15) — Phase 2 requires type changes before agents can build.
-Arch must go first (single-PR rule).
+**After Arch PR merges:** Atlas and Aria unblock in parallel (see priority order below).
 
-## Last issues closed
+## Last issue closed
 
-- #7 [Atlas] Parallel broadcast — Promise.allSettled + runProviderIsolated, one failure never kills others
-- #4 [Aria] Model selector panel — ModelSelectorPanel above InputBar, shake UX on last-active guard, prefers-reduced-motion
+Arch #12 / #14 / #15 — Phase 2 type additions PR opened (branch: 12-14-15-arch-phase2-types).
 
-## Phase 1 complete — all shipped
+## Decisions made this session
 
-#3 Aria chat layout · #4 Aria model selector · #5 Atlas Claude · #6 Atlas GPT-5.5
-#7 Atlas parallel broadcast · #8 Vault LocalStorage · #9 Vault ghost mode
-#10 Gate API keys · #30 Gate theme storage
+- `InteractionModeConfig` added — display metadata for mode-switcher UI (Aria #12 / #7).
+- `ChainStep` + `AutoChainConfig` added — cross-agent contract for auto-chain sequencing (Atlas #14).
+- `SessionTokenUsage` added — per-model running totals shape (Atlas #15 / Aria #16).
+- `ConversationStore.getSessionTokenUsage()` method signature added — Vault implements, Aria reads.
+- `ChainStep.appendToContext` boolean controls whether a model's response feeds the next step.
+- `AutoChainConfig.maxPasses` caps runaway chains at the type level.
+- Atlas standalone `getSessionTokenUsage()` from @/models remains a documented exception.
 
-## Phase 2 issues (priority order)
+## Phase 2 priority order (after Arch PR merges)
 
-Arch first (type changes required before any agent builds):
-1. [Arch] #12 — Interaction mode switcher types
-2. [Arch] #14 — Directed reply routing types
-3. [Arch] #15 — Token usage tracking types
-
-After Arch PRs merge, agents unblock in parallel:
-4. [Atlas] Directed reply routing (#14 dependency)
-5. [Atlas] Token usage tracking (#15 dependency)
-6. [Aria] Directed reply UI (#11, needs Atlas #14)
-7. [Aria] Interaction mode switcher (#12 dependency)
-8. [Aria] Per-model system prompt UI (#13)
-9. [Aria] Token usage display (#16, needs Atlas #15)
+1. [Atlas] Directed reply routing (#14) — SendMessageOptions.targetModelId + auto-chain sequencing
+2. [Atlas] Token usage tracking (#15) — parse + aggregate SessionTokenUsage, expose getSessionTokenUsage()
+3. [Aria] Interaction mode switcher (#12) — InteractionModeConfig registry + switcher UI
+4. [Aria] Per-model system prompt UI (#13)
+5. [Aria] Directed reply UI (#11) — depends Atlas #14
+6. [Aria] Token usage display (#16) — depends Atlas #15
 
 ## Gotchas
 
-- Single-PR rule on types/index.ts — Arch issues must not overlap
+- Single-PR rule on types/index.ts — Arch PR must merge before any agent starts implementation
 - Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
 - Gate's ApiKeyPanel requiredKeys prop wired — Aria passes active model keys
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)

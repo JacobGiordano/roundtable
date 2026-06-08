@@ -16,6 +16,47 @@ export type InteractionMode = 'parallel' | 'manual' | 'auto-chain';
 
 export type MessageRole = 'user' | 'assistant';
 
+/**
+ * Display metadata for a single interaction mode. Aria uses a typed registry
+ * of these to render the mode-switcher control and tooltips (issue #12).
+ */
+export interface InteractionModeConfig {
+  mode: InteractionMode;
+  /** Short label shown in the switcher button. */
+  label: string;
+  /** One-sentence description shown in the tooltip. */
+  description: string;
+}
+
+/**
+ * A single step in an auto-chain sequence.
+ * Defines which model speaks at this position and what role it plays.
+ */
+export interface ChainStep {
+  /** Index of this step in the chain (0-based). */
+  stepIndex: number;
+  modelId: ModelId;
+  /**
+   * When true, this model's response is appended to the shared context before
+   * the next step runs. When false the step runs in isolation.
+   */
+  appendToContext: boolean;
+}
+
+/**
+ * Configuration for an auto-chain run. Atlas uses this to sequence
+ * model calls; Aria may read it to render chain progress (issue #14).
+ */
+export interface AutoChainConfig {
+  /** Ordered steps to execute. */
+  steps: ChainStep[];
+  /**
+   * Maximum number of times the full step sequence may repeat before
+   * the chain terminates automatically. 1 = single pass.
+   */
+  maxPasses: number;
+}
+
 export type CredentialKey = 'anthropic' | 'openai';
 
 export type ExportFormat = 'markdown' | 'html';
@@ -23,6 +64,17 @@ export type ExportFormat = 'markdown' | 'html';
 // ─── Token usage ──────────────────────────────────────────────────────────────
 
 export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+/**
+ * Running session totals for a single model. Aria reads this to display
+ * per-model usage in the UI (issue #15 / #16).
+ */
+export interface SessionTokenUsage {
+  modelId: ModelId;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
@@ -88,6 +140,13 @@ export interface ConversationStore {
   activeConversationId: string | null;
   getConversation(id: string): Conversation | undefined;
   getActiveConversation(): Conversation | undefined;
+  /**
+   * Returns running session token totals for every active model in the given
+   * conversation. Aria uses this for the per-model usage display (issue #15 / #16).
+   * Atlas also exports a standalone getSessionTokenUsage() utility from
+   * @/models for convenience (documented exception to the boundary rule).
+   */
+  getSessionTokenUsage(conversationId: string): SessionTokenUsage[];
 }
 
 // ─── Streaming — sendMessage plumbing ─────────────────────────────────────────
