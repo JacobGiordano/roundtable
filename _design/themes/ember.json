@@ -1,0 +1,66 @@
+{
+  "name": "Ember",
+  "mode": "dark",
+  "surfaces": {
+    "background": "#110D09",
+    "card": "#1D1712",
+    "sidebar": "#140F0A",
+    "input": "#231B14"
+  },
+  "text": {
+    "primary": "#EDE5D8",
+    "secondary": "#B09070",
+    "muted": "#8C7260",
+    "inverse": "#110D09"
+  },
+  "borders": {
+    "default": "#2E2218",
+    "subtle": "#211A12",
+    "strong": "#5A4030"
+  },
+  "accents": {
+    "model-claude": "#F5A623",
+    "model-gpt": "#2DB8A8",
+    "model-gemini": "#C080F0",
+    "model-other": "#E06840"
+  },
+  "interactive": {
+    "hover": "#26201A",
+    "active": "#302822",
+    "focusRing": "#F5A623"
+  },
+  "semantic": {
+    "success": "#5ABE6A",
+    "warning": "#DBA830",
+    "error": "#E05050",
+    "info": "#5090D0"
+  },
+  "radius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "full": "9999px"
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "shadow": {
+    "none": "none",
+    "sm": "0 1px 3px rgba(0,0,0,0.45)",
+    "md": "0 4px 14px rgba(0,0,0,0.55)",
+    "lg": "0 8px 36px rgba(0,0,0,0.65)"
+  },
+  "timing": {
+    "instant": "0ms",
+    "fast": "100ms",
+    "medium": "200ms",
+    "slow": "350ms"
+  }
+}

@@ -16,41 +16,35 @@ roundtable/
 │   ├── models/       ← Atlas owns this (API integrations, streaming)
 │   ├── storage/      ← Vault owns this (persistence, export, ghost mode)
 │   └── auth/         ← Gate owns this (API keys, settings, backend auth)
+├── _design/          ← Luma owns this (token schema, themes, component specs)
 ├── backend/          ← optional self-hosted backend (Phase 4)
 └── _system/          ← HANDOFF.md, MEMORY.md, this file
 ```
 
-## Agency Agents — install first
+## Agents
 
-Agency Agents must be installed before any development work begins.
-
-```bash
-# Clone and install to Claude Code
-git clone https://github.com/msitarzewski/agency-agents
-cd agency-agents
-./scripts/install.sh --tool claude-code
-```
-
-This copies agent profiles to `~/.claude/agents/`. Once installed, activate
-any agent in a Claude Code session by name (see table below).
+Project-local agent profiles live in `.claude/agents/`. Claude Code loads them
+automatically — no installation required.
 
 **Invoke the correct agent for every task — do not work without one.**
 
-| Work type | Activate |
-|-----------|----------|
-| Aria tasks (`/src/ui`) | `Frontend Developer` |
-| Atlas tasks (`/src/models`) | `Backend Architect` |
-| Vault tasks (`/src/storage`) | `Senior Developer` |
-| Gate tasks (`/src/auth`) | `Senior Developer` |
-| `/src/types/index.ts` changes | `Software Architect` |
+| Work type | Agent |
+|-----------|-------|
+| UI work (`/src/ui`) | `Aria` |
+| Model integrations (`/src/models`) | `Atlas` |
+| Storage (`/src/storage`) | `Vault` |
+| Auth & settings (`/src/auth`) | `Gate` |
+| Design system (`/_design`) | `Luma` |
+| Whimsy & micro-interactions | `Spark` (called by Aria in Phase 2+) |
+| `/src/types/index.ts` changes | `Coda` (coordinates cross-agent review) |
 | New phase kickoff | `Coda` |
 | Multi-agent coordination | `Coda` |
 | Pre-merge or pre-launch review | `Flint` |
-| Backend (`/backend`) | `Backend Architect` |
+| Backend (`/backend`) | `Atlas` |
 
 Example activation prompt:
-> "Activate Frontend Developer. Project: Roundtable. Issue: [Aria] Chat interface
-> layout. Read `_system/ISSUES.md` for the full spec for this issue and implement it."
+> "Activate Aria. Project: Roundtable. Issue: [Aria] Chat interface layout.
+> Read `_system/ISSUES.md` for the full spec for this issue and implement it."
 
 ## Agent boundary rules — NON-NEGOTIABLE
 
@@ -62,6 +56,10 @@ Each agent owns exactly one directory. These are hard walls:
 | Atlas | `/src/models` | `/src/ui`, `/src/storage`, `/src/auth` |
 | Vault | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | Gate  | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
+| Luma  | `/_design` | `/src/**` (specs only — no code) |
+| Spark | *(none — called by Aria)* | owns nothing; produces specs Aria applies |
+| Coda  | *(none — coordinates)* | owns nothing; sequences agents, no implementation |
+| Flint | *(none — reviews live app)* | owns nothing; read-only phase gate verification |
 
 Cross-agent communication happens ONLY through the interfaces in `/src/types/index.ts`.
 If you need something from another agent's directory, you are doing it wrong —
@@ -123,7 +121,7 @@ the user explicitly requests a plan.**
 2. Review `HANDOFF.md` for current phase, active issues, and gotchas.
 3. Cross-reference with `gh issue list --repo {owner}/roundtable` to catch
    anything closed manually that isn't reflected yet. Update `HANDOFF.md` if stale.
-4. Activate the appropriate Agency Agent for the work at hand (see table above).
+4. Activate the appropriate agent for the work at hand (see table above).
 
 ### Execution
 

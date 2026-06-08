@@ -1,0 +1,66 @@
+{
+  "name": "Midnight",
+  "mode": "dark",
+  "surfaces": {
+    "background": "#060B18",
+    "card": "#0D1525",
+    "sidebar": "#080D1E",
+    "input": "#111A2E"
+  },
+  "text": {
+    "primary": "#F0F4FF",
+    "secondary": "#94A3C8",
+    "muted": "#6B82A5",
+    "inverse": "#060B18"
+  },
+  "borders": {
+    "default": "#1E2D4A",
+    "subtle": "#131E33",
+    "strong": "#3A5280"
+  },
+  "accents": {
+    "model-claude": "#FBB034",
+    "model-gpt": "#00CDB8",
+    "model-gemini": "#B06EFF",
+    "model-other": "#FF7A52"
+  },
+  "interactive": {
+    "hover": "#121D30",
+    "active": "#1A2840",
+    "focusRing": "#00CDB8"
+  },
+  "semantic": {
+    "success": "#34D399",
+    "warning": "#FBBF24",
+    "error": "#F87171",
+    "info": "#60A5FA"
+  },
+  "radius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px",
+    "full": "9999px"
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "shadow": {
+    "none": "none",
+    "sm": "0 1px 4px rgba(0,0,0,0.5)",
+    "md": "0 4px 16px rgba(0,0,0,0.6)",
+    "lg": "0 8px 40px rgba(0,0,0,0.7)"
+  },
+  "timing": {
+    "instant": "0ms",
+    "fast": "100ms",
+    "medium": "200ms",
+    "slow": "350ms"
+  }
+}
