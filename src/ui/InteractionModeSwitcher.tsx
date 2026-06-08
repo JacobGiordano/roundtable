@@ -74,13 +74,8 @@ function ModeButton({ config, isSelected, onSelect }: ModeButtonProps) {
         {config.description}
         {/* Caret */}
         <span
-          className="absolute top-full left-1/2 -translate-x-1/2 -mt-px"
+          className="absolute top-full left-1/2 -translate-x-1/2 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
           aria-hidden="true"
-          style={{
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: '5px solid var(--border-default)',
-          }}
         />
       </div>
     </div>
