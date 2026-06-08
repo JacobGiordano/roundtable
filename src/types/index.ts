@@ -170,6 +170,83 @@ export interface StorageProvider {
   exportConversation(id: string, format: ExportFormat): Promise<void>;
 }
 
+// ─── Themes ───────────────────────────────────────────────────────────────────
+
+export type ThemeId = 'slate' | 'linen' | 'midnight' | 'ash' | 'ember' | 'chalk' | 'outrun';
+
+/** Full token schema for a Roundtable theme. All fields required. */
+export interface CustomThemeJSON {
+  name: string;
+  mode: 'dark' | 'light';
+  surfaces: {
+    background: string;
+    card: string;
+    sidebar: string;
+    input: string;
+  };
+  text: {
+    primary: string;
+    secondary: string;
+    muted: string;
+    inverse: string;
+  };
+  borders: {
+    default: string;
+    subtle: string;
+    strong: string;
+  };
+  accents: {
+    'model-claude': string;
+    'model-gpt': string;
+    'model-gemini': string;
+    'model-other': string;
+  };
+  interactive: {
+    hover: string;
+    active: string;
+    focusRing: string;
+  };
+  semantic: {
+    success: string;
+    warning: string;
+    error: string;
+    info: string;
+  };
+  radius: {
+    sm: string;
+    md: string;
+    lg: string;
+    full: string;
+  };
+  spacing: {
+    '1': string;
+    '2': string;
+    '3': string;
+    '4': string;
+    '6': string;
+    '8': string;
+    '12': string;
+    '16': string;
+  };
+  shadow: {
+    none: 'none';
+    sm: string;
+    md: string;
+    lg: string;
+  };
+  timing: {
+    instant: string;
+    fast: string;
+    medium: string;
+    slow: string;
+  };
+}
+
+export interface ThemePreferences {
+  activeThemeId: ThemeId;
+  customTheme?: CustomThemeJSON;
+}
+
 // ─── Credentials — Gate implements ───────────────────────────────────────────
 
 /**
