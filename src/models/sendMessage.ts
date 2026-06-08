@@ -29,6 +29,7 @@ import type {
   Conversation,
   Message,
   ModelId,
+  SessionTokenUsage,
 } from '@/types';
 import { claudeProvider } from './claude';
 import { gpt55Provider } from './gpt';
@@ -300,20 +301,39 @@ export async function sendMessage(
 }
 
 /**
- * Utility: sum token usage across all messages in a session.
+ * Utility: aggregate token usage per model across all messages in a conversation.
+ *
+ * Returns one SessionTokenUsage entry per model that has at least one message
+ * with token data. The order mirrors the order models first appear in the
+ * message history.
+ *
  * Exported here (not from /src/ui) per the cross-agent exception rule in CLAUDE.md:
  * "Pure utility functions exported from /src/models/index.ts may be imported by Aria."
+ *
+ * Aria may also call ConversationStore.getSessionTokenUsage() which delegates
+ * to this function via Vault's implementation.
  */
-export function getSessionTokenUsage(conversation: Conversation) {
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let totalTokens = 0;
+export function getSessionTokenUsage(conversation: Conversation): SessionTokenUsage[] {
+  // Accumulate per-model totals preserving insertion order.
+  const byModel = new Map<ModelId, SessionTokenUsage>();
+
   for (const msg of conversation.messages) {
-    if (msg.tokenUsage) {
-      inputTokens += msg.tokenUsage.inputTokens;
-      outputTokens += msg.tokenUsage.outputTokens;
-      totalTokens += msg.tokenUsage.totalTokens;
+    if (!msg.tokenUsage || !msg.modelId) continue;
+
+    const existing = byModel.get(msg.modelId);
+    if (existing) {
+      existing.inputTokens += msg.tokenUsage.inputTokens;
+      existing.outputTokens += msg.tokenUsage.outputTokens;
+      existing.totalTokens += msg.tokenUsage.totalTokens;
+    } else {
+      byModel.set(msg.modelId, {
+        modelId: msg.modelId,
+        inputTokens: msg.tokenUsage.inputTokens,
+        outputTokens: msg.tokenUsage.outputTokens,
+        totalTokens: msg.tokenUsage.totalTokens,
+      });
     }
   }
-  return { inputTokens, outputTokens, totalTokens };
+
+  return Array.from(byModel.values());
 }
