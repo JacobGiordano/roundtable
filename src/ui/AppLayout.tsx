@@ -1,6 +1,7 @@
-import type { Conversation, Message, ModelConfig, ModelId } from '@/types';
+import type { Conversation, InteractionMode, Message, ModelConfig, ModelId } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
+import { InteractionModeSwitcher } from './InteractionModeSwitcher';
 import { Sidebar } from './Sidebar';
 import { ModelSelectorPanel } from './ModelSelectorPanel';
 
@@ -21,6 +22,10 @@ interface AppLayoutProps {
   onToggleModel: (modelId: ModelId) => void;
   /** Called when user adds an inactive model back into the active set. */
   onAddModel: (modelId: ModelId) => void;
+  /** Current interaction mode for the active conversation. */
+  activeMode: InteractionMode;
+  /** Called when the user switches interaction modes. Parent persists the change. */
+  onModeChange: (mode: InteractionMode) => void;
 }
 
 export function AppLayout({
@@ -37,6 +42,8 @@ export function AppLayout({
   onRetry,
   onToggleModel,
   onAddModel,
+  activeMode,
+  onModeChange,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -57,14 +64,23 @@ export function AppLayout({
           onRetry={onRetry}
         />
 
-        {/* Bottom section: model selector + input bar */}
+        {/* Bottom section: model selector + mode switcher + input bar */}
         <div className="flex-shrink-0 px-4 pb-0">
-          {/* Model selector panel — slides up above the input bar */}
-          <ModelSelectorPanel
-            models={allModels}
-            onToggleModel={onToggleModel}
-            onAddModel={onAddModel}
-          />
+          {/* Row: model selector trigger (left) + mode switcher (right) */}
+          <div className="flex items-end justify-between">
+            <ModelSelectorPanel
+              models={allModels}
+              onToggleModel={onToggleModel}
+              onAddModel={onAddModel}
+            />
+            {/* Interaction mode switcher — persisted per conversation via onModeChange */}
+            <div className="mb-2 flex-shrink-0">
+              <InteractionModeSwitcher
+                activeMode={activeMode}
+                onModeChange={onModeChange}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Input bar — fixed at bottom of main area */}
