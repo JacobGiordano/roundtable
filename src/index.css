@@ -41,7 +41,20 @@
   }
 }
 
+@keyframes pillShake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-2px); }
+  40%  { transform: translateX(2px); }
+  60%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
 /* ─── Animation Utility Classes ────────────────────────────────────────────── */
+
+.pill-shake {
+  animation: pillShake var(--timing-fast, 100ms) ease-out;
+}
 
 .chunk-entering {
   animation: chunkFadeIn var(--timing-fast, 100ms) ease-out forwards;
@@ -105,6 +118,40 @@
   );
   background-size: 200% 100%;
   animation: streamingShimmer 1.4s linear infinite;
+}
+
+/* ─── Model Selector Panel ──────────────────────────────────────────────────── */
+
+.model-selector-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--timing-medium, 200ms) ease-out,
+    opacity    var(--timing-medium, 200ms) ease-out;
+}
+
+.model-selector-panel.is-open {
+  max-height: 320px;
+  opacity: 1;
+}
+
+/* Closing is faster — override with fast duration using a data attr */
+.model-selector-panel.is-closing {
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--timing-fast, 100ms) ease-in,
+    opacity    var(--timing-fast, 100ms) ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-selector-panel,
+  .model-selector-panel.is-open,
+  .model-selector-panel.is-closing {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* ─── Theme Transition (applied to all elements during theme switch) ────────── */
