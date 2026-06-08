@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Conversation, Message, ModelConfig } from '@/types';
+import type { Conversation, Message, ModelConfig, ModelId } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -105,9 +105,15 @@ const MOCK_CONVERSATIONS: Conversation[] = [
 export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
   const [activeConversationId, setActiveConversationId] = useState<string>('conv-1');
+  // Per-conversation model state lives on the conversation; for the mock we
+  // keep a top-level models array that mirrors the active conversation's models.
+  const [models, setModels] = useState<ModelConfig[]>(MOCK_MODELS);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const messages = activeConversation?.messages ?? [];
+
+  // Derive active models from the shared models array
+  const activeModels = models.filter((m) => m.isActive);
 
   const handleSend = (content: string) => {
     const userMessage: Message = {
@@ -130,7 +136,7 @@ export default function App() {
     const newConv: Conversation = {
       id: `conv-${Date.now()}`,
       messages: [],
-      models: MOCK_MODELS,
+      models: models,
       interactionMode: 'parallel',
       isGhost: false,
       createdAt: Date.now(),
@@ -140,17 +146,38 @@ export default function App() {
     setActiveConversationId(newConv.id);
   };
 
+  const handleToggleModel = (modelId: ModelId) => {
+    setModels((prev) => {
+      const activeCount = prev.filter((m) => m.isActive).length;
+      return prev.map((m) => {
+        if (m.modelId !== modelId) return m;
+        // Guard: cannot deactivate the last active model
+        if (m.isActive && activeCount === 1) return m;
+        return { ...m, isActive: !m.isActive };
+      });
+    });
+  };
+
+  const handleAddModel = (modelId: ModelId) => {
+    setModels((prev) =>
+      prev.map((m) => (m.modelId === modelId ? { ...m, isActive: true } : m)),
+    );
+  };
+
   return (
     <AppLayout
       conversations={conversations}
       activeConversationId={activeConversationId}
-      activeModels={MOCK_MODELS}
+      activeModels={activeModels}
+      allModels={models}
       messages={messages}
       isStreaming={false}
       isGhostMode={false}
       onSend={handleSend}
       onSelectConversation={setActiveConversationId}
       onNewConversation={handleNewConversation}
+      onToggleModel={handleToggleModel}
+      onAddModel={handleAddModel}
     />
   );
 }
