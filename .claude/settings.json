@@ -1,0 +1,15 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "denyRead": ["~/.ssh", "~/.aws"],
+    "allowedDomains": [
+      "api.anthropic.com",
+      "api.openai.com",
+      "api.github.com",
+      "registry.npmjs.org",
+      "github.com",
+      "raw.githubusercontent.com"
+    ]
+  }
+}

@@ -173,3 +173,46 @@ the user explicitly requests a plan.**
 
 **The rule:** `HANDOFF.md` is a whiteboard. Erase and rewrite every session.
 Git is the log.
+
+---
+
+## Dev container
+
+This project runs inside a VS Code dev container (`.devcontainer/`). The
+container provides a sandboxed environment where `claude --dangerously-skip-permissions`
+is safe to use.
+
+### Security boundaries
+
+- **No secrets on the filesystem.** Agents must never write API keys,
+  credentials, or tokens to any file. The container has no host credential
+  mounts (no `~/.ssh`, no `~/.aws`).
+- **API keys via browser localStorage only.** Model provider keys (Anthropic,
+  OpenAI, etc.) are handled exclusively by Gate through browser `localStorage`.
+  Never pass them via environment variables, `.env` files, or any other
+  filesystem path.
+- **Network allowlist.** The firewall (`init-firewall.sh`) restricts outbound
+  traffic to the following domains only:
+  - `api.anthropic.com`
+  - `api.openai.com`
+  - `api.github.com`
+  - `registry.npmjs.org`
+  - `github.com`
+  - `raw.githubusercontent.com`
+
+  If an agent's work requires a domain not on this list, it must flag it to the
+  user rather than assuming network access will succeed. Do not add domains to
+  the firewall script without user authorization.
+
+  **Gotcha — OpenAI CDN IP drift:** `api.openai.com` is CDN-backed. The
+  firewall resolves it to a set of IPs at container start time and bakes them
+  into ipset. Those IPs can rotate mid-session, causing intermittent connection
+  failures to OpenAI that look like network errors. Fix: restart the container
+  (this re-runs `init-firewall.sh` and re-resolves). No code change needed.
+
+### Why `--dangerously-skip-permissions` is safe here
+
+The container + iptables firewall + Claude Code sandbox config (`allowedDomains`,
+`denyRead`) together enforce the same isolation that permission prompts provide
+interactively. Agents operate on the workspace volume only; host files are
+never in scope.
