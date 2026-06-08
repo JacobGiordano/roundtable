@@ -5,3 +5,4 @@ export { useCredentials } from './useCredentials';
 export type { CredentialState, UseCredentialsReturn } from './useCredentials';
 export { ApiKeyPanel } from './ApiKeyPanel';
 export type { ApiKeyPanelProps } from './ApiKeyPanel';
+export { getThemePreference, saveThemePreference, setActiveTheme, clearThemePreference } from './theme';

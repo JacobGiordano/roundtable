@@ -12,21 +12,20 @@ Phase 1 — LocalStorage provider complete.
 
 ## Last issue closed
 
-Issue #8 — [Vault] LocalStorage provider. Implemented `LocalStorageProvider`
-satisfying the `StorageProvider` interface. Storage layout uses
-`roundtable:conv:{id}` per-conversation keys and `roundtable:index` for the
-ordered ID list. Ghost-mode conversations are silently bypassed at the save
-boundary. QuotaExceededError (all browser spellings) is caught and re-thrown as
-a user-readable Error. `exportConversation` triggers a browser download for both
-`markdown` and `html` formats. lint + build pass.
+Issue #30 — [Gate] Theme storage. Implemented `getThemePreference()`,
+`saveThemePreference()`, `setActiveTheme()`, and `clearThemePreference()` in
+`src/auth/theme.ts`. All functions build on `ThemeId` / `ThemePreferences` from
+`/src/types/index.ts` (no types changes required). Storage key is
+`roundtable:theme`. Corrupt/missing stored values fall back to `slate` silently.
+Exported from `src/auth/index.ts`. lint + build pass.
 
 ## Decisions this session
 
-- Index key: `roundtable:index` (string[]); conversation keys: `roundtable:conv:{id}`
-- `listConversations()` skips corrupt/missing entries silently and sorts newest-first by `updatedAt`
-- `archiveConversation()` mutates and re-saves the conversation; does not remove it from the index
-- `exportConversation()` is a no-op (not a throw) if the conversation is not found — Phase 3 feature
-- Ghost mode guard lives in `saveConversation` only; other read/delete operations are not gated
+- Storage key: `roundtable:theme` (JSON-serialised ThemePreferences object)
+- Default fallback theme: `slate` (matches the theme already applied at startup in main.tsx)
+- `isThemeId()` guard validates stored value against the exact ThemeId union — corrupt entries fall back to default, no throw
+- `setActiveTheme()` convenience helper merges new ThemeId with existing customTheme, avoiding accidental erasure
+- `clearThemePreference()` is a full reset helper for dev/testing
 
 ## Cross-agent dependencies (unresolved — carry forward)
 
@@ -38,12 +37,11 @@ a user-readable Error. `exportConversation` triggers a browser download for both
 ## Next issues (priority order)
 
 1. [Gate] API key management (#10)
-2. [Gate] #30
-3. [Atlas] Claude integration (#5)
-4. [Atlas] GPT integration (#6)
-5. [Atlas] #7
-6. [Vault] #9
-7. [Aria] Model selector (#4) — unblocked after Gate and Atlas land
+2. [Atlas] Claude integration (#5)
+3. [Atlas] GPT integration (#6)
+4. [Atlas] #7
+5. [Vault] #9
+6. [Aria] Model selector (#4) — unblocked after Gate and Atlas land
 
 ## Gotchas
 
@@ -53,3 +51,4 @@ a user-readable Error. `exportConversation` triggers a browser download for both
 - `src/ui/index.ts` now exports all Phase 1 components
 - Markdown rendering inside MessageBubble is deferred — plain text with whitespace-pre-wrap
 - `LocalStorageProvider` is exported from `src/storage/index.ts` — ready for Aria/Gate to consume via React context
+- `getThemePreference()` / `saveThemePreference()` are exported from `src/auth/index.ts` — Aria can wire these to a theme context/toggle

@@ -1,2 +1,4 @@
 // Atlas owns this directory — /src/models
-// TODO: Export ModelProvider implementations and sendMessage
+
+export { ClaudeModelProvider, claudeProvider, CLAUDE_CONFIG } from './claude';
+export { sendMessage, getSessionTokenUsage } from './sendMessage';
