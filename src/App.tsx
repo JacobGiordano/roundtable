@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Conversation, Message, ModelConfig, ModelId } from '@/types';
+import type { Conversation, InteractionMode, Message, ModelConfig, ModelId } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -164,6 +164,17 @@ export default function App() {
     );
   };
 
+  /** Persists the chosen interaction mode on the active conversation. */
+  const handleModeChange = (mode: InteractionMode) => {
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === activeConversationId
+          ? { ...conv, interactionMode: mode, updatedAt: Date.now() }
+          : conv,
+      ),
+    );
+  };
+
   return (
     <AppLayout
       conversations={conversations}
@@ -178,6 +189,8 @@ export default function App() {
       onNewConversation={handleNewConversation}
       onToggleModel={handleToggleModel}
       onAddModel={handleAddModel}
+      activeMode={activeConversation?.interactionMode ?? 'parallel'}
+      onModeChange={handleModeChange}
     />
   );
 }

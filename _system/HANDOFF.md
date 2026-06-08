@@ -6,12 +6,9 @@ Phase 2 — IN PROGRESS
 
 ## Active agents for next session
 
-All agents unblocked after Arch PR #31 merged.
-
 Parallel track A (no dependencies):
 - Atlas — issue #14 (directed reply routing)
 - Atlas — issue #15 (token usage tracking)
-- Aria  — issue #12 (interaction mode switcher)
 - Aria  — issue #13 (per-model system prompt UI)
 
 Parallel track B (depends on Atlas shipping first):
@@ -20,17 +17,15 @@ Parallel track B (depends on Atlas shipping first):
 
 ## Last closed
 
-- #12 [Arch] Interaction mode switcher types — InteractionModeConfig added
-- #14 [Arch] Directed reply routing types — ChainStep, AutoChainConfig, chainConfig on SendMessageOptions
-- #15 [Arch] Token usage tracking types — SessionTokenUsage, getSessionTokenUsage() on ConversationStore
+- #12 [Aria] Interaction mode switcher UI — InteractionModeSwitcher component (this session)
 
 ## Decisions made this session
 
-- Arch issues #12+#14+#15 batched into single PR (all additive, no conflicts)
-- Atlas review caught missing chainConfig on SendMessageOptions — fixed before merge
-- ChainStep.appendToContext controls context-feeding in auto-chain sequencer
-- AutoChainConfig.maxPasses is the loop-termination guard for Atlas
-- getSessionTokenUsage() returns SessionTokenUsage[] — Atlas aggregates, Vault implements, Aria reads
+- InteractionModeSwitcher is a segmented radiogroup (pill buttons) placed to
+  the right of the ModelSelectorPanel trigger chip in AppLayout bottom strip
+- Mode is persisted per conversation: onModeChange → setConversations in App.tsx
+- Tooltip uses group-hover pattern consistent with ghost mode tooltip in InputBar
+- INTERACTION_MODES registry (InteractionModeConfig[]) lives in the component file
 
 ## Gotchas
 

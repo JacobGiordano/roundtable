@@ -2,6 +2,7 @@
 
 export { AppLayout } from './AppLayout';
 export { InputBar } from './InputBar';
+export { InteractionModeSwitcher } from './InteractionModeSwitcher';
 export { MessageBubble } from './MessageBubble';
 export { MessageThread } from './MessageThread';
 export { ModelSelectorPanel } from './ModelSelectorPanel';
