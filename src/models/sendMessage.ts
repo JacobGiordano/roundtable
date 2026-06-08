@@ -29,6 +29,7 @@ import type {
   Conversation,
   Message,
   ModelId,
+  SessionTokenUsage,
 } from '@/types';
 import { claudeProvider } from './claude';
 import { gpt55Provider } from './gpt';
@@ -112,19 +113,26 @@ function collectingChunkHandler(
 /**
  * Mode 1 — Parallel broadcast.
  * Fans out to all active providers simultaneously.
+ * Each provider resolves its own systemPrompt from conversation.models,
+ * falling back to the shared systemPrompt parameter if none is set on the model.
  */
 async function runParallel(
   providers: Provider[],
   messages: Message[],
   systemPrompt: string | undefined,
-  onChunk: StreamHandler
+  onChunk: StreamHandler,
+  conversation?: Conversation
 ): Promise<void> {
   // Fire all providers in parallel. Promise.allSettled ensures every provider
   // runs to completion regardless of whether siblings succeed or fail.
   await Promise.allSettled(
-    providers.map((provider) =>
-      runProviderIsolated(provider, messages, systemPrompt, onChunk)
-    )
+    providers.map((provider) => {
+      const modelConfig = conversation?.models.find(
+        (m) => m.modelId === provider.config.modelId
+      );
+      const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk);
+    })
   );
 }
 
@@ -132,13 +140,16 @@ async function runParallel(
  * Mode 2 — Directed reply.
  * Routes to a single model (targetModelId). The model must be active.
  * Emits a synthetic error chunk if the target is not active or not found.
+ * Resolves per-model systemPrompt from conversation.models, falling back to
+ * the shared systemPrompt parameter.
  */
 async function runDirected(
   targetModelId: ModelId,
   activeProviders: Provider[],
   messages: Message[],
   systemPrompt: string | undefined,
-  onChunk: StreamHandler
+  onChunk: StreamHandler,
+  conversation?: Conversation
 ): Promise<void> {
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
@@ -156,7 +167,11 @@ async function runDirected(
     return;
   }
 
-  await runProviderIsolated(target, messages, systemPrompt, onChunk);
+  const modelConfig = conversation?.models.find(
+    (m) => m.modelId === target.config.modelId
+  );
+  const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk);
 }
 
 /**
@@ -203,10 +218,16 @@ async function runAutoChain(
         continue;
       }
 
+      // Resolve per-model systemPrompt, falling back to shared systemPrompt.
+      const modelConfig = conversation?.models.find(
+        (m) => m.modelId === step.modelId
+      );
+      const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, sharedMessages, systemPrompt, handler);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler);
 
         // Append the model's response as an assistant message for subsequent steps.
         const responseText = getText();
@@ -224,7 +245,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, sharedMessages, systemPrompt, onChunk);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk);
       }
     }
   }
@@ -290,30 +311,49 @@ export async function sendMessage(
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation);
     return;
   }
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, onChunk);
+  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation);
 }
 
 /**
- * Utility: sum token usage across all messages in a session.
+ * Utility: aggregate token usage per model across all messages in a conversation.
+ *
+ * Returns one SessionTokenUsage entry per model that has at least one message
+ * with token data. The order mirrors the order models first appear in the
+ * message history.
+ *
  * Exported here (not from /src/ui) per the cross-agent exception rule in CLAUDE.md:
  * "Pure utility functions exported from /src/models/index.ts may be imported by Aria."
+ *
+ * Aria may also call ConversationStore.getSessionTokenUsage() which delegates
+ * to this function via Vault's implementation.
  */
-export function getSessionTokenUsage(conversation: Conversation) {
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let totalTokens = 0;
+export function getSessionTokenUsage(conversation: Conversation): SessionTokenUsage[] {
+  // Accumulate per-model totals preserving insertion order.
+  const byModel = new Map<ModelId, SessionTokenUsage>();
+
   for (const msg of conversation.messages) {
-    if (msg.tokenUsage) {
-      inputTokens += msg.tokenUsage.inputTokens;
-      outputTokens += msg.tokenUsage.outputTokens;
-      totalTokens += msg.tokenUsage.totalTokens;
+    if (!msg.tokenUsage || !msg.modelId) continue;
+
+    const existing = byModel.get(msg.modelId);
+    if (existing) {
+      existing.inputTokens += msg.tokenUsage.inputTokens;
+      existing.outputTokens += msg.tokenUsage.outputTokens;
+      existing.totalTokens += msg.tokenUsage.totalTokens;
+    } else {
+      byModel.set(msg.modelId, {
+        modelId: msg.modelId,
+        inputTokens: msg.tokenUsage.inputTokens,
+        outputTokens: msg.tokenUsage.outputTokens,
+        totalTokens: msg.tokenUsage.totalTokens,
+      });
     }
   }
-  return { inputTokens, outputTokens, totalTokens };
+
+  return Array.from(byModel.values());
 }
