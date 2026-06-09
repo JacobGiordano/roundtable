@@ -1,4 +1,4 @@
-import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage } from '@/types';
+import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
@@ -42,6 +42,12 @@ interface AppLayoutProps {
   onDirectedReply: (modelId: ModelId) => void;
   /** Called when user clicks × on the directed-reply pill to clear the target. */
   onClearDirectedReply: () => void;
+  /**
+   * Controls token count rendering per UserPreferences.tokenCountVisibility.
+   * Threaded from App → AppLayout → MessageThread and ModelSelectorPanel.
+   * Defaults to 'active' when omitted.
+   */
+  tokenCountVisibility?: TokenCountVisibility;
 }
 
 export function AppLayout({
@@ -65,6 +71,7 @@ export function AppLayout({
   directedReplyTarget,
   onDirectedReply,
   onClearDirectedReply,
+  tokenCountVisibility,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -84,6 +91,7 @@ export function AppLayout({
           models={activeModels}
           onRetry={onRetry}
           onDirectedReply={onDirectedReply}
+          tokenCountVisibility={tokenCountVisibility}
         />
 
         {/* Bottom section: model selector + mode switcher + input bar */}
@@ -96,6 +104,7 @@ export function AppLayout({
               onAddModel={onAddModel}
               onUpdateSystemPrompt={onUpdateSystemPrompt}
               sessionUsage={sessionUsage}
+              tokenCountVisibility={tokenCountVisibility}
             />
             {/* Interaction mode switcher — persisted per conversation via onModeChange */}
             <div className="mb-2 flex-shrink-0">

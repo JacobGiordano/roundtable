@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Message, ModelConfig, ModelError, ModelId } from '@/types';
+import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 
 interface MessageBubbleProps {
   message: Message;
@@ -21,6 +21,14 @@ interface MessageBubbleProps {
    * When present, a subtle "→ [Model]" label is rendered below the message content.
    */
   targetModelConfig?: ModelConfig;
+  /**
+   * Controls token count rendering per UserPreferences.tokenCountVisibility:
+   *   'always' — shown unconditionally on completed messages (no hover required)
+   *   'active' — hover-reveal (default; opacity-0 at rest, opacity-100 on hover)
+   *   'never'  — removed from DOM entirely (null return, not CSS hide)
+   * Defaults to 'active' when omitted.
+   */
+  tokenCountVisibility?: TokenCountVisibility;
 }
 
 /** Maps a ModelId to the CSS custom-property-backed Tailwind border class. */
@@ -58,6 +66,7 @@ export function MessageBubble({
   entranceIndex = 0,
   onDirectedReply,
   targetModelConfig,
+  tokenCountVisibility = 'active',
 }: MessageBubbleProps) {
   const isStreaming = message.isStreaming ?? false;
   const hasError    = !!error;
@@ -81,6 +90,21 @@ export function MessageBubble({
     message.role === 'assistant' &&
     !!message.modelId &&
     !isStreaming;
+
+  // Determine whether to render the token count element and whether it needs
+  // opacity control. 'never' removes it from the DOM entirely (accessibility tree included).
+  const showTokenCount = tokenCountVisibility !== 'never' && !!message.tokenUsage;
+
+  // The bottom row hosts both the reply button and the token count. It is
+  // rendered when at least one of the two is applicable AND the message is done.
+  // With 'never', the token count is suppressed but the reply button can still appear.
+  const showBottomRow = !isStreaming && (canDirectReply || showTokenCount);
+
+  // Opacity of the bottom row:
+  //   'always'  — always visible (1) when row is rendered
+  //   'active'  — hover-controlled
+  //   'never'   — token count already excluded; reply button uses same hover logic
+  const rowVisible = tokenCountVisibility === 'always' ? true : isHovered;
 
   return (
     <div
@@ -150,16 +174,18 @@ export function MessageBubble({
       )}
 
       {/* Bottom row: token count (right) and directed-reply affordance (left).
-          Both are hidden by default, revealed on hover (progressive disclosure).
-          Row is only rendered when at least one of the two is applicable. */}
-      {(!isStreaming && (message.tokenUsage || canDirectReply)) && (
+          Visibility is driven by tokenCountVisibility:
+            'always' — row always visible on completed messages
+            'active' — reveal on hover (progressive disclosure, default)
+            'never'  — token count excluded from DOM; reply button still hover-reveals */}
+      {showBottomRow && (
         <div
           className={[
             'mt-2 flex items-center justify-between',
             'transition-opacity duration-fast',
-            isHovered ? 'opacity-100' : 'opacity-0',
+            rowVisible ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
-          aria-hidden={!isHovered}
+          aria-hidden={!rowVisible}
         >
           {/* "Reply to [Model]" — left side, only for assistant bubbles */}
           {canDirectReply ? (
@@ -182,13 +208,15 @@ export function MessageBubble({
             <span />
           )}
 
-          {/* Token count — right side */}
-          {message.tokenUsage && (
+          {/* Token count — right side.
+              'never': excluded from DOM entirely (not here due to showTokenCount guard).
+              'always'/'active': rendered; visibility controlled by rowVisible above. */}
+          {showTokenCount && (
             <div
               className="text-[11px] text-text-muted text-right"
-              title={`Input: ${message.tokenUsage.inputTokens.toLocaleString()} · Output: ${message.tokenUsage.outputTokens.toLocaleString()}`}
+              title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
             >
-              {message.tokenUsage.totalTokens.toLocaleString()} tokens
+              {message.tokenUsage!.totalTokens.toLocaleString()} tokens
             </div>
           )}
         </div>

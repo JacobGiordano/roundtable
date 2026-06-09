@@ -1,4 +1,9 @@
+import { useState, useCallback } from 'react';
 import type { Conversation } from '@/types';
+// Gate cross-agent exception: ApiKeyPanel and TokenCountControl are self-contained
+// Gate components mounted here per the issue spec. They manage their own state
+// internally via Gate hooks — Aria only mounts them in the settings panel.
+import { ApiKeyPanel, TokenCountControl } from '@/auth';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -123,6 +128,12 @@ export function Sidebar({
   onSelectConversation,
   onNewConversation,
 }: SidebarProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const handleToggleSettings = useCallback(() => {
+    setIsSettingsOpen((prev) => !prev);
+  }, []);
+
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden">
       {/* Header */}
@@ -175,6 +186,81 @@ export function Sidebar({
           </ul>
         )}
       </nav>
+
+      {/* Settings panel — collapsible, pinned to the bottom of the sidebar.
+          Houses ApiKeyPanel (Gate) and TokenCountControl (Gate).
+          Both components are self-contained and manage their own state. */}
+      <div className="flex-shrink-0 border-t border-border">
+        {/* Settings toggle row */}
+        <button
+          type="button"
+          aria-expanded={isSettingsOpen}
+          aria-controls="sidebar-settings-panel"
+          onClick={handleToggleSettings}
+          className={[
+            'w-full flex items-center gap-2 h-10 px-4',
+            'text-left cursor-pointer select-none',
+            'text-text-muted hover:text-text-secondary',
+            'hover:bg-hover transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
+          ].join(' ')}
+        >
+          {/* Gear icon */}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+            className="flex-shrink-0"
+          >
+            <path
+              d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
+              stroke="currentColor"
+              strokeWidth="1.2"
+            />
+            <path
+              d="M11.5 7c0-.28-.03-.55-.07-.81l1.3-1.01-1.25-2.16-1.57.63a4.5 4.5 0 0 0-1.4-.81L8.25 1h-2.5l-.26 1.84a4.5 4.5 0 0 0-1.4.81L2.52 3.02 1.27 5.18l1.3 1.01A4.6 4.6 0 0 0 2.5 7c0 .28.03.55.07.81L1.27 8.82l1.25 2.16 1.57-.63c.43.33.9.6 1.4.81L5.75 13h2.5l.26-1.84c.5-.21.97-.48 1.4-.81l1.57.63 1.25-2.16-1.3-1.01c.04-.26.07-.53.07-.81Z"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-[12px] font-medium flex-1">Settings</span>
+          {/* Chevron */}
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            aria-hidden="true"
+            className="transition-transform duration-fast flex-shrink-0"
+            style={{ transform: isSettingsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          >
+            <path
+              d="M1.5 3.5L5 7L8.5 3.5"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
+        {/* Expanded settings body */}
+        {isSettingsOpen && (
+          <div
+            id="sidebar-settings-panel"
+            className="px-4 pb-4 pt-2 flex flex-col gap-4 overflow-y-auto max-h-[60vh]"
+          >
+            {/* API key management — Gate component, self-contained */}
+            <ApiKeyPanel />
+
+            {/* Token count visibility preference — Gate component, self-contained */}
+            <TokenCountControl />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

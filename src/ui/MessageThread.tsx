@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { Message, ModelConfig, ModelId } from '@/types';
+import type { Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 
 interface MessageThreadProps {
@@ -11,6 +11,12 @@ interface MessageThreadProps {
    * Sets a pending directed-reply target in App state; InputBar shows the pill.
    */
   onDirectedReply?: (modelId: ModelId) => void;
+  /**
+   * Controls token count rendering per UserPreferences.tokenCountVisibility.
+   * Threaded from App → AppLayout → MessageThread → MessageBubble.
+   * Defaults to 'active' when omitted.
+   */
+  tokenCountVisibility?: TokenCountVisibility;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -39,7 +45,13 @@ function getEntranceIndex(messages: Message[], index: number): number {
   return 0;
 }
 
-export function MessageThread({ messages, models, onRetry, onDirectedReply }: MessageThreadProps) {
+export function MessageThread({
+  messages,
+  models,
+  onRetry,
+  onDirectedReply,
+  tokenCountVisibility,
+}: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
@@ -86,6 +98,7 @@ export function MessageThread({ messages, models, onRetry, onDirectedReply }: Me
                 onRetry={onRetry ? () => onRetry(message.id) : undefined}
                 onDirectedReply={onDirectedReply}
                 entranceIndex={entranceIndex}
+                tokenCountVisibility={tokenCountVisibility}
               />
             </div>
           );

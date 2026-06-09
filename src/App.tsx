@@ -4,6 +4,10 @@ import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
 // exported from @/models per the documented exception in CLAUDE.md.
 import { sendMessage, getSessionTokenUsage } from '@/models';
+// Gate cross-agent exception: useUserPreferences reads/writes UserPreferences from
+// localStorage. Called at the App root so tokenCountVisibility can be threaded
+// down the component tree without per-component Gate imports.
+import { useUserPreferences } from '@/auth';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -115,6 +119,11 @@ export default function App() {
   // Directed reply: when set, the next send is targeted at this model only.
   // Cleared automatically after a message is sent, or manually via the × pill.
   const [pendingTargetModelId, setPendingTargetModelId] = useState<ModelId | null>(null);
+
+  // UserPreferences from Gate — read at the App root so tokenCountVisibility can
+  // be threaded down the tree without per-component Gate imports.
+  const [userPrefs] = useUserPreferences();
+  const { tokenCountVisibility } = userPrefs;
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const messages = activeConversation?.messages ?? [];
@@ -283,6 +292,7 @@ export default function App() {
       directedReplyTarget={directedReplyTarget}
       onDirectedReply={handleDirectedReply}
       onClearDirectedReply={handleClearDirectedReply}
+      tokenCountVisibility={tokenCountVisibility}
     />
   );
 }
