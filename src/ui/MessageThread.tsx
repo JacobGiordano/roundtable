@@ -1,11 +1,16 @@
 import { useEffect, useRef } from 'react';
-import type { Message, ModelConfig } from '@/types';
+import type { Message, ModelConfig, ModelId } from '@/types';
 import { MessageBubble } from './MessageBubble';
 
 interface MessageThreadProps {
   messages: Message[];
   models: ModelConfig[];
   onRetry?: (messageId: string) => void;
+  /**
+   * Called when the user clicks "Reply to [Model]" on an assistant bubble.
+   * Sets a pending directed-reply target in App state; InputBar shows the pill.
+   */
+  onDirectedReply?: (modelId: ModelId) => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -34,7 +39,7 @@ function getEntranceIndex(messages: Message[], index: number): number {
   return 0;
 }
 
-export function MessageThread({ messages, models, onRetry }: MessageThreadProps) {
+export function MessageThread({ messages, models, onRetry, onDirectedReply }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
@@ -55,6 +60,9 @@ export function MessageThread({ messages, models, onRetry }: MessageThreadProps)
       <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
         {messages.map((message, index) => {
           const modelConfig = findModelConfig(message.modelId, models);
+          // Resolve the ModelConfig for the message's targetModelId (if any).
+          // Used to render the "→ [Model]" directed-to label on user messages.
+          const targetModelConfig = findModelConfig(message.targetModelId, models);
           const entranceIndex = getEntranceIndex(messages, index);
 
           // Gap between bubbles: spec says 8px same-model, 16px different model.
@@ -74,7 +82,9 @@ export function MessageThread({ messages, models, onRetry }: MessageThreadProps)
               <MessageBubble
                 message={message}
                 modelConfig={modelConfig}
+                targetModelConfig={targetModelConfig}
                 onRetry={onRetry ? () => onRetry(message.id) : undefined}
+                onDirectedReply={onDirectedReply}
                 entranceIndex={entranceIndex}
               />
             </div>
