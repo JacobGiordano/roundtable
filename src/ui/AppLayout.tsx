@@ -12,6 +12,13 @@ interface AppLayoutProps {
   /** Full model list for the active conversation (active + inactive). */
   allModels: ModelConfig[];
   messages: Message[];
+  /**
+   * In-flight streaming messages for the active conversation.
+   * Keyed externally by `${conversationId}:${modelId}` in App; threaded here
+   * as a flat array for MessageThread to append after persisted messages.
+   * Cleared from this array when isDone — at that point the message is in `messages`.
+   */
+  streamingMessages?: Message[];
   isStreaming?: boolean;
   isGhostMode?: boolean;
   onSend: (content: string) => void;
@@ -84,6 +91,7 @@ export function AppLayout({
   activeModels,
   allModels,
   messages,
+  streamingMessages,
   isStreaming = false,
   isGhostMode = false,
   onSend,
@@ -133,6 +141,7 @@ export function AppLayout({
         {/* Message thread — scrollable, fills available height */}
         <MessageThread
           messages={messages}
+          streamingMessages={streamingMessages}
           models={activeModels}
           onRetry={onRetry}
           onDirectedReply={onDirectedReply}

@@ -6,27 +6,33 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Atlas — real streaming (Anthropic + OpenAI APIs)
 - Gate — requiredKeys wiring to active models
 
 ## Last closed
 
-- Aria #18 — archive/delete/group management UI in Sidebar.tsx.
-- Aria #19 — export UI: ExportButton + format picker popover, wired to store.exportConversation + downloadExportedConversation. Branch `19-aria-export-ui`, not yet merged.
+- Aria — streaming wiring (branch `streaming-wiring-aria`, not yet merged)
+  Chunk handler wired: parallel streaming, per-model accumulation, store write on isDone.
 
-## Decisions made this session (#19 Aria)
+## Decisions made this session (Aria streaming wiring)
 
-- `ExportButton` is a self-contained component at `/src/ui/ExportButton.tsx`. Owns popover open/close state, outside-click (pointerdown) and Escape-key dismissal.
-- Button placed in `MessageThread` header area (top-right, above message list). Rendered only when `onExport` prop is provided. Disabled when `messages.length === 0`.
-- `onExport` is optional on `MessageThread`; `onExportConversation` is optional on `AppLayout`. When `store.activeConversationId` is null, `App.tsx` passes `undefined` — button is absent entirely, not just disabled.
-- `handleExportConversation` in `App.tsx` is `useCallback`-wrapped async. Calls `store.exportConversation`, null-checks result, then calls `downloadExportedConversation` from `@/storage`. Both are documented cross-agent exceptions.
-- HTML export is fully self-contained: the Vault serializer (issue #21) produces a single-file document. No additional UI work needed.
+- Accumulator pattern: `accumulatorRef` (React ref) holds in-flight messages keyed by
+  `${conversationId}:${modelId}`. Used inside chunk callback to avoid stale closure.
+  `streamingMessages` (React state) mirrors ref to trigger renders.
+- Store writes only on `isDone: true` — no localStorage write per chunk.
+- `isDone` guard: reads `store.getActiveConversation()` at finalization time, guards with
+  `currentConv.id === sendingConversationId` to handle user switching conversations mid-stream.
+- `chunk.error` is NOT stored on `Message` — `Message` has no error field in the type
+  contract. Error display on streaming messages deferred; requires Arch to add `error?` to `Message`.
+- `streamingMessages` prop added to `AppLayout` and `MessageThread`. Rendered after persisted
+  messages in a merged `allMessages` array. Auto-scroll useEffect now depends on both.
+- `MessageBubble` already had `isStreaming` support (blinking cursor, streaming-shimmer). No changes needed.
+- Branch `19-aria-export-ui` from prior session still unmerged — needs authorization.
 
 ## Next issues in priority order
 
-1. Atlas — real streaming (Anthropic + OpenAI APIs)
-2. Gate — requiredKeys wiring to active models
-3. Merge `19-aria-export-ui` into main once authorized
+1. Merge `streaming-wiring-aria` into main once authorized
+2. Merge `19-aria-export-ui` into main once authorized (from prior session)
+3. Gate — requiredKeys wiring to active models
 
 ## Gotchas
 
@@ -40,3 +46,4 @@ Phase 3 — IN PROGRESS
 - AppLayout.tsx has archive/delete/group props from issue #18 (prior session) — pre-existing in working tree
 - ThreadRow is a `<div>` wrapper (not a `<button>`) — accessible because inner navigation button keeps keyboard/click semantics
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
+- chunk.error on StreamChunk cannot be attached to Message (no field) — needs Arch PR to unblock streaming error display

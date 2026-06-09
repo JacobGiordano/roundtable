@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
@@ -57,6 +57,18 @@ export default function App() {
   const [userPrefs] = useUserPreferences();
   const { tokenCountVisibility } = userPrefs;
 
+  // ── Streaming state ───────────────────────────────────────────────────────
+  // streamingMessages holds in-flight assistant responses, keyed by
+  // `${conversationId}:${modelId}`. This is pure React state — never written
+  // to localStorage until isDone. Multiple concurrent models are safe because
+  // each key is unique per model per conversation.
+  const [streamingMessages, setStreamingMessages] = useState<Record<string, Message>>({});
+
+  // accumulatorRef mirrors streamingMessages but is readable inside the chunk
+  // callback closure without stale-closure issues. We read from the ref and
+  // write to both ref + state on every chunk.
+  const accumulatorRef = useRef<Record<string, Message>>({});
+
   const activeConversation = store.getActiveConversation();
   const messages = activeConversation?.messages ?? [];
 
@@ -67,6 +79,17 @@ export default function App() {
   const directedReplyTarget = pendingTargetModelId
     ? models.find((m) => m.modelId === pendingTargetModelId)
     : undefined;
+
+  // Derive streaming messages for the active conversation — only messages whose
+  // key matches the active conversationId are surfaced to the thread.
+  const activeStreamingMessages = activeConversation
+    ? Object.entries(streamingMessages)
+        .filter(([key]) => key.startsWith(`${activeConversation.id}:`))
+        .map(([, msg]) => msg)
+    : [];
+
+  // isStreaming is true when any model is still sending chunks for the active conv.
+  const anyStreaming = activeStreamingMessages.length > 0;
 
   // Compute per-model session token totals for the active conversation.
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
@@ -101,20 +124,73 @@ export default function App() {
     // Clear the pending target after send — returns to broadcast mode.
     setPendingTargetModelId(null);
 
+    // Capture conversationId in a local binding so the chunk handler closure
+    // always refers to the conversation that initiated this send, not whatever
+    // is active at chunk-receipt time (the user may switch conversations mid-stream).
+    const sendingConversationId = conversationSnapshot.id;
+
     // Pass the conversation so sendMessage can resolve per-model systemPrompts
     // from each ModelConfig.systemPrompt on the conversation's models array.
     void sendMessage(
       {
-        conversationId: conversationSnapshot.id,
+        conversationId: sendingConversationId,
         content,
         // Thread targetModelId into SendMessageOptions so Atlas routes to only that model.
         targetModelId: pendingTargetModelId ?? undefined,
         conversation: updatedConversation,
       },
       (chunk: StreamChunk) => {
-        // TODO (Phase 2): wire streaming chunks into conversation message state.
-        // For now, chunks are received but not yet applied to UI state.
-        void chunk;
+        const key = `${sendingConversationId}:${chunk.modelId}`;
+
+        if (chunk.isDone) {
+          // Finalize the streaming message: flip isStreaming off, attach usage/error.
+          const existing = accumulatorRef.current[key];
+          if (existing) {
+            // Note: chunk.error is not stored on Message (Message has no error field in
+            // the type contract). Error display is a Phase 2 concern requiring Arch to
+            // add an error field to Message. Deferred.
+            const finalMsg: Message = {
+              ...existing,
+              isStreaming: false,
+              tokenUsage: chunk.tokenUsage,
+            };
+            // Remove from accumulator ref so it no longer appears in streamingMessages.
+            const next = { ...accumulatorRef.current };
+            delete next[key];
+            accumulatorRef.current = next;
+            setStreamingMessages(next);
+
+            // Persist the completed message to the conversation store.
+            // We read the current store conversation (not the snapshot) to get
+            // any other messages that may have finalized while this one streamed.
+            const currentConv = store.getActiveConversation();
+            if (currentConv && currentConv.id === sendingConversationId) {
+              const updated: Conversation = {
+                ...currentConv,
+                messages: [...currentConv.messages, finalMsg],
+                updatedAt: Date.now(),
+              };
+              void store.updateConversation(updated);
+            }
+          }
+        } else {
+          // Non-done chunk: accumulate content onto the in-progress message.
+          const existing = accumulatorRef.current[key];
+          const streamMsg: Message = existing
+            ? { ...existing, content: existing.content + chunk.content }
+            : {
+                id: `stream-${sendingConversationId}-${chunk.modelId}-${Date.now()}`,
+                role: 'assistant',
+                modelId: chunk.modelId,
+                content: chunk.content,
+                timestamp: Date.now(),
+                isStreaming: true,
+              };
+
+          const next = { ...accumulatorRef.current, [key]: streamMsg };
+          accumulatorRef.current = next;
+          setStreamingMessages(next);
+        }
       },
     );
   };
@@ -255,7 +331,8 @@ export default function App() {
       activeModels={activeModels}
       allModels={models}
       messages={messages}
-      isStreaming={false}
+      streamingMessages={activeStreamingMessages}
+      isStreaming={anyStreaming}
       isGhostMode={false}
       onSend={handleSend}
       onSelectConversation={handleSelectConversation}

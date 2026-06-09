@@ -5,6 +5,13 @@ import { ExportButton } from './ExportButton';
 
 interface MessageThreadProps {
   messages: Message[];
+  /**
+   * In-flight streaming messages for models that are still receiving chunks.
+   * These are rendered after persisted messages. When a stream completes
+   * (isDone), App removes the message from this array and adds it to `messages`.
+   * App ensures no message appears in both arrays simultaneously.
+   */
+  streamingMessages?: Message[];
   models: ModelConfig[];
   onRetry?: (messageId: string) => void;
   /**
@@ -54,6 +61,7 @@ function getEntranceIndex(messages: Message[], index: number): number {
 
 export function MessageThread({
   messages,
+  streamingMessages = [],
   models,
   onRetry,
   onDirectedReply,
@@ -62,12 +70,17 @@ export function MessageThread({
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change
+  // Combine persisted messages and in-flight streaming messages for rendering.
+  // Streaming messages are always appended after persisted ones so the thread
+  // ordering is: all committed messages → all in-flight streaming messages.
+  const allMessages = [...messages, ...streamingMessages];
+
+  // Auto-scroll to bottom when either list changes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingMessages]);
 
-  if (messages.length === 0) {
+  if (allMessages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center overflow-y-auto">
         <p className="text-[13px] text-text-muted">Start a conversation</p>
@@ -88,16 +101,16 @@ export function MessageThread({
       )}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
-          {messages.map((message, index) => {
+          {allMessages.map((message, index) => {
             const modelConfig = findModelConfig(message.modelId, models);
             // Resolve the ModelConfig for the message's targetModelId (if any).
             // Used to render the "→ [Model]" directed-to label on user messages.
             const targetModelConfig = findModelConfig(message.targetModelId, models);
-            const entranceIndex = getEntranceIndex(messages, index);
+            const entranceIndex = getEntranceIndex(allMessages, index);
 
             // Gap between bubbles: spec says 8px same-model, 16px different model.
             // We implement this via margin-top on each bubble.
-            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const prevMessage = index > 0 ? allMessages[index - 1] : null;
             const isNewModel =
               prevMessage &&
               prevMessage.role === 'assistant' &&
