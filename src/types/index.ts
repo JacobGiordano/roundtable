@@ -324,3 +324,28 @@ export type SaveCredentialsFn = (key: CredentialKey, value: string) => void;
  * Remove a stored API key.
  */
 export type ClearCredentialsFn = (key: CredentialKey) => void;
+
+// ─── User preferences — Gate implements, Aria consumes ───────────────────────
+
+/**
+ * Controls when per-message token counts are visible in the chat UI.
+ *
+ * - 'always' — token counts shown unconditionally on all completed model bubbles
+ * - 'active' — hover reveals on desktop, tap reveals on mobile (default;
+ *              matches the hover-reveal behavior shipped in #16)
+ * - 'never'  — token count element removed from DOM entirely (not hidden with CSS)
+ *
+ * Gate reads and writes this value; Aria reads it to determine render behavior.
+ */
+export type TokenCountVisibility = 'always' | 'active' | 'never';
+
+/**
+ * Persistent user preferences. Gate owns storage (localStorage); Aria reads
+ * these values to drive conditional rendering and display behavior.
+ *
+ * Default values when no preference is stored:
+ *   tokenCountVisibility: 'active'
+ */
+export interface UserPreferences {
+  tokenCountVisibility: TokenCountVisibility;
+}
