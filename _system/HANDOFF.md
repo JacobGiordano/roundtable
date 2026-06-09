@@ -2,42 +2,54 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 3 — COMPLETE. Ready for Phase 4.
+Phase 4 — in progress.
 
 ## Active agents for next session
 
-None pending. All Phase 3 branches merged to main.
+- Arch: needed immediately — types PR required before Gemini/Grok can be activated
+- Gate: needed after Arch — add 'google'/'xai' to CredentialKey handling in auth
+- Aria: needed after Gate — consume MODEL_REGISTRY/buildDefaultModelConfigs from @/models
 
 ## Last closed
 
-- Arch — added `error?: ModelError` to `Message` interface (`feat(types): add error field to Message for streaming error propagation`)
-- Aria — wired streaming error display in MessageBubble; propagates `chunk.error` → `Message.error` in App.tsx; threaded through MessageThread (`feat(ui): wire streaming error display — inline error in message bubble`)
+- Atlas (phase4-atlas-model-providers): central registry built; Gemini + Grok provider
+  implementations complete but gated on Arch types PR.
 
 ## Decisions made this session
 
-- `error?: ModelError` is optional (not `| null`) — absence means no error, avoids null noise at every construction site.
-- Error indicator uses ⚠ (`&#9888;`) with `aria-hidden` — screen readers read only the message text.
-- When partial content exists, error block separated with `border-t border-border-subtle + mt-3 pt-2` to signal terminal state.
-- When stream fails immediately (no content), error uses `mt-1` only.
+- `PROVIDERS` moved from inline in sendMessage.ts to registry.ts — sendMessage.ts
+  now imports from registry (no circular dep; registry ← claude/gpt, sendMessage ← registry).
+- `ModelRegistryEntry` interface added to registry.ts and exported from @/models.
+  Aria should replace MOCK_MODELS in App.tsx with `buildDefaultModelConfigs()` once
+  Gemini/Grok are activated (or sooner — it's a clean drop-in for current two models).
+- Gemini uses `gemini-1.5-flash` via the `v1beta` streamGenerateContent endpoint.
+  API key passed as `?key=<apiKey>&alt=sse` query param (Google REST auth pattern).
+  System prompt sent as `system_instruction.parts[0].text` at the request root.
+- Grok uses `grok-beta` via `https://api.x.ai/v1/chat/completions` (OpenAI-compatible).
+  Same SSE format as OpenAI; `stream_options: { include_usage: true }` for token counts.
+- Double cast (`'gemini' as unknown as ModelId`) used in gemini.ts and grok.ts to
+  satisfy tsc without modifying types/index.ts. Casts are documented and localized
+  to the config constants. Will be removed when Arch's PR lands.
 
 ## Next issues in priority order (Phase 4 — Expansion)
 
-1. [Atlas] Add Gemini (Google) ModelProvider
-2. [Atlas] Add Grok (xAI) ModelProvider
-3. [Atlas] Central model registry
-4. [Vault] ServerStorageProvider (REST client for self-hosted backend)
-5. [Gate] Backend auth support (session tokens, login/logout)
-6. Self-hosted backend service (Node/Express, Docker Compose)
-7. Open source launch prep (README, CONTRIBUTING, LICENSE, templates)
+1. [Arch] Add 'gemini', 'grok' to ModelId; 'google', 'xai' to CredentialKey in types/index.ts
+2. [Gate] Add MODEL_CREDENTIAL_MAP entries and CREDENTIAL_LABELS for google + xai
+3. [Atlas] Remove casts and activate Gemini/Grok in registry.ts + index.ts
+4. [Aria] Replace MOCK_MODELS in App.tsx with buildDefaultModelConfigs() from @/models
+5. [Vault] ServerStorageProvider (REST client for self-hosted backend)
+6. [Gate] Backend auth support (session tokens, login/logout)
+7. Self-hosted backend service (Node/Express, Docker Compose)
+8. Open source launch prep
 
 ## Gotchas
 
-- Single-PR rule on types/index.ts — no concurrent Arch PRs
-- Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
+- firewall allowlist does NOT include generativelanguage.googleapis.com or api.x.ai —
+  must be added before Gemini/Grok can be tested in dev container (user authorization required)
+- Single-PR rule on types/index.ts — Arch PR for 'gemini'/'grok' must land before any
+  other types PR starts
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
-- downloadExportedConversation and useConversationStore both from @/storage — documented exceptions, used only in App.tsx
-- Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
+- MODEL_REGISTRY and buildDefaultModelConfigs() exported from @/models — documented
+  cross-agent exception for Aria to consume
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks (no logic)
-- exportConversation returns null for missing conversations — always null-check before calling downloadExportedConversation
-- ThreadRow is a `<div>` wrapper (not a `<button>`) — accessible because inner navigation button keeps keyboard/click semantics
-- useConversationStore does NOT manage ghost conversations — those go through useGhostMode
+- Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
