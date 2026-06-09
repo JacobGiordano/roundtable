@@ -191,7 +191,6 @@ export default function App() {
     );
   };
 
-<<<<<<< HEAD
   /** Persists the chosen interaction mode on the active conversation. */
   const handleModeChange = (mode: InteractionMode) => {
     setConversations((prev) =>
@@ -199,7 +198,10 @@ export default function App() {
         conv.id === activeConversationId
           ? { ...conv, interactionMode: mode, updatedAt: Date.now() }
           : conv,
-=======
+      ),
+    );
+  };
+
   const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
     const updatedSystemPrompt = value || undefined;
 
@@ -207,7 +209,6 @@ export default function App() {
     setModels((prev) =>
       prev.map((m) =>
         m.modelId === modelId ? { ...m, systemPrompt: updatedSystemPrompt } : m,
->>>>>>> f3c0c6c (fix(ui): wire per-model systemPrompt through to sendMessage)
       ),
     );
 
@@ -220,15 +221,6 @@ export default function App() {
           m.modelId === modelId ? { ...m, systemPrompt: updatedSystemPrompt } : m,
         ),
       })),
-    );
-  };
-
-  const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
-    const updated = (prev: ModelConfig[]) =>
-      prev.map((m) => (m.modelId === modelId ? { ...m, systemPrompt: value || undefined } : m));
-    setModels(updated);
-    setConversations((prev) =>
-      prev.map((conv) => ({ ...conv, models: updated(conv.models) }))
     );
   };
 
@@ -246,7 +238,6 @@ export default function App() {
       onNewConversation={handleNewConversation}
       onToggleModel={handleToggleModel}
       onAddModel={handleAddModel}
-<<<<<<< HEAD
       activeMode={activeConversation?.interactionMode ?? 'parallel'}
       onModeChange={handleModeChange}
       onUpdateSystemPrompt={handleUpdateSystemPrompt}
