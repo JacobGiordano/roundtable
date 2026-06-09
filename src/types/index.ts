@@ -95,6 +95,8 @@ export interface Message {
   targetModelId?: ModelId;
   /** True while the message is still streaming. */
   isStreaming?: boolean;
+  /** Set on assistant messages when the stream terminated with an error. */
+  error?: ModelError;
 }
 
 // ─── Model config ─────────────────────────────────────────────────────────────
