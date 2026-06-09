@@ -4,3 +4,5 @@ export { GhostModeManager, ghostModeManager } from './GhostModeManager';
 export type { GhostModeListener } from './GhostModeManager';
 export { useGhostMode } from './useGhostMode';
 export type { UseGhostModeReturn } from './useGhostMode';
+export { useConversationStore } from './useConversationStore';
+export type { UseConversationStoreReturn } from './useConversationStore';

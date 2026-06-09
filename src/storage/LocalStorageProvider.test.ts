@@ -69,7 +69,7 @@ let provider: LocalStorageProvider;
 beforeEach(() => {
   store = new Map();
   // LocalStorageProvider accesses the global `localStorage` directly.
-  Object.defineProperty(global, 'localStorage', {
+  Object.defineProperty(globalThis, 'localStorage', {
     value: buildLocalStorageMock(store),
     writable: true,
     configurable: true,
@@ -300,15 +300,15 @@ describe('quota exceeded error', () => {
   it('throws a descriptive Error when localStorage is full', async () => {
     // Override setItem to simulate QuotaExceededError.
     const quotaError = new DOMException('Quota exceeded', 'QuotaExceededError');
-    const original = global.localStorage.setItem;
-    global.localStorage.setItem = vi.fn().mockImplementation(() => { throw quotaError; });
+    const original = globalThis.localStorage.setItem;
+    globalThis.localStorage.setItem = vi.fn().mockImplementation(() => { throw quotaError; });
 
     const conv = makeConversation();
     await expect(provider.saveConversation(conv)).rejects.toThrow(
       'Storage quota exceeded'
     );
 
-    global.localStorage.setItem = original;
+    globalThis.localStorage.setItem = original;
   });
 });
 
