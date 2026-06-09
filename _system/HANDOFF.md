@@ -6,26 +6,26 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Aria — wire `requiredKeys` prop in `Sidebar.tsx` using `getRequiredCredentialKeys`
+- Merge `aria-wire-required-keys` into main (Aria, awaiting authorization)
+- Merge `gate-required-keys` into main (Gate, awaiting authorization)
+- Merge `streaming-wiring-aria` into main (awaiting authorization)
 
 ## Last closed
 
-- Gate — `getRequiredCredentialKeys` utility (branch `gate-required-keys`, awaiting merge auth)
-  Added `MODEL_CREDENTIAL_MAP` and `getRequiredCredentialKeys` to `/src/auth/credentials.ts`,
-  exported from `/src/auth/index.ts`. Takes `ModelConfig[]`, returns deduplicated `CredentialKey[]`
-  for active models only.
+- Aria — wire `requiredKeys` prop in `Sidebar.tsx` (branch `aria-wire-required-keys`)
+  Added `getRequiredCredentialKeys` import from `@/auth`, derived `requiredKeys` from
+  active conversation's models, passed as prop to `<ApiKeyPanel requiredKeys={requiredKeys} />`.
 
 ## Decisions made this session
 
-- Gate owns the ModelId → CredentialKey mapping; no import from /src/models ever.
-  `MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey>` lives in `/src/auth/credentials.ts`.
-- `getRequiredCredentialKeys` uses a `Set<CredentialKey>` for deduplication before returning
-  `Array.from(keys)` — safe for any future ModelId additions.
+- `requiredKeys` derivation lives at Sidebar component body scope (before `return`), not
+  inside JSX — keeps it a plain expression, avoids inline derivation in render.
+- Import documented as Gate cross-agent permitted exception per CLAUDE.md.
 
 ## Next issues in priority order
 
 1. Merge `gate-required-keys` into main (Gate, awaiting authorization)
-2. Aria — wire `<ApiKeyPanel requiredKeys={getRequiredCredentialKeys(activeModels)} />` in `Sidebar.tsx`
+2. Merge `aria-wire-required-keys` into main (Aria, awaiting authorization)
 3. Merge `streaming-wiring-aria` into main (awaiting authorization)
 4. Merge `19-aria-export-ui` into main (awaiting authorization)
 

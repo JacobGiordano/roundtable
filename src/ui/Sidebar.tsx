@@ -3,7 +3,8 @@ import type { Conversation } from '@/types';
 // Gate cross-agent exception: ApiKeyPanel and TokenCountControl are self-contained
 // Gate components mounted here per the issue spec. They manage their own state
 // internally via Gate hooks — Aria only mounts them in the settings panel.
-import { ApiKeyPanel, TokenCountControl } from '@/auth';
+// getRequiredCredentialKeys is a pure utility from @/auth — permitted exception per CLAUDE.md.
+import { ApiKeyPanel, TokenCountControl, getRequiredCredentialKeys } from '@/auth';
 import { groupConversations } from './groupConversations';
 
 interface SidebarProps {
@@ -760,6 +761,10 @@ export function Sidebar({
 
   const hasBulkSelection = selectedIds.size > 0;
 
+  // Derive required credential keys for the active conversation's active models.
+  const activeConv = conversations.find((c) => c.id === activeConversationId);
+  const requiredKeys = getRequiredCredentialKeys(activeConv?.models ?? []);
+
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden">
       {/* Header */}
@@ -983,7 +988,7 @@ export function Sidebar({
             className="px-4 pb-4 pt-2 flex flex-col gap-4 overflow-y-auto max-h-[60vh]"
           >
             {/* API key management — Gate component, self-contained */}
-            <ApiKeyPanel />
+            <ApiKeyPanel requiredKeys={requiredKeys} />
 
             {/* Token count visibility preference — Gate component, self-contained */}
             <TokenCountControl />
