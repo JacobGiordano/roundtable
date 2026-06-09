@@ -11,31 +11,32 @@ Phase 3 — IN PROGRESS
 
 ## Last closed
 
-- Aria #18 — archive/delete/group management UI in Sidebar.tsx. Per-row three-dot action menu, archive filter toggle, bulk action bar with inline delete confirmation, group assignment input with existing-group suggestions. All 6 mutation callbacks threaded App → AppLayout → Sidebar. Lint and build clean.
+- Aria #18 — archive/delete/group management UI in Sidebar.tsx.
+- Aria #19 — export UI: ExportButton + format picker popover, wired to store.exportConversation + downloadExportedConversation. Branch `19-aria-export-ui`, not yet merged.
 
-## Decisions made this session (#18 Aria)
+## Decisions made this session (#19 Aria)
 
-- `ThreadRow` refactored from `<button>` to a `<div>` wrapper containing a `<button>` for click navigation, a checkbox for bulk selection, and a three-dot trigger. The `<div>` uses CSS `group` for hover-reveal of checkbox and menu trigger.
-- `ThreadActionMenu` is a self-contained component with its own `useState` for sub-states (menu / confirm-delete / group-input). Document listener on `mousedown` for outside-click close.
-- Archive filter toggle (Active/Archived) lives between the sidebar header and the thread list. Changing tabs clears bulk selection to avoid stale cross-filter selections.
-- Bulk action bar appears only when `selectedIds.size > 0`. Delete confirmation is inline in the bar (no `window.confirm`). Archive is immediate (no confirmation).
-- Group assignment input pre-fills with the conversation's current `groupId`. Existing group names shown as clickable suggestions below the input. Blank confirm clears the group (`undefined`).
-- All 6 store mutations (`archiveConversation`, `unarchiveConversation`, `deleteConversation`, `setConversationGroup`, and bulk wrappers) wired in `App.tsx` as thin `useCallback` pass-throughs — no business logic in App.
-- `AppLayout.tsx` updated: 6 new optional props added to `AppLayoutProps`, destructured, and threaded through to `<Sidebar>`.
+- `ExportButton` is a self-contained component at `/src/ui/ExportButton.tsx`. Owns popover open/close state, outside-click (pointerdown) and Escape-key dismissal.
+- Button placed in `MessageThread` header area (top-right, above message list). Rendered only when `onExport` prop is provided. Disabled when `messages.length === 0`.
+- `onExport` is optional on `MessageThread`; `onExportConversation` is optional on `AppLayout`. When `store.activeConversationId` is null, `App.tsx` passes `undefined` — button is absent entirely, not just disabled.
+- `handleExportConversation` in `App.tsx` is `useCallback`-wrapped async. Calls `store.exportConversation`, null-checks result, then calls `downloadExportedConversation` from `@/storage`. Both are documented cross-agent exceptions.
+- HTML export is fully self-contained: the Vault serializer (issue #21) produces a single-file document. No additional UI work needed.
 
 ## Next issues in priority order
 
 1. Atlas — real streaming (Anthropic + OpenAI APIs)
 2. Gate — requiredKeys wiring to active models
+3. Merge `19-aria-export-ui` into main once authorized
 
 ## Gotchas
 
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
 - Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
+- downloadExportedConversation and useConversationStore both from @/storage — documented exceptions, used only in App.tsx
 - Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks (no logic)
-- exportConversation returns null (not void) for missing conversations — callers must null-check before calling downloadExportedConversation
+- exportConversation returns null for missing conversations — always null-check before calling downloadExportedConversation
+- AppLayout.tsx has archive/delete/group props from issue #18 (prior session) — pre-existing in working tree
+- ThreadRow is a `<div>` wrapper (not a `<button>`) — accessible because inner navigation button keeps keyboard/click semantics
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
-- handleNewConversation is async (createConversation + then setActiveConversation) — not a concern in practice but worth noting for tests
-- ThreadRow is now a `<div>` wrapper (not a `<button>`) — accessible because the inner navigation button keeps keyboard/click semantics for conversation selection

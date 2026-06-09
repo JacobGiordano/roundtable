@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import type { Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
+import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
+import { ExportButton } from './ExportButton';
 
 interface MessageThreadProps {
   messages: Message[];
@@ -17,6 +18,12 @@ interface MessageThreadProps {
    * Defaults to 'active' when omitted.
    */
   tokenCountVisibility?: TokenCountVisibility;
+  /**
+   * Called when the user selects an export format from the ExportButton popover.
+   * Parent (App via AppLayout) handles the async exportConversation call and
+   * triggers downloadExportedConversation. Omit to hide the export button.
+   */
+  onExport?: (format: ExportFormat) => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -51,6 +58,7 @@ export function MessageThread({
   onRetry,
   onDirectedReply,
   tokenCountVisibility,
+  onExport,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -68,43 +76,54 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6">
-      <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
-        {messages.map((message, index) => {
-          const modelConfig = findModelConfig(message.modelId, models);
-          // Resolve the ModelConfig for the message's targetModelId (if any).
-          // Used to render the "→ [Model]" directed-to label on user messages.
-          const targetModelConfig = findModelConfig(message.targetModelId, models);
-          const entranceIndex = getEntranceIndex(messages, index);
+    <div className="flex-1 overflow-y-auto flex flex-col">
+      {/* Thread header — only shown when there are messages */}
+      {onExport && (
+        <div className="flex-shrink-0 flex items-center justify-end px-4 pt-3 pb-0">
+          <ExportButton
+            onExport={onExport}
+            disabled={messages.length === 0}
+          />
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
+          {messages.map((message, index) => {
+            const modelConfig = findModelConfig(message.modelId, models);
+            // Resolve the ModelConfig for the message's targetModelId (if any).
+            // Used to render the "→ [Model]" directed-to label on user messages.
+            const targetModelConfig = findModelConfig(message.targetModelId, models);
+            const entranceIndex = getEntranceIndex(messages, index);
 
-          // Gap between bubbles: spec says 8px same-model, 16px different model.
-          // We implement this via margin-top on each bubble.
-          const prevMessage = index > 0 ? messages[index - 1] : null;
-          const isNewModel =
-            prevMessage &&
-            prevMessage.role === 'assistant' &&
-            message.role === 'assistant' &&
-            prevMessage.modelId !== message.modelId;
+            // Gap between bubbles: spec says 8px same-model, 16px different model.
+            // We implement this via margin-top on each bubble.
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const isNewModel =
+              prevMessage &&
+              prevMessage.role === 'assistant' &&
+              message.role === 'assistant' &&
+              prevMessage.modelId !== message.modelId;
 
-          return (
-            <div
-              key={message.id}
-              className={isNewModel ? 'mt-2' : ''}
-            >
-              <MessageBubble
-                message={message}
-                modelConfig={modelConfig}
-                targetModelConfig={targetModelConfig}
-                onRetry={onRetry ? () => onRetry(message.id) : undefined}
-                onDirectedReply={onDirectedReply}
-                entranceIndex={entranceIndex}
-                tokenCountVisibility={tokenCountVisibility}
-              />
-            </div>
-          );
-        })}
-        {/* Scroll anchor */}
-        <div ref={bottomRef} />
+            return (
+              <div
+                key={message.id}
+                className={isNewModel ? 'mt-2' : ''}
+              >
+                <MessageBubble
+                  message={message}
+                  modelConfig={modelConfig}
+                  targetModelConfig={targetModelConfig}
+                  onRetry={onRetry ? () => onRetry(message.id) : undefined}
+                  onDirectedReply={onDirectedReply}
+                  entranceIndex={entranceIndex}
+                  tokenCountVisibility={tokenCountVisibility}
+                />
+              </div>
+            );
+          })}
+          {/* Scroll anchor */}
+          <div ref={bottomRef} />
+        </div>
       </div>
     </div>
   );
