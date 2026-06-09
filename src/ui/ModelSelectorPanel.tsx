@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ModelConfig, ModelId, SessionTokenUsage } from '@/types';
+import type { ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -395,6 +395,13 @@ interface SessionTokenSectionProps {
    */
   sessionUsage: SessionTokenUsage[];
   activeModels: ModelConfig[];
+  /**
+   * Controls token count rendering per UserPreferences.tokenCountVisibility:
+   *   'always' — section rendered; counts always visible when expanded
+   *   'active' — section rendered (default); standard collapse/expand behavior
+   *   'never'  — section removed from DOM entirely (null return)
+   */
+  tokenCountVisibility?: TokenCountVisibility;
 }
 
 /**
@@ -402,10 +409,17 @@ interface SessionTokenSectionProps {
  * Hidden by default — user expands on demand (progressive disclosure).
  * Sits below the System Prompts section in the ModelSelectorPanel slide-up panel.
  */
-function SessionTokenSection({ sessionUsage, activeModels }: SessionTokenSectionProps) {
+function SessionTokenSection({
+  sessionUsage,
+  activeModels,
+  tokenCountVisibility = 'active',
+}: SessionTokenSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleToggle = useCallback(() => setIsExpanded((prev) => !prev), []);
+
+  // 'never': remove from DOM entirely (not CSS hidden — fully absent from accessibility tree)
+  if (tokenCountVisibility === 'never') return null;
 
   // Only show section if we have any usage data at all
   if (sessionUsage.length === 0) return null;
@@ -507,6 +521,12 @@ interface ModelSelectorPanelProps {
    * Empty array when no tokens have been used yet.
    */
   sessionUsage: SessionTokenUsage[];
+  /**
+   * Controls token count rendering per UserPreferences.tokenCountVisibility.
+   * Threaded from App → AppLayout → ModelSelectorPanel → SessionTokenSection.
+   * Defaults to 'active' when omitted.
+   */
+  tokenCountVisibility?: TokenCountVisibility;
 }
 
 /**
@@ -520,6 +540,7 @@ export function ModelSelectorPanel({
   onAddModel,
   onUpdateSystemPrompt,
   sessionUsage,
+  tokenCountVisibility,
 }: ModelSelectorPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -619,6 +640,7 @@ export function ModelSelectorPanel({
           <SessionTokenSection
             sessionUsage={sessionUsage}
             activeModels={activeModels}
+            tokenCountVisibility={tokenCountVisibility}
           />
         </div>
       </div>
