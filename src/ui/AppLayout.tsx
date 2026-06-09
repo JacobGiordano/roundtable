@@ -1,4 +1,4 @@
-import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
+import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
@@ -58,6 +58,24 @@ interface AppLayoutProps {
    * Threaded from App (useConversationStore) → AppLayout → Sidebar.
    */
   conversationStoreError?: Error | null;
+  /**
+   * Called when the user picks an export format from the ExportButton popover.
+   * Threaded from App → AppLayout → MessageThread → ExportButton.
+   * Omit to hide the export button (e.g. when no active conversation exists).
+   */
+  onExportConversation?: (format: ExportFormat) => void;
+  /** Archive a single conversation. Threaded App → AppLayout → Sidebar. */
+  onArchiveConversation?: (id: string) => void;
+  /** Unarchive a single conversation. Threaded App → AppLayout → Sidebar. */
+  onUnarchiveConversation?: (id: string) => void;
+  /** Permanently delete a single conversation. Threaded App → AppLayout → Sidebar. */
+  onDeleteConversation?: (id: string) => void;
+  /** Assign or clear a group on a conversation. Threaded App → AppLayout → Sidebar. */
+  onSetConversationGroup?: (id: string, groupId: string | undefined) => void;
+  /** Archive multiple conversations. Threaded App → AppLayout → Sidebar. */
+  onBulkArchive?: (ids: string[]) => void;
+  /** Delete multiple conversations. Threaded App → AppLayout → Sidebar. */
+  onBulkDelete?: (ids: string[]) => void;
 }
 
 export function AppLayout({
@@ -84,6 +102,13 @@ export function AppLayout({
   tokenCountVisibility,
   isConversationsLoading,
   conversationStoreError,
+  onExportConversation,
+  onArchiveConversation,
+  onUnarchiveConversation,
+  onDeleteConversation,
+  onSetConversationGroup,
+  onBulkArchive,
+  onBulkDelete,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -95,6 +120,12 @@ export function AppLayout({
         onNewConversation={onNewConversation}
         isLoading={isConversationsLoading}
         storageError={conversationStoreError}
+        onArchiveConversation={onArchiveConversation}
+        onUnarchiveConversation={onUnarchiveConversation}
+        onDeleteConversation={onDeleteConversation}
+        onSetConversationGroup={onSetConversationGroup}
+        onBulkArchive={onBulkArchive}
+        onBulkDelete={onBulkDelete}
       />
 
       {/* Main area — flex-1 */}
@@ -106,6 +137,7 @@ export function AppLayout({
           onRetry={onRetry}
           onDirectedReply={onDirectedReply}
           tokenCountVisibility={tokenCountVisibility}
+          onExport={onExportConversation}
         />
 
         {/* Bottom section: model selector + mode switcher + input bar */}

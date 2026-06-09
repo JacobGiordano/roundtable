@@ -1,6 +1,7 @@
 // Aria owns this directory — /src/ui
 
 export { AppLayout } from './AppLayout';
+export { ExportButton } from './ExportButton';
 export { InputBar } from './InputBar';
 export { InteractionModeSwitcher } from './InteractionModeSwitcher';
 export { MessageBubble } from './MessageBubble';
