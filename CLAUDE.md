@@ -110,6 +110,24 @@ Always check `HANDOFF.md` to know the current phase before starting work.
 Do not implement Phase N+1 features during Phase N work, even if it seems easy.
 Scope creep across agents is how collisions happen.
 
+## Parallel agent execution
+
+When two agents run in parallel, they **must** operate in separate git worktrees.
+Agents sharing the same working directory can see each other's uncommitted files,
+which causes false-clean builds: agent A sees agent B's unstaged changes and
+assumes they are already committed, building logic on top of them. When B finally
+commits to its own branch, A's branch is left with a broken build or a stale
+dependency on code that never landed there.
+
+**Rule:** Coda must use `isolation: "worktree"` (or manually `git worktree add`)
+for every parallel agent spawn. Each agent gets its own checkout; uncommitted
+state is never visible across agents.
+
+**Detection:** If a build passes during an agent session but fails on a clean
+checkout of the same commit, suspect working-tree cross-contamination from a
+parallel agent. Fix: identify which files the other agent left uncommitted,
+commit or discard them, then rebase the downstream branch.
+
 ---
 
 ## SOP
