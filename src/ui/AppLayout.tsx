@@ -1,4 +1,4 @@
-import type { Conversation, InteractionMode, Message, ModelConfig, ModelId } from '@/types';
+import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
@@ -28,6 +28,11 @@ interface AppLayoutProps {
   onModeChange: (mode: InteractionMode) => void;
   /** Called when user edits or clears a per-model system prompt. */
   onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
+  /**
+   * Per-model token usage totals for the current conversation session.
+   * Passed through to ModelSelectorPanel for display in the slide-up panel.
+   */
+  sessionUsage: SessionTokenUsage[];
 }
 
 export function AppLayout({
@@ -47,6 +52,7 @@ export function AppLayout({
   activeMode,
   onModeChange,
   onUpdateSystemPrompt,
+  sessionUsage,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -76,6 +82,7 @@ export function AppLayout({
               onToggleModel={onToggleModel}
               onAddModel={onAddModel}
               onUpdateSystemPrompt={onUpdateSystemPrompt}
+              sessionUsage={sessionUsage}
             />
             {/* Interaction mode switcher — persisted per conversation via onModeChange */}
             <div className="mb-2 flex-shrink-0">
