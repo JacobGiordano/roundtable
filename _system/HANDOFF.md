@@ -6,37 +6,28 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Vault — issue #21 (export and archive/delete UI wiring)
-- Coda — may sequence Vault #21 in parallel with Atlas real-streaming work
+- Aria — wire export UI: call `exportConversation` from `useConversationStore` then `downloadExportedConversation` from `@/storage`
+- Atlas — real streaming (Anthropic + OpenAI APIs)
 
 ## Last closed
 
-- Vault #20 — useConversationStore hook implemented and ready for Aria to consume
+- Vault #21 — markdown + HTML export wiring complete (branch `21-vault-markdown-html-export`, not yet merged)
 
-## Decisions made this session (#20 Vault)
+## Decisions made this session (#21 Vault)
 
-- `useConversationStore` hook lives at `/src/storage/useConversationStore.ts`.
-  Exports `useConversationStore()` and `UseConversationStoreReturn` type (Aria imports these).
-- Single `LocalStorageProvider` instance per hook mount, held in a `useRef` — stable for the lifetime of the component.
-- Optimistic in-memory updates: React state is updated immediately after each mutation; no full `listConversations()` round-trip per op. State is sorted newest-first by `updatedAt` after every update.
-- Ghost-mode guard is the first check on every write path. Ghost conversations are never added to the persisted `conversations` list; callers manage them via `useGhostMode`.
-- Auto-title: fires inside `updateConversation` when `conversation.title` is undefined and the conversation has at least one user message. Takes first ~60 chars, trims at last word boundary. Never overwrites an existing title.
-- `setConversationGroup` follows the StorageProvider upsert pattern: load, mutate `groupId`, call `saveConversation`. No dedicated storage method needed.
-- `getSessionTokenUsage` delegates to Atlas's `getSessionTokenUsage` utility from `@/models` — documented cross-agent exception per CLAUDE.md.
-- `UseConversationStoreReturn` extends `ConversationStore`, so it satisfies the interface contract exactly.
-- Pre-existing build failure fixed: `LocalStorageProvider.test.ts` used Node's `global` (not in tsconfig lib). Replaced with `globalThis` (ES2020 standard, already in lib). All 27 tests still pass.
+- `exportConversation(id, format)` added to `UseConversationStoreReturn` interface and implemented in `useConversationStore` hook as a pure delegation to `provider.exportConversation(id, format)`. No state mutation — read-only pass-through.
+- `ExportFormat` type re-exported from `/src/storage/index.ts` so Aria can import it from `@/storage` without reaching into `@/types` directly.
+- `conversationToMarkdown` updated: looks up display name from `conv.models` by `modelId` (falls back to `modelId` string, then to `'Assistant'`). Exports now say "Claude" not "claude".
+- Same display name lookup applied to `conversationToHtml` for consistency.
+- Aria does NOT call `downloadExportedConversation` through the hook — the download trigger is a DOM concern. Aria calls `useConversationStore().exportConversation(id, format)` to get the result, then calls `downloadExportedConversation(result)` imported from `@/storage`.
 
-## Downstream impact on Vault (#21)
+## Lint/build note for next session
 
-- Aria can now import `useConversationStore` and `UseConversationStoreReturn` from `@/storage`.
-- `storageError: Error | null` is exposed — Aria should surface quota/parse errors to the user.
-- `isLoading: boolean` is exposed — Aria can show a skeleton during initial load.
-- Archive/unarchive/delete are available on the hook — #21 can wire these to UI controls immediately.
-- Export remains on `LocalStorageProvider` directly — Aria calls `provider.exportConversation(id, format)` then `downloadExportedConversation(result)` from `@/storage`.
+`src/ui/Sidebar.tsx` has an uncommitted working-tree modification (unused `useMemo` import) from in-progress Aria work. This causes `npm run lint` and `npm run build` to fail on the full project. Vault's storage files pass lint and TypeScript cleanly. Aria must fix the `useMemo` import before any merged PR can have clean build/lint.
 
 ## Next issues in priority order
 
-1. Vault #21 — export and archive/delete UI
+1. Aria — wire export controls to `useConversationStore().exportConversation` + `downloadExportedConversation`
 2. Atlas — real streaming (Anthropic + OpenAI APIs)
 3. Gate — requiredKeys wiring to active models
 

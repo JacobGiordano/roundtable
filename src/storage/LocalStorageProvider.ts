@@ -87,7 +87,18 @@ function conversationToMarkdown(conv: Conversation): string {
   lines.push('');
 
   for (const msg of conv.messages) {
-    const role = msg.role === 'user' ? 'You' : msg.modelId ?? 'Assistant';
+    let role: string;
+    if (msg.role === 'user') {
+      role = 'You';
+    } else {
+      // Look up the human-readable display name from conv.models by modelId.
+      // Falls back to modelId string if not found, then to 'Assistant' if modelId
+      // is absent entirely.
+      const modelConfig = msg.modelId
+        ? conv.models.find((m) => m.modelId === msg.modelId)
+        : undefined;
+      role = modelConfig?.name ?? msg.modelId ?? 'Assistant';
+    }
     const ts = new Date(msg.timestamp).toLocaleTimeString();
     lines.push(`**${role}** — ${ts}`);
     lines.push('');
@@ -111,8 +122,15 @@ function conversationToHtml(conv: Conversation): string {
   const title = escape(conv.title ?? 'Untitled conversation');
   const rows = conv.messages
     .map((msg) => {
-      const role =
-        msg.role === 'user' ? 'You' : escape(msg.modelId ?? 'Assistant');
+      let role: string;
+      if (msg.role === 'user') {
+        role = 'You';
+      } else {
+        const modelConfig = msg.modelId
+          ? conv.models.find((m) => m.modelId === msg.modelId)
+          : undefined;
+        role = escape(modelConfig?.name ?? msg.modelId ?? 'Assistant');
+      }
       const ts = new Date(msg.timestamp).toLocaleTimeString();
       const content = escape(msg.content).replace(/\n/g, '<br>');
       return `<div class="message ${msg.role}"><strong>${role}</strong> <small>${ts}</small><p>${content}</p></div>`;
