@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Message, ModelConfig, ModelError } from '@/types';
 
 interface MessageBubbleProps {
@@ -38,6 +39,8 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const isStreaming = message.isStreaming ?? false;
   const hasError    = !!error;
+  // Token count is hidden by default; revealed on hover (progressive disclosure).
+  const [isHovered, setIsHovered] = useState(false);
 
   // Left border color: error overrides model accent
   const borderClass = hasError
@@ -63,6 +66,8 @@ export function MessageBubble({
       ].join(' ')}
       style={{ animationDelay: entranceDelay }}
       data-model={getModelDataAttr(message.modelId)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Model name header — assistant messages only */}
       {showHeader && (
@@ -99,9 +104,18 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Token usage — shown when stream completes */}
+      {/* Token usage — hidden by default, revealed on hover (progressive disclosure).
+          Only shown for completed assistant messages that have token data. */}
       {!isStreaming && message.tokenUsage && (
-        <div className="mt-2 text-[11px] text-text-muted text-right">
+        <div
+          className={[
+            'mt-2 text-[11px] text-text-muted text-right',
+            'transition-opacity duration-fast',
+            isHovered ? 'opacity-100' : 'opacity-0',
+          ].join(' ')}
+          aria-hidden={!isHovered}
+          title={`Input: ${message.tokenUsage.inputTokens.toLocaleString()} · Output: ${message.tokenUsage.outputTokens.toLocaleString()}`}
+        >
           {message.tokenUsage.totalTokens.toLocaleString()} tokens
         </div>
       )}

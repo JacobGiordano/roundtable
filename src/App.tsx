@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
-// Cross-agent exception: sendMessage is a pure utility exported from @/models
-// per the documented exception in CLAUDE.md.
-import { sendMessage } from '@/models';
+// Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
+// exported from @/models per the documented exception in CLAUDE.md.
+import { sendMessage, getSessionTokenUsage } from '@/models';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -117,6 +117,12 @@ export default function App() {
 
   // Derive active models from the shared models array
   const activeModels = models.filter((m) => m.isActive);
+
+  // Compute per-model session token totals for the active conversation.
+  // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
+  const sessionUsage = activeConversation
+    ? getSessionTokenUsage(activeConversation)
+    : [];
 
   const handleSend = (content: string) => {
     const userMessage: Message = {
@@ -241,6 +247,7 @@ export default function App() {
       activeMode={activeConversation?.interactionMode ?? 'parallel'}
       onModeChange={handleModeChange}
       onUpdateSystemPrompt={handleUpdateSystemPrompt}
+      sessionUsage={sessionUsage}
     />
   );
 }
