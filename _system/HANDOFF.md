@@ -6,35 +6,39 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Vault — issues #20 and #21 (storage persistence, export UI wiring)
-- Coda — may sequence Vault #20 + #21 in parallel with Atlas real-streaming work
+- Vault — issue #21 (export and archive/delete UI wiring)
+- Coda — may sequence Vault #21 in parallel with Atlas real-streaming work
 
 ## Last closed
 
-- Arch #22 — StorageProvider abstraction finalized; Phase 3 unblocked
+- Vault #20 — useConversationStore hook implemented and ready for Aria to consume
 
-## Decisions made this session (#22 Arch)
+## Decisions made this session (#20 Vault)
 
-- `exportConversation` signature changed: now returns `Promise<ExportedConversation | null>` instead of `Promise<void>`. It serializes only — no DOM access. Download triggering is a separate `downloadExportedConversation()` utility exported from `/src/storage`. This makes the interface backend-compatible for Phase 4 `ServerStorageProvider`.
-- `ExportedConversation` interface added to `/src/types/index.ts`: `{ content: string; filename: string; mimeType: string }`.
-- `unarchiveConversation(id: string): Promise<void>` added to `StorageProvider` and implemented in `LocalStorageProvider`. Required for Phase 3 archive/unarchive UI.
-- `groupId` update pattern: no dedicated `setConversationGroup` method. Callers update `groupId` on the `Conversation` object and call `saveConversation` (upsert). Documented in interface JSDoc.
-- Full JSDoc on every `StorageProvider` method covering contract, ghost-mode behavior, and missing-record behavior.
-- 27 unit tests added at `/src/storage/LocalStorageProvider.test.ts` — all pass.
-- `downloadExportedConversation()` exported from `/src/storage/index.ts` — Aria calls this after receiving `ExportedConversation` from Vault.
+- `useConversationStore` hook lives at `/src/storage/useConversationStore.ts`.
+  Exports `useConversationStore()` and `UseConversationStoreReturn` type (Aria imports these).
+- Single `LocalStorageProvider` instance per hook mount, held in a `useRef` — stable for the lifetime of the component.
+- Optimistic in-memory updates: React state is updated immediately after each mutation; no full `listConversations()` round-trip per op. State is sorted newest-first by `updatedAt` after every update.
+- Ghost-mode guard is the first check on every write path. Ghost conversations are never added to the persisted `conversations` list; callers manage them via `useGhostMode`.
+- Auto-title: fires inside `updateConversation` when `conversation.title` is undefined and the conversation has at least one user message. Takes first ~60 chars, trims at last word boundary. Never overwrites an existing title.
+- `setConversationGroup` follows the StorageProvider upsert pattern: load, mutate `groupId`, call `saveConversation`. No dedicated storage method needed.
+- `getSessionTokenUsage` delegates to Atlas's `getSessionTokenUsage` utility from `@/models` — documented cross-agent exception per CLAUDE.md.
+- `UseConversationStoreReturn` extends `ConversationStore`, so it satisfies the interface contract exactly.
+- Pre-existing build failure fixed: `LocalStorageProvider.test.ts` used Node's `global` (not in tsconfig lib). Replaced with `globalThis` (ES2020 standard, already in lib). All 27 tests still pass.
 
-## Downstream impact on Vault (#20, #21)
+## Downstream impact on Vault (#21)
 
-- `LocalStorageProvider.exportConversation` now returns `ExportedConversation | null` — any caller that previously expected `void` must be updated.
-- `unarchiveConversation` is implemented — Vault's UI wiring issues can use it directly.
-- `downloadExportedConversation` is the new download trigger — import from `@/storage`.
+- Aria can now import `useConversationStore` and `UseConversationStoreReturn` from `@/storage`.
+- `storageError: Error | null` is exposed — Aria should surface quota/parse errors to the user.
+- `isLoading: boolean` is exposed — Aria can show a skeleton during initial load.
+- Archive/unarchive/delete are available on the hook — #21 can wire these to UI controls immediately.
+- Export remains on `LocalStorageProvider` directly — Aria calls `provider.exportConversation(id, format)` then `downloadExportedConversation(result)` from `@/storage`.
 
 ## Next issues in priority order
 
-1. Vault #20 — wire persistence to real conversations (save/load/list)
-2. Vault #21 — export and archive/delete UI
-3. Atlas — real streaming (Anthropic + OpenAI APIs)
-4. Gate — requiredKeys wiring to active models
+1. Vault #21 — export and archive/delete UI
+2. Atlas — real streaming (Anthropic + OpenAI APIs)
+3. Gate — requiredKeys wiring to active models
 
 ## Gotchas
 
@@ -44,3 +48,4 @@ Phase 3 — IN PROGRESS
 - Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props (no logic)
 - exportConversation returns null (not void) for missing conversations — callers must null-check before calling downloadExportedConversation
+- useConversationStore does NOT manage ghost conversations — those go through useGhostMode. The `conversations` array in the store only contains persisted (non-ghost) conversations.
