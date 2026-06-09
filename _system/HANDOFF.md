@@ -6,33 +6,28 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Gate — requiredKeys wiring to active models
+- Aria — wire `requiredKeys` prop in `Sidebar.tsx` using `getRequiredCredentialKeys`
 
 ## Last closed
 
-- Aria — streaming wiring (branch `streaming-wiring-aria`, not yet merged)
-  Chunk handler wired: parallel streaming, per-model accumulation, store write on isDone.
+- Gate — `getRequiredCredentialKeys` utility (branch `gate-required-keys`, awaiting merge auth)
+  Added `MODEL_CREDENTIAL_MAP` and `getRequiredCredentialKeys` to `/src/auth/credentials.ts`,
+  exported from `/src/auth/index.ts`. Takes `ModelConfig[]`, returns deduplicated `CredentialKey[]`
+  for active models only.
 
-## Decisions made this session (Aria streaming wiring)
+## Decisions made this session
 
-- Accumulator pattern: `accumulatorRef` (React ref) holds in-flight messages keyed by
-  `${conversationId}:${modelId}`. Used inside chunk callback to avoid stale closure.
-  `streamingMessages` (React state) mirrors ref to trigger renders.
-- Store writes only on `isDone: true` — no localStorage write per chunk.
-- `isDone` guard: reads `store.getActiveConversation()` at finalization time, guards with
-  `currentConv.id === sendingConversationId` to handle user switching conversations mid-stream.
-- `chunk.error` is NOT stored on `Message` — `Message` has no error field in the type
-  contract. Error display on streaming messages deferred; requires Arch to add `error?` to `Message`.
-- `streamingMessages` prop added to `AppLayout` and `MessageThread`. Rendered after persisted
-  messages in a merged `allMessages` array. Auto-scroll useEffect now depends on both.
-- `MessageBubble` already had `isStreaming` support (blinking cursor, streaming-shimmer). No changes needed.
-- Branch `19-aria-export-ui` from prior session still unmerged — needs authorization.
+- Gate owns the ModelId → CredentialKey mapping; no import from /src/models ever.
+  `MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey>` lives in `/src/auth/credentials.ts`.
+- `getRequiredCredentialKeys` uses a `Set<CredentialKey>` for deduplication before returning
+  `Array.from(keys)` — safe for any future ModelId additions.
 
 ## Next issues in priority order
 
-1. Merge `streaming-wiring-aria` into main once authorized
-2. Merge `19-aria-export-ui` into main once authorized (from prior session)
-3. Gate — requiredKeys wiring to active models
+1. Merge `gate-required-keys` into main (Gate, awaiting authorization)
+2. Aria — wire `<ApiKeyPanel requiredKeys={getRequiredCredentialKeys(activeModels)} />` in `Sidebar.tsx`
+3. Merge `streaming-wiring-aria` into main (awaiting authorization)
+4. Merge `19-aria-export-ui` into main (awaiting authorization)
 
 ## Gotchas
 

@@ -11,7 +11,7 @@
  *   - localStorage is the sole persistence layer
  */
 
-import type { CredentialKey, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn } from '@/types';
+import type { CredentialKey, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn, ModelId, ModelConfig } from '@/types';
 
 // ─── Storage key prefix ────────────────────────────────────────────────────────
 
@@ -53,6 +53,36 @@ export const clearCredentials: ClearCredentialsFn = (key: CredentialKey): void =
  */
 export function hasCredential(key: CredentialKey): boolean {
   return localStorage.getItem(storageKey(key)) !== null;
+}
+
+// ─── Model → credential mapping ───────────────────────────────────────────────
+
+/**
+ * Gate owns this mapping. Do NOT import from /src/models — Gate maintains its
+ * own ModelId → CredentialKey relationship so the auth layer has no dependency
+ * on Atlas.
+ */
+export const MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey> = {
+  'claude': 'anthropic',
+  'gpt-5.5': 'openai',
+};
+
+/**
+ * Given a list of ModelConfig objects, returns the deduplicated set of
+ * CredentialKey values required by the currently-active models.
+ *
+ * Only models with `isActive === true` are considered. The result contains no
+ * duplicates (e.g. two active Claude variants both requiring 'anthropic' yield
+ * only one entry).
+ */
+export function getRequiredCredentialKeys(models: ModelConfig[]): CredentialKey[] {
+  const keys = new Set<CredentialKey>();
+  for (const model of models) {
+    if (model.isActive) {
+      keys.add(MODEL_CREDENTIAL_MAP[model.modelId]);
+    }
+  }
+  return Array.from(keys);
 }
 
 /**
