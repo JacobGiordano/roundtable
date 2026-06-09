@@ -6,24 +6,18 @@ Phase 2 — IN PROGRESS
 
 ## Active agents for next session
 
-- Arch (#36) → Gate → Aria — sequence: Arch types first, Gate wires API key flow, Aria consumes
+- Gate (#36) -> Aria (#36) — types are locked; both can proceed in sequence
 
 ## Last closed
 
-- #11 [Aria] Directed reply UI — "Reply to [Model]" hover affordance on assistant bubbles,
-  directed-mode pill in InputBar, "→ [Model]" label on directed user messages
+- Arch #36 types prerequisite — TokenCountVisibility type added, UserPreferences interface created
 
-## Decisions made this session (#11)
+## Decisions made this session (#36 Arch)
 
-- "Reply to [Model]" button: opacity-0 at rest, revealed on hover — shares row with token count
-- Directed-reply pill sits above the input row, flush against it (shared bg-input surface);
-  uses model accent color (bg-accent/15, text-accent, border-accent/30)
-- × on pill returns to broadcast mode; conversation switch also clears the target
-- After send, pendingTargetModelId is cleared automatically — single-shot directed mode
-- targetModelId stamped onto the user Message at send time; visible as "→ [Model]" label
-  below user bubble content (accent-colored text)
-- No Arch work needed — Message.targetModelId and SendMessageOptions.targetModelId already
-  existed on the type
+- `TokenCountVisibility`: string union `'always' | 'active' | 'never'`
+- `UserPreferences`: new interface (was not previously in types file); Gate owns storage, Aria reads
+- Default value for `tokenCountVisibility` is `'active'` — matches existing hover-reveal behavior (#16)
+- `'never'` means DOM removal, not CSS hide — Aria must branch on this at render time, not with visibility/opacity
 
 ## Phase 2 completed so far
 
@@ -33,10 +27,12 @@ Phase 2 — IN PROGRESS
 - #15 Atlas: Token usage tracking ✅
 - #16 Aria: Token usage display ✅
 - #11 Aria: Directed reply UI ✅
+- #36 Arch: TokenCountVisibility + UserPreferences types ✅ (branch: 36-arch-token-visibility-type)
 
 ## Next issue(s)
 
-1. Arch — #36 types work (sequence: Arch → Gate → Aria)
+1. Gate — #36 implement `getUserPreferences()` / `saveUserPreferences()` against `UserPreferences`
+2. Aria — #36 consume `tokenCountVisibility` from Gate and conditionally render token counts
 
 ## Gotchas
 
