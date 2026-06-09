@@ -4,6 +4,7 @@ import type { Conversation } from '@/types';
 // Gate components mounted here per the issue spec. They manage their own state
 // internally via Gate hooks — Aria only mounts them in the settings panel.
 import { ApiKeyPanel, TokenCountControl } from '@/auth';
+import { groupConversations } from './groupConversations';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -131,39 +132,7 @@ function ThreadRow({ conversation, isActive, onClick }: ThreadRowProps) {
 
 // ─── Group support ────────────────────────────────────────────────────────────
 
-/**
- * Groups an array of conversations by groupId.
- * Returns:
- *   - `named`: alphabetically-sorted Map of groupId → Conversation[]
- *   - `ungrouped`: conversations with no groupId (rendered last, no header)
- */
-function groupConversations(conversations: Conversation[]): {
-  named: Map<string, Conversation[]>;
-  ungrouped: Conversation[];
-} {
-  const named = new Map<string, Conversation[]>();
-  const ungrouped: Conversation[] = [];
-
-  for (const conv of conversations) {
-    if (conv.groupId) {
-      const existing = named.get(conv.groupId);
-      if (existing) {
-        existing.push(conv);
-      } else {
-        named.set(conv.groupId, [conv]);
-      }
-    } else {
-      ungrouped.push(conv);
-    }
-  }
-
-  // Sort group names alphabetically.
-  const sorted = new Map(
-    [...named.entries()].sort(([a], [b]) => a.localeCompare(b)),
-  );
-
-  return { named: sorted, ungrouped };
-}
+// groupConversations is imported from ./groupConversations (extracted for testability).
 
 interface GroupHeaderProps {
   label: string;
