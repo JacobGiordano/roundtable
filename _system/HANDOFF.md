@@ -6,18 +6,21 @@ Phase 2 — IN PROGRESS
 
 ## Active agents for next session
 
-- Gate (#36) -> Aria (#36) — types are locked; both can proceed in sequence
+- Aria (#36) — consume `tokenCountVisibility` from Gate and conditionally render token counts
 
 ## Last closed
 
-- Arch #36 types prerequisite — TokenCountVisibility type added, UserPreferences interface created
+- Gate #36 — getUserPreferences / saveUserPreferences / useUserPreferences / TokenCountControl implemented
 
-## Decisions made this session (#36 Arch)
+## Decisions made this session (#36 Gate)
 
-- `TokenCountVisibility`: string union `'always' | 'active' | 'never'`
-- `UserPreferences`: new interface (was not previously in types file); Gate owns storage, Aria reads
-- Default value for `tokenCountVisibility` is `'active'` — matches existing hover-reveal behavior (#16)
-- `'never'` means DOM removal, not CSS hide — Aria must branch on this at render time, not with visibility/opacity
+- Storage key: `'roundtable_user_preferences'` in localStorage (separate from `'roundtable:theme'` and `'rt_key_*'`)
+- Default: `{ tokenCountVisibility: 'active' }` — matches #16 hover-reveal behavior
+- `useUserPreferences()` returns `[UserPreferences, (prefs: UserPreferences) => void]` tuple
+- `TokenCountControl` is a segmented button (not dropdown); labels: "Always" / "On tap" / "Never"
+- "On tap" maps to `'active'` — accurate on mobile, acceptable on desktop
+- Aria mounts `TokenCountControl` in the settings panel next to `ApiKeyPanel`
+- Aria reads `tokenCountVisibility` via `useUserPreferences()` imported from `@/auth`
 
 ## Phase 2 completed so far
 
@@ -27,12 +30,12 @@ Phase 2 — IN PROGRESS
 - #15 Atlas: Token usage tracking ✅
 - #16 Aria: Token usage display ✅
 - #11 Aria: Directed reply UI ✅
-- #36 Arch: TokenCountVisibility + UserPreferences types ✅ (branch: 36-arch-token-visibility-type)
+- #36 Arch: TokenCountVisibility + UserPreferences types ✅
+- #36 Gate: preferences storage + useUserPreferences hook + TokenCountControl UI ✅
 
 ## Next issue(s)
 
-1. Gate — #36 implement `getUserPreferences()` / `saveUserPreferences()` against `UserPreferences`
-2. Aria — #36 consume `tokenCountVisibility` from Gate and conditionally render token counts
+1. Aria — #36 consume `tokenCountVisibility` via `useUserPreferences()` from `@/auth`, conditionally render token counts (`'never'` = DOM removal, not CSS hide)
 
 ## Gotchas
 
@@ -42,3 +45,4 @@ Phase 2 — IN PROGRESS
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
 - Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props (no logic)
+- `'never'` means DOM removal, not CSS hide — Aria must branch on this at render time
