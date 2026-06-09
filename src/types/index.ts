@@ -10,7 +10,7 @@
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
-export type ModelId = 'claude' | 'gpt-5.5';
+export type ModelId = 'claude' | 'gpt-5.5' | 'gemini' | 'grok';
 
 export type InteractionMode = 'parallel' | 'manual' | 'auto-chain';
 
@@ -57,7 +57,7 @@ export interface AutoChainConfig {
   maxPasses: number;
 }
 
-export type CredentialKey = 'anthropic' | 'openai';
+export type CredentialKey = 'anthropic' | 'openai' | 'google' | 'xai';
 
 export type ExportFormat = 'markdown' | 'html';
 
