@@ -48,6 +48,16 @@ interface AppLayoutProps {
    * Defaults to 'active' when omitted.
    */
   tokenCountVisibility?: TokenCountVisibility;
+  /**
+   * True while the initial conversation list load is in flight.
+   * Threaded from App (useConversationStore) → AppLayout → Sidebar.
+   */
+  isConversationsLoading?: boolean;
+  /**
+   * Set when a storage operation fails (e.g. quota exceeded).
+   * Threaded from App (useConversationStore) → AppLayout → Sidebar.
+   */
+  conversationStoreError?: Error | null;
 }
 
 export function AppLayout({
@@ -72,6 +82,8 @@ export function AppLayout({
   onDirectedReply,
   onClearDirectedReply,
   tokenCountVisibility,
+  isConversationsLoading,
+  conversationStoreError,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -81,6 +93,8 @@ export function AppLayout({
         activeConversationId={activeConversationId}
         onSelectConversation={onSelectConversation}
         onNewConversation={onNewConversation}
+        isLoading={isConversationsLoading}
+        storageError={conversationStoreError}
       />
 
       {/* Main area — flex-1 */}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { Conversation } from '@/types';
 // Gate cross-agent exception: ApiKeyPanel and TokenCountControl are self-contained
 // Gate components mounted here per the issue spec. They manage their own state
@@ -10,6 +10,10 @@ interface SidebarProps {
   activeConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  /** True while the initial conversation list load is in flight (from useConversationStore). */
+  isLoading?: boolean;
+  /** Set when a storage operation fails (e.g. quota exceeded). Surface to user. */
+  storageError?: Error | null;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -52,9 +56,12 @@ function getThreadTitle(conversation: Conversation): string {
 /** Maps a ModelId to the matching CSS custom property class for the dot color. */
 function getModelDotStyle(modelId: string): React.CSSProperties {
   switch (modelId) {
-    case 'claude':  return { backgroundColor: 'var(--accent-claude)' };
-    case 'gpt-5.5': return { backgroundColor: 'var(--accent-gpt)' };
-    default:        return { backgroundColor: 'var(--accent-other)' };
+    case 'claude':
+      return { backgroundColor: 'var(--accent-claude)' };
+    case 'gpt-5.5':
+      return { backgroundColor: 'var(--accent-gpt)' };
+    default:
+      return { backgroundColor: 'var(--accent-other)' };
   }
 }
 
@@ -122,17 +129,135 @@ function ThreadRow({ conversation, isActive, onClick }: ThreadRowProps) {
   );
 }
 
+// ─── Group support ────────────────────────────────────────────────────────────
+
+/**
+ * Groups an array of conversations by groupId.
+ * Returns:
+ *   - `named`: alphabetically-sorted Map of groupId → Conversation[]
+ *   - `ungrouped`: conversations with no groupId (rendered last, no header)
+ */
+function groupConversations(conversations: Conversation[]): {
+  named: Map<string, Conversation[]>;
+  ungrouped: Conversation[];
+} {
+  const named = new Map<string, Conversation[]>();
+  const ungrouped: Conversation[] = [];
+
+  for (const conv of conversations) {
+    if (conv.groupId) {
+      const existing = named.get(conv.groupId);
+      if (existing) {
+        existing.push(conv);
+      } else {
+        named.set(conv.groupId, [conv]);
+      }
+    } else {
+      ungrouped.push(conv);
+    }
+  }
+
+  // Sort group names alphabetically.
+  const sorted = new Map(
+    [...named.entries()].sort(([a], [b]) => a.localeCompare(b)),
+  );
+
+  return { named: sorted, ungrouped };
+}
+
+interface GroupHeaderProps {
+  label: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+function GroupHeader({ label, isOpen, onToggle }: GroupHeaderProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
+      className={[
+        'w-full flex items-center gap-1.5 h-8 px-4',
+        'text-left cursor-pointer select-none',
+        'text-text-muted hover:text-text-secondary',
+        'hover:bg-hover/40 transition-colors duration-fast',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
+      ].join(' ')}
+    >
+      {/* Chevron rotates to indicate open/closed state */}
+      <svg
+        width="8"
+        height="8"
+        viewBox="0 0 8 8"
+        fill="none"
+        aria-hidden="true"
+        className="flex-shrink-0 transition-transform duration-fast"
+        style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+      >
+        <path
+          d="M2 1.5L5.5 4L2 6.5"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span className="text-[11px] font-semibold uppercase tracking-wide truncate">
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+
+function ThreadSkeleton() {
+  return (
+    <div className="h-16 flex flex-col justify-center pl-[14px] pr-4 gap-2 opacity-40">
+      <div className="h-2.5 w-3/4 rounded bg-border animate-pulse" />
+      <div className="h-2 w-1/2 rounded bg-border animate-pulse" />
+    </div>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+
 export function Sidebar({
   conversations,
   activeConversationId,
   onSelectConversation,
   onNewConversation,
+  isLoading = false,
+  storageError = null,
 }: SidebarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Track which named groups are collapsed. All groups start open.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const handleToggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev);
   }, []);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Memoize grouping — recalculates only when the conversations array changes.
+  const { named: namedGroups, ungrouped } = useMemo(
+    () => groupConversations(conversations),
+    [conversations],
+  );
+
+  const hasAnyGroups = namedGroups.size > 0;
 
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden">
@@ -165,14 +290,67 @@ export function Sidebar({
       </header>
 
       {/* Thread list */}
-      <nav className="flex-1 overflow-y-auto" aria-label="Conversations">
-        {conversations.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center h-full">
+      <nav
+        className={['flex-1 overflow-y-auto', isLoading ? 'opacity-60' : ''].join(' ')}
+        aria-label="Conversations"
+        aria-busy={isLoading}
+      >
+        {isLoading ? (
+          // Skeleton state during initial load
+          <ul className="py-1" aria-hidden="true">
+            <li><ThreadSkeleton /></li>
+            <li><ThreadSkeleton /></li>
+            <li><ThreadSkeleton /></li>
+          </ul>
+        ) : conversations.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
             <p className="text-[13px] text-text-muted text-center px-4">
               Start a conversation
             </p>
           </div>
+        ) : hasAnyGroups ? (
+          // ── Grouped view ────────────────────────────────────────────────
+          // Named groups first (alphabetical), ungrouped section last.
+          <ul className="py-1">
+            {[...namedGroups.entries()].map(([groupId, groupConvs]) => {
+              const isOpen = !collapsedGroups.has(groupId);
+              return (
+                <li key={groupId}>
+                  <GroupHeader
+                    label={groupId}
+                    isOpen={isOpen}
+                    onToggle={() => handleToggleGroup(groupId)}
+                  />
+                  {isOpen && (
+                    <ul>
+                      {groupConvs.map((conv) => (
+                        <li key={conv.id} className="thread-entering">
+                          <ThreadRow
+                            conversation={conv}
+                            isActive={conv.id === activeConversationId}
+                            onClick={() => onSelectConversation(conv.id)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+
+            {/* Ungrouped conversations — no header, listed after all named groups */}
+            {ungrouped.map((conv) => (
+              <li key={conv.id} className="thread-entering">
+                <ThreadRow
+                  conversation={conv}
+                  isActive={conv.id === activeConversationId}
+                  onClick={() => onSelectConversation(conv.id)}
+                />
+              </li>
+            ))}
+          </ul>
         ) : (
+          // ── Flat view (no groups present) ───────────────────────────────
           <ul className="py-1">
             {conversations.map((conv) => (
               <li key={conv.id} className="thread-entering">
@@ -186,6 +364,16 @@ export function Sidebar({
           </ul>
         )}
       </nav>
+
+      {/* Storage error notice — unobtrusive red text line above settings */}
+      {storageError && (
+        <div
+          role="alert"
+          className="flex-shrink-0 px-4 py-2 text-[11px] text-semantic-error border-t border-border"
+        >
+          Storage error: {storageError.message}
+        </div>
+      )}
 
       {/* Settings panel — collapsible, pinned to the bottom of the sidebar.
           Houses ApiKeyPanel (Gate) and TokenCountControl (Gate).
