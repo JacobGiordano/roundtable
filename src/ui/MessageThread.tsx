@@ -126,6 +126,7 @@ export function MessageThread({
                   message={message}
                   modelConfig={modelConfig}
                   targetModelConfig={targetModelConfig}
+                  error={message.error}
                   onRetry={onRetry ? () => onRetry(message.id) : undefined}
                   onDirectedReply={onDirectedReply}
                   entranceIndex={entranceIndex}

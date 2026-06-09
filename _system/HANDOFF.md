@@ -9,18 +9,25 @@ Phase 3 — IN PROGRESS
 - Merge `aria-wire-required-keys` into main (Aria, awaiting authorization)
 - Merge `gate-required-keys` into main (Gate, awaiting authorization)
 - Merge `streaming-wiring-aria` into main (awaiting authorization)
+- Merge `aria-stream-error-display` into main (Aria, awaiting authorization)
 
 ## Last closed
 
-- Aria — wire `requiredKeys` prop in `Sidebar.tsx` (branch `aria-wire-required-keys`)
-  Added `getRequiredCredentialKeys` import from `@/auth`, derived `requiredKeys` from
-  active conversation's models, passed as prop to `<ApiKeyPanel requiredKeys={requiredKeys} />`.
+- Aria — streaming error display (branch `aria-stream-error-display`)
+  Wired chunk.error -> Message.error in App.tsx streaming handler.
+  Threaded message.error as error prop in MessageThread -> MessageBubble.
+  Error renders inline below any partial content with a warning icon; separated
+  by a subtle border when partial content is present.
 
 ## Decisions made this session
 
-- `requiredKeys` derivation lives at Sidebar component body scope (before `return`), not
-  inside JSX — keeps it a plain expression, avoids inline derivation in render.
-- Import documented as Gate cross-agent permitted exception per CLAUDE.md.
+- Error stored on Message.error at stream finalization in App.tsx; passed as
+  MessageBubble error prop from MessageThread via message.error.
+- When message has partial content, error block is separated with border-t
+  border-border-subtle + mt-3 pt-2 to signal terminal state.
+- When message has no content (stream failed immediately), error uses mt-1 only.
+- Warning icon uses &#9888; (Unicode triangle warning) with aria-hidden so
+  screen readers only announce the message text.
 
 ## Next issues in priority order
 
@@ -28,6 +35,7 @@ Phase 3 — IN PROGRESS
 2. Merge `aria-wire-required-keys` into main (Aria, awaiting authorization)
 3. Merge `streaming-wiring-aria` into main (awaiting authorization)
 4. Merge `19-aria-export-ui` into main (awaiting authorization)
+5. Merge `aria-stream-error-display` into main (Aria, awaiting authorization)
 
 ## Gotchas
 
@@ -41,4 +49,3 @@ Phase 3 — IN PROGRESS
 - AppLayout.tsx has archive/delete/group props from issue #18 (prior session) — pre-existing in working tree
 - ThreadRow is a `<div>` wrapper (not a `<button>`) — accessible because inner navigation button keeps keyboard/click semantics
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
-- chunk.error on StreamChunk cannot be attached to Message (no field) — needs Arch PR to unblock streaming error display

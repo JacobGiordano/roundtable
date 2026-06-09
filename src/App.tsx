@@ -146,13 +146,12 @@ export default function App() {
           // Finalize the streaming message: flip isStreaming off, attach usage/error.
           const existing = accumulatorRef.current[key];
           if (existing) {
-            // Note: chunk.error is not stored on Message (Message has no error field in
-            // the type contract). Error display is a Phase 2 concern requiring Arch to
-            // add an error field to Message. Deferred.
             const finalMsg: Message = {
               ...existing,
               isStreaming: false,
               tokenUsage: chunk.tokenUsage,
+              // Arch added error?: ModelError to Message — propagate when stream fails.
+              ...(chunk.error ? { error: chunk.error } : {}),
             };
             // Remove from accumulator ref so it no longer appears in streamingMessages.
             const next = { ...accumulatorRef.current };

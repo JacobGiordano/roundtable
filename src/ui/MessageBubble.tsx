@@ -155,17 +155,18 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Error state */}
+      {/* Error state — terminal indicator rendered after any partial streamed content. */}
       {hasError && (
-        <div className="mt-2">
-          <p className="text-[13px] italic text-error">
-            Error: {error.message}
+        <div className={message.content ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
+          <p className="flex items-start gap-1.5 text-[13px] text-error">
+            <span aria-hidden="true" className="select-none shrink-0">&#9888;</span>
+            <span>{error!.message}</span>
           </p>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="mt-1 text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+              className="mt-1.5 text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
             >
               Retry
             </button>
