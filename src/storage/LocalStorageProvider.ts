@@ -11,6 +11,7 @@
 
 import type {
   Conversation,
+  ExportedConversation,
   ExportFormat,
   StorageProvider,
 } from '@/types/index';
@@ -208,8 +209,8 @@ export class LocalStorageProvider implements StorageProvider {
 
   /**
    * Sets archivedAt on the stored conversation. No-op if it does not exist.
-   * Does not remove the conversation from the index — archived conversations
-   * remain loadable; filtering is the UI's responsibility.
+   * Archived conversations remain in the index — filtering is the UI's
+   * responsibility. Group membership (groupId) is preserved.
    */
   async archiveConversation(id: string): Promise<void> {
     const conv = await this.loadConversation(id);
@@ -225,12 +226,36 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   /**
-   * Triggers a browser download of the conversation in the requested format.
-   * Phase 3 feature — safe no-op if conversation is not found.
+   * Clears the archivedAt timestamp, returning the conversation to active
+   * status. No-op if the conversation does not exist or was not archived.
    */
-  async exportConversation(id: string, format: ExportFormat): Promise<void> {
+  async unarchiveConversation(id: string): Promise<void> {
     const conv = await this.loadConversation(id);
     if (!conv) return;
+    if (conv.archivedAt === undefined) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { archivedAt: _archivedAt, ...rest } = conv;
+    const unarchived: Conversation = {
+      ...rest,
+      updatedAt: Date.now(),
+    };
+
+    await this.saveConversation(unarchived);
+  }
+
+  /**
+   * Serializes the conversation to the requested format and returns the result.
+   * Returns null if the conversation does not exist.
+   *
+   * Does NOT trigger a browser download — that is handled by
+   * `downloadExportedConversation`, a separate utility exported from this
+   * module. This separation allows ServerStorageProvider to use the same
+   * interface without browser DOM access.
+   */
+  async exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null> {
+    const conv = await this.loadConversation(id);
+    if (!conv) return null;
 
     const slug = (conv.title ?? `conversation-${id}`)
       .toLowerCase()
@@ -238,17 +263,31 @@ export class LocalStorageProvider implements StorageProvider {
       .slice(0, 60);
 
     if (format === 'markdown') {
-      triggerDownload(
-        `${slug}.md`,
-        conversationToMarkdown(conv),
-        'text/markdown;charset=utf-8'
-      );
+      return {
+        content: conversationToMarkdown(conv),
+        filename: `${slug}.md`,
+        mimeType: 'text/markdown;charset=utf-8',
+      };
     } else {
-      triggerDownload(
-        `${slug}.html`,
-        conversationToHtml(conv),
-        'text/html;charset=utf-8'
-      );
+      return {
+        content: conversationToHtml(conv),
+        filename: `${slug}.html`,
+        mimeType: 'text/html;charset=utf-8',
+      };
     }
   }
+}
+
+// ─── Download trigger — browser-only utility ──────────────────────────────────
+
+/**
+ * Triggers a browser download from an `ExportedConversation` returned by
+ * `StorageProvider.exportConversation`. This is intentionally separate from
+ * the interface method so that non-browser consumers (tests, server) can call
+ * `exportConversation` without touching the DOM.
+ *
+ * Aria calls this after receiving the serialized result from Vault.
+ */
+export function downloadExportedConversation(exported: ExportedConversation): void {
+  triggerDownload(exported.filename, exported.content, exported.mimeType);
 }

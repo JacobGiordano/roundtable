@@ -221,14 +221,114 @@ export interface ModelProvider {
 
 // ─── StorageProvider — Vault implements ───────────────────────────────────────
 
+/**
+ * Serialized content produced by converting a conversation to a given format.
+ * The caller decides what to do with it — trigger a download, stream over HTTP,
+ * write to disk, etc.
+ */
+export interface ExportedConversation {
+  /** The serialized conversation body (UTF-8 string). */
+  content: string;
+  /** Suggested filename including extension, e.g. "my-chat.md". */
+  filename: string;
+  /** MIME type of the content, e.g. "text/markdown;charset=utf-8". */
+  mimeType: string;
+}
+
+/**
+ * Core persistence contract. Vault owns the implementation; all other agents
+ * interact with storage exclusively through this interface.
+ *
+ * Design invariants:
+ *   - All methods are async. localStorage is synchronous under the hood, but
+ *     the async boundary is load-bearing: it allows a future ServerStorageProvider
+ *     to substitute without interface changes.
+ *   - Ghost-mode guard: `saveConversation` silently no-ops when
+ *     `conversation.isGhost === true`. All other write methods are not
+ *     ghost-aware — callers must never pass a ghost conversation ID to them.
+ *   - Upsert semantics: `saveConversation` creates or fully replaces a record.
+ *     To update a single field (e.g. `groupId`), load the conversation, mutate
+ *     the local copy, and call `saveConversation` with the full updated object.
+ *     There is no `patchConversation`.
+ *   - Idempotent deletes: `deleteConversation` on a non-existent ID is a no-op.
+ *   - Export is side-effect-free: `exportConversation` returns serialized content
+ *     and does NOT trigger a browser download. Download is a DOM concern that a
+ *     ServerStorageProvider cannot fulfill. Vault's LocalStorageProvider wraps
+ *     the return value in a download trigger; other consumers may stream it,
+ *     write it to disk, or return it over HTTP.
+ */
 export interface StorageProvider {
+  /**
+   * Persist a conversation (create or replace — upsert semantics).
+   *
+   * Ghost-mode guard: if `conversation.isGhost === true`, returns immediately
+   * without writing anything. This is the canonical guard point — callers do
+   * not need to check `isGhost` before calling.
+   *
+   * Throws if the storage backend is full (e.g. QuotaExceededError in
+   * localStorage). The caller is responsible for surfacing this to the user.
+   */
   saveConversation(conversation: Conversation): Promise<void>;
+
+  /**
+   * Load a single conversation by ID.
+   *
+   * Returns `null` if no record exists for the given ID, or if the stored
+   * data is present but corrupt (parse failure). Does not throw on missing or
+   * corrupt data — callers should treat `null` as "not found".
+   */
   loadConversation(id: string): Promise<Conversation | null>;
+
+  /**
+   * Return all stored conversations, sorted newest-first by `updatedAt`.
+   *
+   * Conversations whose underlying data is corrupt or missing are silently
+   * omitted so the list remains usable even when storage is partially damaged.
+   * Archived conversations (those with `archivedAt` set) are included —
+   * filtering by archive status is the UI's responsibility.
+   * Ghost conversations are never included (they are not persisted).
+   */
   listConversations(): Promise<Conversation[]>;
+
+  /**
+   * Permanently remove a conversation from storage.
+   *
+   * No-op if the conversation does not exist. Removes the record from both
+   * the index and its data key. Does not cascade to any related records.
+   */
   deleteConversation(id: string): Promise<void>;
+
+  /**
+   * Mark a conversation as archived by setting its `archivedAt` timestamp.
+   *
+   * No-op if the conversation does not exist. Archived conversations remain
+   * in the index and are returned by `listConversations` — they are not
+   * deleted. The UI is responsible for showing/hiding archived conversations.
+   * Group membership (`groupId`) is preserved on archive.
+   *
+   * To reverse, call `unarchiveConversation`.
+   */
   archiveConversation(id: string): Promise<void>;
-  /** Phase 3 — triggers browser download. */
-  exportConversation(id: string, format: ExportFormat): Promise<void>;
+
+  /**
+   * Clear the `archivedAt` timestamp on a conversation, returning it to
+   * active status.
+   *
+   * No-op if the conversation does not exist or was not archived.
+   */
+  unarchiveConversation(id: string): Promise<void>;
+
+  /**
+   * Serialize a conversation to the requested format and return the result.
+   *
+   * Returns `null` if the conversation does not exist.
+   *
+   * Side-effect-free: does NOT trigger a browser download. The caller decides
+   * what to do with the content — Vault's LocalStorageProvider wraps this in a
+   * download trigger; a ServerStorageProvider would stream it over HTTP.
+   * The `filename` and `mimeType` fields are hints that callers may override.
+   */
+  exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null>;
 }
 
 // ─── Themes ───────────────────────────────────────────────────────────────────

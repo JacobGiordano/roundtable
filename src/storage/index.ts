@@ -1,5 +1,5 @@
 // Vault owns this directory — /src/storage
-export { LocalStorageProvider } from './LocalStorageProvider';
+export { LocalStorageProvider, downloadExportedConversation } from './LocalStorageProvider';
 export { GhostModeManager, ghostModeManager } from './GhostModeManager';
 export type { GhostModeListener } from './GhostModeManager';
 export { useGhostMode } from './useGhostMode';

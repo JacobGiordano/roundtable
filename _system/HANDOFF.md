@@ -2,41 +2,39 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 2 — COMPLETE
+Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Coda or Atlas — Phase 3 kickoff (backend / persistence / export)
+- Vault — issues #20 and #21 (storage persistence, export UI wiring)
+- Coda — may sequence Vault #20 + #21 in parallel with Atlas real-streaming work
 
 ## Last closed
 
-- Aria #36 — tokenCountVisibility preference consumed and applied throughout UI
+- Arch #22 — StorageProvider abstraction finalized; Phase 3 unblocked
 
-## Decisions made this session (#36 Aria)
+## Decisions made this session (#22 Arch)
 
-- `useUserPreferences()` called once at App root; `tokenCountVisibility` threaded as a prop through AppLayout → MessageThread → MessageBubble and AppLayout → ModelSelectorPanel → SessionTokenSection
-- `'never'`: DOM removal (null return / conditional render) — not CSS hidden — in both MessageBubble token count and SessionTokenSection
-- `'always'`: bottom row in MessageBubble is always visible (no hover required); SessionTokenSection still collapsible but counts visible when expanded
-- `'active'` (default): existing hover-reveal behavior preserved unchanged
-- Settings panel added to Sidebar bottom: collapsible, houses ApiKeyPanel + TokenCountControl from Gate
-- ApiKeyPanel mounted without `requiredKeys` prop (no active-model key enforcement yet — that can be wired in Phase 3 when models are real)
-- No new dependencies introduced
+- `exportConversation` signature changed: now returns `Promise<ExportedConversation | null>` instead of `Promise<void>`. It serializes only — no DOM access. Download triggering is a separate `downloadExportedConversation()` utility exported from `/src/storage`. This makes the interface backend-compatible for Phase 4 `ServerStorageProvider`.
+- `ExportedConversation` interface added to `/src/types/index.ts`: `{ content: string; filename: string; mimeType: string }`.
+- `unarchiveConversation(id: string): Promise<void>` added to `StorageProvider` and implemented in `LocalStorageProvider`. Required for Phase 3 archive/unarchive UI.
+- `groupId` update pattern: no dedicated `setConversationGroup` method. Callers update `groupId` on the `Conversation` object and call `saveConversation` (upsert). Documented in interface JSDoc.
+- Full JSDoc on every `StorageProvider` method covering contract, ghost-mode behavior, and missing-record behavior.
+- 27 unit tests added at `/src/storage/LocalStorageProvider.test.ts` — all pass.
+- `downloadExportedConversation()` exported from `/src/storage/index.ts` — Aria calls this after receiving `ExportedConversation` from Vault.
 
-## Phase 2 completed
+## Downstream impact on Vault (#20, #21)
 
-- #12 Aria: Interaction mode switcher ✅
-- #13 Aria: Per-model system prompt UI ✅
-- #14 Atlas: Directed reply routing ✅
-- #15 Atlas: Token usage tracking ✅
-- #16 Aria: Token usage display ✅
-- #11 Aria: Directed reply UI ✅
-- #36 Arch: TokenCountVisibility + UserPreferences types ✅
-- #36 Gate: preferences storage + useUserPreferences hook + TokenCountControl UI ✅
-- #36 Aria: tokenCountVisibility rendering + settings panel ✅
+- `LocalStorageProvider.exportConversation` now returns `ExportedConversation | null` — any caller that previously expected `void` must be updated.
+- `unarchiveConversation` is implemented — Vault's UI wiring issues can use it directly.
+- `downloadExportedConversation` is the new download trigger — import from `@/storage`.
 
-## Next issue(s)
+## Next issues in priority order
 
-1. Phase 3 kickoff — Coda to sequence: Vault (storage/persistence), Atlas (real streaming), Gate (requiredKeys wiring), Aria (export UI, archive/delete UI)
+1. Vault #20 — wire persistence to real conversations (save/load/list)
+2. Vault #21 — export and archive/delete UI
+3. Atlas — real streaming (Anthropic + OpenAI APIs)
+4. Gate — requiredKeys wiring to active models
 
 ## Gotchas
 
@@ -45,4 +43,4 @@ Phase 2 — COMPLETE
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
 - Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props (no logic)
-- Phase 3 types will need Arch review before any agent starts implementation
+- exportConversation returns null (not void) for missing conversations — callers must null-check before calling downloadExportedConversation
