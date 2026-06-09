@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
+import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
 // exported from @/models per the documented exception in CLAUDE.md.
@@ -11,7 +11,10 @@ import { useUserPreferences } from '@/auth';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
-import { useConversationStore } from '@/storage';
+// downloadExportedConversation triggers a Blob download — also imported from
+// @/storage per the documented exception. Called by handleExportConversation
+// after exportConversation returns the serialized content.
+import { useConversationStore, downloadExportedConversation } from '@/storage';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -197,6 +200,54 @@ export default function App() {
     setPendingTargetModelId(null);
   }, []);
 
+  // ── Conversation management mutations ──────────────────────────────────────
+  // These are thin pass-throughs — App only threads UI props, no business logic.
+
+  const handleArchiveConversation = useCallback(
+    (id: string) => { void store.archiveConversation(id); },
+    [store],
+  );
+
+  const handleUnarchiveConversation = useCallback(
+    (id: string) => { void store.unarchiveConversation(id); },
+    [store],
+  );
+
+  const handleDeleteConversation = useCallback(
+    (id: string) => { void store.deleteConversation(id); },
+    [store],
+  );
+
+  const handleSetConversationGroup = useCallback(
+    (id: string, groupId: string | undefined) => { void store.setConversationGroup(id, groupId); },
+    [store],
+  );
+
+  const handleBulkArchive = useCallback(
+    (ids: string[]) => { for (const id of ids) void store.archiveConversation(id); },
+    [store],
+  );
+
+  const handleBulkDelete = useCallback(
+    (ids: string[]) => { for (const id of ids) void store.deleteConversation(id); },
+    [store],
+  );
+
+  /**
+   * Export handler: delegates to store.exportConversation then triggers a
+   * browser download via downloadExportedConversation from @/storage.
+   * Only fires when there is an active conversation — ExportButton is disabled
+   * when no conversation is active or it has no messages.
+   */
+  const handleExportConversation = useCallback(
+    async (format: ExportFormat) => {
+      if (!store.activeConversationId) return;
+      const result = await store.exportConversation(store.activeConversationId, format);
+      if (result) downloadExportedConversation(result);
+    },
+    [store],
+  );
+
   return (
     <AppLayout
       conversations={store.conversations}
@@ -221,6 +272,15 @@ export default function App() {
       tokenCountVisibility={tokenCountVisibility}
       isConversationsLoading={store.isLoading}
       conversationStoreError={store.storageError}
+      onExportConversation={
+        store.activeConversationId ? handleExportConversation : undefined
+      }
+      onArchiveConversation={handleArchiveConversation}
+      onUnarchiveConversation={handleUnarchiveConversation}
+      onDeleteConversation={handleDeleteConversation}
+      onSetConversationGroup={handleSetConversationGroup}
+      onBulkArchive={handleBulkArchive}
+      onBulkDelete={handleBulkDelete}
     />
   );
 }

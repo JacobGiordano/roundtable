@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { Conversation } from '@/types';
 // Gate cross-agent exception: ApiKeyPanel and TokenCountControl are self-contained
 // Gate components mounted here per the issue spec. They manage their own state
@@ -15,6 +15,18 @@ interface SidebarProps {
   isLoading?: boolean;
   /** Set when a storage operation fails (e.g. quota exceeded). Surface to user. */
   storageError?: Error | null;
+  /** Archive a single conversation. */
+  onArchiveConversation?: (id: string) => void;
+  /** Unarchive a single conversation. */
+  onUnarchiveConversation?: (id: string) => void;
+  /** Permanently delete a single conversation. */
+  onDeleteConversation?: (id: string) => void;
+  /** Assign or clear a group on a conversation. Pass undefined to clear. */
+  onSetConversationGroup?: (id: string, groupId: string | undefined) => void;
+  /** Archive multiple conversations at once (no confirmation required). */
+  onBulkArchive?: (ids: string[]) => void;
+  /** Delete multiple conversations at once. */
+  onBulkDelete?: (ids: string[]) => void;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -66,13 +78,235 @@ function getModelDotStyle(modelId: string): React.CSSProperties {
   }
 }
 
+// ─── Three-dot menu ───────────────────────────────────────────────────────────
+
+type ThreadMenuState =
+  | { type: 'closed' }
+  | { type: 'menu' }
+  | { type: 'confirm-delete' }
+  | { type: 'group-input' };
+
+interface ThreadActionMenuProps {
+  conversation: Conversation;
+  /** All distinct group names currently in use across conversations. */
+  existingGroups: string[];
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+  onSetGroup: (groupId: string | undefined) => void;
+  onClose: () => void;
+}
+
+function ThreadActionMenu({
+  conversation,
+  existingGroups,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  onSetGroup,
+  onClose,
+}: ThreadActionMenuProps) {
+  const [menuState, setMenuState] = useState<ThreadMenuState>({ type: 'menu' });
+  const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
+  const menuRef = useRef<HTMLDivElement>(null);
+  const groupInputRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, [onClose]);
+
+  // Focus group input when it appears
+  useEffect(() => {
+    if (menuState.type === 'group-input') {
+      groupInputRef.current?.focus();
+    }
+  }, [menuState.type]);
+
+  const handleGroupConfirm = useCallback(() => {
+    const trimmed = groupInput.trim();
+    onSetGroup(trimmed === '' ? undefined : trimmed);
+    onClose();
+  }, [groupInput, onSetGroup, onClose]);
+
+  const handleGroupKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleGroupConfirm();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [handleGroupConfirm, onClose],
+  );
+
+  const isArchived = conversation.archivedAt !== undefined;
+
+  return (
+    <div
+      ref={menuRef}
+      role="menu"
+      aria-label="Conversation actions"
+      className={[
+        'absolute right-2 top-1 z-20',
+        'min-w-[160px] py-1 rounded-md',
+        'bg-card border border-border',
+        'shadow-md',
+        'text-[12px]',
+      ].join(' ')}
+    >
+      {menuState.type === 'menu' && (
+        <>
+          {isArchived ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onUnarchive(); onClose(); }}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+            >
+              Unarchive
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onArchive(); onClose(); }}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+            >
+              Archive
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setMenuState({ type: 'group-input' })}
+            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+          >
+            Move to group&hellip;
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setMenuState({ type: 'confirm-delete' })}
+            className="w-full text-left px-3 py-1.5 text-semantic-error hover:bg-hover transition-colors duration-fast"
+          >
+            Delete
+          </button>
+        </>
+      )}
+
+      {menuState.type === 'confirm-delete' && (
+        <div className="px-3 py-2">
+          <p className="text-text-secondary mb-2">Delete this conversation?</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { onDelete(); onClose(); }}
+              className="flex-1 px-2 py-1 rounded text-white bg-semantic-error hover:opacity-90 transition-opacity duration-fast text-[11px]"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {menuState.type === 'group-input' && (
+        <div className="px-3 py-2">
+          <p className="text-text-muted mb-1.5 text-[11px]">Group name (blank to clear)</p>
+          <input
+            ref={groupInputRef}
+            type="text"
+            value={groupInput}
+            onChange={(e) => setGroupInput(e.target.value)}
+            onKeyDown={handleGroupKeyDown}
+            placeholder="Enter group name"
+            className={[
+              'w-full px-2 py-1 rounded text-[12px]',
+              'bg-input border border-border',
+              'text-text-primary placeholder:text-text-muted',
+              'focus:outline-none focus:ring-1 focus:ring-focus',
+            ].join(' ')}
+          />
+          {/* Existing group suggestions */}
+          {existingGroups.length > 0 && (
+            <ul className="mt-1.5 max-h-24 overflow-y-auto">
+              {existingGroups.map((g) => (
+                <li key={g}>
+                  <button
+                    type="button"
+                    onClick={() => { onSetGroup(g); onClose(); }}
+                    className="w-full text-left px-2 py-1 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast text-[11px] rounded"
+                  >
+                    {g}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleGroupConfirm}
+              className="flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ThreadRow ────────────────────────────────────────────────────────────────
+
 interface ThreadRowProps {
   conversation: Conversation;
   isActive: boolean;
+  isChecked: boolean;
+  existingGroups: string[];
   onClick: () => void;
+  onToggleChecked: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+  onSetGroup: (groupId: string | undefined) => void;
 }
 
-function ThreadRow({ conversation, isActive, onClick }: ThreadRowProps) {
+function ThreadRow({
+  conversation,
+  isActive,
+  isChecked,
+  existingGroups,
+  onClick,
+  onToggleChecked,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  onSetGroup,
+}: ThreadRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const title = getThreadTitle(conversation);
   const timestamp = formatRelativeTime(conversation.updatedAt);
 
@@ -86,47 +320,125 @@ function ThreadRow({ conversation, isActive, onClick }: ThreadRowProps) {
   const visibleDots = modelIds.slice(0, 4);
   const extraCount = modelIds.length > 4 ? modelIds.length - 4 : 0;
 
+  const handleMenuClose = useCallback(() => setMenuOpen(false), []);
+  const handleMenuOpen = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(true);
+  }, []);
+
+  const handleCheckboxChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.stopPropagation();
+      onToggleChecked();
+    },
+    [onToggleChecked],
+  );
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={[
-        'w-full text-left h-16 flex flex-col justify-center',
-        'transition-colors duration-fast',
+        'group relative w-full',
         isActive
-          ? 'bg-hover border-l-2 border-border-strong pl-[14px] pr-4'
-          : 'border-l-2 border-transparent pl-[14px] pr-4 hover:bg-hover/50',
+          ? 'bg-hover border-l-2 border-border-strong'
+          : 'border-l-2 border-transparent hover:bg-hover/50',
+        'transition-colors duration-fast',
       ].join(' ')}
     >
-      {/* Row 1: title + timestamp */}
-      <div className="flex items-center justify-between gap-2 w-full">
-        <span
-          className={[
-            'text-[13px] font-medium truncate',
-            isActive ? 'text-text-primary' : 'text-text-secondary',
-          ].join(' ')}
-        >
-          {title}
-        </span>
-        <span className="text-[11px] font-normal text-text-muted flex-shrink-0">
-          {timestamp}
-        </span>
+      {/* Checkbox — visible on hover or when checked */}
+      <div
+        className={[
+          'absolute left-2 top-1/2 -translate-y-1/2 z-10',
+          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          'transition-opacity duration-fast',
+        ].join(' ')}
+      >
+        <input
+          type="checkbox"
+          aria-label={`Select conversation: ${title}`}
+          checked={isChecked}
+          onChange={handleCheckboxChange}
+          onClick={(e) => e.stopPropagation()}
+          className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
+        />
       </div>
 
-      {/* Row 2: model dots */}
-      <div className="flex items-center gap-[3px] mt-1">
-        {visibleDots.map((modelId) => (
+      {/* Main row button */}
+      <button
+        type="button"
+        onClick={onClick}
+        className={[
+          'w-full text-left h-16 flex flex-col justify-center',
+          isChecked ? 'pl-8' : 'pl-[14px] group-hover:pl-8',
+          'pr-8',
+          'transition-all duration-fast',
+        ].join(' ')}
+      >
+        {/* Row 1: title + timestamp */}
+        <div className="flex items-center justify-between gap-2 w-full">
           <span
-            key={modelId}
-            className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-            style={getModelDotStyle(modelId)}
-          />
-        ))}
-        {extraCount > 0 && (
-          <span className="text-[10px] text-text-muted ml-1">+{extraCount}</span>
-        )}
-      </div>
-    </button>
+            className={[
+              'text-[13px] font-medium truncate',
+              isActive ? 'text-text-primary' : 'text-text-secondary',
+            ].join(' ')}
+          >
+            {title}
+          </span>
+          <span className="text-[11px] font-normal text-text-muted flex-shrink-0">
+            {timestamp}
+          </span>
+        </div>
+
+        {/* Row 2: model dots */}
+        <div className="flex items-center gap-[3px] mt-1">
+          {visibleDots.map((modelId) => (
+            <span
+              key={modelId}
+              className="w-[6px] h-[6px] rounded-full flex-shrink-0"
+              style={getModelDotStyle(modelId)}
+            />
+          ))}
+          {extraCount > 0 && (
+            <span className="text-[10px] text-text-muted ml-1">+{extraCount}</span>
+          )}
+        </div>
+      </button>
+
+      {/* Three-dot menu trigger — visible on hover */}
+      <button
+        type="button"
+        aria-label="Conversation actions"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={handleMenuOpen}
+        className={[
+          'absolute right-1.5 top-1/2 -translate-y-1/2 z-10',
+          'w-6 h-6 rounded flex items-center justify-center',
+          'text-text-muted hover:text-text-secondary hover:bg-hover',
+          'transition-colors duration-fast',
+          menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+        ].join(' ')}
+      >
+        {/* Vertical three-dot (ellipsis) icon */}
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          <circle cx="6" cy="2" r="1.1" />
+          <circle cx="6" cy="6" r="1.1" />
+          <circle cx="6" cy="10" r="1.1" />
+        </svg>
+      </button>
+
+      {/* Dropdown menu */}
+      {menuOpen && (
+        <ThreadActionMenu
+          conversation={conversation}
+          existingGroups={existingGroups}
+          onArchive={onArchive}
+          onUnarchive={onUnarchive}
+          onDelete={onDelete}
+          onSetGroup={onSetGroup}
+          onClose={handleMenuClose}
+        />
+      )}
+    </div>
   );
 }
 
@@ -190,6 +502,154 @@ function ThreadSkeleton() {
   );
 }
 
+// ─── Archive filter toggle ────────────────────────────────────────────────────
+
+type ArchiveFilter = 'active' | 'archived';
+
+interface ArchiveToggleProps {
+  value: ArchiveFilter;
+  onChange: (value: ArchiveFilter) => void;
+}
+
+function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
+  return (
+    <div className="flex items-center mx-3 my-1.5 rounded-md overflow-hidden border border-border text-[11px] font-medium">
+      <button
+        type="button"
+        onClick={() => onChange('active')}
+        className={[
+          'flex-1 py-1 text-center transition-colors duration-fast',
+          value === 'active'
+            ? 'bg-hover text-text-primary'
+            : 'text-text-muted hover:text-text-secondary hover:bg-hover/40',
+        ].join(' ')}
+        aria-pressed={value === 'active'}
+      >
+        Active
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('archived')}
+        className={[
+          'flex-1 py-1 text-center transition-colors duration-fast',
+          value === 'archived'
+            ? 'bg-hover text-text-primary'
+            : 'text-text-muted hover:text-text-secondary hover:bg-hover/40',
+        ].join(' ')}
+        aria-pressed={value === 'archived'}
+      >
+        Archived
+      </button>
+    </div>
+  );
+}
+
+// ─── Bulk action bar ──────────────────────────────────────────────────────────
+
+type BulkBarState = 'idle' | 'confirm-delete';
+
+interface BulkActionBarProps {
+  selectedCount: number;
+  totalCount: number;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
+  onBulkArchive: () => void;
+  onBulkDelete: () => void;
+}
+
+function BulkActionBar({
+  selectedCount,
+  totalCount,
+  onSelectAll,
+  onDeselectAll,
+  onBulkArchive,
+  onBulkDelete,
+}: BulkActionBarProps) {
+  const [barState, setBarState] = useState<BulkBarState>('idle');
+  const allSelected = selectedCount === totalCount && totalCount > 0;
+
+  const handleBulkDeleteConfirm = useCallback(() => {
+    onBulkDelete();
+    setBarState('idle');
+  }, [onBulkDelete]);
+
+  return (
+    <div className="flex-shrink-0 border-b border-border bg-hover/30">
+      {/* Header row: select-all + deselect */}
+      <div className="flex items-center px-3 py-1.5 gap-2">
+        <input
+          type="checkbox"
+          aria-label={allSelected ? 'Deselect all' : 'Select all'}
+          checked={allSelected}
+          onChange={allSelected ? onDeselectAll : onSelectAll}
+          className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
+        />
+        <span className="flex-1 text-[11px] text-text-secondary">
+          {selectedCount} selected
+        </span>
+        <button
+          type="button"
+          onClick={onDeselectAll}
+          className="text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-fast"
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* Action row */}
+      {barState === 'idle' ? (
+        <div className="flex items-center px-3 pb-1.5 gap-2">
+          <button
+            type="button"
+            onClick={onBulkArchive}
+            className={[
+              'flex-1 py-1 rounded text-[11px] text-center',
+              'text-text-secondary bg-hover hover:bg-hover/80',
+              'transition-colors duration-fast',
+            ].join(' ')}
+          >
+            Archive selected
+          </button>
+          <button
+            type="button"
+            onClick={() => setBarState('confirm-delete')}
+            className={[
+              'flex-1 py-1 rounded text-[11px] text-center',
+              'text-semantic-error bg-hover hover:bg-hover/80',
+              'transition-colors duration-fast',
+            ].join(' ')}
+          >
+            Delete selected
+          </button>
+        </div>
+      ) : (
+        /* Inline delete confirmation */
+        <div className="px-3 pb-1.5">
+          <p className="text-[11px] text-text-secondary mb-1.5">
+            Delete {selectedCount} conversation{selectedCount !== 1 ? 's' : ''}?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setBarState('idle')}
+              className="flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDeleteConfirm}
+              className="flex-1 py-1 rounded text-[11px] text-white bg-semantic-error hover:opacity-90 transition-opacity duration-fast"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar({
@@ -199,10 +659,20 @@ export function Sidebar({
   onNewConversation,
   isLoading = false,
   storageError = null,
+  onArchiveConversation,
+  onUnarchiveConversation,
+  onDeleteConversation,
+  onSetConversationGroup,
+  onBulkArchive,
+  onBulkDelete,
 }: SidebarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Track which named groups are collapsed. All groups start open.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Archive filter: show active or archived conversations.
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
+  // Bulk selection: set of selected conversation IDs.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handleToggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev);
@@ -220,13 +690,75 @@ export function Sidebar({
     });
   }, []);
 
-  // Memoize grouping — recalculates only when the conversations array changes.
+  // Filter conversations by archive status, then memoize grouping.
+  const filteredConversations = useMemo(
+    () =>
+      conversations.filter((c) =>
+        archiveFilter === 'active' ? c.archivedAt === undefined : c.archivedAt !== undefined,
+      ),
+    [conversations, archiveFilter],
+  );
+
+  // Memoize grouping — recalculates only when the filtered conversations change.
   const { named: namedGroups, ungrouped } = useMemo(
-    () => groupConversations(conversations),
-    [conversations],
+    () => groupConversations(filteredConversations),
+    [filteredConversations],
   );
 
   const hasAnyGroups = namedGroups.size > 0;
+
+  // Collect all existing group names for suggestions in the group input.
+  const existingGroups = useMemo(() => {
+    const groups = new Set<string>();
+    for (const conv of conversations) {
+      if (conv.groupId) groups.add(conv.groupId);
+    }
+    return [...groups].sort((a, b) => a.localeCompare(b));
+  }, [conversations]);
+
+  // ── Bulk selection helpers ─────────────────────────────────────────────────
+
+  const handleToggleChecked = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredConversations.map((c) => c.id)));
+  }, [filteredConversations]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Clear selection when the filter tab changes to avoid stale selections.
+  const handleArchiveFilterChange = useCallback((value: ArchiveFilter) => {
+    setArchiveFilter(value);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkArchive = useCallback(() => {
+    if (onBulkArchive) onBulkArchive([...selectedIds]);
+    setSelectedIds(new Set());
+  }, [onBulkArchive, selectedIds]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (onBulkDelete) onBulkDelete([...selectedIds]);
+    setSelectedIds(new Set());
+  }, [onBulkDelete, selectedIds]);
+
+  // Per-row mutation handlers — stable references via useCallback not needed here
+  // since they're constructed inline; memoized per-conversation would require useMemo
+  // over an array which is heavier. These are passed directly into ThreadRow.
+
+  const hasBulkSelection = selectedIds.size > 0;
 
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden">
@@ -258,6 +790,23 @@ export function Sidebar({
         </button>
       </header>
 
+      {/* Archive filter toggle — below header, above thread list */}
+      <div className="flex-shrink-0">
+        <ArchiveToggle value={archiveFilter} onChange={handleArchiveFilterChange} />
+      </div>
+
+      {/* Bulk action bar — shown when 1+ conversations are selected */}
+      {hasBulkSelection && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          totalCount={filteredConversations.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          onBulkArchive={handleBulkArchive}
+          onBulkDelete={handleBulkDelete}
+        />
+      )}
+
       {/* Thread list */}
       <nav
         className={['flex-1 overflow-y-auto', isLoading ? 'opacity-60' : ''].join(' ')}
@@ -271,10 +820,12 @@ export function Sidebar({
             <li><ThreadSkeleton /></li>
             <li><ThreadSkeleton /></li>
           </ul>
-        ) : conversations.length === 0 ? (
+        ) : filteredConversations.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-[13px] text-text-muted text-center px-4">
-              Start a conversation
+              {archiveFilter === 'archived'
+                ? 'No archived conversations'
+                : 'Start a conversation'}
             </p>
           </div>
         ) : hasAnyGroups ? (
@@ -297,7 +848,14 @@ export function Sidebar({
                           <ThreadRow
                             conversation={conv}
                             isActive={conv.id === activeConversationId}
+                            isChecked={selectedIds.has(conv.id)}
+                            existingGroups={existingGroups}
                             onClick={() => onSelectConversation(conv.id)}
+                            onToggleChecked={() => handleToggleChecked(conv.id)}
+                            onArchive={() => onArchiveConversation?.(conv.id)}
+                            onUnarchive={() => onUnarchiveConversation?.(conv.id)}
+                            onDelete={() => onDeleteConversation?.(conv.id)}
+                            onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                           />
                         </li>
                       ))}
@@ -313,7 +871,14 @@ export function Sidebar({
                 <ThreadRow
                   conversation={conv}
                   isActive={conv.id === activeConversationId}
+                  isChecked={selectedIds.has(conv.id)}
+                  existingGroups={existingGroups}
                   onClick={() => onSelectConversation(conv.id)}
+                  onToggleChecked={() => handleToggleChecked(conv.id)}
+                  onArchive={() => onArchiveConversation?.(conv.id)}
+                  onUnarchive={() => onUnarchiveConversation?.(conv.id)}
+                  onDelete={() => onDeleteConversation?.(conv.id)}
+                  onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                 />
               </li>
             ))}
@@ -321,12 +886,19 @@ export function Sidebar({
         ) : (
           // ── Flat view (no groups present) ───────────────────────────────
           <ul className="py-1">
-            {conversations.map((conv) => (
+            {filteredConversations.map((conv) => (
               <li key={conv.id} className="thread-entering">
                 <ThreadRow
                   conversation={conv}
                   isActive={conv.id === activeConversationId}
+                  isChecked={selectedIds.has(conv.id)}
+                  existingGroups={existingGroups}
                   onClick={() => onSelectConversation(conv.id)}
+                  onToggleChecked={() => handleToggleChecked(conv.id)}
+                  onArchive={() => onArchiveConversation?.(conv.id)}
+                  onUnarchive={() => onUnarchiveConversation?.(conv.id)}
+                  onDelete={() => onDeleteConversation?.(conv.id)}
+                  onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                 />
               </li>
             ))}
