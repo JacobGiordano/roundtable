@@ -20,7 +20,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Conversation, ConversationStore, SessionTokenUsage } from '@/types/index';
+import type {
+  Conversation,
+  ConversationStore,
+  ExportedConversation,
+  ExportFormat,
+  SessionTokenUsage,
+} from '@/types/index';
 import { LocalStorageProvider } from './LocalStorageProvider';
 // Documented exception: pure utility from @/models may be imported by Vault for
 // ConversationStore.getSessionTokenUsage delegation. See CLAUDE.md §exceptions.
@@ -115,6 +121,18 @@ export interface UseConversationStoreReturn extends ConversationStore {
    * Pass undefined as groupId to remove the conversation from any group.
    */
   setConversationGroup(id: string, groupId: string | undefined): Promise<void>;
+
+  /**
+   * Serialize a conversation to the requested format and return the result.
+   *
+   * Delegates directly to `StorageProvider.exportConversation`. Returns null if
+   * the conversation does not exist. Does NOT trigger a browser download — the
+   * caller (Aria) is responsible for passing the result to
+   * `downloadExportedConversation` from `@/storage` if a download is desired.
+   *
+   * No state mutation occurs — this is a pure read through to the provider.
+   */
+  exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null>;
 
   /**
    * True while the initial `listConversations()` load is in flight.
@@ -342,6 +360,18 @@ export function useConversationStore(): UseConversationStoreReturn {
     [provider, replaceInState],
   );
 
+  // ─── Export ───────────────────────────────────────────────────────────────
+
+  const exportConversation = useCallback(
+    (id: string, format: ExportFormat): Promise<ExportedConversation | null> => {
+      // Pure delegation — no state mutation. Aria calls
+      // downloadExportedConversation(result) separately if a browser download
+      // is desired.
+      return provider.exportConversation(id, format);
+    },
+    [provider],
+  );
+
   // ─── Return value ──────────────────────────────────────────────────────────
 
   return {
@@ -360,6 +390,9 @@ export function useConversationStore(): UseConversationStoreReturn {
     archiveConversation,
     unarchiveConversation,
     setConversationGroup,
+
+    // Export (read-only, no state mutation)
+    exportConversation,
 
     // Loading / error state
     isLoading,

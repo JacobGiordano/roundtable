@@ -6,37 +6,36 @@ Phase 3 — IN PROGRESS
 
 ## Active agents for next session
 
-- Vault — issue #21 (export and archive/delete UI wiring)
-- Coda — may sequence Vault #21 in parallel with Atlas real-streaming work
+- Aria — wire export UI: call `exportConversation` from `useConversationStore` then `downloadExportedConversation` from `@/storage`
+- Atlas — real streaming (Anthropic + OpenAI APIs)
 
 ## Last closed
 
-- Vault #20 — useConversationStore hook implemented and ready for Aria to consume
+- Aria #17 — session browser: `useConversationStore` wired into `App.tsx`; group/folder display added to `Sidebar.tsx`. Lint and build clean.
+- Vault #21 — markdown + HTML export wiring complete (branch `21-vault-markdown-html-export`, not yet merged)
 
-## Decisions made this session (#20 Vault)
+## Decisions made this session (#17 Aria)
 
-- `useConversationStore` hook lives at `/src/storage/useConversationStore.ts`.
-  Exports `useConversationStore()` and `UseConversationStoreReturn` type (Aria imports these).
-- Single `LocalStorageProvider` instance per hook mount, held in a `useRef` — stable for the lifetime of the component.
-- Optimistic in-memory updates: React state is updated immediately after each mutation; no full `listConversations()` round-trip per op. State is sorted newest-first by `updatedAt` after every update.
-- Ghost-mode guard is the first check on every write path. Ghost conversations are never added to the persisted `conversations` list; callers manage them via `useGhostMode`.
-- Auto-title: fires inside `updateConversation` when `conversation.title` is undefined and the conversation has at least one user message. Takes first ~60 chars, trims at last word boundary. Never overwrites an existing title.
-- `setConversationGroup` follows the StorageProvider upsert pattern: load, mutate `groupId`, call `saveConversation`. No dedicated storage method needed.
-- `getSessionTokenUsage` delegates to Atlas's `getSessionTokenUsage` utility from `@/models` — documented cross-agent exception per CLAUDE.md.
-- `UseConversationStoreReturn` extends `ConversationStore`, so it satisfies the interface contract exactly.
-- Pre-existing build failure fixed: `LocalStorageProvider.test.ts` used Node's `global` (not in tsconfig lib). Replaced with `globalThis` (ES2020 standard, already in lib). All 27 tests still pass.
+- `MOCK_CONVERSATIONS` removed. `MOCK_MODELS` kept — model selection is Phase 4 territory.
+- `useConversationStore` imported at App root (documented cross-agent exception). All conversation state (`conversations`, `activeConversationId`, mutations) now comes from the store.
+- `handleSend` builds `updatedConversation` explicitly and calls `store.updateConversation()`. Auto-title fires inside the hook on first send.
+- `handleModeChange` and `handleUpdateSystemPrompt` both call `store.updateConversation` instead of local `setConversations`.
+- `handleNewConversation` calls `store.createConversation(newConv).then(() => store.setActiveConversation(newConv.id))`.
+- `store.isLoading` and `store.storageError` threaded through AppLayout → Sidebar as `isConversationsLoading` / `conversationStoreError`.
+- Sidebar loading: 3-row skeleton with `animate-pulse`, nav dims to `opacity-60`. Error: `role="alert"` red text line above settings panel.
+- Group display: `groupId`-bearing conversations rendered under collapsible `GroupHeader` buttons (alphabetically sorted groups). Ungrouped last. All groups start open. No rename/drag-drop — deferred Phase 2+.
+- Flat view preserved when no groups exist (no regression for ungrouped conversations).
 
-## Downstream impact on Vault (#21)
+## Decisions made this session (#21 Vault)
 
-- Aria can now import `useConversationStore` and `UseConversationStoreReturn` from `@/storage`.
-- `storageError: Error | null` is exposed — Aria should surface quota/parse errors to the user.
-- `isLoading: boolean` is exposed — Aria can show a skeleton during initial load.
-- Archive/unarchive/delete are available on the hook — #21 can wire these to UI controls immediately.
-- Export remains on `LocalStorageProvider` directly — Aria calls `provider.exportConversation(id, format)` then `downloadExportedConversation(result)` from `@/storage`.
+- `exportConversation(id, format)` added to `UseConversationStoreReturn` and implemented as pass-through to `provider.exportConversation`. No state mutation.
+- `ExportFormat` type re-exported from `/src/storage/index.ts` so Aria can import from `@/storage` directly.
+- Model display names in markdown/HTML export resolved from `conv.models` (falls back to `modelId` string, then `'Assistant'`).
+- Aria does NOT call `downloadExportedConversation` through the hook — calls `exportConversation` on the store to get the result, then calls `downloadExportedConversation(result)` from `@/storage`.
 
 ## Next issues in priority order
 
-1. Vault #21 — export and archive/delete UI
+1. Aria — wire export controls to `useConversationStore().exportConversation` + `downloadExportedConversation`
 2. Atlas — real streaming (Anthropic + OpenAI APIs)
 3. Gate — requiredKeys wiring to active models
 
@@ -46,6 +45,7 @@ Phase 3 — IN PROGRESS
 - Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
 - getSessionTokenUsage() exported from @/models — Aria may import (documented exception)
 - Markdown rendering in MessageBubble deferred — plain text with whitespace-pre-wrap
-- App.tsx lives outside /src/ui — Aria may update it only to thread UI props (no logic)
+- App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks (no logic)
 - exportConversation returns null (not void) for missing conversations — callers must null-check before calling downloadExportedConversation
-- useConversationStore does NOT manage ghost conversations — those go through useGhostMode. The `conversations` array in the store only contains persisted (non-ghost) conversations.
+- useConversationStore does NOT manage ghost conversations — those go through useGhostMode
+- handleNewConversation is async (createConversation + then setActiveConversation) — not a concern in practice but worth noting for tests
