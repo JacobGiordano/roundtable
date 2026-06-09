@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Conversation, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
@@ -112,11 +112,20 @@ export default function App() {
   // keep a top-level models array that mirrors the active conversation's models.
   const [models, setModels] = useState<ModelConfig[]>(MOCK_MODELS);
 
+  // Directed reply: when set, the next send is targeted at this model only.
+  // Cleared automatically after a message is sent, or manually via the × pill.
+  const [pendingTargetModelId, setPendingTargetModelId] = useState<ModelId | null>(null);
+
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const messages = activeConversation?.messages ?? [];
 
   // Derive active models from the shared models array
   const activeModels = models.filter((m) => m.isActive);
+
+  // Resolve ModelConfig for the pending directed-reply target (for pill display).
+  const directedReplyTarget = pendingTargetModelId
+    ? models.find((m) => m.modelId === pendingTargetModelId)
+    : undefined;
 
   // Compute per-model session token totals for the active conversation.
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
@@ -129,6 +138,8 @@ export default function App() {
       id: `msg-${Date.now()}`,
       role: 'user',
       content,
+      // Stamp targetModelId onto the user message so it persists in the thread.
+      targetModelId: pendingTargetModelId ?? undefined,
       timestamp: Date.now(),
     };
 
@@ -144,6 +155,9 @@ export default function App() {
       ),
     );
 
+    // Clear the pending target after send — returns to broadcast mode.
+    setPendingTargetModelId(null);
+
     if (conversationSnapshot) {
       // Pass the conversation so sendMessage can resolve per-model systemPrompts
       // from each ModelConfig.systemPrompt on the conversation's models array.
@@ -151,6 +165,8 @@ export default function App() {
         {
           conversationId: activeConversationId,
           content,
+          // Thread targetModelId into SendMessageOptions so Atlas routes to only that model.
+          targetModelId: pendingTargetModelId ?? undefined,
           conversation: {
             ...conversationSnapshot,
             messages: [...conversationSnapshot.messages, userMessage],
@@ -177,6 +193,14 @@ export default function App() {
     };
     setConversations((prev) => [newConv, ...prev]);
     setActiveConversationId(newConv.id);
+    // Clear directed-reply target when switching conversations.
+    setPendingTargetModelId(null);
+  };
+
+  const handleSelectConversation = (id: string) => {
+    setActiveConversationId(id);
+    // Clear directed-reply target when switching conversations.
+    setPendingTargetModelId(null);
   };
 
   const handleToggleModel = (modelId: ModelId) => {
@@ -230,6 +254,14 @@ export default function App() {
     );
   };
 
+  const handleDirectedReply = useCallback((modelId: ModelId) => {
+    setPendingTargetModelId(modelId);
+  }, []);
+
+  const handleClearDirectedReply = useCallback(() => {
+    setPendingTargetModelId(null);
+  }, []);
+
   return (
     <AppLayout
       conversations={conversations}
@@ -240,7 +272,7 @@ export default function App() {
       isStreaming={false}
       isGhostMode={false}
       onSend={handleSend}
-      onSelectConversation={setActiveConversationId}
+      onSelectConversation={handleSelectConversation}
       onNewConversation={handleNewConversation}
       onToggleModel={handleToggleModel}
       onAddModel={handleAddModel}
@@ -248,6 +280,9 @@ export default function App() {
       onModeChange={handleModeChange}
       onUpdateSystemPrompt={handleUpdateSystemPrompt}
       sessionUsage={sessionUsage}
+      directedReplyTarget={directedReplyTarget}
+      onDirectedReply={handleDirectedReply}
+      onClearDirectedReply={handleClearDirectedReply}
     />
   );
 }

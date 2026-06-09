@@ -33,6 +33,15 @@ interface AppLayoutProps {
    * Passed through to ModelSelectorPanel for display in the slide-up panel.
    */
   sessionUsage: SessionTokenUsage[];
+  /**
+   * When set, the InputBar shows a directed-reply pill for this model.
+   * App owns this state; AppLayout threads it through to InputBar and MessageThread.
+   */
+  directedReplyTarget?: ModelConfig;
+  /** Called when user clicks "Reply to [Model]" on a bubble. Sets the directed-reply target. */
+  onDirectedReply: (modelId: ModelId) => void;
+  /** Called when user clicks × on the directed-reply pill to clear the target. */
+  onClearDirectedReply: () => void;
 }
 
 export function AppLayout({
@@ -53,6 +62,9 @@ export function AppLayout({
   onModeChange,
   onUpdateSystemPrompt,
   sessionUsage,
+  directedReplyTarget,
+  onDirectedReply,
+  onClearDirectedReply,
 }: AppLayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
@@ -71,6 +83,7 @@ export function AppLayout({
           messages={messages}
           models={activeModels}
           onRetry={onRetry}
+          onDirectedReply={onDirectedReply}
         />
 
         {/* Bottom section: model selector + mode switcher + input bar */}
@@ -100,6 +113,8 @@ export function AppLayout({
             onSend={onSend}
             isStreaming={isStreaming}
             isGhostMode={isGhostMode}
+            directedReplyTarget={directedReplyTarget}
+            onClearDirectedReply={onClearDirectedReply}
           />
         </div>
       </main>

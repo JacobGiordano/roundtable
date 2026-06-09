@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Message, ModelConfig, ModelError } from '@/types';
+import type { Message, ModelConfig, ModelError, ModelId } from '@/types';
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,6 +10,17 @@ interface MessageBubbleProps {
   onRetry?: () => void;
   /** Stagger index for bubble entrance animation delay (0-based). */
   entranceIndex?: number;
+  /**
+   * When provided, a "Reply to [Model]" affordance is shown on hover for assistant bubbles.
+   * Called with the modelId of the model whose bubble was clicked.
+   * Only rendered when the message is an assistant message with a known modelId.
+   */
+  onDirectedReply?: (modelId: ModelId) => void;
+  /**
+   * ModelConfig for the model this message was directed at (message.targetModelId).
+   * When present, a subtle "→ [Model]" label is rendered below the message content.
+   */
+  targetModelConfig?: ModelConfig;
 }
 
 /** Maps a ModelId to the CSS custom-property-backed Tailwind border class. */
@@ -30,16 +41,27 @@ function getModelDataAttr(modelId: string | undefined): string {
   }
 }
 
+/** Maps a ModelId to the Tailwind text color class for the directed-reply pill. */
+function getAccentTextClass(modelId: string | undefined): string {
+  switch (modelId) {
+    case 'claude':  return 'text-accent-claude';
+    case 'gpt-5.5': return 'text-accent-gpt';
+    default:        return 'text-accent-other';
+  }
+}
+
 export function MessageBubble({
   message,
   modelConfig,
   error,
   onRetry,
   entranceIndex = 0,
+  onDirectedReply,
+  targetModelConfig,
 }: MessageBubbleProps) {
   const isStreaming = message.isStreaming ?? false;
   const hasError    = !!error;
-  // Token count is hidden by default; revealed on hover (progressive disclosure).
+  // Token count and directed-reply affordance are hidden by default; revealed on hover.
   const [isHovered, setIsHovered] = useState(false);
 
   // Left border color: error overrides model accent
@@ -52,6 +74,13 @@ export function MessageBubble({
 
   // Only assistant messages from a model show the name header
   const showHeader = message.role === 'assistant' && modelConfig;
+
+  // "Reply to [Model]" affordance: only on completed assistant messages with a known modelId
+  const canDirectReply =
+    !!onDirectedReply &&
+    message.role === 'assistant' &&
+    !!message.modelId &&
+    !isStreaming;
 
   return (
     <div
@@ -86,6 +115,22 @@ export function MessageBubble({
         )}
       </div>
 
+      {/* Directed-to label — shown on user messages that have a targetModelId.
+          Subtle indicator so the thread stays readable after the fact. */}
+      {targetModelConfig && message.role === 'user' && (
+        <div
+          className={[
+            'mt-1.5 flex items-center gap-1',
+            'text-[11px] font-medium',
+            getAccentTextClass(targetModelConfig.modelId),
+          ].join(' ')}
+          aria-label={`Directed to ${targetModelConfig.name}`}
+        >
+          <span aria-hidden="true">→</span>
+          <span>{targetModelConfig.name}</span>
+        </div>
+      )}
+
       {/* Error state */}
       {hasError && (
         <div className="mt-2">
@@ -104,19 +149,48 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Token usage — hidden by default, revealed on hover (progressive disclosure).
-          Only shown for completed assistant messages that have token data. */}
-      {!isStreaming && message.tokenUsage && (
+      {/* Bottom row: token count (right) and directed-reply affordance (left).
+          Both are hidden by default, revealed on hover (progressive disclosure).
+          Row is only rendered when at least one of the two is applicable. */}
+      {(!isStreaming && (message.tokenUsage || canDirectReply)) && (
         <div
           className={[
-            'mt-2 text-[11px] text-text-muted text-right',
+            'mt-2 flex items-center justify-between',
             'transition-opacity duration-fast',
             isHovered ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
           aria-hidden={!isHovered}
-          title={`Input: ${message.tokenUsage.inputTokens.toLocaleString()} · Output: ${message.tokenUsage.outputTokens.toLocaleString()}`}
         >
-          {message.tokenUsage.totalTokens.toLocaleString()} tokens
+          {/* "Reply to [Model]" — left side, only for assistant bubbles */}
+          {canDirectReply ? (
+            <button
+              type="button"
+              onClick={() => onDirectedReply!(message.modelId as ModelId)}
+              className={[
+                'text-[11px] font-medium',
+                getAccentTextClass(message.modelId),
+                'hover:underline underline-offset-2',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                'rounded-sm',
+              ].join(' ')}
+              aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
+            >
+              Reply to {modelConfig?.name ?? message.modelId}
+            </button>
+          ) : (
+            // spacer so token count stays right-aligned even when no reply button
+            <span />
+          )}
+
+          {/* Token count — right side */}
+          {message.tokenUsage && (
+            <div
+              className="text-[11px] text-text-muted text-right"
+              title={`Input: ${message.tokenUsage.inputTokens.toLocaleString()} · Output: ${message.tokenUsage.outputTokens.toLocaleString()}`}
+            >
+              {message.tokenUsage.totalTokens.toLocaleString()} tokens
+            </div>
+          )}
         </div>
       )}
     </div>

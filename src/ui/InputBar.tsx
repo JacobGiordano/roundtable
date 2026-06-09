@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import type { ModelConfig } from '@/types';
 
 interface InputBarProps {
   onSend: (content: string) => void;
@@ -6,6 +7,14 @@ interface InputBarProps {
   isStreaming?: boolean;
   /** When true, shows the ghost mode SVG indicator. Gate wires this up in a later issue. */
   isGhostMode?: boolean;
+  /**
+   * When set, the InputBar is in directed-reply mode. A pill showing "→ [Model]"
+   * is displayed above the input row, using the model's accent color.
+   * Clearing it via onClearDirectedReply returns to broadcast mode.
+   */
+  directedReplyTarget?: ModelConfig;
+  /** Called when the user clicks × on the directed-reply pill to return to broadcast mode. */
+  onClearDirectedReply?: () => void;
 }
 
 /** Ghost icon: SVG outline, 16×16. Used when ghost mode is active. */
@@ -56,7 +65,22 @@ function SendIcon({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function InputBar({ onSend, isStreaming = false, isGhostMode = false }: InputBarProps) {
+/** Maps a ModelId string to accent-color Tailwind classes for the directed-reply pill. */
+function getPillAccentClasses(modelId: string | undefined): string {
+  switch (modelId) {
+    case 'claude':  return 'bg-accent-claude/15 text-accent-claude border-accent-claude/30';
+    case 'gpt-5.5': return 'bg-accent-gpt/15 text-accent-gpt border-accent-gpt/30';
+    default:        return 'bg-accent-other/15 text-accent-other border-accent-other/30';
+  }
+}
+
+export function InputBar({
+  onSend,
+  isStreaming = false,
+  isGhostMode = false,
+  directedReplyTarget,
+  onClearDirectedReply,
+}: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -95,84 +119,135 @@ export function InputBar({ onSend, isStreaming = false, isGhostMode = false }: I
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
 
+  const placeholderText = directedReplyTarget
+    ? `Ask ${directedReplyTarget.name}...`
+    : 'Ask all models...';
+
   return (
-    <div
-      className={[
-        'w-full bg-input',
-        'border-t border-border',
-        'rounded-t-lg rounded-b-none',
-        'shadow-md',
-        'px-3 py-3',
-        'flex items-end gap-2',
-        isFocused ? 'border-border-strong' : '',
-        'transition-[border-color] duration-fast',
-      ].join(' ')}
-    >
-      {/* Ghost mode indicator — left side, shown only when active */}
-      {isGhostMode && (
+    <div className="w-full">
+      {/* Directed-reply pill — rendered above the input row when a target model is set.
+          Uses the model's accent color to make directed mode visually distinct.
+          The pill sits flush against the input row (no gap) to read as a single unit. */}
+      {directedReplyTarget && (
         <div
-          className="flex-shrink-0 text-text-muted self-center relative group"
-          title="Ghost mode — this conversation won't be saved"
+          className={[
+            'px-3 pt-2',
+            'bg-input border-t border-x border-border rounded-t-lg',
+            'flex items-center',
+          ].join(' ')}
         >
-          <GhostIcon />
-          {/* Tooltip */}
           <div
             className={[
-              'absolute bottom-full left-0 mb-2',
-              'bg-sidebar border border-border rounded-sm',
-              'px-3 py-2 text-[10px] text-text-primary whitespace-nowrap',
-              'pointer-events-none opacity-0 group-hover:opacity-100',
-              'transition-opacity duration-fast',
+              'inline-flex items-center gap-1.5',
+              'px-2.5 py-1 rounded-full',
+              'border text-[12px] font-medium',
+              getPillAccentClasses(directedReplyTarget.modelId),
             ].join(' ')}
-            role="tooltip"
+            aria-live="polite"
+            aria-label={`Directed reply mode: sending to ${directedReplyTarget.name}`}
           >
-            Ghost mode — this conversation won't be saved
+            <span aria-hidden="true">→</span>
+            <span>{directedReplyTarget.name}</span>
+            {onClearDirectedReply && (
+              <button
+                type="button"
+                onClick={onClearDirectedReply}
+                aria-label={`Clear directed reply to ${directedReplyTarget.name}`}
+                className={[
+                  'ml-0.5 flex items-center justify-center',
+                  'w-4 h-4 rounded-full',
+                  'hover:bg-black/10',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  'transition-colors duration-fast',
+                ].join(' ')}
+              >
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                  <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Textarea */}
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        placeholder="Ask all models..."
-        rows={1}
+      <div
         className={[
-          'flex-1 resize-none bg-transparent border-none outline-none',
-          'text-[15px] font-normal leading-[1.5] text-text-primary',
-          'placeholder:text-text-muted',
-          'min-h-[36px] max-h-[200px]',
-          'self-end',
-          // Disable new-message submit while streaming, but still allow typing
-          isStreaming ? 'cursor-text' : '',
-        ].join(' ')}
-        style={{ overflowY: 'auto' }}
-        aria-label="Message input"
-        aria-multiline="true"
-      />
-
-      {/* Send button */}
-      <button
-        type="button"
-        onClick={handleSend}
-        disabled={!canSend}
-        aria-label="Send message"
-        className={[
-          'flex-shrink-0 w-9 h-9 rounded-md',
-          'flex items-center justify-center',
-          'transition-[background-color,filter,transform] duration-fast',
-          canSend
-            ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
-            : 'bg-hover cursor-not-allowed opacity-50',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          'w-full bg-input',
+          'border-t border-border',
+          directedReplyTarget ? 'border-x border-b border-border rounded-b-none rounded-t-none' : 'rounded-t-lg rounded-b-none',
+          'shadow-md',
+          'px-3 py-3',
+          'flex items-end gap-2',
+          isFocused ? 'border-border-strong' : '',
+          'transition-[border-color] duration-fast',
         ].join(' ')}
       >
-        <SendIcon disabled={!canSend} />
-      </button>
+        {/* Ghost mode indicator — left side, shown only when active */}
+        {isGhostMode && (
+          <div
+            className="flex-shrink-0 text-text-muted self-center relative group"
+            title="Ghost mode — this conversation won't be saved"
+          >
+            <GhostIcon />
+            {/* Tooltip */}
+            <div
+              className={[
+                'absolute bottom-full left-0 mb-2',
+                'bg-sidebar border border-border rounded-sm',
+                'px-3 py-2 text-[10px] text-text-primary whitespace-nowrap',
+                'pointer-events-none opacity-0 group-hover:opacity-100',
+                'transition-opacity duration-fast',
+              ].join(' ')}
+              role="tooltip"
+            >
+              Ghost mode — this conversation won't be saved
+            </div>
+          </div>
+        )}
+
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={placeholderText}
+          rows={1}
+          className={[
+            'flex-1 resize-none bg-transparent border-none outline-none',
+            'text-[15px] font-normal leading-[1.5] text-text-primary',
+            'placeholder:text-text-muted',
+            'min-h-[36px] max-h-[200px]',
+            'self-end',
+            // Disable new-message submit while streaming, but still allow typing
+            isStreaming ? 'cursor-text' : '',
+          ].join(' ')}
+          style={{ overflowY: 'auto' }}
+          aria-label="Message input"
+          aria-multiline="true"
+        />
+
+        {/* Send button */}
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={!canSend}
+          aria-label="Send message"
+          className={[
+            'flex-shrink-0 w-9 h-9 rounded-md',
+            'flex items-center justify-center',
+            'transition-[background-color,filter,transform] duration-fast',
+            canSend
+              ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
+              : 'bg-hover cursor-not-allowed opacity-50',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          ].join(' ')}
+        >
+          <SendIcon disabled={!canSend} />
+        </button>
+      </div>
     </div>
   );
 }
