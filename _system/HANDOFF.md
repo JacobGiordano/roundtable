@@ -6,8 +6,10 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 
 ## Last closed
 
-- #43 (Arch + Quill): Added Scout 🔭 and Ada ♿ testing agents — profiles, CLAUDE.md registry,
-  CONTRIBUTING.md tables. Scout is a talking dog (they/them). All merged to main.
+- #44 (Scout): First integration test pass. 4 integration test files, 64 new
+  tests covering ghost mode + storage, storage lifecycle, auth + models error
+  paths, and streaming chunk accumulation. Baseline before: 1032 tests.
+  Baseline after: 1096 tests. All pass; lint and build clean.
 
 ## In progress
 
@@ -15,9 +17,13 @@ None. All known issues closed.
 
 ## Decisions made this session
 
-- Scout 🔭 owns `/src/tests/` (excl. a11y/); Ada ♿ owns `/src/tests/a11y/`.
-- Both are read-only against application code — they open tickets, they do not fix.
-- Scout's gender: he/him (the goodest boy; a talking dog).
+- Test infrastructure lives in src/tests/{integration,regression,fixtures}.
+- Fixtures pattern: localStorage mocked via buildLocalStorageMock() (Map-backed,
+  global assignment, restore on afterEach). No jsdom, no @testing-library/react.
+- FakeStreamingProvider and FakeErrorProvider in fixtures/mockProviders.ts for
+  streaming invariant tests. Real providers used for auth-failure path tests.
+- @testing-library/react not installed — React hook layer (useConversationStore,
+  useGhostMode) is untested at hook level. See gap report in PR.
 
 ## Model providers (all on main)
 
@@ -43,3 +49,13 @@ None. All known issues closed.
 - Gemini API key goes in URL as ?key= — Google REST API pattern, not a header
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
+- React hook layer (useConversationStore, useGhostMode) needs @testing-library/react
+  + jsdom before it can be integration-tested; neither is in devDependencies.
+
+## Next issues in priority order
+
+1. Add @testing-library/react + jsdom so Scout can test the React hook layer
+   (useConversationStore state transitions, useGhostMode toggle flow, isLoading
+   state during initial load, storageError surfacing).
+2. Regression test suite for known bugs as they are fixed.
+3. Ada — accessibility audit of the chat interface (src/tests/a11y/).
