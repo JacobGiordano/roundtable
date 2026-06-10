@@ -108,6 +108,11 @@ Validate credentials and issue a 7-day JWT.
 { "token": "<jwt>" }
 ```
 
+**Response `400`:**
+```json
+{ "error": "username and password are required" }
+```
+
 **Response `401`:**
 ```json
 { "error": "invalid credentials" }
@@ -130,6 +135,11 @@ Issue a fresh 7-day JWT. Requires a valid token in the `Authorization` header.
 ```json
 { "error": "unauthorized" }
 ```
+
+> **Note:** The previous token is not invalidated. Both the old and new token
+> remain valid until their respective 7-day expiry. If you need immediate
+> revocation, restart the server (all outstanding JWTs become invalid when
+> `JWT_SECRET` is rotated).
 
 ---
 
