@@ -139,8 +139,9 @@ the user explicitly requests a plan.**
 
 1. Pull `main` and check for changes in `HANDOFF.md` before doing anything else.
 2. Review `HANDOFF.md` for current phase, active issues, and gotchas.
-3. Cross-reference with `gh issue list --repo {owner}/roundtable` to catch
-   anything closed manually that isn't reflected yet. Update `HANDOFF.md` if stale.
+3. Cross-reference `gh issue list` against `git log main --oneline`: close any
+   issues whose work is already merged but still open, then update `HANDOFF.md`
+   if stale. Also catch anything closed manually that isn't reflected yet.
 4. Activate the appropriate agent for the work at hand (see table above).
 
 ### Execution
@@ -173,14 +174,14 @@ the user explicitly requests a plan.**
     authorization. Wait. Do not proceed.
 14. **Update `HANDOFF.md` first** — before the final commit and push. Stage it.
     Include it in the fix commit or as a separate `chore: update handoff` commit.
-15. Once approved: merge the WIP branch into `main`, push `main` to the repo,
-    and delete the WIP branch. No PRs needed for solo work. Changes to
-    `/src/types/index.ts` require a PR reviewed and approved by all active
-    agents — agents handle this review with each other; the user does not need
-    to be in the approval loop.
-16. Close the related GitHub issue with a brief summary of decisions made and
-    anything the next agent needs to know. Do not skip this step.
-17. **Rewrite** `HANDOFF.md` — not append. Replace the entire contents with:
+15. Once approved: merge the WIP branch into `main`, then **before pushing**:
+    close the GitHub issue (`gh issue close <n> --comment "..."`) with the merge
+    commit hash, decisions made, and anything the next agent needs to know.
+    Then push `main` and delete the WIP branch. No PRs needed for solo work.
+    Changes to `/src/types/index.ts` require a PR reviewed and approved by all
+    active agents — agents handle this review with each other; the user does not
+    need to be in the approval loop.
+16. **Rewrite** `HANDOFF.md` — not append. Replace the entire contents with:
     - Last updated date
     - Current phase
     - Active Agency Agent for next session
