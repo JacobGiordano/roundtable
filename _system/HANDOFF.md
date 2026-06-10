@@ -2,15 +2,14 @@ Last updated: 2026-06-10
 
 ## Current phase
 
-Phase 4 — All major features complete. Open source launch prep in progress (#27).
+Phase 4 — All major features complete. Open source launch prep complete.
 
 ## Last closed (this session)
 
-- #27 (Coda): Open source launch prep. README expanded with product overview,
-  features, quick start, and dev commands. CONTRIBUTING.md with agent boundary
-  rules, agent profiles table, and contributor workflow. LICENSE (MIT).
-  CODE_OF_CONDUCT.md (Contributor Covenant v2.1). GitHub issue templates (bug,
-  feature) and PR template. All in branch 27-coda-open-source-launch-prep.
+- #41 (Arch, Phase 2): Added Quill technical writer agent to CLAUDE.md.
+  Updated agents table and boundary rules table. CLAUDE.md is now authoritative
+  for Quill's ownership and no-touch rules. Quill agent file (.claude/agents/quill.md)
+  was Phase 1, already on main.
 
 ## Model providers (all on main)
 
@@ -29,11 +28,10 @@ None — project is feature-complete and launch-ready. Future issues TBD.
 
 ## Decisions made this session
 
-- README screenshots section omitted — no browser environment available to
-  capture them; add manually before public launch.
-- CODE_OF_CONDUCT.md uses Contributor Covenant v2.1 (standard).
-- /backend/README.md already existed and is comprehensive — no action needed.
-- Agency Agents setup instructions folded into CONTRIBUTING.md (not a separate file).
+- Quill row added to agents table: work type "Documentation (README.md, CONTRIBUTING.md, /docs/)"
+- Quill row added to boundary table: owns root-level docs + .github/ + /docs/; must never touch all src dirs, CLAUDE.md, and HANDOFF.md
+- Parallel agent execution section not modified — it is procedural, not a roster; no Quill entry needed there
+- Codebase structure block not modified — Quill owns root-level files, not a subdirectory; no inline annotation applies
 
 ## Gotchas
 
