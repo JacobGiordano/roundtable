@@ -30,13 +30,10 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--accent-gemini',    theme.accents['model-gemini']);
   root.style.setProperty('--accent-other',     theme.accents['model-other']);
 
-  // Wave-2 model accents — keys are present in all theme JSON files (Luma added them).
-  // TODO(Arch): extend CustomThemeJSON['accents'] with model-grok, model-deepseek,
-  // model-mistral so the cast below can be removed.
-  const accentsExt = theme.accents as Record<string, string>;
-  root.style.setProperty('--accent-grok',      accentsExt['model-grok']);
-  root.style.setProperty('--accent-deepseek',  accentsExt['model-deepseek']);
-  root.style.setProperty('--accent-mistral',   accentsExt['model-mistral']);
+  // Wave-2 model accents
+  root.style.setProperty('--accent-grok',      theme.accents['model-grok']);
+  root.style.setProperty('--accent-deepseek',  theme.accents['model-deepseek']);
+  root.style.setProperty('--accent-mistral',   theme.accents['model-mistral']);
 
   // Interactive
   root.style.setProperty('--interactive-hover',  theme.interactive.hover);
