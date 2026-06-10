@@ -21,6 +21,8 @@ import { claudeProvider, CLAUDE_CONFIG } from './claude';
 import { gpt55Provider, GPT55_CONFIG } from './gpt';
 import { geminiProvider, GEMINI_CONFIG } from './gemini';
 import { grokProvider, GROK_CONFIG } from './grok';
+import { deepseekProvider, DEEPSEEK_CONFIG } from './deepseek';
+import { mistralProvider, MISTRAL_CONFIG } from './mistral';
 
 // ─── Provider list — consumed by sendMessage.ts ───────────────────────────────
 
@@ -28,14 +30,16 @@ import { grokProvider, GROK_CONFIG } from './grok';
  * Ordered list of all registered ModelProvider instances.
  * sendMessage.ts imports this to resolve active providers for a conversation.
  *
- * Phase 4: GeminiModelProvider and GrokModelProvider will be added here once
- * Arch extends ModelId and CredentialKey in /src/types/index.ts.
+ * Phase 4 Wave 1: GeminiModelProvider and GrokModelProvider added.
+ * Phase 4 Wave 2: DeepSeekModelProvider and MistralModelProvider added.
  */
 export const PROVIDERS: ModelProvider[] = [
   claudeProvider,
   gpt55Provider,
   geminiProvider,
   grokProvider,
+  deepseekProvider,
+  mistralProvider,
 ];
 
 // ─── Registry entry — consumed by Aria for model selector UI ─────────────────
@@ -94,6 +98,22 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
   {
     modelId: GROK_CONFIG.modelId,
     name: GROK_CONFIG.name,
+    color: 'accent-other',
+    defaultActive: false,
+  },
+  {
+    // color: 'accent-other' — no dedicated design token yet; Luma will define
+    // accent-deepseek in a follow-up pass when the full Wave 2 palette lands.
+    modelId: DEEPSEEK_CONFIG.modelId,
+    name: DEEPSEEK_CONFIG.name,
+    color: 'accent-other',
+    defaultActive: false,
+  },
+  {
+    // color: 'accent-other' — no dedicated design token yet; Luma will define
+    // accent-mistral in a follow-up pass when the full Wave 2 palette lands.
+    modelId: MISTRAL_CONFIG.modelId,
+    name: MISTRAL_CONFIG.name,
     color: 'accent-other',
     defaultActive: false,
   },
