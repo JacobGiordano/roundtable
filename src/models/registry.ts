@@ -13,17 +13,14 @@
  *   4. Import the provider and its config below
  *   5. Add the provider singleton to PROVIDERS
  *   6. Add a ModelRegistryEntry to MODEL_REGISTRY
- *
- * Phase 4 additions pending Arch types PR (issue: add 'gemini' and 'grok' to
- * ModelId, and 'google' and 'xai' to CredentialKey in /src/types/index.ts):
- *   - GeminiModelProvider (see gemini.ts — implementation complete, blocked on types)
- *   - GrokModelProvider (see grok.ts — implementation complete, blocked on types)
  */
 
 import type { ModelId } from '@/types';
 import type { ModelProvider } from '@/types';
 import { claudeProvider, CLAUDE_CONFIG } from './claude';
 import { gpt55Provider, GPT55_CONFIG } from './gpt';
+import { geminiProvider, GEMINI_CONFIG } from './gemini';
+import { grokProvider, GROK_CONFIG } from './grok';
 
 // ─── Provider list — consumed by sendMessage.ts ───────────────────────────────
 
@@ -37,8 +34,8 @@ import { gpt55Provider, GPT55_CONFIG } from './gpt';
 export const PROVIDERS: ModelProvider[] = [
   claudeProvider,
   gpt55Provider,
-  // geminiProvider,  // TODO(arch): activate after types PR lands
-  // grokProvider,    // TODO(arch): activate after types PR lands
+  geminiProvider,
+  grokProvider,
 ];
 
 // ─── Registry entry — consumed by Aria for model selector UI ─────────────────
@@ -74,8 +71,6 @@ export interface ModelRegistryEntry {
  * and to populate the model selector panel. The `color` values here use the
  * design-system token names (e.g. 'accent-claude') rather than raw Tailwind
  * colors, matching the pattern used in App.tsx's MOCK_MODELS.
- *
- * Phase 4: Gemini and Grok entries will be added here once the types PR lands.
  */
 export const MODEL_REGISTRY: ModelRegistryEntry[] = [
   {
@@ -90,9 +85,18 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     color: 'accent-gpt',
     defaultActive: true,
   },
-  // { modelId: 'gemini', name: 'Gemini', color: 'accent-gemini', defaultActive: false },
-  // { modelId: 'grok',   name: 'Grok',   color: 'accent-other',  defaultActive: false },
-  // TODO(arch): activate after types PR adds 'gemini' and 'grok' to ModelId
+  {
+    modelId: GEMINI_CONFIG.modelId,
+    name: GEMINI_CONFIG.name,
+    color: 'accent-gemini',
+    defaultActive: false,
+  },
+  {
+    modelId: GROK_CONFIG.modelId,
+    name: GROK_CONFIG.name,
+    color: 'accent-other',
+    defaultActive: false,
+  },
 ];
 
 /**

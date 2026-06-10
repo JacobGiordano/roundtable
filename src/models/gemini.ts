@@ -5,24 +5,6 @@
  * Uses fetch + the Google Generative Language API (v1beta) with server-sent events
  * (SSE) for streaming. No @google/generative-ai SDK dependency — raw fetch.
  *
- * ACTIVATION STATUS: Implementation complete. NOT yet registered in the model
- * registry (registry.ts) or exported from index.ts.
- *
- * Blocked on Arch types PR — requires these additions to /src/types/index.ts:
- *   - 'gemini' added to ModelId union
- *   - 'google' added to CredentialKey union
- *
- * Also blocked on Gate PR — requires in /src/auth/credentials.ts:
- *   - 'gemini' → 'google' added to MODEL_CREDENTIAL_MAP
- *   - 'google' entry added to CREDENTIAL_LABELS
- *
- * To activate after types land:
- *   1. Remove the `as unknown as ModelId` cast on GEMINI_MODEL_ID (line ~45)
- *   2. Remove the `as unknown as CredentialKey` cast on credentialKey (line ~56)
- *   3. Import geminiProvider in registry.ts and add to PROVIDERS
- *   4. Add the Gemini entry to MODEL_REGISTRY in registry.ts
- *   5. Export GeminiModelProvider and geminiProvider from index.ts
- *
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
@@ -41,24 +23,13 @@ import type {
 } from '@/types';
 import { getCredentials } from '@/auth';
 
-// ─── Type forward-compatibility casts ─────────────────────────────────────────
-//
-// The casts below are load-bearing stubs that will be removed once Arch extends
-// ModelId and CredentialKey in /src/types/index.ts to include 'gemini' and 'google'.
-// They are intentional and documented — NOT a pattern to copy elsewhere.
-
-// TODO(arch): replace with `'gemini' satisfies ModelId` once types PR lands
-const GEMINI_MODEL_ID = 'gemini' as unknown as import('@/types').ModelId;
-// TODO(arch): replace with `'google' satisfies CredentialKey` once types PR lands
-const GEMINI_CREDENTIAL_KEY = 'google' as unknown as import('@/types').CredentialKey;
-
 // ─── Provider config ──────────────────────────────────────────────────────────
 
 export const GEMINI_CONFIG: ModelProviderConfig = {
-  modelId: GEMINI_MODEL_ID,
+  modelId: 'gemini',
   name: 'Gemini',
   color: 'emerald',
-  credentialKey: GEMINI_CREDENTIAL_KEY,
+  credentialKey: 'google',
 };
 
 // ─── Google Generative Language API constants ─────────────────────────────────
@@ -162,7 +133,7 @@ export class GeminiModelProvider implements ModelProvider {
     onChunk: StreamHandler
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
-    const apiKey = getCredentials(GEMINI_CREDENTIAL_KEY);
+    const apiKey = getCredentials(GEMINI_CONFIG.credentialKey);
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Google API key is not set. Add it in Settings.');

@@ -9,24 +9,6 @@
  * same `Authorization: Bearer <key>` header pattern. The implementation mirrors
  * gpt.ts closely; differences are the API URL, model string, and credential key.
  *
- * ACTIVATION STATUS: Implementation complete. NOT yet registered in the model
- * registry (registry.ts) or exported from index.ts.
- *
- * Blocked on Arch types PR — requires these additions to /src/types/index.ts:
- *   - 'grok' added to ModelId union
- *   - 'xai' added to CredentialKey union
- *
- * Also blocked on Gate PR — requires in /src/auth/credentials.ts:
- *   - 'grok' → 'xai' added to MODEL_CREDENTIAL_MAP
- *   - 'xai' entry added to CREDENTIAL_LABELS
- *
- * To activate after types land:
- *   1. Remove the `as unknown as ModelId` cast on GROK_MODEL_ID (line ~46)
- *   2. Remove the `as unknown as CredentialKey` cast on credentialKey (line ~57)
- *   3. Import grokProvider in registry.ts and add to PROVIDERS
- *   4. Add the Grok entry to MODEL_REGISTRY in registry.ts
- *   5. Export GrokModelProvider and grokProvider from index.ts
- *
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
@@ -45,24 +27,13 @@ import type {
 } from '@/types';
 import { getCredentials } from '@/auth';
 
-// ─── Type forward-compatibility casts ─────────────────────────────────────────
-//
-// The casts below are load-bearing stubs that will be removed once Arch extends
-// ModelId and CredentialKey in /src/types/index.ts to include 'grok' and 'xai'.
-// They are intentional and documented — NOT a pattern to copy elsewhere.
-
-// TODO(arch): replace with `'grok' satisfies ModelId` once types PR lands
-const GROK_MODEL_ID = 'grok' as unknown as import('@/types').ModelId;
-// TODO(arch): replace with `'xai' satisfies CredentialKey` once types PR lands
-const GROK_CREDENTIAL_KEY = 'xai' as unknown as import('@/types').CredentialKey;
-
 // ─── Provider config ──────────────────────────────────────────────────────────
 
 export const GROK_CONFIG: ModelProviderConfig = {
-  modelId: GROK_MODEL_ID,
+  modelId: 'grok',
   name: 'Grok',
   color: 'sky',
-  credentialKey: GROK_CREDENTIAL_KEY,
+  credentialKey: 'xai',
 };
 
 // ─── xAI API constants ────────────────────────────────────────────────────────
@@ -127,7 +98,7 @@ export class GrokModelProvider implements ModelProvider {
     onChunk: StreamHandler
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
-    const apiKey = getCredentials(GROK_CREDENTIAL_KEY);
+    const apiKey = getCredentials(GROK_CONFIG.credentialKey);
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'xAI API key is not set. Add it in Settings.');
