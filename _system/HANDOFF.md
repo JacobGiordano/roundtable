@@ -3,27 +3,30 @@ Last updated: 2026-06-10
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
+Accessibility baseline audit complete.
 
 ## Last closed
 
-- #44 (Scout): First integration test pass. 4 integration test files, 64 new
-  tests covering ghost mode + storage, storage lifecycle, auth + models error
-  paths, and streaming chunk accumulation. Baseline before: 1032 tests.
-  Baseline after: 1096 tests. All pass; lint and build clean.
+- #45 (Ada): Phase 4 accessibility baseline audit. 147 new tests (contrast ratios
+  + keyboard logic patterns). 13 contrast failures documented as it.fails() tests
+  tracking real token issues. 23 findings: 0 critical, 9 serious/moderate UI
+  findings (A1–A9), 11 contrast failures across 5 themes (B1–B13), 3 minor (C1–C3).
+  15 GitHub issues opened (#46–#60 — 12 for Aria, 3 for Luma).
 
 ## In progress
 
-None. All known issues closed.
+None. Branch 45-ada-a11y-audit — awaiting user authorization to merge.
 
 ## Decisions made this session
 
-- Test infrastructure lives in src/tests/{integration,regression,fixtures}.
-- Fixtures pattern: localStorage mocked via buildLocalStorageMock() (Map-backed,
-  global assignment, restore on afterEach). No jsdom, no @testing-library/react.
-- FakeStreamingProvider and FakeErrorProvider in fixtures/mockProviders.ts for
-  streaming invariant tests. Real providers used for auth-failure path tests.
-- @testing-library/react not installed — React hook layer (useConversationStore,
-  useGhostMode) is untested at hook level. See gap report in PR.
+- a11y test files live in src/tests/a11y/{themes,keyboard,components,audit-reports}.
+- Contrast tests use pure TypeScript math (no jsdom needed) — run in vitest baseline.
+- Keyboard tests verify interaction logic contracts, not DOM rendering.
+- Component axe-core tests blocked on @testing-library/react + jsdom installation
+  (HANDOFF priority #1 — Scout's domain).
+- it.fails() wrappers document known token failures; removal signals Luma fix merged.
+- Accent colors (deepseek, gemini) used as text labels — 4.5:1 threshold applies
+  (12px/11px are NOT large text per WCAG).
 
 ## Model providers (all on main)
 
@@ -51,11 +54,16 @@ None. All known issues closed.
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
 - React hook layer (useConversationStore, useGhostMode) needs @testing-library/react
   + jsdom before it can be integration-tested; neither is in devDependencies.
+- accent-deepseek in Slate and Ash is a serious text contrast failure (3.32:1 and
+  3.26:1 on card) — Luma fix tracked in gh issue #60.
 
 ## Next issues in priority order
 
-1. Add @testing-library/react + jsdom so Scout can test the React hook layer
-   (useConversationStore state transitions, useGhostMode toggle flow, isLoading
-   state during initial load, storageError surfacing).
-2. Regression test suite for known bugs as they are fixed.
-3. Ada — accessibility audit of the chat interface (src/tests/a11y/).
+1. Install @testing-library/react + jsdom so Scout can test React hook layer and
+   Ada can run axe-core component tests (src/tests/a11y/components/).
+2. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
+3. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
+4. Luma: fix text-muted contrast failures (#58) — 5 themes affected
+5. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
+6. Aria: remaining a11y issues #48–#57 (streaming live regions, focus management, etc.)
+7. Regression test suite for known bugs as they are fixed.
