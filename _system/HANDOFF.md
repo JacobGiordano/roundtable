@@ -6,34 +6,35 @@ Phase 4 — 6 model providers live. Color system complete.
 
 ## Active agents for next session
 
-None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
+Aria — consume `providerName` from `MODEL_REGISTRY` in `ModelSelectorPanel.tsx`
+to replace the hardcoded claude/gpt ternary (issue #40, Aria side).
 
 ## Last closed (this session)
 
-- #39: Made model accent colors data-driven in InputBar and Sidebar.
-  - InputBar: replaced switch/getPillAccentClasses with getPillAccentStyle that uses
-    color-mix() on a CSS variable derived from ModelConfig.color — no per-model cases.
-  - Sidebar: replaced switch/getModelDotStyle with a MODULE_DOT_CSS_VAR lookup built
-    from MODEL_REGISTRY at module load time — no per-model cases.
+- #40 (Atlas side): Added `providerName: string` to `ModelRegistryEntry` interface
+  and populated it for all 6 entries (Anthropic, OpenAI, Google, xAI, DeepSeek, Mistral).
+  No changes to `/src/types/index.ts` — `ModelRegistryEntry` is a local interface in
+  `/src/models/registry.ts`. Lint and build pass.
 
 ## Model providers (all on main)
 
-| Model | Default active | Accent token |
-|-------|---------------|--------------|
-| Claude | yes | accent-claude |
-| GPT-5.5 | yes | accent-gpt |
-| Gemini | no | accent-gemini |
-| Grok | no | accent-grok |
-| DeepSeek | no | accent-deepseek |
-| Mistral | no | accent-mistral |
+| Model | Default active | Accent token | providerName |
+|-------|---------------|--------------|--------------|
+| Claude | yes | accent-claude | Anthropic |
+| GPT-5.5 | yes | accent-gpt | OpenAI |
+| Gemini | no | accent-gemini | Google |
+| Grok | no | accent-grok | xAI |
+| DeepSeek | no | accent-deepseek | DeepSeek |
+| Mistral | no | accent-mistral | Mistral |
 
 ## Next issues in priority order
 
-1. [Luma → Arch → Gate → Aria] User-customizable model accent colors (#38) — Luma spec first
-2. [Vault] ServerStorageProvider (REST client for self-hosted backend) (#24)
-3. [Gate] Backend auth support (session tokens, login/logout) (#25)
-4. Self-hosted backend service (Node/Express, Docker Compose) (#26)
-5. Open source launch prep (#27)
+1. [Aria] Consume `providerName` from `MODEL_REGISTRY` in `ModelSelectorPanel.tsx` (#40, Aria side)
+2. [Luma → Arch → Gate → Aria] User-customizable model accent colors (#38) — Luma spec first
+3. [Vault] ServerStorageProvider (REST client for self-hosted backend) (#24)
+4. [Gate] Backend auth support (session tokens, login/logout) (#25)
+5. Self-hosted backend service (Node/Express, Docker Compose) (#26)
+6. Open source launch prep (#27)
 
 ## Gotchas
 
