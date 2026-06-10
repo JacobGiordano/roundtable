@@ -1,7 +1,21 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
+// Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
+// read-only registry of all model display metadata including providerName.
+// Imported here so AddModelButton can display the correct provider label without
+// requiring providerName to be threaded through ModelConfig (an Arch concern).
+import { MODEL_REGISTRY } from '@/models';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Lookup map from modelId → providerName, built once from MODEL_REGISTRY.
+ * Used by AddModelButton to render the correct provider label for any model
+ * without hardcoding per-model ternaries.
+ */
+const PROVIDER_NAME_BY_MODEL_ID = new Map(
+  MODEL_REGISTRY.map((entry) => [entry.modelId, entry.providerName]),
+);
 
 /**
  * Returns the inline style for a model accent dot.
@@ -190,7 +204,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
               />
               <span className="text-[14px] text-text-primary flex-1">{model.name}</span>
               <span className="text-[12px] text-text-muted">
-                {model.modelId === 'claude' ? 'Anthropic' : model.modelId === 'gpt-5.5' ? 'OpenAI' : 'Other'}
+                {PROVIDER_NAME_BY_MODEL_ID.get(model.modelId) ?? 'Unknown'}
               </span>
             </button>
           ))}
