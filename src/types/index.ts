@@ -363,6 +363,9 @@ export interface CustomThemeJSON {
     'model-gpt': string;
     'model-gemini': string;
     'model-other': string;
+    'model-grok': string;
+    'model-deepseek': string;
+    'model-mistral': string;
   };
   interactive: {
     hover: string;
