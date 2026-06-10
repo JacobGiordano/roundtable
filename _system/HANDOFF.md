@@ -7,26 +7,24 @@ Accessibility baseline audit complete.
 
 ## Last closed
 
-- #45 (Ada): Phase 4 accessibility baseline audit. 147 new tests (contrast ratios
-  + keyboard logic patterns). 13 contrast failures documented as it.fails() tests
-  tracking real token issues. 23 findings: 0 critical, 9 serious/moderate UI
-  findings (A1–A9), 11 contrast failures across 5 themes (B1–B13), 3 minor (C1–C3).
-  15 GitHub issues opened (#46–#60 — 12 for Aria, 3 for Luma).
+- #61 (Arch): Model version selection types. Added `ModelVersionOption` interface
+  and `selectedVersionId?: string` to `ModelConfig`. PR open on
+  `61-arch-model-version-types`. Awaiting user authorization to merge.
 
 ## In progress
 
-None. All known branches merged.
+- #61 (Arch): Branch `61-arch-model-version-types` — PR open, not yet merged.
 
 ## Decisions made this session
 
-- a11y test files live in src/tests/a11y/{themes,keyboard,components,audit-reports}.
-- Contrast tests use pure TypeScript math (no jsdom needed) — run in vitest baseline.
-- Keyboard tests verify interaction logic contracts, not DOM rendering.
-- Component axe-core tests blocked on @testing-library/react + jsdom installation
-  (HANDOFF priority #1 — Scout's domain).
-- it.fails() wrappers document known token failures; removal signals Luma fix merged.
-- Accent colors (deepseek, gemini) used as text labels — 4.5:1 threshold applies
-  (12px/11px are NOT large text per WCAG).
+- `getAvailableVersions()` does NOT go on `ModelProvider`. Available versions are
+  static; they belong on MODEL_REGISTRY entries in Atlas. Rationale documented in
+  JSDoc on `ModelVersionOption`.
+- `selectedVersionId` is optional on `ModelConfig`. Absence = use provider default.
+  Atlas must handle the undefined case in sendMessage.
+- `ModelVersionOption.id` is the exact API-level model string (not a typed union) —
+  Atlas controls the allowed values in its registry. Keeping it `string` avoids
+  requiring a types PR every time Atlas adds a new version.
 
 ## Model providers (all on main)
 
@@ -38,6 +36,19 @@ None. All known branches merged.
 | Grok | no | accent-grok | xAI |
 | DeepSeek | no | accent-deepseek | DeepSeek |
 | Mistral | no | accent-mistral | Mistral |
+
+## Next issues in priority order
+
+1. #61 Atlas: add `availableVersions: ModelVersionOption[]` to each MODEL_REGISTRY entry; read `selectedVersionId` from ModelConfig in sendMessage
+2. #61 Gate: persist `selectedVersionId` on ModelConfig to/from localStorage; expose setter to Aria
+3. #61 Aria: render version picker in per-model settings panel
+4. #62 (Aria + Gate): Resizable sidebar — self-contained, can run anytime
+5. Install @testing-library/react + jsdom so Scout can test React hook layer and Ada can run axe-core component tests
+6. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46)
+7. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
+8. Luma: fix text-muted contrast failures (#58)
+9. Luma: fix accent-deepseek text contrast failures (#60)
+10. Aria: remaining a11y issues #48–#57
 
 ## Gotchas
 
@@ -56,15 +67,3 @@ None. All known branches merged.
   + jsdom before it can be integration-tested; neither is in devDependencies.
 - accent-deepseek in Slate and Ash is a serious text contrast failure (3.32:1 and
   3.26:1 on card) — Luma fix tracked in gh issue #60.
-
-## Next issues in priority order
-
-1. #61 (Arch → Atlas + Gate → Aria): Model version selection per provider — Arch types first, then parallel Atlas/Gate, then Aria UI
-2. #62 (Aria + Gate): Resizable sidebar — self-contained, can run anytime
-3. Install @testing-library/react + jsdom so Scout can test React hook layer and Ada can run axe-core component tests (src/tests/a11y/components/)
-4. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
-5. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
-6. Luma: fix text-muted contrast failures (#58) — 5 themes affected
-7. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
-8. Aria: remaining a11y issues #48–#57 (streaming live regions, focus management, etc.)
-9. Regression test suite for known bugs as they are fixed.
