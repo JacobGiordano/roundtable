@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
-// Cross-agent exception: sendMessage and getSessionTokenUsage are pure utilities
-// exported from @/models per the documented exception in CLAUDE.md.
-import { sendMessage, getSessionTokenUsage } from '@/models';
+// Cross-agent exception: sendMessage, getSessionTokenUsage, and
+// buildDefaultModelConfigs are pure utilities exported from @/models per the
+// documented exception in CLAUDE.md. buildDefaultModelConfigs replaces the
+// former MOCK_MODELS hardcoded array so the model selector reflects the live
+// MODEL_REGISTRY maintained by Atlas.
+import { sendMessage, getSessionTokenUsage, buildDefaultModelConfigs } from '@/models';
 // Gate cross-agent exception: useUserPreferences reads/writes UserPreferences from
 // localStorage. Called at the App root so tokenCountVisibility can be threaded
 // down the component tree without per-component Gate imports.
@@ -16,25 +19,6 @@ import { useUserPreferences } from '@/auth';
 // after exportConversation returns the serialized content.
 import { useConversationStore, downloadExportedConversation } from '@/storage';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-// Model config stays local — model selection is Phase 4 territory.
-// Conversations are now owned by useConversationStore (Vault).
-const MOCK_MODELS: ModelConfig[] = [
-  {
-    modelId: 'claude',
-    name: 'Claude',
-    color: 'accent-claude',
-    isActive: true,
-  },
-  {
-    modelId: 'gpt-5.5',
-    name: 'GPT-5.5',
-    color: 'accent-gpt',
-    isActive: true,
-  },
-];
-
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -44,9 +28,10 @@ export default function App() {
   // former MOCK_CONVERSATIONS + useState<Conversation[]> approach.
   const store = useConversationStore();
 
-  // Per-conversation model state: model selection is Phase 4 territory.
-  // Keep a top-level models array that all conversations share for now.
-  const [models, setModels] = useState<ModelConfig[]>(MOCK_MODELS);
+  // Per-conversation model state seeded from the live MODEL_REGISTRY.
+  // buildDefaultModelConfigs() maps registry entries to ModelConfig[], respecting
+  // defaultActive flags (Claude + GPT active; Gemini + Grok inactive once added).
+  const [models, setModels] = useState<ModelConfig[]>(buildDefaultModelConfigs);
 
   // Directed reply: when set, the next send is targeted at this model only.
   // Cleared automatically after a message is sent, or manually via the × pill.
