@@ -20,6 +20,8 @@ be rejected.
 | **Luma** | `/_design` | `/src/**` (specs only — produces no code) |
 | **Arch** | `/src/types/index.ts`, `CLAUDE.md` | Everything else |
 | **Quill** | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/`, `/docs/` | `/src/**`, `/_design`, `CLAUDE.md`, `_system/` |
+| **Scout** | `/src/tests/` | Application code in any agent directory; never fixes bugs, only finds them |
+| **Ada** | `/src/tests/a11y/` | Application code in any agent directory; never fixes components, only documents findings |
 | **Spark** | *(called by Aria)* | Produces micro-interaction specs; no directory ownership |
 | **Coda** | *(coordinator)* | Sequences agents; no directory ownership |
 | **Flint** | *(reviewer)* | Read-only phase gate; no directory ownership |
@@ -81,6 +83,8 @@ what's in flight. Always check `HANDOFF.md` before starting work.
 | **Luma** | Design tokens, theme files, component specs (no code) |
 | **Arch** | Cross-agent TypeScript interfaces; `CLAUDE.md` changes |
 | **Quill** | Root-level documentation: `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/` templates |
+| **Scout** | Integration and regression tests in `/src/tests/`; cross-domain coverage audits; finds bugs and opens tickets — never fixes them |
+| **Ada** | WCAG 2.1 AA accessibility audits in `/src/tests/a11y/`; axe-core tests, keyboard navigation, contrast across all themes — finds violations and opens tickets for Aria or Luma |
 | **Spark** | Micro-interactions and delight work (called by Aria in Phase 2+) |
 | **Coda** | Multi-agent coordination, phase kickoff, dependency sequencing |
 | **Flint** | Phase gate validation — verifies acceptance criteria before advancing |
