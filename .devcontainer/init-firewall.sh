@@ -68,6 +68,7 @@ for domain in \
     "api.x.ai" \
     "api.deepseek.com" \
     "api.mistral.ai" \
+    "storage.googleapis.com" \
     "sentry.io" \
     "statsig.anthropic.com" \
     "statsig.com" \
