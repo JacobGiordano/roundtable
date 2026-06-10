@@ -42,6 +42,7 @@ automatically — no installation required.
 | Multi-agent coordination | `Coda` |
 | Pre-merge or pre-launch review | `Flint` |
 | Backend (`/backend`) | `Atlas` |
+| Documentation (`README.md`, `CONTRIBUTING.md`, `/docs/`) | `Quill` 🪶 |
 
 Example activation prompt:
 > "Activate Aria. Project: Roundtable. Issue: [Aria] Chat interface layout.
@@ -49,7 +50,7 @@ Example activation prompt:
 
 ## Agent boundary rules — NON-NEGOTIABLE
 
-Each agent owns exactly one directory. These are hard walls:
+Most agents own exactly one directory; a few (Arch, Quill) own a defined set of files instead. These are hard walls:
 
 | Agent | Owns | Must never touch |
 |-------|------|--------------------|
@@ -62,6 +63,7 @@ Each agent owns exactly one directory. These are hard walls:
 | Spark | *(none — called by Aria)* | owns nothing; produces specs Aria applies |
 | Coda  | *(none — coordinates)* | owns nothing; sequences agents, no implementation |
 | Flint | *(none — reviews live app)* | owns nothing; read-only phase gate verification |
+| Quill 🪶 | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/docs/` | `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`, `/_design`, `/src/types/index.ts`, `CLAUDE.md`, `_system/HANDOFF.md` |
 
 Cross-agent communication happens ONLY through the interfaces in `/src/types/index.ts`.
 If you need something from another agent's directory, you are doing it wrong —
