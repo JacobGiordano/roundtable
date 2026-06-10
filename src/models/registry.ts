@@ -57,6 +57,12 @@ export interface ModelRegistryEntry {
   /** Display name shown in the model selector and message bubbles. */
   name: string;
   /**
+   * Human-readable provider/company name. Aria uses this in the model selector
+   * panel instead of hardcoding a per-model ternary.
+   * Examples: "Anthropic", "OpenAI", "Google", "xAI", "DeepSeek", "Mistral"
+   */
+  providerName: string;
+  /**
    * Tailwind color token for the model's accent color, e.g. 'accent-claude'.
    * Matches the token names used in the design system (Luma).
    */
@@ -80,36 +86,42 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
   {
     modelId: CLAUDE_CONFIG.modelId,
     name: CLAUDE_CONFIG.name,
+    providerName: 'Anthropic',
     color: 'accent-claude',
     defaultActive: true,
   },
   {
     modelId: GPT55_CONFIG.modelId,
     name: GPT55_CONFIG.name,
+    providerName: 'OpenAI',
     color: 'accent-gpt',
     defaultActive: true,
   },
   {
     modelId: GEMINI_CONFIG.modelId,
     name: GEMINI_CONFIG.name,
+    providerName: 'Google',
     color: 'accent-gemini',
     defaultActive: false,
   },
   {
     modelId: GROK_CONFIG.modelId,
     name: GROK_CONFIG.name,
+    providerName: 'xAI',
     color: 'accent-grok',
     defaultActive: false,
   },
   {
     modelId: DEEPSEEK_CONFIG.modelId,
     name: DEEPSEEK_CONFIG.name,
+    providerName: 'DeepSeek',
     color: 'accent-deepseek',
     defaultActive: false,
   },
   {
     modelId: MISTRAL_CONFIG.modelId,
     name: MISTRAL_CONFIG.name,
+    providerName: 'Mistral',
     color: 'accent-mistral',
     defaultActive: false,
   },
