@@ -65,6 +65,8 @@ export function hasCredential(key: CredentialKey): boolean {
 export const MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey> = {
   'claude': 'anthropic',
   'gpt-5.5': 'openai',
+  'gemini': 'google',
+  'grok': 'xai',
 };
 
 /**
@@ -99,5 +101,15 @@ export const CREDENTIAL_LABELS: Record<CredentialKey, { provider: string; placeh
     provider: 'OpenAI',
     placeholder: 'sk-…',
     docsUrl: 'https://platform.openai.com/api-keys',
+  },
+  google: {
+    provider: 'Google AI Studio',
+    placeholder: 'AIza…',
+    docsUrl: 'https://aistudio.google.com/app/apikey',
+  },
+  xai: {
+    provider: 'xAI',
+    placeholder: 'xai-…',
+    docsUrl: 'https://console.x.ai/team/default/api-keys',
   },
 };
