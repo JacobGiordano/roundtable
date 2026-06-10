@@ -36,3 +36,10 @@ export {
   BackendAuthError,
 } from './backendAuth';
 export type { BackendAuthErrorCode } from './backendAuth';
+export {
+  getSidebarWidth,
+  saveSidebarWidth,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_MAX,
+} from './sidebarWidth';
