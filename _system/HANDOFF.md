@@ -6,20 +6,18 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 
 ## Last closed
 
-- #42 (Atlas): Fixed two doc gaps in /backend/README.md (400 response on POST /auth/login;
-  token invalidation note on POST /auth/refresh). Merged to main.
-- #41 (Quill): CONTRIBUTING.md written (Quill, parallel session). Merge pending Coda sequencing.
+- #43 (Arch + Quill): Added Scout 🔭 and Ada ♿ testing agents — profiles, CLAUDE.md registry,
+  CONTRIBUTING.md tables. Scout is a talking dog (they/them). All merged to main.
 
 ## In progress
 
-- #43 (Arch): Adding Scout and Ada to CLAUDE.md — branch `43-arch-add-scout-ada-to-claude-md`,
-  commit pending user authorization to merge.
+None. All known issues closed.
 
 ## Decisions made this session
 
 - Scout 🔭 owns `/src/tests/` (excl. a11y/); Ada ♿ owns `/src/tests/a11y/`.
-- Both agents added to Agents table, boundary rules table, and codebase structure block.
-- Scout and Ada are read-only against application code — they open tickets, they do not fix.
+- Both are read-only against application code — they open tickets, they do not fix.
+- Scout's gender: he/him (the goodest boy; a talking dog).
 
 ## Model providers (all on main)
 
