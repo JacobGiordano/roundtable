@@ -454,3 +454,48 @@ export type TokenCountVisibility = 'always' | 'active' | 'never';
 export interface UserPreferences {
   tokenCountVisibility: TokenCountVisibility;
 }
+
+// ─── Model accent color overrides — Gate implements, Aria consumes ────────────
+
+/**
+ * User-chosen accent colors that override the active theme's accent tokens.
+ * Partial record — only models with active overrides are present.
+ * Absence of a key means "use the active theme's default accent for that model."
+ * Values are 6-digit hex strings (e.g. "#FF5500").
+ *
+ * Persisted by Gate under the localStorage key "roundtable:model-accent-colors".
+ * Applied by Aria as a second CSS custom-property pass after the theme loader
+ * runs — overriding `--accent-{model}` only for models present in this record.
+ */
+export type ModelAccentColors = Partial<Record<ModelId, string>>;
+
+/**
+ * Retrieve all stored model accent color overrides.
+ * Returns {} when no overrides are stored or if the stored value is corrupt.
+ * Gate implements; Aria calls this on app load and after every theme switch.
+ */
+export type GetModelAccentColorsFn = () => ModelAccentColors;
+
+/**
+ * Persist a single model accent color override.
+ * Gate validates the hex value matches /^#[0-9A-Fa-f]{6}$/ before writing.
+ * Throws TypeError on invalid hex — Aria must validate before calling.
+ * Gate implements; Aria calls this when the user confirms a color selection.
+ */
+export type SetModelAccentColorFn = (modelId: ModelId, hex: string) => void;
+
+/**
+ * Remove the stored accent color override for a single model.
+ * No-op if the model has no stored override.
+ * Gate implements; Aria calls this when the user clicks "Reset to theme default"
+ * in the color picker popover for a specific model.
+ */
+export type ClearModelAccentColorFn = (modelId: ModelId) => void;
+
+/**
+ * Remove all stored model accent color overrides.
+ * Removes the entire "roundtable:model-accent-colors" localStorage key.
+ * Gate implements; Aria calls this from the "Reset all model colors to theme
+ * defaults" control in the Settings panel.
+ */
+export type ClearAllModelAccentColorsFn = () => void;
