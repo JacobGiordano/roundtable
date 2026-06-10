@@ -10,19 +10,11 @@ None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
 
 ## Last closed (this session)
 
-- Bug fix: Gemini, Grok, DeepSeek, Mistral rendered as orange throughout UI.
-  Root cause: modelId switches in 4 UI components only covered claude and gpt-5.5.
-
-## Fix approach per component
-
-- MessageBubble: removed getAccentBorderClass / getAccentTextClass; border and
-  text color now read from modelConfig.color via inline style `var(--${color})`.
-- ModelSelectorPanel: getModelDotStyle now takes ModelConfig (not modelId) and
-  reads model.color directly. SessionTokenSection uses looked-up modelConfig.
-- InputBar: getPillAccentClasses extended with explicit cases for all 6 models
-  (Tailwind JIT requires literal class strings for opacity modifier syntax).
-- Sidebar: ThreadRow has only modelId strings from message history (no ModelConfig
-  available), so getModelDotStyle retains explicit switch but now covers all 6 models.
+- #39: Made model accent colors data-driven in InputBar and Sidebar.
+  - InputBar: replaced switch/getPillAccentClasses with getPillAccentStyle that uses
+    color-mix() on a CSS variable derived from ModelConfig.color — no per-model cases.
+  - Sidebar: replaced switch/getModelDotStyle with a MODULE_DOT_CSS_VAR lookup built
+    from MODEL_REGISTRY at module load time — no per-model cases.
 
 ## Model providers (all on main)
 
@@ -55,4 +47,5 @@ None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
 - ThreadRow is a `<div>` wrapper (not `<button>`) — accessible via inner navigation button
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
-- If adding new models in future: update InputBar getPillAccentClasses AND Sidebar getModelDotStyle with explicit cases
+- color-mix() used in InputBar pill for opacity — supported Chrome 111+/Firefox 113+/Safari 16.2+
+- Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI components now auto-update
