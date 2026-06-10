@@ -15,7 +15,7 @@ Accessibility baseline audit complete.
 
 ## In progress
 
-None. Branch 45-ada-a11y-audit — awaiting user authorization to merge.
+None. All known branches merged.
 
 ## Decisions made this session
 
@@ -59,11 +59,12 @@ None. Branch 45-ada-a11y-audit — awaiting user authorization to merge.
 
 ## Next issues in priority order
 
-1. Install @testing-library/react + jsdom so Scout can test React hook layer and
-   Ada can run axe-core component tests (src/tests/a11y/components/).
-2. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
-3. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
-4. Luma: fix text-muted contrast failures (#58) — 5 themes affected
-5. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
-6. Aria: remaining a11y issues #48–#57 (streaming live regions, focus management, etc.)
-7. Regression test suite for known bugs as they are fixed.
+1. #61 (Arch → Atlas + Gate → Aria): Model version selection per provider — Arch types first, then parallel Atlas/Gate, then Aria UI
+2. #62 (Aria + Gate): Resizable sidebar — self-contained, can run anytime
+3. Install @testing-library/react + jsdom so Scout can test React hook layer and Ada can run axe-core component tests (src/tests/a11y/components/)
+4. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
+5. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
+6. Luma: fix text-muted contrast failures (#58) — 5 themes affected
+7. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
+8. Aria: remaining a11y issues #48–#57 (streaming live regions, focus management, etc.)
+9. Regression test suite for known bugs as they are fixed.
