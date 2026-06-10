@@ -1,4 +1,4 @@
-import type { CustomThemeJSON } from '@/types';
+import type { CustomThemeJSON, ModelAccentColors, ModelId } from '@/types';
 
 /**
  * Applies a theme's design tokens as CSS custom properties on :root.
@@ -67,4 +67,37 @@ export function applyTheme(theme: CustomThemeJSON): void {
   // Data attributes for CSS selectors that need mode-awareness
   root.setAttribute('data-theme', theme.name.toLowerCase());
   root.setAttribute('data-mode',  theme.mode);
+}
+
+/**
+ * Pass 2 of the two-pass color application.
+ * Overwrites CSS custom properties on :root for every model that has a
+ * user-chosen accent color stored. Models absent from userColors keep the
+ * theme default already set by applyTheme (Pass 1).
+ *
+ * Call this:
+ * - On app load, immediately after applyTheme().
+ * - On every theme switch, immediately after applyTheme().
+ * - Immediately after any setModelAccentColor() call.
+ * - Immediately after any clearModelAccentColor() call (pass the current
+ *   stored record — the cleared model simply won't be present, so its CSS
+ *   var is untouched and reverts to the Pass 1 theme value).
+ */
+export function applyUserAccentColors(userColors: ModelAccentColors): void {
+  const root = document.documentElement;
+
+  const mapping: Record<ModelId, string> = {
+    'claude':    '--accent-claude',
+    'gpt-5.5':  '--accent-gpt',
+    'gemini':   '--accent-gemini',
+    'grok':     '--accent-grok',
+    'deepseek': '--accent-deepseek',
+    'mistral':  '--accent-mistral',
+  };
+
+  for (const [modelId, cssVar] of Object.entries(mapping) as [ModelId, string][]) {
+    if (userColors[modelId]) {
+      root.style.setProperty(cssVar, userColors[modelId]!);
+    }
+  }
 }

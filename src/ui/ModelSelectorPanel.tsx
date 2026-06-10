@@ -1,10 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
+import type { ModelConfig, ModelId, ModelAccentColors, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
 // read-only registry of all model display metadata including providerName.
 // Imported here so AddModelButton can display the correct provider label without
 // requiring providerName to be threaded through ModelConfig (an Arch concern).
 import { MODEL_REGISTRY } from '@/models';
+// Gate cross-agent exception: getModelAccentColors is called to seed the
+// initial accentColors state and to refresh it after any color save/clear
+// triggered by AccentColorPicker. Aria reads the result; Gate owns the store.
+import { getModelAccentColors } from '@/auth';
+import { AccentColorPicker } from './AccentColorPicker';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,12 +35,52 @@ function getModelDotStyle(model: ModelConfig): React.CSSProperties {
 const SYSTEM_PROMPT_PLACEHOLDER =
   'Give this model a persona, set context, or restrict its behavior…';
 
+// ─── PaletteIcon ─────────────────────────────────────────────────────────────
+
+/** 14×14 SVG palette icon for the accent color trigger. */
+function PaletteIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* Palette body */}
+      <path
+        d="M7 1.5A5.5 5.5 0 1 0 12.5 7c0-.83-.17-1.5-1-1.5H10a1.5 1.5 0 0 1 0-3 5.5 5.5 0 0 0-3-1Z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Colour dots on the palette */}
+      <circle cx="4.5" cy="5" r="0.75" fill="currentColor" />
+      <circle cx="4.5" cy="9" r="0.75" fill="currentColor" />
+      <circle cx="7"   cy="10.5" r="0.75" fill="currentColor" />
+    </svg>
+  );
+}
+
 // ─── ModelPill ────────────────────────────────────────────────────────────────
 
 interface ModelPillProps {
   model: ModelConfig;
   isLastActive: boolean;
   onToggle: (modelId: ModelId) => void;
+  /**
+   * When provided the pill renders in "Model Selector Panel context" —
+   * it shows a palette icon affordance for accent color customization.
+   * When undefined the pill renders without the palette icon (other contexts).
+   */
+  onOpenColorPicker?: (modelId: ModelId, anchorRect: DOMRect) => void;
+  /**
+   * Whether a custom accent color is currently stored for this model.
+   * When true, the palette icon is always visible (not just on hover)
+   * and its color reflects the active custom accent.
+   */
+  isOverrideActive?: boolean;
 }
 
 /**
@@ -43,9 +88,23 @@ interface ModelPillProps {
  * Active: filled background + full-opacity dot.
  * Inactive: transparent background + 40%-opacity dot + muted label.
  * Last-active: clicking triggers a brief shake instead of deactivating.
+ *
+ * When onOpenColorPicker is provided (Model Selector Panel context only):
+ * - Pill has position:relative and right padding of 28px.
+ * - A palette icon button is absolutely positioned at right:8px.
+ * - Icon is opacity-0 normally, opacity-100 on pill hover/focus.
+ * - If isOverrideActive, icon is always visible with the model's accent color.
  */
-function ModelPill({ model, isLastActive, onToggle }: ModelPillProps) {
+function ModelPill({
+  model,
+  isLastActive,
+  onToggle,
+  onOpenColorPicker,
+  isOverrideActive = false,
+}: ModelPillProps) {
   const [isShaking, setIsShaking] = useState(false);
+  const [isPillHovered, setIsPillHovered] = useState(false);
+  const paletteButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(() => {
     if (model.isActive && isLastActive) {
@@ -70,43 +129,113 @@ function ModelPill({ model, isLastActive, onToggle }: ModelPillProps) {
     [handleClick],
   );
 
+  const handlePaletteClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation(); // don't toggle the pill
+      if (!onOpenColorPicker || !paletteButtonRef.current) return;
+      const rect = paletteButtonRef.current.getBoundingClientRect();
+      onOpenColorPicker(model.modelId, rect);
+    },
+    [model.modelId, onOpenColorPicker],
+  );
+
+  const handlePaletteKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!onOpenColorPicker || !paletteButtonRef.current) return;
+        const rect = paletteButtonRef.current.getBoundingClientRect();
+        onOpenColorPicker(model.modelId, rect);
+      }
+    },
+    [model.modelId, onOpenColorPicker],
+  );
+
   const isActive = model.isActive;
+  const showPaletteIcon = Boolean(onOpenColorPicker);
+
+  // Icon visibility: always-on if override is active, otherwise hover/focus only.
+  const paletteIconOpacity = isOverrideActive || isPillHovered ? 1 : 0;
+
+  // Icon color: when override is active, use the model's current accent CSS var.
+  // Per spec: "its color is var(--accent-{modelId})".
+  // The CSS custom property name for the model is: --accent-{baseId}
+  // e.g. "accent-claude", "accent-gpt", "accent-gemini", etc.
+  // ModelConfig.color already holds the CSS var name (e.g. "accent-claude").
+  const paletteIconStyle: React.CSSProperties = isOverrideActive
+    ? { color: `var(--${model.color ?? 'accent-other'})` }
+    : {};
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={isActive}
-      aria-label={`${model.name} — ${isActive ? 'active, click to deactivate' : 'inactive, click to activate'}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      onAnimationEnd={handleAnimationEnd}
+    <div
       className={[
-        'inline-flex items-center gap-2 h-8 rounded-full',
-        'px-3',
-        'text-[13px] font-medium',
-        'border',
-        'transition-[background-color,border-color,opacity] duration-fast',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-        'cursor-pointer select-none',
-        isActive
-          ? 'bg-hover border-border text-text-primary'
-          : 'bg-transparent border-border-subtle text-text-muted',
-        isShaking ? 'pill-shake' : '',
+        'relative inline-flex',
+        showPaletteIcon ? 'group' : '',
       ].join(' ')}
+      onMouseEnter={() => showPaletteIcon && setIsPillHovered(true)}
+      onMouseLeave={() => showPaletteIcon && setIsPillHovered(false)}
     >
-      {/* Color dot */}
-      <span
-        className="w-[7px] h-[7px] rounded-full flex-shrink-0 transition-opacity duration-fast"
-        style={{
-          ...getModelDotStyle(model),
-          opacity: isActive ? 1 : 0.4,
-        }}
-        aria-hidden="true"
-      />
-      {/* Label */}
-      {model.name}
-    </button>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isActive}
+        aria-label={`${model.name} — ${isActive ? 'active, click to deactivate' : 'inactive, click to activate'}`}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        onAnimationEnd={handleAnimationEnd}
+        className={[
+          'inline-flex items-center gap-2 h-8 rounded-full',
+          // Right padding: 28px in selector context (icon + gap), 12px otherwise.
+          showPaletteIcon ? 'pl-3 pr-7' : 'px-3',
+          'text-[13px] font-medium',
+          'border',
+          'transition-[background-color,border-color,opacity] duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          'cursor-pointer select-none',
+          isActive
+            ? 'bg-hover border-border text-text-primary'
+            : 'bg-transparent border-border-subtle text-text-muted',
+          isShaking ? 'pill-shake' : '',
+        ].join(' ')}
+      >
+        {/* Color dot */}
+        <span
+          className="w-[7px] h-[7px] rounded-full flex-shrink-0 transition-opacity duration-fast"
+          style={{
+            ...getModelDotStyle(model),
+            opacity: isActive ? 1 : 0.4,
+          }}
+          aria-hidden="true"
+        />
+        {/* Label */}
+        {model.name}
+      </button>
+
+      {/* Palette icon — only in Model Selector Panel context */}
+      {showPaletteIcon && (
+        <button
+          ref={paletteButtonRef}
+          type="button"
+          aria-label={`Customize accent color for ${model.name}`}
+          onClick={handlePaletteClick}
+          onKeyDown={handlePaletteKeyDown}
+          className={[
+            'absolute top-1/2 -translate-y-1/2',
+            'right-2',
+            'w-[18px] h-[18px] flex items-center justify-center',
+            'rounded',
+            'text-text-muted hover:text-text-secondary',
+            'transition-[opacity,color] duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            'cursor-pointer',
+          ].join(' ')}
+          style={{ opacity: paletteIconOpacity, ...paletteIconStyle }}
+        >
+          <PaletteIcon />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -551,6 +680,7 @@ interface ModelSelectorPanelProps {
  * Full model selector: trigger chip + slide-up panel with pills.
  * Sits directly above the InputBar in AppLayout.
  * Phase 2: includes a per-model system prompt sub-section.
+ * Phase 4: each pill has a palette icon for accent color customization.
  */
 export function ModelSelectorPanel({
   models,
@@ -562,6 +692,34 @@ export function ModelSelectorPanel({
 }: ModelSelectorPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+
+  // ── Accent color state ─────────────────────────────────────────────────────
+  // Snapshot of the stored accent colors. Refreshed whenever the color picker
+  // saves or clears a color so that pill icons update without a full page reload.
+  const [accentColors, setAccentColors] = useState<ModelAccentColors>(
+    () => getModelAccentColors(),
+  );
+
+  // Which model's color picker is open, and its anchor rect.
+  const [openPickerModelId, setOpenPickerModelId] = useState<ModelId | null>(null);
+  const [pickerAnchorRect, setPickerAnchorRect] = useState<DOMRect | null>(null);
+
+  const handleOpenColorPicker = useCallback(
+    (modelId: ModelId, anchorRect: DOMRect) => {
+      setOpenPickerModelId(modelId);
+      setPickerAnchorRect(anchorRect);
+    },
+    [],
+  );
+
+  const handleCloseColorPicker = useCallback(() => {
+    setOpenPickerModelId(null);
+    setPickerAnchorRect(null);
+    // Refresh the accent color snapshot so pill icons reflect any changes.
+    setAccentColors(getModelAccentColors());
+  }, []);
+
+  // ── Panel open/close ───────────────────────────────────────────────────────
 
   const activeModels = models.filter((m) => m.isActive);
   const inactiveModels = models.filter((m) => !m.isActive);
@@ -577,9 +735,14 @@ export function ModelSelectorPanel({
       // Trigger closing animation
       setIsClosing(true);
       setIsOpen(false);
+      // Close any open color picker when the panel closes.
+      setOpenPickerModelId(null);
+      setPickerAnchorRect(null);
     } else {
       setIsClosing(false);
       setIsOpen(true);
+      // Refresh accent color snapshot when the panel opens.
+      setAccentColors(getModelAccentColors());
     }
   }, [isOpen]);
 
@@ -625,6 +788,8 @@ export function ModelSelectorPanel({
                 model={model}
                 isLastActive={model.isActive && activeCount === 1}
                 onToggle={onToggleModel}
+                onOpenColorPicker={handleOpenColorPicker}
+                isOverrideActive={Boolean(accentColors[model.modelId])}
               />
             ))}
             <AddModelButton availableModels={inactiveModels} onAdd={onAddModel} />
@@ -683,6 +848,21 @@ export function ModelSelectorPanel({
         {activeCount} {activeCount === 1 ? 'model' : 'models'}
         <ChevronIcon isOpen={isOpen} />
       </button>
+
+      {/* Color picker popover — rendered in a portal-like fixed position */}
+      {openPickerModelId !== null && pickerAnchorRect !== null && (() => {
+        const pickerModel = models.find((m) => m.modelId === openPickerModelId);
+        if (!pickerModel) return null;
+        return (
+          <AccentColorPicker
+            modelId={openPickerModelId}
+            modelName={pickerModel.name}
+            currentColor={accentColors[openPickerModelId]}
+            anchorRect={pickerAnchorRect}
+            onClose={handleCloseColorPicker}
+          />
+        );
+      })()}
     </div>
   );
 }

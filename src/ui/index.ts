@@ -8,4 +8,4 @@ export { MessageBubble } from './MessageBubble';
 export { MessageThread } from './MessageThread';
 export { ModelSelectorPanel } from './ModelSelectorPanel';
 export { Sidebar } from './Sidebar';
-export { applyTheme } from './theme';
+export { applyTheme, applyUserAccentColors } from './theme';

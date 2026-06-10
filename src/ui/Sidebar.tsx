@@ -4,12 +4,23 @@ import type { Conversation } from '@/types';
 // Gate components mounted here per the issue spec. They manage their own state
 // internally via Gate hooks — Aria only mounts them in the settings panel.
 // getRequiredCredentialKeys is a pure utility from @/auth — permitted exception per CLAUDE.md.
-import { ApiKeyPanel, TokenCountControl, getRequiredCredentialKeys } from '@/auth';
+// getModelAccentColors, clearAllModelAccentColors: Gate persistence functions used by
+// the "Reset all model colors to theme defaults" control in the settings panel.
+import {
+  ApiKeyPanel,
+  TokenCountControl,
+  getRequiredCredentialKeys,
+  getModelAccentColors,
+  clearAllModelAccentColors,
+} from '@/auth';
 // Atlas cross-agent exception: MODEL_REGISTRY is a pure data constant exported from
 // @/models — permitted per CLAUDE.md. Used to build a modelId→color lookup so that
 // getModelDotStyle is data-driven and requires no changes when new models are added.
 import { MODEL_REGISTRY } from '@/models';
 import { groupConversations } from './groupConversations';
+// applyUserAccentColors: re-runs the CSS override pass after clearing all stored colors.
+// Called with {} so every model reverts to its theme default (no overrides applied).
+import { applyUserAccentColors } from './theme';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -679,6 +690,10 @@ export function Sidebar({
   onBulkDelete,
 }: SidebarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Snapshot of stored accent colors — used to decide whether to render the
+  // "Reset all model colors" affordance. Refreshed when settings open/close.
+  const [hasAccentOverrides, setHasAccentOverrides] = useState(false);
+
   // Track which named groups are collapsed. All groups start open.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // Archive filter: show active or archived conversations.
@@ -687,7 +702,20 @@ export function Sidebar({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handleToggleSettings = useCallback(() => {
-    setIsSettingsOpen((prev) => !prev);
+    setIsSettingsOpen((prev) => {
+      const next = !prev;
+      // Refresh the accent override check whenever settings open.
+      if (next) {
+        setHasAccentOverrides(Object.keys(getModelAccentColors()).length > 0);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleResetAllAccentColors = useCallback(() => {
+    clearAllModelAccentColors();
+    applyUserAccentColors({});
+    setHasAccentOverrides(false);
   }, []);
 
   const handleToggleGroup = useCallback((groupId: string) => {
@@ -1003,6 +1031,24 @@ export function Sidebar({
 
             {/* Token count visibility preference — Gate component, self-contained */}
             <TokenCountControl />
+
+            {/* Reset all model accent colors — shown only when at least one override is stored */}
+            {hasAccentOverrides && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleResetAllAccentColors}
+                  className={[
+                    'text-[13px] text-text-secondary',
+                    'hover:text-text-primary hover:underline',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+                  ].join(' ')}
+                >
+                  Reset all model colors to theme defaults
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
