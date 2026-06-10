@@ -99,6 +99,37 @@ export interface Message {
   error?: ModelError;
 }
 
+// ─── Model version selection ───────────────────────────────────────────────────
+
+/**
+ * A single selectable version of a model, surfaced in the model config panel.
+ *
+ * Atlas populates these on each ModelRegistryEntry. Aria renders them as a
+ * version picker control inside the per-model settings panel. Gate persists the
+ * user's selection via `selectedVersionId` on `ModelConfig`.
+ *
+ * `id` must be the exact API-level model string passed to the provider endpoint
+ * (e.g. "claude-opus-4-5", "gpt-4o", "gemini-2.5-pro"). `displayName` is the
+ * human-readable label shown in the picker. `description` is an optional
+ * one-liner surfaced as a subtitle or tooltip.
+ *
+ * Design note: available versions are static (known at build time). This type
+ * therefore lives on the MODEL_REGISTRY entry in Atlas, NOT on `ModelProvider`.
+ * Adding `getAvailableVersions()` to `ModelProvider` would force every runtime
+ * provider instance to carry static data it has no business owning, and would
+ * complicate mocking in tests. If a future provider needs dynamic version
+ * discovery (e.g. fetching from a versions endpoint), surface that as a
+ * separate interface at that time — do not extend ModelProvider prematurely.
+ */
+export interface ModelVersionOption {
+  /** API-level model string, e.g. "claude-opus-4-5", "gpt-4o". */
+  id: string;
+  /** Human-readable label shown in the version picker, e.g. "Claude Opus 4". */
+  displayName: string;
+  /** Optional one-liner shown as subtitle or tooltip, e.g. "Most capable". */
+  description?: string;
+}
+
 // ─── Model config ─────────────────────────────────────────────────────────────
 
 export interface ModelConfig {
@@ -110,6 +141,16 @@ export interface ModelConfig {
   /** Phase 2 — per-model system prompt. */
   systemPrompt?: string;
   isActive: boolean;
+  /**
+   * The `id` of the `ModelVersionOption` the user has selected for this model.
+   * Absence means "use the provider's default version" (i.e. whatever Atlas
+   * sends when no explicit model string override is applied).
+   *
+   * Gate reads and writes this field. Atlas reads it in `sendMessage` to choose
+   * which API model string to pass to the provider endpoint. Aria reads it to
+   * highlight the active option in the version picker.
+   */
+  selectedVersionId?: string;
 }
 
 // ─── Conversation ─────────────────────────────────────────────────────────────
