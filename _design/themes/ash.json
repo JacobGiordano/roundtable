@@ -22,7 +22,10 @@
     "model-claude": "#E8943A",
     "model-gpt": "#3DB8A8",
     "model-gemini": "#9B72DB",
-    "model-other": "#E07060"
+    "model-other": "#E07060",
+    "model-grok": "#4DA8D8",
+    "model-deepseek": "#4472C4",
+    "model-mistral": "#D45C8A"
   },
   "interactive": {
     "hover": "#2A2E33",

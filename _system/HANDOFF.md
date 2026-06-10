@@ -2,37 +2,39 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 4 — Wave 2 model providers complete. Wave 2 backend work is next.
+Phase 4 — Wave 2 model providers complete. Wave 2 accent color tokens complete.
 
 ## Active agents for next session
 
-None pending. All Wave 2 model provider branches merged to main.
+Aria + Atlas (parallel, separate worktrees) to wire accent tokens into CSS/Tailwind/registry.
 
-## Last closed (this session — Phase 4 Wave 2)
+## Last closed (this session)
 
-- Arch: extended `ModelId` + `CredentialKey` for `'deepseek'` and `'mistral'`
-- Gate: added `deepseek`/`mistral` to `MODEL_CREDENTIAL_MAP` and `CREDENTIAL_LABELS`
-- Atlas: added `DeepSeekModelProvider` + `MistralModelProvider`; both registered in
-  `PROVIDERS` and `MODEL_REGISTRY`; exported from `@/models`
-- Firewall: `api.deepseek.com` and `api.mistral.ai` added to `init-firewall.sh`
+- Luma: defined `model-grok`, `model-deepseek`, `model-mistral` accent tokens across all 7
+  theme files; wrote spec at `/_design/specs/model-accent-colors-wave2.md`
 
 ## Decisions made this session
 
-- DeepSeek: endpoint `https://api.deepseek.com/v1/chat/completions`, model `deepseek-chat`
-- Mistral: endpoint `https://api.mistral.ai/v1/chat/completions`, model `mistral-large-latest`
-- Both use `Authorization: Bearer` header (same pattern as Grok/GPT)
-- Both `defaultActive: false` — user must explicitly enable
-- Both `color: 'accent-other'` — Luma to define dedicated tokens in color follow-up pass
-- DeepSeek and Mistral credential labels: "DeepSeek" / "Mistral AI"
+- Grok: sky/electric blue (~210°) — cold, technical, xAI brand fit
+- DeepSeek: royal/cobalt blue (~235°) — distinct from Grok's sky blue, matches DeepSeek brand
+- Mistral: rose/warm pink (~345°) — only clean open hue family; French lab cultural fit
+- DeepSeek royal blue passes 3:1 (UI components) in all themes; marginally below 4.5:1 on
+  dark themes (slate, ash) and in Outrun — documented in spec; recommendation is 14px bold
+  pill label. Outrun's `#4060FF` is a known trade-off, intentional.
+- Chalk and Linen share identical values (same light-theme adaptation problem, same solution)
 
 ## Next issues in priority order
 
-1. [Luma] Define accent color tokens for Grok, DeepSeek, and Mistral across all 7 themes
-2. [Luma → Arch → Gate → Aria] User-customizable model accent colors feature
-3. [Vault] ServerStorageProvider (REST client for self-hosted backend)
-4. [Gate] Backend auth support (session tokens, login/logout)
-5. Self-hosted backend service (Node/Express, Docker Compose)
-6. Open source launch prep
+1. [Aria] Wire accent tokens — add `--accent-grok`, `--accent-deepseek`, `--accent-mistral`
+   to `src/index.css`; register in `tailwind.config.js`; wire in `src/ui/theme.ts`
+2. [Atlas] Update `src/models/registry.ts` — replace `color: 'accent-other'` with correct
+   token names for Grok, DeepSeek, and Mistral entries
+   NOTE: Aria and Atlas work above can run in parallel (separate worktrees)
+3. [Luma → Arch → Gate → Aria] User-customizable model accent colors feature
+4. [Vault] ServerStorageProvider (REST client for self-hosted backend)
+5. [Gate] Backend auth support (session tokens, login/logout)
+6. Self-hosted backend service (Node/Express, Docker Compose)
+7. Open source launch prep
 
 ## Gotchas
 
@@ -45,3 +47,4 @@ None pending. All Wave 2 model provider branches merged to main.
 - ThreadRow is a `<div>` wrapper (not `<button>`) — accessible via inner navigation button
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
+- DeepSeek model-deepseek accent is ~3.4:1 in Outrun — known trade-off per spec, bold label required
