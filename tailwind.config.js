@@ -22,10 +22,13 @@ export default {
         'border-subtle':   'var(--border-subtle)',
         'border-strong':   'var(--border-strong)',
         // Accents
-        'accent-claude':   'var(--accent-claude)',
-        'accent-gpt':      'var(--accent-gpt)',
-        'accent-gemini':   'var(--accent-gemini)',
-        'accent-other':    'var(--accent-other)',
+        'accent-claude':    'var(--accent-claude)',
+        'accent-gpt':       'var(--accent-gpt)',
+        'accent-gemini':    'var(--accent-gemini)',
+        'accent-other':     'var(--accent-other)',
+        'accent-grok':      'var(--accent-grok)',
+        'accent-deepseek':  'var(--accent-deepseek)',
+        'accent-mistral':   'var(--accent-mistral)',
         // Interactive
         'hover':           'var(--interactive-hover)',
         'active':          'var(--interactive-active)',

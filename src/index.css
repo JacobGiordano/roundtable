@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Token Fallbacks ───────────────────────────────────────────────── */
+/* Midnight theme values used as defaults; applyTheme() overrides at runtime.  */
+
+:root {
+  --accent-grok:     #38B6F0;
+  --accent-deepseek: #4A7FE8;
+  --accent-mistral:  #F05090;
+}
+
 /* ─── Keyframe Animations ──────────────────────────────────────────────────── */
 
 @keyframes chunkFadeIn {
