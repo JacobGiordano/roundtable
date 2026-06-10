@@ -25,10 +25,15 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--border-strong',  theme.borders.strong);
 
   // Accents
-  root.style.setProperty('--accent-claude',  theme.accents['model-claude']);
-  root.style.setProperty('--accent-gpt',     theme.accents['model-gpt']);
-  root.style.setProperty('--accent-gemini',  theme.accents['model-gemini']);
-  root.style.setProperty('--accent-other',   theme.accents['model-other']);
+  root.style.setProperty('--accent-claude',    theme.accents['model-claude']);
+  root.style.setProperty('--accent-gpt',       theme.accents['model-gpt']);
+  root.style.setProperty('--accent-gemini',    theme.accents['model-gemini']);
+  root.style.setProperty('--accent-other',     theme.accents['model-other']);
+
+  // Wave-2 model accents
+  root.style.setProperty('--accent-grok',      theme.accents['model-grok']);
+  root.style.setProperty('--accent-deepseek',  theme.accents['model-deepseek']);
+  root.style.setProperty('--accent-mistral',   theme.accents['model-mistral']);
 
   // Interactive
   root.style.setProperty('--interactive-hover',  theme.interactive.hover);

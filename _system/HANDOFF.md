@@ -2,34 +2,32 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 4 — Wave 2 model providers complete. Wave 2 accent color tokens complete.
+Phase 4 — Wave 2 accent token wiring complete (Aria). Atlas wiring pending.
 
 ## Active agents for next session
 
-Aria + Atlas (parallel, separate worktrees) to wire accent tokens into CSS/Tailwind/registry.
+Arch + Atlas (in that order, or parallel if safe).
 
 ## Last closed (this session)
 
-- Luma: defined `model-grok`, `model-deepseek`, `model-mistral` accent tokens across all 7
-  theme files; wrote spec at `/_design/specs/model-accent-colors-wave2.md`
+- Aria #37: wired `--accent-grok`, `--accent-deepseek`, `--accent-mistral` into
+  `src/index.css` (`:root` fallbacks), `tailwind.config.js` (color entries),
+  and `src/ui/theme.ts` (`setProperty` calls).
 
 ## Decisions made this session
 
-- Grok: sky/electric blue (~210°) — cold, technical, xAI brand fit
-- DeepSeek: royal/cobalt blue (~235°) — distinct from Grok's sky blue, matches DeepSeek brand
-- Mistral: rose/warm pink (~345°) — only clean open hue family; French lab cultural fit
-- DeepSeek royal blue passes 3:1 (UI components) in all themes; marginally below 4.5:1 on
-  dark themes (slate, ash) and in Outrun — documented in spec; recommendation is 14px bold
-  pill label. Outrun's `#4060FF` is a known trade-off, intentional.
-- Chalk and Linen share identical values (same light-theme adaptation problem, same solution)
+- `CustomThemeJSON['accents']` in `/src/types/index.ts` does not yet include
+  the three new keys. Temporary cast `theme.accents as Record<string, string>`
+  used in `theme.ts` to unblock build. Arch must extend the type before the
+  cast can be removed.
+- Fallback values in `:root` use Midnight theme values (vivid defaults per spec).
 
 ## Next issues in priority order
 
-1. [Aria] Wire accent tokens — add `--accent-grok`, `--accent-deepseek`, `--accent-mistral`
-   to `src/index.css`; register in `tailwind.config.js`; wire in `src/ui/theme.ts`
-2. [Atlas] Update `src/models/registry.ts` — replace `color: 'accent-other'` with correct
-   token names for Grok, DeepSeek, and Mistral entries
-   NOTE: Aria and Atlas work above can run in parallel (separate worktrees)
+1. [Arch] Extend `CustomThemeJSON['accents']` in `/src/types/index.ts` with
+   `model-grok`, `model-deepseek`, `model-mistral` — removes cast in theme.ts
+2. [Atlas] Update `src/models/registry.ts` — replace `color: 'accent-other'`
+   with correct token names for Grok, DeepSeek, and Mistral entries
 3. [Luma → Arch → Gate → Aria] User-customizable model accent colors feature
 4. [Vault] ServerStorageProvider (REST client for self-hosted backend)
 5. [Gate] Backend auth support (session tokens, login/logout)
@@ -48,3 +46,4 @@ Aria + Atlas (parallel, separate worktrees) to wire accent tokens into CSS/Tailw
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
 - DeepSeek model-deepseek accent is ~3.4:1 in Outrun — known trade-off per spec, bold label required
+- theme.ts casts accents as Record<string,string> for wave-2 keys — remove after Arch types update
