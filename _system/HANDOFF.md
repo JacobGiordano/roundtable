@@ -6,9 +6,10 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 
 ## Last closed (this session)
 
-- #41 (Quill, Phase 3): Full doc audit. Updated CONTRIBUTING.md, README.md,
-  PR template, and feature request template. Opened #42 for Atlas to fix two
-  gaps in /backend/README.md.
+- #42 (Atlas): Fixed two doc gaps in /backend/README.md.
+  - Added `400` response entry to `POST /auth/login` (missing username/password).
+  - Added token invalidation note to `POST /auth/refresh` (previous token stays
+    valid; JWT_SECRET rotation is the revocation path).
 
 ## Model providers (all on main)
 
@@ -23,18 +24,11 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 
 ## Next issue
 
-- #42 (Atlas): Fix two doc gaps in /backend/README.md — /auth/refresh token
-  invalidation behavior + /auth/login 400 response.
+None open. Project is feature-complete and doc-audited.
 
 ## Decisions made this session
 
-- Quill row added to CONTRIBUTING.md ownership table and agent profiles table
-- Atlas row in CONTRIBUTING.md updated to include /backend ownership
-- Gate description updated to include accent color persistence
-- PR template Agent field updated to include all agents (was missing Quill, Flint, Spark)
-- Feature request template agent list updated to include Quill, Coda, Flint
-- README Run locally section: added API key onboarding step (was present in dev
-  container path but missing from local path)
+- No code changes. Doc-only fix to /backend/README.md per Quill audit (#41).
 
 ## Gotchas
 
@@ -48,4 +42,4 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks
 - Gemini API key goes in URL as ?key= — Google REST API pattern, not a header
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
-- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
+- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (now documented in /backend/README.md)
