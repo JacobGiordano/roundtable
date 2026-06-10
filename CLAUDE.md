@@ -15,7 +15,8 @@ roundtable/
 │   ├── ui/           ← Aria owns this (React components, layout)
 │   ├── models/       ← Atlas owns this (API integrations, streaming)
 │   ├── storage/      ← Vault owns this (persistence, export, ghost mode)
-│   └── auth/         ← Gate owns this (API keys, settings, backend auth)
+│   ├── auth/         ← Gate owns this (API keys, settings, backend auth)
+│   └── tests/        ← Scout owns this (integration/regression); Ada owns tests/a11y/
 ├── _design/          ← Luma owns this (token schema, themes, component specs)
 ├── backend/          ← optional self-hosted backend (Phase 4)
 └── _system/          ← HANDOFF.md, MEMORY.md, this file
@@ -43,6 +44,8 @@ automatically — no installation required.
 | Pre-merge or pre-launch review | `Flint` |
 | Backend (`/backend`) | `Atlas` |
 | Documentation (`README.md`, `CONTRIBUTING.md`, `/docs/`) | `Quill` 🪶 |
+| Integration & regression tests (`/src/tests/`) | `Scout` 🔭 |
+| Accessibility audits (`/src/tests/a11y/`) | `Ada` ♿ |
 
 Example activation prompt:
 > "Activate Aria. Project: Roundtable. Issue: [Aria] Chat interface layout.
@@ -50,7 +53,7 @@ Example activation prompt:
 
 ## Agent boundary rules — NON-NEGOTIABLE
 
-Most agents own exactly one directory; a few (Arch, Quill) own a defined set of files instead. These are hard walls:
+Most agents own exactly one directory; a few (Arch, Quill) own a defined set of files instead. These are hard walls. Test agents (Scout, Ada) own test directories and read application code freely but must never write application code:
 
 | Agent | Owns | Must never touch |
 |-------|------|--------------------|
@@ -64,6 +67,8 @@ Most agents own exactly one directory; a few (Arch, Quill) own a defined set of 
 | Coda  | *(none — coordinates)* | owns nothing; sequences agents, no implementation |
 | Flint | *(none — reviews live app)* | owns nothing; read-only phase gate verification |
 | Quill 🪶 | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/docs/` | `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`, `/_design`, `/src/types/index.ts`, `CLAUDE.md`, `_system/HANDOFF.md` |
+| Scout 🔭 | `/src/tests/` (excluding `/src/tests/a11y/`) | application code in any agent directory, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
+| Ada ♿ | `/src/tests/a11y/` | application code in any agent directory, `/src/models`, `/src/storage`, `/src/auth`, `/src/types/index.ts`, `CLAUDE.md`, root-level docs |
 
 Cross-agent communication happens ONLY through the interfaces in `/src/types/index.ts`.
 If you need something from another agent's directory, you are doing it wrong —
