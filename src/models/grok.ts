@@ -40,11 +40,10 @@ export const GROK_CONFIG: ModelProviderConfig = {
 
 const XAI_API_URL = 'https://api.x.ai/v1/chat/completions';
 /**
- * Model string sent to the xAI API.
- * grok-beta is the current flagship model available via the API.
- * Can be made configurable in a future issue.
+ * Default model string sent to the xAI API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Grok.
  */
-const XAI_MODEL = 'grok-beta';
+const XAI_DEFAULT_MODEL = 'grok-3';
 const MAX_TOKENS = 8096;
 
 // ─── SSE event types — xAI uses the same format as OpenAI ─────────────────────
@@ -95,10 +94,13 @@ export class GrokModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials(GROK_CONFIG.credentialKey);
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? XAI_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'xAI API key is not set. Add it in Settings.');
@@ -129,7 +131,7 @@ export class GrokModelProvider implements ModelProvider {
     }
 
     const requestBody = {
-      model: XAI_MODEL,
+      model: modelString,
       max_tokens: MAX_TOKENS,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)

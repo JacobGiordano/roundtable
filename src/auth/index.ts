@@ -43,3 +43,9 @@ export {
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_MAX,
 } from './sidebarWidth';
+export {
+  getModelVersions,
+  getModelVersion,
+  setModelVersion,
+  clearModelVersion,
+} from './modelVersion';

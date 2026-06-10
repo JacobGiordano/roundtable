@@ -37,11 +37,10 @@ export const CLAUDE_CONFIG: ModelProviderConfig = {
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 /**
- * Default model string sent to the Anthropic API.
- * Using claude-3-5-sonnet because it balances capability and latency well
- * for a chat interface. Can be made configurable in a future issue.
+ * Default model string sent to the Anthropic API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Claude.
  */
-const ANTHROPIC_MODEL = 'claude-3-5-sonnet-20241022';
+const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8096;
 
 // ─── SSE event types emitted by the Anthropic streaming API ──────────────────
@@ -92,10 +91,13 @@ export class ClaudeModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials('anthropic');
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? ANTHROPIC_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Anthropic API key is not set. Add it in Settings.');
@@ -116,7 +118,7 @@ export class ClaudeModelProvider implements ModelProvider {
     }));
 
     const requestBody: Record<string, unknown> = {
-      model: ANTHROPIC_MODEL,
+      model: modelString,
       max_tokens: MAX_TOKENS,
       stream: true,
       messages: anthropicMessages,

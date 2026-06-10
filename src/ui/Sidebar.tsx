@@ -6,12 +6,18 @@ import type { Conversation } from '@/types';
 // getRequiredCredentialKeys is a pure utility from @/auth — permitted exception per CLAUDE.md.
 // getModelAccentColors, clearAllModelAccentColors: Gate persistence functions used by
 // the "Reset all model colors to theme defaults" control in the settings panel.
+// getSidebarWidth, saveSidebarWidth, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX: Gate
+// persistence functions for drag-resize UI (#62) — permitted exception per CLAUDE.md.
 import {
   ApiKeyPanel,
   TokenCountControl,
   getRequiredCredentialKeys,
   getModelAccentColors,
   clearAllModelAccentColors,
+  getSidebarWidth,
+  saveSidebarWidth,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_MAX,
 } from '@/auth';
 // Atlas cross-agent exception: MODEL_REGISTRY is a pure data constant exported from
 // @/models — permitted per CLAUDE.md. Used to build a modelId→color lookup so that
@@ -689,6 +695,91 @@ export function Sidebar({
   onBulkArchive,
   onBulkDelete,
 }: SidebarProps) {
+  // ── Sidebar resize ─────────────────────────────────────────────────────────
+  // Width is initialized from Gate-persisted preference (default 280px).
+  // Dynamic pixel values cannot be expressed as Tailwind JIT classes, so the
+  // width is applied as an inline style on the <aside> element only.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => getSidebarWidth());
+  // isDragging drives the transition-none guard: no animated width during drag.
+  const [isDragging, setIsDragging] = useState(false);
+
+  // currentWidthRef mirrors sidebarWidth but is accessible inside event handlers
+  // without stale closure issues — updated synchronously on every width change.
+  // This allows handleMouseUp to persist the final width without re-registering
+  // listeners on every pixel change during drag.
+  const currentWidthRef = useRef<number>(sidebarWidth);
+  currentWidthRef.current = sidebarWidth;
+
+  // Ref holds drag origin data so mousemove can compute deltas without closure capture.
+  const dragOriginRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // Detect prefers-reduced-motion at mount. We check once; the value is stable
+  // for the life of the component.
+  const prefersReducedMotion = useRef(
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false,
+  );
+
+  const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragOriginRef.current = { startX: e.clientX, startWidth: currentWidthRef.current };
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    function handleMouseMove(e: MouseEvent) {
+      if (!dragOriginRef.current) return;
+      const delta = e.clientX - dragOriginRef.current.startX;
+      const next = Math.min(
+        SIDEBAR_WIDTH_MAX,
+        Math.max(SIDEBAR_WIDTH_MIN, dragOriginRef.current.startWidth + delta),
+      );
+      setSidebarWidth(next);
+    }
+
+    function handleMouseUp() {
+      // Persist only on mouseup — avoid localStorage thrash on every mousemove.
+      // currentWidthRef.current holds the latest width without stale closure.
+      saveSidebarWidth(currentWidthRef.current);
+      dragOriginRef.current = null;
+      setIsDragging(false);
+    }
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    // Effect only needs to run when isDragging toggles — width changes during
+    // drag do not re-register listeners thanks to currentWidthRef.
+  }, [isDragging]);
+
+  // Keyboard nudge: left/right arrow keys move by 8px when the handle is focused.
+  const handleDragKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setSidebarWidth((w) => {
+          const next = Math.min(SIDEBAR_WIDTH_MAX, w + 8);
+          saveSidebarWidth(next);
+          return next;
+        });
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setSidebarWidth((w) => {
+          const next = Math.max(SIDEBAR_WIDTH_MIN, w - 8);
+          saveSidebarWidth(next);
+          return next;
+        });
+      }
+    },
+    [],
+  );
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Snapshot of stored accent colors — used to decide whether to render the
   // "Reset all model colors" affordance. Refreshed when settings open/close.
@@ -804,8 +895,39 @@ export function Sidebar({
   const activeConv = conversations.find((c) => c.id === activeConversationId);
   const requiredKeys = getRequiredCredentialKeys(activeConv?.models ?? []);
 
+  // Transition class: suppress width transitions during drag and for users who
+  // prefer reduced motion. Restore a subtle transition after drag ends.
+  const transitionClass =
+    isDragging || prefersReducedMotion.current ? 'transition-none' : 'transition-[width] duration-75';
+
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden">
+    <aside
+      className={[
+        'flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden relative',
+        transitionClass,
+      ].join(' ')}
+      style={{ width: sidebarWidth }}
+    >
+      {/* Drag handle — right edge of sidebar */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        aria-valuenow={sidebarWidth}
+        aria-valuemin={SIDEBAR_WIDTH_MIN}
+        aria-valuemax={SIDEBAR_WIDTH_MAX}
+        tabIndex={0}
+        onMouseDown={handleDragMouseDown}
+        onKeyDown={handleDragKeyDown}
+        className={[
+          'absolute right-0 top-0 h-full w-1 z-30',
+          'cursor-col-resize',
+          'hover:bg-border-strong focus-visible:bg-border-strong',
+          'focus-visible:outline-none',
+          isDragging ? 'bg-border-strong' : 'bg-transparent',
+        ].join(' ')}
+      />
+
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
         <span className="text-[15px] font-semibold text-text-primary tracking-tight">

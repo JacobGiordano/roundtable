@@ -37,6 +37,25 @@ import { PROVIDERS } from './registry';
 type Provider = typeof PROVIDERS[number];
 
 /**
+ * Narrow internal interface that extends ModelProvider with the optional
+ * selectedVersionId parameter. All six concrete provider classes accept this
+ * 4th optional arg — their implementations remain compatible with ModelProvider
+ * (extra optional params are additive). sendMessage.ts casts to this type
+ * at the call site so the version can be threaded through without modifying the
+ * ModelProvider interface contract in /src/types/index.ts.
+ *
+ * This is entirely internal to /src/models — no other agent sees this type.
+ */
+interface VersionAwareProvider extends Provider {
+  sendMessage(
+    messages: Parameters<Provider['sendMessage']>[0],
+    systemPrompt: Parameters<Provider['sendMessage']>[1],
+    onChunk: Parameters<Provider['sendMessage']>[2],
+    selectedVersionId?: string
+  ): ReturnType<Provider['sendMessage']>;
+}
+
+/**
  * Given a conversation, return providers whose modelId is active in the
  * conversation's model list.
  */
@@ -57,15 +76,19 @@ function getActiveProviders(conversation: Conversation): Provider[] {
  *
  * Never rejects — always resolves — so Promise.allSettled (and callers) are
  * guaranteed to see every provider reach completion.
+ *
+ * selectedVersionId is threaded through to the provider via VersionAwareProvider.
+ * If undefined, each provider falls back to its own hardcoded default.
  */
 async function runProviderIsolated(
   provider: Provider,
   messages: Message[],
   systemPrompt: string | undefined,
-  onChunk: StreamHandler
+  onChunk: StreamHandler,
+  selectedVersionId?: string
 ): Promise<void> {
   try {
-    await provider.sendMessage(messages, systemPrompt, onChunk);
+    await (provider as VersionAwareProvider).sendMessage(messages, systemPrompt, onChunk, selectedVersionId);
   } catch (err) {
     // Unexpected throw from a provider (shouldn't happen given the providers'
     // own try/catch, but we guard here for robustness).
@@ -127,7 +150,8 @@ async function runParallel(
         (m) => m.modelId === provider.config.modelId
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
-      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk);
+      const selectedVersionId = modelConfig?.selectedVersionId;
+      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk, selectedVersionId);
     })
   );
 }
@@ -167,7 +191,8 @@ async function runDirected(
     (m) => m.modelId === target.config.modelId
   );
   const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
-  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk);
+  const selectedVersionId = modelConfig?.selectedVersionId;
+  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk, selectedVersionId);
 }
 
 /**
@@ -214,16 +239,17 @@ async function runAutoChain(
         continue;
       }
 
-      // Resolve per-model systemPrompt, falling back to shared systemPrompt.
+      // Resolve per-model systemPrompt and selectedVersionId, falling back to shared values.
       const modelConfig = conversation?.models.find(
         (m) => m.modelId === step.modelId
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
+      const selectedVersionId = modelConfig?.selectedVersionId;
 
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler, selectedVersionId);
 
         // Append the model's response as an assistant message for subsequent steps.
         const responseText = getText();
@@ -241,7 +267,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk, selectedVersionId);
       }
     }
   }

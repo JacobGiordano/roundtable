@@ -36,11 +36,10 @@ export const GPT55_CONFIG: ModelProviderConfig = {
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 /**
- * Model string sent to the OpenAI API.
- * "gpt-5.5" maps to the gpt-5.5 preview model. Can be made configurable
- * in a future issue if OpenAI changes the model identifier.
+ * Default model string sent to the OpenAI API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for GPT.
  */
-const OPENAI_MODEL = 'gpt-5.5';
+const OPENAI_DEFAULT_MODEL = 'gpt-5.5';
 const MAX_TOKENS = 8096;
 
 // ─── SSE event types emitted by the OpenAI streaming API ─────────────────────
@@ -91,10 +90,13 @@ export class GPT55ModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials('openai');
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? OPENAI_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'OpenAI API key is not set. Add it in Settings.');
@@ -124,7 +126,7 @@ export class GPT55ModelProvider implements ModelProvider {
     }
 
     const requestBody = {
-      model: OPENAI_MODEL,
+      model: modelString,
       max_tokens: MAX_TOKENS,
       stream: true,
       // Request token usage in the final stream chunk

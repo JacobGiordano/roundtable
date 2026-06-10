@@ -40,11 +40,10 @@ export const DEEPSEEK_CONFIG: ModelProviderConfig = {
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 /**
- * Model string sent to the DeepSeek API.
- * deepseek-chat is the current flagship chat model.
- * Can be made configurable in a future issue.
+ * Default model string sent to the DeepSeek API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for DeepSeek.
  */
-const DEEPSEEK_MODEL = 'deepseek-chat';
+const DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat';
 const MAX_TOKENS = 8096;
 
 // ─── SSE event types — DeepSeek uses the same format as OpenAI ────────────────
@@ -95,10 +94,13 @@ export class DeepSeekModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials(DEEPSEEK_CONFIG.credentialKey);
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? DEEPSEEK_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'DeepSeek API key is not set. Add it in Settings.');
@@ -129,7 +131,7 @@ export class DeepSeekModelProvider implements ModelProvider {
     }
 
     const requestBody = {
-      model: DEEPSEEK_MODEL,
+      model: modelString,
       max_tokens: MAX_TOKENS,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)

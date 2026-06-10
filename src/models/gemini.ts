@@ -36,12 +36,18 @@ export const GEMINI_CONFIG: ModelProviderConfig = {
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
 /**
- * Default model string sent to the Google API.
- * gemini-1.5-flash balances capability, speed, and cost for a chat interface.
- * Can be made configurable in a future issue.
+ * Default model string sent to the Google API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Gemini.
  */
-const GEMINI_API_MODEL = 'gemini-1.5-flash';
-const GEMINI_API_URL = `${GEMINI_API_BASE}/v1beta/models/${GEMINI_API_MODEL}:streamGenerateContent`;
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
+
+/**
+ * Build the Gemini streaming URL for a given model string.
+ * The model is embedded in the URL path — selectedVersionId changes the path.
+ */
+function buildGeminiUrl(modelString: string): string {
+  return `${GEMINI_API_BASE}/v1beta/models/${modelString}:streamGenerateContent`;
+}
 
 // ─── Google API response types ────────────────────────────────────────────────
 
@@ -130,10 +136,13 @@ export class GeminiModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials(GEMINI_CONFIG.credentialKey);
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? GEMINI_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Google API key is not set. Add it in Settings.');
@@ -151,7 +160,8 @@ export class GeminiModelProvider implements ModelProvider {
 
     // Google API key is passed as a query parameter (not a header) for the REST API.
     // The key is appended to the URL — never logged, never stored.
-    const url = `${GEMINI_API_URL}?key=${apiKey}&alt=sse`;
+    // The model string is embedded in the path — build the URL from the resolved version.
+    const url = `${buildGeminiUrl(modelString)}?key=${apiKey}&alt=sse`;
 
     let response: Response;
     try {

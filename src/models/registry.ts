@@ -15,7 +15,7 @@
  *   6. Add a ModelRegistryEntry to MODEL_REGISTRY
  */
 
-import type { ModelId } from '@/types';
+import type { ModelId, ModelVersionOption } from '@/types';
 import type { ModelProvider } from '@/types';
 import { claudeProvider, CLAUDE_CONFIG } from './claude';
 import { gpt55Provider, GPT55_CONFIG } from './gpt';
@@ -72,6 +72,16 @@ export interface ModelRegistryEntry {
    * Users can toggle this per-conversation.
    */
   defaultActive: boolean;
+  /**
+   * All selectable API-level model versions for this provider.
+   * The first entry is treated as the default (used when ModelConfig.selectedVersionId
+   * is absent or does not match any entry).
+   *
+   * Atlas populates these; Aria renders them as a version picker; Gate persists
+   * the user's choice via ModelConfig.selectedVersionId. The `id` on each entry
+   * is the exact string passed to the provider's API endpoint.
+   */
+  availableVersions: ModelVersionOption[];
 }
 
 /**
@@ -89,6 +99,11 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'Anthropic',
     color: 'accent-claude',
     defaultActive: true,
+    availableVersions: [
+      { id: 'claude-opus-4-8', displayName: 'Claude Opus 4', description: 'Most capable — complex reasoning and long-horizon tasks' },
+      { id: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4', description: 'Balanced capability and speed — default' },
+      { id: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4', description: 'Fastest and most compact' },
+    ],
   },
   {
     modelId: GPT55_CONFIG.modelId,
@@ -96,6 +111,14 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'OpenAI',
     color: 'accent-gpt',
     defaultActive: true,
+    availableVersions: [
+      { id: 'gpt-5.5', displayName: 'GPT-5.5', description: 'Latest flagship — default' },
+      { id: 'gpt-4o', displayName: 'GPT-4o', description: 'High capability, multimodal' },
+      { id: 'gpt-4o-mini', displayName: 'GPT-4o mini', description: 'Fast and cost-efficient' },
+      { id: 'o3', displayName: 'o3', description: 'Advanced reasoning model' },
+      { id: 'o1', displayName: 'o1', description: 'Strong reasoning, slower responses' },
+      { id: 'o1-mini', displayName: 'o1-mini', description: 'Compact reasoning model' },
+    ],
   },
   {
     modelId: GEMINI_CONFIG.modelId,
@@ -103,6 +126,11 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'Google',
     color: 'accent-gemini',
     defaultActive: false,
+    availableVersions: [
+      { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', description: 'Most capable — complex tasks and long context' },
+      { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', description: 'Fast and efficient — default' },
+      { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', description: 'Stable prior-generation fast model' },
+    ],
   },
   {
     modelId: GROK_CONFIG.modelId,
@@ -110,6 +138,11 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'xAI',
     color: 'accent-grok',
     defaultActive: false,
+    availableVersions: [
+      { id: 'grok-3', displayName: 'Grok 3', description: 'Flagship — default' },
+      { id: 'grok-3-mini', displayName: 'Grok 3 mini', description: 'Efficient reasoning model' },
+      { id: 'grok-2', displayName: 'Grok 2', description: 'Stable prior-generation model' },
+    ],
   },
   {
     modelId: DEEPSEEK_CONFIG.modelId,
@@ -117,6 +150,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'DeepSeek',
     color: 'accent-deepseek',
     defaultActive: false,
+    availableVersions: [
+      { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: 'General-purpose chat — default' },
+      { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: 'Advanced reasoning (R1)' },
+    ],
   },
   {
     modelId: MISTRAL_CONFIG.modelId,
@@ -124,6 +161,11 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'Mistral',
     color: 'accent-mistral',
     defaultActive: false,
+    availableVersions: [
+      { id: 'mistral-large-latest', displayName: 'Mistral Large', description: 'Most capable — default' },
+      { id: 'mistral-small-latest', displayName: 'Mistral Small', description: 'Fast and cost-efficient' },
+      { id: 'open-mistral-nemo', displayName: 'Mistral Nemo', description: 'Open-weight, 12B parameters' },
+    ],
   },
 ];
 

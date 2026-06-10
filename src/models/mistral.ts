@@ -40,11 +40,10 @@ export const MISTRAL_CONFIG: ModelProviderConfig = {
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 /**
- * Model string sent to the Mistral AI API.
- * mistral-large-latest is the current flagship model.
- * Can be made configurable in a future issue.
+ * Default model string sent to the Mistral AI API when no version is selected.
+ * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Mistral.
  */
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_DEFAULT_MODEL = 'mistral-large-latest';
 const MAX_TOKENS = 8096;
 
 // ─── SSE event types — Mistral uses the same format as OpenAI ─────────────────
@@ -95,10 +94,13 @@ export class MistralModelProvider implements ModelProvider {
   async sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    selectedVersionId?: string
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials(MISTRAL_CONFIG.credentialKey);
+    // Resolve the API model string: use selectedVersionId if provided, fall back to default.
+    const modelString = selectedVersionId ?? MISTRAL_DEFAULT_MODEL;
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Mistral API key is not set. Add it in Settings.');
@@ -129,7 +131,7 @@ export class MistralModelProvider implements ModelProvider {
     }
 
     const requestBody = {
-      model: MISTRAL_MODEL,
+      model: modelString,
       max_tokens: MAX_TOKENS,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)
