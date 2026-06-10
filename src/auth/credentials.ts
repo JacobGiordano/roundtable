@@ -67,6 +67,8 @@ export const MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey> = {
   'gpt-5.5': 'openai',
   'gemini': 'google',
   'grok': 'xai',
+  'deepseek': 'deepseek',
+  'mistral': 'mistral',
 };
 
 /**
@@ -111,5 +113,15 @@ export const CREDENTIAL_LABELS: Record<CredentialKey, { provider: string; placeh
     provider: 'xAI',
     placeholder: 'xai-…',
     docsUrl: 'https://console.x.ai/team/default/api-keys',
+  },
+  deepseek: {
+    provider: 'DeepSeek',
+    placeholder: 'sk-…',
+    docsUrl: 'https://platform.deepseek.com/api-keys',
+  },
+  mistral: {
+    provider: 'Mistral AI',
+    placeholder: '…',
+    docsUrl: 'https://console.mistral.ai/api-keys/',
   },
 };

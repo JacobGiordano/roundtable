@@ -2,37 +2,33 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 4 — Wave 1 complete. All model provider + registry work merged to main.
+Phase 4 — Wave 2 in progress.
 
 ## Active agents for next session
 
-None pending. Wave 1 fully merged.
+Atlas (DeepSeek + Mistral provider implementations) — parallel with Gate's branch.
 
-## Last closed (this session — Phase 4 Wave 1)
+## Last closed (this session)
 
-- Arch: extended `ModelId` (`'gemini' | 'grok'`) and `CredentialKey` (`'google' | 'xai'`)
-- Atlas: added GeminiModelProvider, GrokModelProvider, central model registry;
-  activated both providers in PROVIDERS and MODEL_REGISTRY
-- Gate: MODEL_CREDENTIAL_MAP and CREDENTIAL_LABELS extended with google/xai entries
-- Aria: MOCK_MODELS removed from App.tsx; replaced with buildDefaultModelConfigs()
-- Firewall: generativelanguage.googleapis.com and api.x.ai added to init-firewall.sh
+- Gate: added `'deepseek'` and `'mistral'` to `MODEL_CREDENTIAL_MAP` and `CREDENTIAL_LABELS`
+  in `src/auth/credentials.ts`. Fixes tsc errors caused by the Arch-extended
+  `ModelId` / `CredentialKey` union types already in `/src/types/index.ts`.
 
 ## Decisions made this session
 
-- Gemini: `defaultActive: false` — user must explicitly enable; avoids surprise API spend
-- Grok: `defaultActive: false` — same reasoning
-- CREDENTIAL_LABELS['google']: provider "Google AI Studio", placeholder "AIza…",
-  docsUrl https://aistudio.google.com/app/apikey
-- CREDENTIAL_LABELS['xai']: provider "xAI", placeholder "xai-…",
-  docsUrl https://console.x.ai/team/default/api-keys
-- buildDefaultModelConfigs passed as lazy initializer (no `()`) to useState
+- `CREDENTIAL_LABELS['deepseek']`: provider "DeepSeek", placeholder "sk-…",
+  docsUrl https://platform.deepseek.com/api-keys
+- `CREDENTIAL_LABELS['mistral']`: provider "Mistral AI", placeholder "…",
+  docsUrl https://console.mistral.ai/api-keys/
 
 ## Next issues in priority order (Phase 4 — Wave 2)
 
-1. [Vault] ServerStorageProvider (REST client for self-hosted backend)
-2. [Gate] Backend auth support (session tokens, login/logout)
-3. Self-hosted backend service (Node/Express, Docker Compose)
-4. Open source launch prep
+1. [Atlas] DeepSeek provider implementation
+2. [Atlas] Mistral provider implementation
+3. [Vault] ServerStorageProvider (REST client for self-hosted backend)
+4. [Gate] Backend auth support (session tokens, login/logout)
+5. Self-hosted backend service (Node/Express, Docker Compose)
+6. Open source launch prep
 
 ## Gotchas
 
