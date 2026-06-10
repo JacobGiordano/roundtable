@@ -31,31 +31,9 @@ interface MessageBubbleProps {
   tokenCountVisibility?: TokenCountVisibility;
 }
 
-/** Maps a ModelId to the CSS custom-property-backed Tailwind border class. */
-function getAccentBorderClass(modelId: string | undefined): string {
-  switch (modelId) {
-    case 'claude':  return 'border-l-accent-claude';
-    case 'gpt-5.5': return 'border-l-accent-gpt';
-    default:        return 'border-l-accent-other';
-  }
-}
-
 /** Maps a ModelId to the data-model attribute value for streaming shimmer CSS targeting. */
 function getModelDataAttr(modelId: string | undefined): string {
-  switch (modelId) {
-    case 'claude':  return 'claude';
-    case 'gpt-5.5': return 'gpt';
-    default:        return 'other';
-  }
-}
-
-/** Maps a ModelId to the Tailwind text color class for the directed-reply pill. */
-function getAccentTextClass(modelId: string | undefined): string {
-  switch (modelId) {
-    case 'claude':  return 'text-accent-claude';
-    case 'gpt-5.5': return 'text-accent-gpt';
-    default:        return 'text-accent-other';
-  }
+  return modelId ?? 'other';
 }
 
 export function MessageBubble({
@@ -73,13 +51,13 @@ export function MessageBubble({
   // Token count and directed-reply affordance are hidden by default; revealed on hover.
   const [isHovered, setIsHovered] = useState(false);
 
-  // Left border color: error overrides model accent
-  const borderClass = hasError
-    ? 'border-l-error'
-    : getAccentBorderClass(message.modelId);
-
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
+
+  // Left border color: read from ModelConfig.color (CSS custom property), error overrides.
+  // accent-other is only used when modelConfig is genuinely absent/unknown.
+  const accentColor = modelConfig?.color ?? 'accent-other';
+  const borderLeftColor = hasError ? 'var(--error)' : `var(--${accentColor})`;
 
   // Only assistant messages from a model show the name header
   const showHeader = message.role === 'assistant' && modelConfig;
@@ -111,13 +89,12 @@ export function MessageBubble({
       className={[
         'relative w-full bg-card rounded-md shadow-sm hover:shadow-md',
         'border-l-[3px]',
-        borderClass,
         'px-4 py-3',
         'transition-shadow duration-fast',
         'bubble-entering',
         isStreaming ? 'streaming-shimmer' : '',
       ].join(' ')}
-      style={{ animationDelay: entranceDelay }}
+      style={{ animationDelay: entranceDelay, borderLeftColor }}
       data-model={getModelDataAttr(message.modelId)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -140,14 +117,12 @@ export function MessageBubble({
       </div>
 
       {/* Directed-to label — shown on user messages that have a targetModelId.
-          Subtle indicator so the thread stays readable after the fact. */}
+          Subtle indicator so the thread stays readable after the fact.
+          Color is read from targetModelConfig.color — no modelId switch needed. */}
       {targetModelConfig && message.role === 'user' && (
         <div
-          className={[
-            'mt-1.5 flex items-center gap-1',
-            'text-[11px] font-medium',
-            getAccentTextClass(targetModelConfig.modelId),
-          ].join(' ')}
+          className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
+          style={{ color: `var(--${targetModelConfig.color ?? 'accent-other'})` }}
           aria-label={`Directed to ${targetModelConfig.name}`}
         >
           <span aria-hidden="true">→</span>
@@ -188,18 +163,19 @@ export function MessageBubble({
           ].join(' ')}
           aria-hidden={!rowVisible}
         >
-          {/* "Reply to [Model]" — left side, only for assistant bubbles */}
+          {/* "Reply to [Model]" — left side, only for assistant bubbles.
+              Color is read from modelConfig.color — no modelId switch needed. */}
           {canDirectReply ? (
             <button
               type="button"
               onClick={() => onDirectedReply!(message.modelId as ModelId)}
               className={[
                 'text-[11px] font-medium',
-                getAccentTextClass(message.modelId),
                 'hover:underline underline-offset-2',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 'rounded-sm',
               ].join(' ')}
+              style={{ color: `var(--${accentColor})` }}
               aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
             >
               Reply to {modelConfig?.name ?? message.modelId}

@@ -1,8 +1,8 @@
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 ## Current phase
 
-Phase 4 — 6 model providers live. Color system complete. Issue #37 closed.
+Phase 4 — 6 model providers live. Color system complete.
 
 ## Active agents for next session
 
@@ -10,8 +10,19 @@ None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
 
 ## Last closed (this session)
 
-- Issue #37: Luma defined tokens → Arch extended CustomThemeJSON → Aria wired
-  CSS/Tailwind/theme.ts → Atlas updated registry. All merged clean in one push.
+- Bug fix: Gemini, Grok, DeepSeek, Mistral rendered as orange throughout UI.
+  Root cause: modelId switches in 4 UI components only covered claude and gpt-5.5.
+
+## Fix approach per component
+
+- MessageBubble: removed getAccentBorderClass / getAccentTextClass; border and
+  text color now read from modelConfig.color via inline style `var(--${color})`.
+- ModelSelectorPanel: getModelDotStyle now takes ModelConfig (not modelId) and
+  reads model.color directly. SessionTokenSection uses looked-up modelConfig.
+- InputBar: getPillAccentClasses extended with explicit cases for all 6 models
+  (Tailwind JIT requires literal class strings for opacity modifier syntax).
+- Sidebar: ThreadRow has only modelId strings from message history (no ModelConfig
+  available), so getModelDotStyle retains explicit switch but now covers all 6 models.
 
 ## Model providers (all on main)
 
@@ -35,7 +46,7 @@ None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
 ## Gotchas
 
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
-- When Arch extends types AND Gate/Aria must follow: merge both locally before pushing (avoids broken CI)
+- When Arch extends types AND Gate/Aria must follow: merge both locally before pushing
 - Outrun shadow values use rgba neon glow — do not flatten in Tailwind config
 - DeepSeek `#4060FF` in Outrun is ~3.4:1 contrast — known trade-off; bold 14px label required
 - getSessionTokenUsage(), buildDefaultModelConfigs(), MODEL_REGISTRY exported from @/models — documented cross-agent exceptions for Aria
@@ -44,3 +55,4 @@ None pending. Ready for #38 (user-customizable colors) or Wave 2 backend work.
 - ThreadRow is a `<div>` wrapper (not `<button>`) — accessible via inner navigation button
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
+- If adding new models in future: update InputBar getPillAccentClasses AND Sidebar getModelDotStyle with explicit cases
