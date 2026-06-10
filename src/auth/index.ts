@@ -15,3 +15,24 @@ export {
   clearModelAccentColor,
   clearAllModelAccentColors,
 } from './accentColors';
+export {
+  // Server URL persistence
+  getServerUrl,
+  saveServerUrl,
+  clearServerUrl,
+  // Auth token persistence (write-only from outside this module — read via getActiveStorageProvider)
+  clearAuthToken,
+  // Login / logout
+  login,
+  logout,
+  // Token refresh
+  refreshToken,
+  // Storage provider factory
+  getActiveStorageProvider,
+  // Auth state helpers
+  isBackendConfigured,
+  getBackendFallbackStatus,
+  // Error class — exported so callers can instanceof-check without Arch involvement
+  BackendAuthError,
+} from './backendAuth';
+export type { BackendAuthErrorCode } from './backendAuth';
