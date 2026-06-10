@@ -4,12 +4,22 @@ Last updated: 2026-06-10
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
 
-## Last closed (this session)
+## Last closed
 
-- #42 (Atlas): Fixed two doc gaps in /backend/README.md.
-  - Added `400` response entry to `POST /auth/login` (missing username/password).
-  - Added token invalidation note to `POST /auth/refresh` (previous token stays
-    valid; JWT_SECRET rotation is the revocation path).
+- #42 (Atlas): Fixed two doc gaps in /backend/README.md (400 response on POST /auth/login;
+  token invalidation note on POST /auth/refresh). Merged to main.
+- #41 (Quill): CONTRIBUTING.md written (Quill, parallel session). Merge pending Coda sequencing.
+
+## In progress
+
+- #43 (Arch): Adding Scout and Ada to CLAUDE.md — branch `43-arch-add-scout-ada-to-claude-md`,
+  commit pending user authorization to merge.
+
+## Decisions made this session
+
+- Scout 🔭 owns `/src/tests/` (excl. a11y/); Ada ♿ owns `/src/tests/a11y/`.
+- Both agents added to Agents table, boundary rules table, and codebase structure block.
+- Scout and Ada are read-only against application code — they open tickets, they do not fix.
 
 ## Model providers (all on main)
 
@@ -21,14 +31,6 @@ Phase 4 — Feature-complete. Open source launch prep complete. Doc audit comple
 | Grok | no | accent-grok | xAI |
 | DeepSeek | no | accent-deepseek | DeepSeek |
 | Mistral | no | accent-mistral | Mistral |
-
-## Next issue
-
-None open. Project is feature-complete and doc-audited.
-
-## Decisions made this session
-
-- No code changes. Doc-only fix to /backend/README.md per Quill audit (#41).
 
 ## Gotchas
 
@@ -42,4 +44,4 @@ None open. Project is feature-complete and doc-audited.
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks
 - Gemini API key goes in URL as ?key= — Google REST API pattern, not a header
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
-- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (now documented in /backend/README.md)
+- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
