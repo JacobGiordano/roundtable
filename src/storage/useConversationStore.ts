@@ -26,6 +26,7 @@ import type {
   ExportedConversation,
   ExportFormat,
   SessionTokenUsage,
+  StorageProvider,
 } from '@/types/index';
 import { LocalStorageProvider } from './LocalStorageProvider';
 // Documented exception: pure utility from @/models may be imported by Vault for
@@ -149,13 +150,16 @@ export interface UseConversationStoreReturn extends ConversationStore {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useConversationStore(): UseConversationStoreReturn {
+export function useConversationStore(injectedProvider?: StorageProvider): UseConversationStoreReturn {
   // Single provider instance for the lifetime of this hook mount.
-  const providerRef = useRef<LocalStorageProvider | null>(null);
+  // If a provider is injected (e.g. ServerStorageProvider by Gate in Phase 4),
+  // use it; otherwise fall back to LocalStorageProvider.
+  const providerRef = useRef<StorageProvider | null>(null);
   if (providerRef.current === null) {
-    providerRef.current = new LocalStorageProvider();
+    providerRef.current = injectedProvider ?? new LocalStorageProvider();
   }
-  const provider = providerRef.current;
+  // Non-null assertion is safe: the block above guarantees initialization.
+  const provider = providerRef.current as StorageProvider;
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
