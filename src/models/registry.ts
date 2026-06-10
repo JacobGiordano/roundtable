@@ -98,23 +98,19 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
   {
     modelId: GROK_CONFIG.modelId,
     name: GROK_CONFIG.name,
-    color: 'accent-other',
+    color: 'accent-grok',
     defaultActive: false,
   },
   {
-    // color: 'accent-other' — no dedicated design token yet; Luma will define
-    // accent-deepseek in a follow-up pass when the full Wave 2 palette lands.
     modelId: DEEPSEEK_CONFIG.modelId,
     name: DEEPSEEK_CONFIG.name,
-    color: 'accent-other',
+    color: 'accent-deepseek',
     defaultActive: false,
   },
   {
-    // color: 'accent-other' — no dedicated design token yet; Luma will define
-    // accent-mistral in a follow-up pass when the full Wave 2 palette lands.
     modelId: MISTRAL_CONFIG.modelId,
     name: MISTRAL_CONFIG.name,
-    color: 'accent-other',
+    color: 'accent-mistral',
     defaultActive: false,
   },
 ];
