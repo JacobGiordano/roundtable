@@ -2,37 +2,42 @@ Last updated: 2026-06-09
 
 ## Current phase
 
-Phase 4 — Wave 1 complete. All model provider + registry work merged to main.
+Phase 4 — Wave 2 in progress. Atlas complete; Gate parallel session still open.
 
 ## Active agents for next session
 
-None pending. Wave 1 fully merged.
+Gate — must add `deepseek` and `mistral` entries to MODEL_CREDENTIAL_MAP and
+CREDENTIAL_LABELS in /src/auth/credentials.ts to unblock the build.
 
-## Last closed (this session — Phase 4 Wave 1)
+## Last closed (this session — Phase 4 Wave 2 Atlas)
 
-- Arch: extended `ModelId` (`'gemini' | 'grok'`) and `CredentialKey` (`'google' | 'xai'`)
-- Atlas: added GeminiModelProvider, GrokModelProvider, central model registry;
-  activated both providers in PROVIDERS and MODEL_REGISTRY
-- Gate: MODEL_CREDENTIAL_MAP and CREDENTIAL_LABELS extended with google/xai entries
-- Aria: MOCK_MODELS removed from App.tsx; replaced with buildDefaultModelConfigs()
-- Firewall: generativelanguage.googleapis.com and api.x.ai added to init-firewall.sh
+Atlas: added DeepSeekModelProvider and MistralModelProvider; registered both in
+PROVIDERS and MODEL_REGISTRY; exported from @/models index.
 
 ## Decisions made this session
 
-- Gemini: `defaultActive: false` — user must explicitly enable; avoids surprise API spend
-- Grok: `defaultActive: false` — same reasoning
-- CREDENTIAL_LABELS['google']: provider "Google AI Studio", placeholder "AIza…",
-  docsUrl https://aistudio.google.com/app/apikey
-- CREDENTIAL_LABELS['xai']: provider "xAI", placeholder "xai-…",
-  docsUrl https://console.x.ai/team/default/api-keys
-- buildDefaultModelConfigs passed as lazy initializer (no `()`) to useState
+- DeepSeek: endpoint https://api.deepseek.com/v1/chat/completions, model deepseek-chat
+- Mistral: endpoint https://api.mistral.ai/v1/chat/completions, model mistral-large-latest
+- Both use Authorization: Bearer header (same pattern as Grok/GPT)
+- Both use stream_options: { include_usage: true } for token usage in final SSE chunk
+- Both defaultActive: false — user must explicitly enable
+- Both color: 'accent-other' — Luma to define accent-deepseek and accent-mistral tokens
+  in a follow-up Wave 2 palette pass
 
-## Next issues in priority order (Phase 4 — Wave 2)
+## Build status
 
-1. [Vault] ServerStorageProvider (REST client for self-hosted backend)
-2. [Gate] Backend auth support (session tokens, login/logout)
-3. Self-hosted backend service (Node/Express, Docker Compose)
-4. Open source launch prep
+Two tsc errors remain in /src/auth/credentials.ts (Gate's directory):
+  - deepseek missing from MODEL_CREDENTIAL_MAP
+  - mistral missing from MODEL_CREDENTIAL_MAP and CREDENTIAL_LABELS
+Atlas's models/ code is clean; build unblocks when Gate's session merges.
+
+## Next issues in priority order (Phase 4)
+
+1. [Gate] Add deepseek/mistral to credentials.ts — unblocks build (parallel session)
+2. [Vault] ServerStorageProvider (REST client for self-hosted backend)
+3. [Gate] Backend auth support (session tokens, login/logout)
+4. Self-hosted backend service (Node/Express, Docker Compose)
+5. Open source launch prep
 
 ## Gotchas
 
@@ -45,3 +50,4 @@ None pending. Wave 1 fully merged.
 - ThreadRow is a `<div>` wrapper (not `<button>`) — accessible via inner navigation button
 - useConversationStore does NOT manage ghost conversations — those go through useGhostMode
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
+- api.deepseek.com and api.mistral.ai NOT on firewall allowlist — user must add before live testing
