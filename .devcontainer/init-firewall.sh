@@ -64,6 +64,8 @@ for domain in \
     "registry.npmjs.org" \
     "api.anthropic.com" \
     "api.openai.com" \
+    "generativelanguage.googleapis.com" \
+    "api.x.ai" \
     "sentry.io" \
     "statsig.anthropic.com" \
     "statsig.com" \

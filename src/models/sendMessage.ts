@@ -31,11 +31,7 @@ import type {
   ModelId,
   SessionTokenUsage,
 } from '@/types';
-import { claudeProvider } from './claude';
-import { gpt55Provider } from './gpt';
-
-// Registry of all active providers — extend when new providers are added.
-const PROVIDERS = [claudeProvider, gpt55Provider];
+import { PROVIDERS } from './registry';
 
 // Internal provider type alias for clarity
 type Provider = typeof PROVIDERS[number];
