@@ -66,21 +66,19 @@ function SendIcon({ disabled }: { disabled: boolean }) {
 }
 
 /**
- * Maps a ModelId string to accent-color Tailwind classes for the directed-reply pill.
- * Tailwind opacity modifiers (/15, /30) require literal class strings at build time —
- * all 6 model cases are explicit so JIT generates the correct utility classes.
- * accent-other is used only for genuinely unknown models.
+ * Returns inline styles for the directed-reply pill using the model's CSS custom property.
+ * color-mix() applies opacity to the background and border without affecting text color,
+ * replacing the previous Tailwind opacity-modifier approach (which required one explicit
+ * switch case per model because JIT cannot resolve dynamic class strings at build time).
+ * Adding a new model to MODEL_REGISTRY now automatically works here — no code change needed.
  */
-function getPillAccentClasses(modelId: string | undefined): string {
-  switch (modelId) {
-    case 'claude':   return 'bg-accent-claude/15 text-accent-claude border-accent-claude/30';
-    case 'gpt-5.5':  return 'bg-accent-gpt/15 text-accent-gpt border-accent-gpt/30';
-    case 'gemini':   return 'bg-accent-gemini/15 text-accent-gemini border-accent-gemini/30';
-    case 'grok':     return 'bg-accent-grok/15 text-accent-grok border-accent-grok/30';
-    case 'deepseek': return 'bg-accent-deepseek/15 text-accent-deepseek border-accent-deepseek/30';
-    case 'mistral':  return 'bg-accent-mistral/15 text-accent-mistral border-accent-mistral/30';
-    default:         return 'bg-accent-other/15 text-accent-other border-accent-other/30';
-  }
+function getPillAccentStyle(color: string): React.CSSProperties {
+  const cssVar = `var(--${color})`;
+  return {
+    backgroundColor: `color-mix(in srgb, ${cssVar} 15%, transparent)`,
+    color: cssVar,
+    borderColor: `color-mix(in srgb, ${cssVar} 30%, transparent)`,
+  };
 }
 
 export function InputBar({
@@ -146,12 +144,8 @@ export function InputBar({
           ].join(' ')}
         >
           <div
-            className={[
-              'inline-flex items-center gap-1.5',
-              'px-2.5 py-1 rounded-full',
-              'border text-[12px] font-medium',
-              getPillAccentClasses(directedReplyTarget.modelId),
-            ].join(' ')}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium"
+            style={getPillAccentStyle(directedReplyTarget.color)}
             aria-live="polite"
             aria-label={`Directed reply mode: sending to ${directedReplyTarget.name}`}
           >

@@ -5,6 +5,10 @@ import type { Conversation } from '@/types';
 // internally via Gate hooks — Aria only mounts them in the settings panel.
 // getRequiredCredentialKeys is a pure utility from @/auth — permitted exception per CLAUDE.md.
 import { ApiKeyPanel, TokenCountControl, getRequiredCredentialKeys } from '@/auth';
+// Atlas cross-agent exception: MODEL_REGISTRY is a pure data constant exported from
+// @/models — permitted per CLAUDE.md. Used to build a modelId→color lookup so that
+// getModelDotStyle is data-driven and requires no changes when new models are added.
+import { MODEL_REGISTRY } from '@/models';
 import { groupConversations } from './groupConversations';
 
 interface SidebarProps {
@@ -68,23 +72,22 @@ function getThreadTitle(conversation: Conversation): string {
 }
 
 /**
- * Maps a modelId string to its CSS custom property for the accent dot.
- * All 6 known models are explicit. The token name mirrors ModelConfig.color
- * in the registry (e.g. 'gpt-5.5' → 'accent-gpt').
- * ThreadRow only has modelId strings from message history, not full ModelConfig objects,
- * so this helper is retained with explicit cases rather than reading model.color.
- * accent-other is used only for genuinely unknown models.
+ * Lookup table from modelId → CSS variable string, built from MODEL_REGISTRY.
+ * Adding a new model to MODEL_REGISTRY automatically makes it available here —
+ * no manual switch/case update required.
+ */
+const MODEL_DOT_CSS_VAR: Record<string, string> = Object.fromEntries(
+  MODEL_REGISTRY.map((entry) => [entry.modelId, `var(--${entry.color})`]),
+);
+
+/**
+ * Returns the inline style for a model identity dot using the CSS variable
+ * derived from MODEL_REGISTRY. Falls back to --accent-other for unknown modelIds.
+ * ThreadRow only has modelId strings from message history (no full ModelConfig),
+ * so this lookup is driven by MODEL_REGISTRY rather than a switch statement.
  */
 function getModelDotStyle(modelId: string): React.CSSProperties {
-  switch (modelId) {
-    case 'claude':   return { backgroundColor: 'var(--accent-claude)' };
-    case 'gpt-5.5':  return { backgroundColor: 'var(--accent-gpt)' };
-    case 'gemini':   return { backgroundColor: 'var(--accent-gemini)' };
-    case 'grok':     return { backgroundColor: 'var(--accent-grok)' };
-    case 'deepseek': return { backgroundColor: 'var(--accent-deepseek)' };
-    case 'mistral':  return { backgroundColor: 'var(--accent-mistral)' };
-    default:         return { backgroundColor: 'var(--accent-other)' };
-  }
+  return { backgroundColor: MODEL_DOT_CSS_VAR[modelId] ?? 'var(--accent-other)' };
 }
 
 // ─── Three-dot menu ───────────────────────────────────────────────────────────
