@@ -67,15 +67,23 @@ function getThreadTitle(conversation: Conversation): string {
   return 'New conversation';
 }
 
-/** Maps a ModelId to the matching CSS custom property class for the dot color. */
+/**
+ * Maps a modelId string to its CSS custom property for the accent dot.
+ * All 6 known models are explicit. The token name mirrors ModelConfig.color
+ * in the registry (e.g. 'gpt-5.5' → 'accent-gpt').
+ * ThreadRow only has modelId strings from message history, not full ModelConfig objects,
+ * so this helper is retained with explicit cases rather than reading model.color.
+ * accent-other is used only for genuinely unknown models.
+ */
 function getModelDotStyle(modelId: string): React.CSSProperties {
   switch (modelId) {
-    case 'claude':
-      return { backgroundColor: 'var(--accent-claude)' };
-    case 'gpt-5.5':
-      return { backgroundColor: 'var(--accent-gpt)' };
-    default:
-      return { backgroundColor: 'var(--accent-other)' };
+    case 'claude':   return { backgroundColor: 'var(--accent-claude)' };
+    case 'gpt-5.5':  return { backgroundColor: 'var(--accent-gpt)' };
+    case 'gemini':   return { backgroundColor: 'var(--accent-gemini)' };
+    case 'grok':     return { backgroundColor: 'var(--accent-grok)' };
+    case 'deepseek': return { backgroundColor: 'var(--accent-deepseek)' };
+    case 'mistral':  return { backgroundColor: 'var(--accent-mistral)' };
+    default:         return { backgroundColor: 'var(--accent-other)' };
   }
 }
 

@@ -3,13 +3,13 @@ import type { ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } fr
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Maps a ModelId to the inline style for its accent dot. */
-function getModelDotStyle(modelId: ModelId): React.CSSProperties {
-  switch (modelId) {
-    case 'claude':  return { backgroundColor: 'var(--accent-claude)' };
-    case 'gpt-5.5': return { backgroundColor: 'var(--accent-gpt)' };
-    default:        return { backgroundColor: 'var(--accent-other)' };
-  }
+/**
+ * Returns the inline style for a model accent dot.
+ * Reads color directly from ModelConfig.color — no modelId switch needed.
+ * accent-other is used only when color is genuinely absent (unknown model).
+ */
+function getModelDotStyle(model: ModelConfig): React.CSSProperties {
+  return { backgroundColor: `var(--${model.color ?? 'accent-other'})` };
 }
 
 /** Default placeholder text for the system prompt textarea. */
@@ -85,7 +85,7 @@ function ModelPill({ model, isLastActive, onToggle }: ModelPillProps) {
       <span
         className="w-[7px] h-[7px] rounded-full flex-shrink-0 transition-opacity duration-fast"
         style={{
-          ...getModelDotStyle(model.modelId),
+          ...getModelDotStyle(model),
           opacity: isActive ? 1 : 0.4,
         }}
         aria-hidden="true"
@@ -185,7 +185,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
             >
               <span
                 className="w-[7px] h-[7px] rounded-full flex-shrink-0"
-                style={getModelDotStyle(model.modelId)}
+                style={getModelDotStyle(model)}
                 aria-hidden="true"
               />
               <span className="text-[14px] text-text-primary flex-1">{model.name}</span>
@@ -292,7 +292,7 @@ function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
         {/* Color dot */}
         <span
           className="w-[7px] h-[7px] rounded-full flex-shrink-0"
-          style={getModelDotStyle(model.modelId)}
+          style={getModelDotStyle(model)}
           aria-hidden="true"
         />
 
@@ -471,10 +471,14 @@ function SessionTokenSection({
                   i < sessionUsage.length - 1 ? 'border-b border-border-subtle' : '',
                 ].join(' ')}
               >
-                {/* Color dot */}
+                {/* Color dot — use modelConfig if found, else fall back to accent-other */}
                 <span
                   className="w-[7px] h-[7px] rounded-full flex-shrink-0"
-                  style={getModelDotStyle(usage.modelId)}
+                  style={
+                    modelConfig
+                      ? getModelDotStyle(modelConfig)
+                      : { backgroundColor: 'var(--accent-other)' }
+                  }
                   aria-hidden="true"
                 />
 

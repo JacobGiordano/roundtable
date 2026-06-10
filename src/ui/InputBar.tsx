@@ -65,12 +65,21 @@ function SendIcon({ disabled }: { disabled: boolean }) {
   );
 }
 
-/** Maps a ModelId string to accent-color Tailwind classes for the directed-reply pill. */
+/**
+ * Maps a ModelId string to accent-color Tailwind classes for the directed-reply pill.
+ * Tailwind opacity modifiers (/15, /30) require literal class strings at build time —
+ * all 6 model cases are explicit so JIT generates the correct utility classes.
+ * accent-other is used only for genuinely unknown models.
+ */
 function getPillAccentClasses(modelId: string | undefined): string {
   switch (modelId) {
-    case 'claude':  return 'bg-accent-claude/15 text-accent-claude border-accent-claude/30';
-    case 'gpt-5.5': return 'bg-accent-gpt/15 text-accent-gpt border-accent-gpt/30';
-    default:        return 'bg-accent-other/15 text-accent-other border-accent-other/30';
+    case 'claude':   return 'bg-accent-claude/15 text-accent-claude border-accent-claude/30';
+    case 'gpt-5.5':  return 'bg-accent-gpt/15 text-accent-gpt border-accent-gpt/30';
+    case 'gemini':   return 'bg-accent-gemini/15 text-accent-gemini border-accent-gemini/30';
+    case 'grok':     return 'bg-accent-grok/15 text-accent-grok border-accent-grok/30';
+    case 'deepseek': return 'bg-accent-deepseek/15 text-accent-deepseek border-accent-deepseek/30';
+    case 'mistral':  return 'bg-accent-mistral/15 text-accent-mistral border-accent-mistral/30';
+    default:         return 'bg-accent-other/15 text-accent-other border-accent-other/30';
   }
 }
 
