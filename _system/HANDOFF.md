@@ -6,15 +6,16 @@ Phase 4 — 6 model providers live. Color system complete.
 
 ## Active agents for next session
 
-Aria — consume `providerName` from `MODEL_REGISTRY` in `ModelSelectorPanel.tsx`
-to replace the hardcoded claude/gpt ternary (issue #40, Aria side).
+Luma → Arch → Gate → Aria pipeline for issue #38 (user-customizable model accent colors).
+Luma spec first; do not begin until spec is complete.
 
 ## Last closed (this session)
 
-- #40 (Atlas side): Added `providerName: string` to `ModelRegistryEntry` interface
-  and populated it for all 6 entries (Anthropic, OpenAI, Google, xAI, DeepSeek, Mistral).
-  No changes to `/src/types/index.ts` — `ModelRegistryEntry` is a local interface in
-  `/src/models/registry.ts`. Lint and build pass.
+- #40 (Aria side): Replaced hardcoded `claude`/`gpt-5.5` ternary in `AddModelButton`
+  with a `PROVIDER_NAME_BY_MODEL_ID` lookup map built from `MODEL_REGISTRY`.
+  `MODEL_REGISTRY` import documented as cross-agent exception in file comment.
+  `providerName` is NOT on `ModelConfig` — kept as a registry-only concern (no Arch/Atlas
+  changes needed for this fix). Lint and build pass.
 
 ## Model providers (all on main)
 
@@ -29,12 +30,11 @@ to replace the hardcoded claude/gpt ternary (issue #40, Aria side).
 
 ## Next issues in priority order
 
-1. [Aria] Consume `providerName` from `MODEL_REGISTRY` in `ModelSelectorPanel.tsx` (#40, Aria side)
-2. [Luma → Arch → Gate → Aria] User-customizable model accent colors (#38) — Luma spec first
-3. [Vault] ServerStorageProvider (REST client for self-hosted backend) (#24)
-4. [Gate] Backend auth support (session tokens, login/logout) (#25)
-5. Self-hosted backend service (Node/Express, Docker Compose) (#26)
-6. Open source launch prep (#27)
+1. [Luma → Arch → Gate → Aria] User-customizable model accent colors (#38) — Luma spec first
+2. [Vault] ServerStorageProvider (REST client for self-hosted backend) (#24)
+3. [Gate] Backend auth support (session tokens, login/logout) (#25)
+4. Self-hosted backend service (Node/Express, Docker Compose) (#26)
+5. Open source launch prep (#27)
 
 ## Gotchas
 
@@ -50,3 +50,4 @@ to replace the hardcoded claude/gpt ternary (issue #40, Aria side).
 - Gemini API key goes in URL as `?key=<apiKey>` — Google REST API pattern, not a header
 - color-mix() used in InputBar pill for opacity — supported Chrome 111+/Firefox 113+/Safari 16.2+
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI components now auto-update
+- providerName is on ModelRegistryEntry (Atlas) but NOT on ModelConfig (types/index.ts) — Aria reads it via MODEL_REGISTRY lookup, not via ModelConfig prop
