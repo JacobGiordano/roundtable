@@ -7,17 +7,19 @@ needs to know before opening a PR.
 
 ## Agent directory ownership
 
-Each agent owns exactly one directory. These walls are non-negotiable — a PR
-that modifies files outside an agent's assigned directory will be rejected.
+Each agent owns exactly one directory or a defined set of files. These walls are
+non-negotiable — a PR that modifies files outside an agent's assigned scope will
+be rejected.
 
 | Agent | Owns | Never touches |
 |-------|------|---------------|
 | **Aria** | `/src/ui` | `/src/models`, `/src/storage`, `/src/auth` |
-| **Atlas** | `/src/models` | `/src/ui`, `/src/storage`, `/src/auth` |
+| **Atlas** | `/src/models`, `/backend` | `/src/ui`, `/src/storage`, `/src/auth` |
 | **Vault** | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | **Gate** | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
 | **Luma** | `/_design` | `/src/**` (specs only — produces no code) |
 | **Arch** | `/src/types/index.ts`, `CLAUDE.md` | Everything else |
+| **Quill** | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/`, `/docs/` | `/src/**`, `/_design`, `CLAUDE.md`, `_system/` |
 | **Spark** | *(called by Aria)* | Produces micro-interaction specs; no directory ownership |
 | **Coda** | *(coordinator)* | Sequences agents; no directory ownership |
 | **Flint** | *(reviewer)* | Read-only phase gate; no directory ownership |
@@ -73,11 +75,12 @@ what's in flight. Always check `HANDOFF.md` before starting work.
 | Agent | Description |
 |-------|-------------|
 | **Aria** | React components, chat layout, model selector, token display |
-| **Atlas** | API integrations, streaming, parallel broadcast, token tracking |
+| **Atlas** | API integrations, streaming, parallel broadcast, token tracking, self-hosted backend |
 | **Vault** | LocalStorage provider, session management, ghost mode, export |
-| **Gate** | API key management, theme storage, backend auth |
+| **Gate** | API key management, theme storage, backend auth, accent color persistence |
 | **Luma** | Design tokens, theme files, component specs (no code) |
 | **Arch** | Cross-agent TypeScript interfaces; `CLAUDE.md` changes |
+| **Quill** | Root-level documentation: `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/` templates |
 | **Spark** | Micro-interactions and delight work (called by Aria in Phase 2+) |
 | **Coda** | Multi-agent coordination, phase kickoff, dependency sequencing |
 | **Flint** | Phase gate validation — verifies acceptance criteria before advancing |

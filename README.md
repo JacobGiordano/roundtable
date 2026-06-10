@@ -55,7 +55,8 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. Add at least one API key in the Settings panel and
+start a conversation.
 
 > **Note — OpenAI connection failures mid-session:** The dev container firewall
 > resolves `api.openai.com` to a set of IPs at container start time. OpenAI's

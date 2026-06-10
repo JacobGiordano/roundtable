@@ -2,14 +2,13 @@ Last updated: 2026-06-10
 
 ## Current phase
 
-Phase 4 — All major features complete. Open source launch prep complete.
+Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
 
 ## Last closed (this session)
 
-- #41 (Arch, Phase 2): Added Quill technical writer agent to CLAUDE.md.
-  Updated agents table and boundary rules table. CLAUDE.md is now authoritative
-  for Quill's ownership and no-touch rules. Quill agent file (.claude/agents/quill.md)
-  was Phase 1, already on main.
+- #41 (Quill, Phase 3): Full doc audit. Updated CONTRIBUTING.md, README.md,
+  PR template, and feature request template. Opened #42 for Atlas to fix two
+  gaps in /backend/README.md.
 
 ## Model providers (all on main)
 
@@ -24,14 +23,18 @@ Phase 4 — All major features complete. Open source launch prep complete.
 
 ## Next issue
 
-None — project is feature-complete and launch-ready. Future issues TBD.
+- #42 (Atlas): Fix two doc gaps in /backend/README.md — /auth/refresh token
+  invalidation behavior + /auth/login 400 response.
 
 ## Decisions made this session
 
-- Quill row added to agents table: work type "Documentation (README.md, CONTRIBUTING.md, /docs/)"
-- Quill row added to boundary table: owns root-level docs + .github/ + /docs/; must never touch all src dirs, CLAUDE.md, and HANDOFF.md
-- Parallel agent execution section not modified — it is procedural, not a roster; no Quill entry needed there
-- Codebase structure block not modified — Quill owns root-level files, not a subdirectory; no inline annotation applies
+- Quill row added to CONTRIBUTING.md ownership table and agent profiles table
+- Atlas row in CONTRIBUTING.md updated to include /backend ownership
+- Gate description updated to include accent color persistence
+- PR template Agent field updated to include all agents (was missing Quill, Flint, Spark)
+- Feature request template agent list updated to include Quill, Coda, Flint
+- README Run locally section: added API key onboarding step (was present in dev
+  container path but missing from local path)
 
 ## Gotchas
 
@@ -45,4 +48,4 @@ None — project is feature-complete and launch-ready. Future issues TBD.
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks
 - Gemini API key goes in URL as ?key= — Google REST API pattern, not a header
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
-- /backend/README.md exists and is comprehensive — no action needed
+- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry

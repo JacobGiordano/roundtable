@@ -5,7 +5,7 @@ labels: enhancement
 ---
 
 **Agent scope**
-Which agent(s) would own this work? (Aria / Atlas / Vault / Gate / Luma / Arch)
+Which agent(s) would own this work? (Aria / Atlas / Vault / Gate / Luma / Arch / Quill / Coda / Flint)
 
 If you're unsure, describe what the feature does and where it lives in the UI or codebase.
 
