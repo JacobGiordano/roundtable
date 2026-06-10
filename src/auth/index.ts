@@ -9,3 +9,9 @@ export { getThemePreference, saveThemePreference, setActiveTheme, clearThemePref
 export { getUserPreferences, saveUserPreferences } from './preferences';
 export { useUserPreferences } from './useUserPreferences';
 export { TokenCountControl } from './TokenCountControl';
+export {
+  getModelAccentColors,
+  setModelAccentColor,
+  clearModelAccentColor,
+  clearAllModelAccentColors,
+} from './accentColors';
