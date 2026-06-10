@@ -2,20 +2,15 @@ Last updated: 2026-06-10
 
 ## Current phase
 
-Phase 4 — All major features complete. Color customization, backend auth, self-hosted backend, storage provider wiring all shipped.
+Phase 4 — All major features complete. Open source launch prep in progress (#27).
 
 ## Last closed (this session)
 
-- #38 (Aria): Color picker UI. applyUserAccentColors in theme.ts, AccentColorPicker
-  popover, palette icon on ModelPill (selector panel context only), "Reset all model
-  colors" in Settings panel. 22 new tests (colorUtils + applyUserAccentColors), all
-  passing. Lint and build clean.
-- #25 (Gate): Backend auth support. login(), logout(), refreshToken(),
-  getActiveStorageProvider(), isBackendConfigured(), getBackendFallbackStatus()
-  in /src/auth/backendAuth.ts. 37 tests, all passing.
-- #26 (Atlas): Self-hosted backend in /backend/. Express + SQLite (better-sqlite3)
-  + JWT auth + bcrypt passwords. All ServerStorageProvider endpoints implemented.
-  Docker Compose included. Build and lint pass.
+- #27 (Coda): Open source launch prep. README expanded with product overview,
+  features, quick start, and dev commands. CONTRIBUTING.md with agent boundary
+  rules, agent profiles table, and contributor workflow. LICENSE (MIT).
+  CODE_OF_CONDUCT.md (Contributor Covenant v2.1). GitHub issue templates (bug,
+  feature) and PR template. All in branch 27-coda-open-source-launch-prep.
 
 ## Model providers (all on main)
 
@@ -30,23 +25,15 @@ Phase 4 — All major features complete. Color customization, backend auth, self
 
 ## Next issue
 
-1. Open source launch prep (#27)
+None — project is feature-complete and launch-ready. Future issues TBD.
 
 ## Decisions made this session
 
-- applyUserAccentColors exported from /src/ui/theme.ts — wired at app load only.
-  Must be re-called after every applyTheme() — pending when theme switcher is added.
-- Pure WCAG helpers in colorUtils.ts (react-refresh: component files export components only).
-- Color picker is fixed-position (no React portal infrastructure exists).
-- BackendAuthError internal to /src/auth — Aria catches by duck-typing (.code field).
-- createStorageProvider imported from @/storage/storageFactory — sanctioned exception.
-- saveAuthToken() unexported — only login()/refreshToken() write it.
-- logout() clears localStorage only — no network call.
-- refreshToken() does NOT call logout() on invalid_response.
-- Backend is a standalone Node.js package (/backend/package.json).
-- ESLint 9 flat config for backend to match root workspace versions.
-- DELETE /conversations/:id always returns 204 (idempotent).
-- PATCH /conversations/:id keeps JSON blob archivedAt in sync with archived column.
+- README screenshots section omitted — no browser environment available to
+  capture them; add manually before public launch.
+- CODE_OF_CONDUCT.md uses Contributor Covenant v2.1 (standard).
+- /backend/README.md already existed and is comprehensive — no action needed.
+- Agency Agents setup instructions folded into CONTRIBUTING.md (not a separate file).
 
 ## Gotchas
 
@@ -60,3 +47,4 @@ Phase 4 — All major features complete. Color customization, backend auth, self
 - App.tsx lives outside /src/ui — Aria may update it only to thread UI props/hooks
 - Gemini API key goes in URL as ?key= — Google REST API pattern, not a header
 - Adding new models: update only MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
+- /backend/README.md exists and is comprehensive — no action needed
