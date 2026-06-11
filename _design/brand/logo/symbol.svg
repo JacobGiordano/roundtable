@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <title>Roundtable</title>
+  <g id="symbol">
+    <!--
+      Mark concept: a filled circle containing a regular hexagon outline.
+      The circle = the roundtable form (closed, continuous, no head).
+      The hexagon = six equal seats; also reads as a table surface viewed from above.
+      Grid: 48-unit base. Circle center (24,24), radius 22.
+      Hexagon inscribed at radius 14, flat-top orientation.
+      Stroke weight 2px — reads as a clean inner ring at 48px, collapses to
+      a readable circle badge at 16px.
+    -->
+
+    <!-- Outer filled circle — brand primary #2D2B55 -->
+    <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
+
+    <!-- Hexagon outline — white, flat-top, inscribed at r=14 -->
+    <!-- Flat-top hexagon vertices (angle offset 0°):
+         top-right:    (24 + 14*cos(30°), 24 - 14*sin(30°)) = (36.12, 17)
+         right:        (24 + 14, 24)                         = (38, 24)
+         bottom-right: (24 + 14*cos(30°), 24 + 14*sin(30°)) = (36.12, 31)
+         bottom-left:  (24 - 14*cos(30°), 24 + 14*sin(30°)) = (11.88, 31)
+         left:         (24 - 14, 24)                         = (10, 24)
+         top-left:     (24 - 14*cos(30°), 24 - 14*sin(30°)) = (11.88, 17)
+         cos(30°)=0.866  sin(30°)=0.5
+         14*0.866=12.12  14*0.5=7
+    -->
+    <polygon
+      id="hexagon"
+      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+
+    <!-- Center dot — white, 3px radius, anchors the "gathering point" -->
+    <circle cx="24" cy="24" r="3" fill="#FFFFFF"/>
+  </g>
+</svg>

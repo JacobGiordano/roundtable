@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 32" fill="none">
+  <title>Roundtable</title>
+  <g id="wordmark">
+    <!--
+      Wordmark: "ROUNDTABLE" in Space Grotesk, weight 500, all-caps.
+      Letter-spacing: 0.12em — precise, slightly formal, not playful.
+      Font size: 20px. Cap height ≈ 14px. Total SVG height: 32px (centered on cap height).
+      Color: brand primary #2D2B55.
+      viewBox width 220 accounts for "ROUNDTABLE" at 20px/500 with 0.12em tracking.
+      System fallback: 'Space Grotesk', 'DM Sans', system-ui, sans-serif
+    -->
+    <text
+      x="0"
+      y="22"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif"
+      font-size="20"
+      font-weight="500"
+      letter-spacing="2.4"
+      fill="#2D2B55"
+    >ROUNDTABLE</text>
+  </g>
+</svg>

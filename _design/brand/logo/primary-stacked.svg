@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 104" fill="none">
+  <title>Roundtable</title>
+
+  <!--
+    Stacked lockup: symbol centered above wordmark.
+    Symbol: 48×48, centered in 220px canvas → x offset = (220-48)/2 = 86
+    Gap between symbol bottom and wordmark: 12px
+    Wordmark: approximate rendered width ~200px at 20px/500 with 2.4 tracking.
+    Wordmark y-baseline: 48 (symbol) + 12 (gap) + ~20 (ascender) = 80
+    Total height: 48 + 12 + 20 + 4 (descender margin) = 84 → 104 for visual breathing room
+  -->
+
+  <g id="symbol" transform="translate(86, 0)">
+    <!-- Outer filled circle -->
+    <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
+
+    <!-- Hexagon outline, flat-top, inscribed at r=14 -->
+    <polygon
+      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+
+    <!-- Center dot -->
+    <circle cx="24" cy="24" r="3" fill="#FFFFFF"/>
+  </g>
+
+  <g id="wordmark">
+    <!--
+      Centered wordmark below symbol.
+      x=10 leaves margin; for precise centering, production rasterization should
+      measure actual text advance width and adjust x accordingly.
+    -->
+    <text
+      x="10"
+      y="80"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif"
+      font-size="20"
+      font-weight="500"
+      letter-spacing="2.4"
+      fill="#2D2B55"
+    >ROUNDTABLE</text>
+  </g>
+</svg>
