@@ -124,6 +124,8 @@ interface ThreadActionMenuProps {
   onDelete: () => void;
   onSetGroup: (groupId: string | undefined) => void;
   onClose: () => void;
+  /** Ref to the trigger button — focus is returned here on Escape or Tab close. */
+  triggerRef: React.RefObject<HTMLButtonElement>;
 }
 
 function ThreadActionMenu({
@@ -134,6 +136,7 @@ function ThreadActionMenu({
   onDelete,
   onSetGroup,
   onClose,
+  triggerRef,
 }: ThreadActionMenuProps) {
   const [menuState, setMenuState] = useState<ThreadMenuState>({ type: 'menu' });
   const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
@@ -151,6 +154,15 @@ function ThreadActionMenu({
     return () => document.removeEventListener('mousedown', handleDocClick);
   }, [onClose]);
 
+  // Focus first menuitem when the menu state is 'menu' (on initial open and
+  // if the user navigates back to the top-level menu from a sub-state).
+  useEffect(() => {
+    if (menuState.type === 'menu') {
+      const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+      firstItem?.focus();
+    }
+  }, [menuState.type]);
+
   // Focus group input when it appears
   useEffect(() => {
     if (menuState.type === 'group-input') {
@@ -158,11 +170,21 @@ function ThreadActionMenu({
     }
   }, [menuState.type]);
 
+  /** Close the menu and return focus to the trigger button. */
+  const closeAndReturnFocus = useCallback(() => {
+    onClose();
+    // Schedule focus restoration via rAF so the DOM settles (menu unmounts)
+    // before the trigger receives focus.
+    requestAnimationFrame(() => {
+      triggerRef.current?.focus();
+    });
+  }, [onClose, triggerRef]);
+
   const handleGroupConfirm = useCallback(() => {
     const trimmed = groupInput.trim();
     onSetGroup(trimmed === '' ? undefined : trimmed);
-    onClose();
-  }, [groupInput, onSetGroup, onClose]);
+    closeAndReturnFocus();
+  }, [groupInput, onSetGroup, closeAndReturnFocus]);
 
   const handleGroupKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -170,10 +192,69 @@ function ThreadActionMenu({
         e.preventDefault();
         handleGroupConfirm();
       } else if (e.key === 'Escape') {
-        onClose();
+        closeAndReturnFocus();
       }
     },
-    [handleGroupConfirm, onClose],
+    [handleGroupConfirm, closeAndReturnFocus],
+  );
+
+  /**
+   * Keyboard handler attached to the menu container (role="menu").
+   *
+   * ARIA menu keyboard contract:
+   * - Tab / Shift+Tab: close menu (menus are not in the tab order).
+   * - Escape: close menu and return focus to trigger.
+   * - ArrowDown/Up: move focus between menuitems (wraps at boundaries).
+   * - Home/End: jump to first/last menuitem.
+   *
+   * Arrow-key navigation only applies in the top-level 'menu' state.
+   * The confirm-delete and group-input sub-states manage their own focus
+   * and Tab behaviour (they are dialog-like widgets, not menus).
+   */
+  const handleMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Tab (or Shift+Tab) exits the menu — menus must not be Tab-navigable.
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        closeAndReturnFocus();
+        return;
+      }
+
+      // Escape always closes and returns focus.
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAndReturnFocus();
+        return;
+      }
+
+      // Arrow-key navigation is only relevant in the top-level menu state.
+      if (menuState.type !== 'menu') return;
+
+      const items = Array.from(
+        menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
+      );
+      if (items.length === 0) return;
+
+      const focused = document.activeElement as HTMLElement;
+      const currentIndex = items.indexOf(focused);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+        items[next]?.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+        items[prev]?.focus();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        items[0]?.focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        items[items.length - 1]?.focus();
+      }
+    },
+    [menuState.type, closeAndReturnFocus],
   );
 
   const isArchived = conversation.archivedAt !== undefined;
@@ -183,6 +264,7 @@ function ThreadActionMenu({
       ref={menuRef}
       role="menu"
       aria-label="Conversation actions"
+      onKeyDown={handleMenuKeyDown}
       className={[
         'absolute right-2 top-1 z-20',
         'min-w-[160px] py-1 rounded-md',
@@ -197,7 +279,8 @@ function ThreadActionMenu({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { onUnarchive(); onClose(); }}
+              tabIndex={-1}
+              onClick={() => { onUnarchive(); closeAndReturnFocus(); }}
               className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
             >
               Unarchive
@@ -206,7 +289,8 @@ function ThreadActionMenu({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { onArchive(); onClose(); }}
+              tabIndex={-1}
+              onClick={() => { onArchive(); closeAndReturnFocus(); }}
               className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
             >
               Archive
@@ -215,6 +299,7 @@ function ThreadActionMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => setMenuState({ type: 'group-input' })}
             className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
           >
@@ -223,6 +308,7 @@ function ThreadActionMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => setMenuState({ type: 'confirm-delete' })}
             className="w-full text-left px-3 py-1.5 text-semantic-error hover:bg-hover transition-colors duration-fast"
           >
@@ -336,6 +422,9 @@ function ThreadRow({
   onSetGroup,
 }: ThreadRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Ref used to return focus to the trigger button when the menu closes via
+  // keyboard (Escape or Tab). Passed into ThreadActionMenu as triggerRef.
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const title = getThreadTitle(conversation);
   const timestamp = formatRelativeTime(conversation.updatedAt);
 
@@ -434,6 +523,7 @@ function ThreadRow({
 
       {/* Three-dot menu trigger — visible on hover */}
       <button
+        ref={menuTriggerRef}
         type="button"
         aria-label="Conversation actions"
         aria-haspopup="menu"
@@ -466,6 +556,7 @@ function ThreadRow({
           onDelete={onDelete}
           onSetGroup={onSetGroup}
           onClose={handleMenuClose}
+          triggerRef={menuTriggerRef}
         />
       )}
     </div>
