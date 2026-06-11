@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (end of session — brand assets wired into UI)
+Last updated: 2026-06-11 (end of session — #70 overflow bugs fixed)
 
 ## Current phase
 
@@ -7,23 +7,21 @@ Accessibility baseline audit complete. Brand assets wired.
 
 ## Last closed
 
-- #67 (Marque): brand identity pass complete — fonts, palette, favicon spec, logo SVGs.
 - #68 (Aria): brand assets wired into live app — fonts, brand-tokens.css, favicon, logo in header.
+- #70 (Aria): InteractionModeSwitcher overflow bugs fixed — label viewport overflow + tooltip clipping.
 
-## Decisions made this session (#68)
+## Decisions made this session (#70)
 
-- Variable font packages used (@fontsource-variable/*) — single CSS import, wght axis covers all weights.
-- brand-tokens.css created as a static file outside the theme JSON system (per Marque's recommendation).
-  Brand tokens are stable across themes; no theme file changes needed.
-- Logo uses a single inlined SVG with mask-based cutout (monochrome approach).
-  `--brand-logo-color` CSS var set to Indigo (light mode) or Mist (dark mode) via [data-mode] selectors.
-- Wordmark hidden below sm breakpoint (640px); symbol-only on mobile.
-- body font-family set to var(--font-ui) in index.css.
-- RoundtableLogo exported from /src/ui/index.ts.
+- Overflow fix: outer scrollable wrapper (overflow-x-auto) added inside InteractionModeSwitcher;
+  AppLayout wrapper changed from flex-shrink-0 to min-w-0 so the right column can yield space.
+- Tooltip fix: TooltipAlign type ('left' | 'center' | 'right') added to ModeButton.
+  First item: left-aligned tooltip. Middle item: centered. Last item (Auto-chain): right-aligned.
+  Caret position kept in sync with tooltip anchor direction.
+- No types/index.ts changes — layout-only fix.
 
 ## Status
 
-All a11y work complete. Brand pass complete. App header now shows the Roundtable logo mark.
+All a11y work complete. Brand pass complete. Overflow layout bugs fixed.
 
 ## Gotchas
 
