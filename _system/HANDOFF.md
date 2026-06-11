@@ -1,31 +1,32 @@
-Last updated: 2026-06-11 (logo mark R1 — #69 closed)
+Last updated: 2026-06-11 (theme switcher + boot fix — #73 closed)
 
 ## Current phase
 
-Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets updated to R1 mark.
+Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #69 (Marque + Aria): R1 logo mark adopted. Hexagon fully retired.
-  Marque: all five logo SVGs updated (symbol, primary, primary-stacked, mono-light,
-  mono-dark); identity.md rewritten for R1; logo-exploration.md committed from
-  stale worktree with Decision section. Mono variants simplified — no SVG masks
-  needed (R1 is all-additive geometry).
-  Aria: RoundtableLogo.tsx — polygon removed; ring r=14 stroke-width=2, six seat
-  dots r=3, center dot r=3.5.
+- #73 (Aria): Theme switcher in settings panel + fix main.tsx boot to read saved preference.
+  THEME_MAP and THEME_IDS constants added to /src/ui/theme.ts (shared by main.tsx and
+  Sidebar.tsx). main.tsx now calls getThemePreference() at boot and applies the saved
+  theme. Sidebar settings panel has a 2-column theme grid (radio semantics) showing
+  all 7 themes with a dark/light mode swatch dot indicator.
 
 ## Decisions made this session
 
-- R1 geometry (authoritative): outer circle r=22 #2D2B55, ring r=14 stroke-width=2
-  white, six seat dots r=3 white at (24,10)(36.12,17)(36.12,31)(24,38)(11.88,31)
-  (11.88,17), center dot r=3.5 white. Rotationally symmetric at 60°.
+- THEME_MAP / THEME_IDS live in /src/ui/theme.ts (not main.tsx) to avoid a circular
+  import (main → App → Sidebar → main). Both main.tsx and Sidebar.tsx import from
+  @/ui/theme.
+- Theme switcher uses role="radiogroup" / role="radio" / aria-checked for a11y.
+- Mode swatch: filled dot = dark theme, ring dot = light theme (data-driven from
+  THEME_MAP[id].mode — no hardcoding).
 
 ## Gotchas
 
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
 - StorageConfig is NOT in types/index.ts — it's in @/storage/storageFactory.ts
-- applyUserAccentColors must be called after EVERY applyTheme() — currently only wired at app load
+- applyUserAccentColors must be called after EVERY applyTheme() — wired at boot and
+  in handleThemeChange in Sidebar.tsx
 - VALID_MODEL_IDS in /src/auth/accentColors.ts must stay in sync with ModelId union
 - VALID_MODEL_IDS also in /src/auth/modelVersion.ts — update both when adding models
 - getActiveStorageProvider() is the App.tsx entry point for provider injection
@@ -48,7 +49,6 @@ Accessibility baseline audit complete. Brand assets updated to R1 mark.
   without reload leaves inline-style guard in mobile mode. Acceptable.
 - Tailwind: `relative` and `fixed` conflict (relative comes later in stylesheet). Always
   scope `relative` to `md:relative` on elements that use `fixed` for mobile positioning.
-- main.tsx hardcodes slateTheme at boot — getThemePreference() not called (#73)
 
 ## Model providers (all on main)
 
@@ -63,7 +63,6 @@ Accessibility baseline audit complete. Brand assets updated to R1 mark.
 
 ## Next issues in priority order
 
-- #73 (Aria): Theme switcher in settings + fix main.tsx boot to read saved preference
 - #74 (Aria): Settings access point / user icon in app chrome
 - #72 (Aria): Accent color picker pre-selects model's current color
 - Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md
