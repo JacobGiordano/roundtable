@@ -287,7 +287,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
         ref={buttonRef}
         type="button"
         aria-label="Add model to conversation"
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         className={[
@@ -308,7 +308,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
       {isOpen && (
         <div
           ref={dropdownRef}
-          role="listbox"
+          role="menu"
           aria-label="Available models"
           className={[
             'absolute bottom-full left-0 mb-2',
@@ -321,8 +321,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
             <button
               key={model.modelId}
               type="button"
-              role="option"
-              aria-selected={false}
+              role="menuitem"
               onClick={() => {
                 onAdd(model.modelId);
                 setIsOpen(false);

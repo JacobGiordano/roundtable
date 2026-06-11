@@ -19,6 +19,13 @@ Accessibility baseline audit complete.
   Fixed all in src/index.css and Sidebar.tsx.
 - #57 (Aria): AddModelButton listbox/option → menu/menuitem (action items, not select).
 
+## Last closed (wave 3 — awaiting merge authorization)
+
+- #57 (Aria): AddModelButton ARIA pattern corrected. listbox/option replaced with
+  menu/menuitem; aria-haspopup="listbox" changed to aria-haspopup="menu";
+  spurious aria-selected={false} removed from each item.
+  File: /src/ui/ModelSelectorPanel.tsx, lines 290, 311, 324.
+
 ## In progress
 
 Wave 2 running — #49, #50, #53, #54 (Aria a11y issues).
