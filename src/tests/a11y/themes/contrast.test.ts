@@ -69,14 +69,14 @@ interface ThemeTokens {
 const THEMES: Record<string, ThemeTokens> = {
   slate: {
     bg: '#0F1117', card: '#1A1D26', sidebar: '#13151C', input: '#1F2230',
-    textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#7A82A0',
+    textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#7C84A2' /* #58 fix */,
     accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#A855F7',
     accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#4468D0',
     accentMistral: '#E0568A', error: '#EF4444', focusRing: '#F59E0B',
   },
   linen: {
     bg: '#F5F0E8', card: '#FDFAF5', sidebar: '#EDE8DF', input: '#F9F5EE',
-    textPrimary: '#1C1A16', textSecondary: '#4A4640', textMuted: '#7A7570',
+    textPrimary: '#1C1A16', textSecondary: '#4A4640', textMuted: '#6D6863' /* #58 fix */,
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#7E22CE',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#B91C1C', focusRing: '#B45309',
@@ -90,21 +90,21 @@ const THEMES: Record<string, ThemeTokens> = {
   },
   ash: {
     bg: '#181A1C', card: '#22252A', sidebar: '#1B1D20', input: '#272B31',
-    textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#7A848D',
+    textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#838D96' /* #58 fix */,
     accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#9B72DB',
     accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#4472C4',
     accentMistral: '#D45C8A', error: '#E05555', focusRing: '#3DB8A8',
   },
   ember: {
     bg: '#110D09', card: '#1D1712', sidebar: '#140F0A', input: '#231B14',
-    textPrimary: '#EDE5D8', textSecondary: '#B09070', textMuted: '#8C7260',
+    textPrimary: '#EDE5D8', textSecondary: '#B09070', textMuted: '#987C6A' /* #58 fix */,
     accentClaude: '#F5A623', accentGpt: '#2DB8A8', accentGemini: '#C080F0',
     accentOther: '#E06840', accentGrok: '#56AEE0', accentDeepseek: '#5080D0',
     accentMistral: '#D85C90', error: '#E05050', focusRing: '#F5A623',
   },
   chalk: {
     bg: '#F8F8F8', card: '#FFFFFF', sidebar: '#F0F0F0', input: '#FFFFFF',
-    textPrimary: '#111111', textSecondary: '#404040', textMuted: '#737373',
+    textPrimary: '#111111', textSecondary: '#404040', textMuted: '#6D6D6D' /* #58 fix */,
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#6D28D9',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#991B1B', focusRing: '#6D28D9',
@@ -147,20 +147,22 @@ describe('theme contrast — primary and secondary text (WCAG 2.1 AA, 4.5:1)', (
 // placeholders, and helper copy — all normal-weight small text (11–13px), not
 // large text. Threshold: 4.5:1.
 //
-// Verified failure map (computed at audit time):
-//   slate:    card FAILS (4.43)          bg passes, sidebar passes
-//   linen:    bg FAILS (4.02), card FAILS (4.38), sidebar FAILS (3.74)
+// Verified failure map (computed at audit time — pre-#58):
+//   slate:    card FAILS (4.43)          bg passes, sidebar passes   → FIXED in #58
+//   linen:    bg FAILS (4.02), card FAILS (4.38), sidebar FAILS (3.74) → FIXED in #58
 //   midnight: all PASS
-//   ash:      card FAILS (4.04), sidebar FAILS (4.43)   bg passes
-//   ember:    bg FAILS (4.32), card FAILS (3.96), sidebar FAILS (4.26)
-//   chalk:    bg FAILS (4.47), card passes,              sidebar FAILS (4.16)
+//   ash:      card FAILS (4.04), sidebar FAILS (4.43)   bg passes   → FIXED in #58
+//   ember:    bg FAILS (4.32), card FAILS (3.96), sidebar FAILS (4.26) → FIXED in #58
+//   chalk:    bg FAILS (4.47), card passes,              sidebar FAILS (4.16) → FIXED in #58
 //   outrun:   all PASS
+//
+// All failures above are resolved. it.fails() wrappers removed after #58 merged.
 
 describe('theme contrast — text-muted on background (4.5:1)', () => {
   it('slate: PASS', () => {
     expect(contrastRatio(THEMES.slate.textMuted, THEMES.slate.bg)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('linen: FAIL (4.02:1) — tracked gh issue', () => {
+  it('linen: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.linen.textMuted, THEMES.linen.bg)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS', () => {
@@ -169,10 +171,10 @@ describe('theme contrast — text-muted on background (4.5:1)', () => {
   it('ash: PASS', () => {
     expect(contrastRatio(THEMES.ash.textMuted, THEMES.ash.bg)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ember: FAIL (4.32:1) — tracked gh issue', () => {
+  it('ember: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.ember.textMuted, THEMES.ember.bg)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('chalk: FAIL (4.47:1) — tracked gh issue', () => {
+  it('chalk: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.chalk.textMuted, THEMES.chalk.bg)).toBeGreaterThanOrEqual(4.5);
   });
   it('outrun: PASS', () => {
@@ -181,19 +183,19 @@ describe('theme contrast — text-muted on background (4.5:1)', () => {
 });
 
 describe('theme contrast — text-muted on card surface (4.5:1)', () => {
-  it.fails('slate: FAIL (4.43:1) — tracked gh issue', () => {
+  it('slate: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.slate.textMuted, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('linen: FAIL (4.38:1) — tracked gh issue', () => {
+  it('linen: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.linen.textMuted, THEMES.linen.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS', () => {
     expect(contrastRatio(THEMES.midnight.textMuted, THEMES.midnight.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: FAIL (4.04:1) — tracked gh issue', () => {
+  it('ash: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.ash.textMuted, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ember: FAIL (3.96:1) — tracked gh issue', () => {
+  it('ember: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.ember.textMuted, THEMES.ember.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('chalk: PASS (card is #FFFFFF)', () => {
@@ -208,19 +210,19 @@ describe('theme contrast — text-muted on sidebar surface (4.5:1)', () => {
   it('slate: PASS', () => {
     expect(contrastRatio(THEMES.slate.textMuted, THEMES.slate.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('linen: FAIL (3.74:1) — tracked gh issue', () => {
+  it('linen: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.linen.textMuted, THEMES.linen.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS', () => {
     expect(contrastRatio(THEMES.midnight.textMuted, THEMES.midnight.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: FAIL (4.43:1) — tracked gh issue', () => {
+  it('ash: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.ash.textMuted, THEMES.ash.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ember: FAIL (4.26:1) — tracked gh issue', () => {
+  it('ember: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.ember.textMuted, THEMES.ember.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('chalk: FAIL (4.16:1) — tracked gh issue', () => {
+  it('chalk: PASS (fixed #58)', () => {
     expect(contrastRatio(THEMES.chalk.textMuted, THEMES.chalk.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
   it('outrun: PASS', () => {
