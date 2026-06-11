@@ -50,6 +50,15 @@ interface SidebarProps {
   onBulkArchive?: (ids: string[]) => void;
   /** Delete multiple conversations at once. */
   onBulkDelete?: (ids: string[]) => void;
+  /**
+   * Controls the mobile drawer open state. On desktop (>= md breakpoint) this
+   * prop is ignored — the sidebar is always visible via static positioning.
+   * On mobile (< md) the sidebar is a fixed overlay that slides in/out based
+   * on this value. Default false (closed).
+   */
+  isMobileOpen?: boolean;
+  /** Called when the mobile drawer should close (e.g. a conversation is selected). */
+  onMobileClose?: () => void;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -787,6 +796,8 @@ export function Sidebar({
   onSetConversationGroup,
   onBulkArchive,
   onBulkDelete,
+  isMobileOpen = false,
+  onMobileClose,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -811,6 +822,17 @@ export function Sidebar({
   const prefersReducedMotion = useRef(
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false,
+  );
+
+  // Detect mobile (< 768px) at mount for the inline width style guard below.
+  // The inline style must not apply on mobile because it overrides the Tailwind
+  // w-72 class (inline styles have higher specificity than Tailwind utility classes).
+  // Checked once — React re-renders on resize are not needed here because the
+  // CSS `md:` breakpoint classes handle the visual switch automatically.
+  const isMobileViewport = useRef(
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 767px)').matches
       : false,
   );
 
@@ -984,6 +1006,16 @@ export function Sidebar({
 
   const hasBulkSelection = selectedIds.size > 0;
 
+  // On mobile, close the drawer when a conversation is selected so the chat
+  // area becomes visible. On desktop onMobileClose is undefined — no-op.
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      onSelectConversation(id);
+      onMobileClose?.();
+    },
+    [onSelectConversation, onMobileClose],
+  );
+
   // Derive required credential keys for the active conversation's active models.
   const activeConv = conversations.find((c) => c.id === activeConversationId);
   const requiredKeys = getRequiredCredentialKeys(activeConv?.models ?? []);
@@ -996,12 +1028,23 @@ export function Sidebar({
   return (
     <aside
       className={[
-        'flex-shrink-0 flex flex-col h-full bg-sidebar border-r border-border overflow-hidden relative',
+        // Mobile: fixed drawer, slides in/out via translate
+        'fixed inset-y-0 left-0 z-50 h-full w-72',
+        isMobileOpen ? 'translate-x-0' : '-translate-x-full',
+        prefersReducedMotion.current ? '' : 'transition-transform duration-200 ease-in-out',
+        // Desktop: static, restores inline-style width, overrides fixed positioning
+        'md:static md:translate-x-0 md:z-auto md:h-full md:flex-shrink-0',
+        // Common layout classes
+        'flex flex-col bg-sidebar border-r border-border overflow-hidden relative',
+        // Width transition for desktop drag-resize (suppressed during drag or reduced-motion)
         transitionClass,
       ].join(' ')}
-      style={{ width: sidebarWidth }}
+      // On mobile the Tailwind w-72 class controls width (288px fixed drawer).
+      // On desktop the drag-resize inline style applies. Inline styles have higher
+      // specificity than Tailwind classes, so we guard against mobile override here.
+      style={isMobileViewport.current ? undefined : { width: sidebarWidth }}
     >
-      {/* Drag handle — right edge of sidebar */}
+      {/* Drag handle — right edge of sidebar, desktop only */}
       <div
         role="separator"
         aria-orientation="vertical"
@@ -1017,6 +1060,8 @@ export function Sidebar({
           'cursor-col-resize',
           'hover:bg-border-strong focus-visible:bg-border-strong',
           'focus-visible:outline-none',
+          // Hide drag handle on mobile — fixed-width drawer, no resize affordance
+          'hidden md:block',
           isDragging ? 'bg-border-strong' : 'bg-transparent',
         ].join(' ')}
       />
@@ -1107,7 +1152,7 @@ export function Sidebar({
                             isActive={conv.id === activeConversationId}
                             isChecked={selectedIds.has(conv.id)}
                             existingGroups={existingGroups}
-                            onClick={() => onSelectConversation(conv.id)}
+                            onClick={() => handleSelectConversation(conv.id)}
                             onToggleChecked={() => handleToggleChecked(conv.id)}
                             onArchive={() => onArchiveConversation?.(conv.id)}
                             onUnarchive={() => onUnarchiveConversation?.(conv.id)}
@@ -1130,7 +1175,7 @@ export function Sidebar({
                   isActive={conv.id === activeConversationId}
                   isChecked={selectedIds.has(conv.id)}
                   existingGroups={existingGroups}
-                  onClick={() => onSelectConversation(conv.id)}
+                  onClick={() => handleSelectConversation(conv.id)}
                   onToggleChecked={() => handleToggleChecked(conv.id)}
                   onArchive={() => onArchiveConversation?.(conv.id)}
                   onUnarchive={() => onUnarchiveConversation?.(conv.id)}
@@ -1150,7 +1195,7 @@ export function Sidebar({
                   isActive={conv.id === activeConversationId}
                   isChecked={selectedIds.has(conv.id)}
                   existingGroups={existingGroups}
-                  onClick={() => onSelectConversation(conv.id)}
+                  onClick={() => handleSelectConversation(conv.id)}
                   onToggleChecked={() => handleToggleChecked(conv.id)}
                   onArchive={() => onArchiveConversation?.(conv.id)}
                   onUnarchive={() => onUnarchiveConversation?.(conv.id)}

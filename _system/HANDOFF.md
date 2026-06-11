@@ -1,29 +1,26 @@
-Last updated: 2026-06-11 (end of session — brand assets wired into UI)
+Last updated: 2026-06-11 (end of session — mobile layout)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets wired.
+Accessibility baseline audit complete. Brand assets wired. Mobile layout complete.
 
 ## Last closed
 
-- #67 (Marque): brand identity pass complete — fonts, palette, favicon spec, logo SVGs.
 - #68 (Aria): brand assets wired into live app — fonts, brand-tokens.css, favicon, logo in header.
+- #71 (Aria): mobile layout — sidebar drawer, mobile header, safe-area inset, touch targets.
 
-## Decisions made this session (#68)
+## Decisions made this session (#71)
 
-- Variable font packages used (@fontsource-variable/*) — single CSS import, wght axis covers all weights.
-- brand-tokens.css created as a static file outside the theme JSON system (per Marque's recommendation).
-  Brand tokens are stable across themes; no theme file changes needed.
-- Logo uses a single inlined SVG with mask-based cutout (monochrome approach).
-  `--brand-logo-color` CSS var set to Indigo (light mode) or Mist (dark mode) via [data-mode] selectors.
-- Wordmark hidden below sm breakpoint (640px); symbol-only on mobile.
-- body font-family set to var(--font-ui) in index.css.
-- RoundtableLogo exported from /src/ui/index.ts.
-
-## Status
-
-All a11y work complete. Brand pass complete. App header now shows the Roundtable logo mark.
+- Sidebar: fixed drawer on mobile (w-72/288px, translate-based show/hide), static on desktop.
+  inline-style width guarded by isMobileViewport.current ref to avoid specificity conflict with w-72.
+- AppLayout: isMobileMenuOpen state, mobile header (hamburger + logo + new-convo), backdrop overlay.
+- InputBar: safe-area-inset-bottom via inline style (env() — no Tailwind pb-safe needed).
+  Send button expanded to min-w/min-h 44px for touch target compliance.
+- ModelSelectorPanel: pills row changed from flex-wrap to flex-nowrap + overflow-x-auto.
+  ModelPill and AddModelButton outer divs get flex-shrink-0. Panel body gets max-h-[70vh] overflow-y-auto.
+- isMobileViewport.current checked once at mount (not reactive) — CSS md: classes handle
+  the visual switch; React doesn't need to re-render on resize.
 
 ## Gotchas
 
@@ -47,6 +44,9 @@ All a11y work complete. Brand pass complete. App header now shows the Roundtable
 - prefers-reduced-motion: streaming shimmers use per-model selectors — must override each
 - brand-tokens.css uses [data-mode] attribute set by applyTheme() — brand logo color only
   works correctly once applyTheme() has run (which happens before first render in main.tsx)
+- Mobile sidebar drawer: isMobileViewport.current is only checked once at mount.
+  If a user resizes from mobile to desktop without reloading, the inline-style guard stays
+  in mobile mode (no inline width). This is acceptable — mobile users don't resize.
 
 ## Model providers (all on main)
 
