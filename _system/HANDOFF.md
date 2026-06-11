@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (end of session — Aria a11y queue complete)
+Last updated: 2026-06-11 (end of session — a11y queue fully clear, Marque unblocked)
 
 ## Current phase
 
@@ -22,9 +22,7 @@ Accessibility baseline audit complete.
 
 ## Status
 
-**Aria's a11y queue (#49–#57) is fully cleared.** Marque is now unblocked pending:
-1. Ada: remove remaining it.fails() wrappers for #59/#60 contrast tests (both Luma fixes on main)
-2. Open a GitHub issue for the branding pass → activate Marque
+**All a11y work is complete.** Aria's queue (#49–#57) cleared. Ada's contrast test scaffolding fully removed. Marque's issue (#67) is open — ready to activate.
 
 ## Decisions made this session
 
@@ -76,5 +74,5 @@ Aria's a11y queue is now clear — open a GitHub issue for the branding pass and
 
 ## Next issues in priority order
 
-1. Ada: remove it.fails() wrappers for #59/#60 in contrast.test.ts (Luma fixes already on main)
-2. Open branding issue → activate Marque
+1. Activate Marque — issue #67 is open, a11y gate is clear
+2. After Marque: Aria implements brand assets into UI (follow-on issue TBD)
