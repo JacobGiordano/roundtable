@@ -153,18 +153,28 @@ export function MessageBubble({
           Visibility is driven by tokenCountVisibility:
             'always' — row always visible on completed messages
             'active' — reveal on hover (progressive disclosure, default)
-            'never'  — token count excluded from DOM; reply button still hover-reveals */}
+            'never'  — token count excluded from DOM; reply button still hover-reveals
+
+          A11y: aria-hidden must NOT be placed on this container. The Reply button
+          is interactive and must remain in the accessibility tree at all times so
+          keyboard users can reach it. The row becomes visible on hover OR on
+          focus-within (WAI-ARIA Authoring Practices: hover-reveal controls must
+          also be reachable by keyboard). The token count is non-interactive and
+          carries aria-hidden when the row is not visible — it is only supplementary
+          information already conveyed through other means (title tooltip). */}
       {showBottomRow && (
         <div
           className={[
             'mt-2 flex items-center justify-between',
             'transition-opacity duration-fast',
-            rowVisible ? 'opacity-100' : 'opacity-0',
+            rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
           ].join(' ')}
-          aria-hidden={!rowVisible}
         >
           {/* "Reply to [Model]" — left side, only for assistant bubbles.
-              Color is read from modelConfig.color — no modelId switch needed. */}
+              Color is read from modelConfig.color — no modelId switch needed.
+              The button is always in the accessibility tree (no aria-hidden); it
+              is opacity-0 at rest but becomes visible on hover OR keyboard focus
+              via focus-within on the parent container. */}
           {canDirectReply ? (
             <button
               type="button"
@@ -187,11 +197,14 @@ export function MessageBubble({
 
           {/* Token count — right side.
               'never': excluded from DOM entirely (not here due to showTokenCount guard).
-              'always'/'active': rendered; visibility controlled by rowVisible above. */}
+              'always'/'active': rendered; aria-hidden when row is not visible since
+              this element is non-interactive (keyboard users cannot act on it) and
+              the data is supplementary — already conveyed via the title tooltip. */}
           {showTokenCount && (
             <div
               className="text-[11px] text-text-muted text-right"
               title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
+              aria-hidden={!rowVisible}
             >
               {message.tokenUsage!.totalTokens.toLocaleString()} tokens
             </div>
