@@ -68,6 +68,17 @@ interface SidebarProps {
   isMobileOpen?: boolean;
   /** Called when the mobile drawer should close (e.g. a conversation is selected). */
   onMobileClose?: () => void;
+  /**
+   * When provided, overrides the internal isSettingsOpen state.
+   * Used by AppLayout to synchronise the sidebar settings panel with the
+   * header gear button trigger on both desktop and mobile.
+   */
+  isSettingsOpen?: boolean;
+  /**
+   * When provided, overrides the internal handleToggleSettings handler.
+   * Paired with isSettingsOpen for external control of the settings panel.
+   */
+  onToggleSettings?: () => void;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -807,6 +818,8 @@ export function Sidebar({
   onBulkDelete,
   isMobileOpen = false,
   onMobileClose,
+  isSettingsOpen: isSettingsOpenProp,
+  onToggleSettings: onToggleSettingsProp,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -904,7 +917,11 @@ export function Sidebar({
     [],
   );
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Internal settings open state — used when no external control is provided.
+  const [isSettingsOpenInternal, setIsSettingsOpenInternal] = useState(false);
+  // If external props are provided, use them; otherwise fall back to internal state.
+  const isSettingsOpen = isSettingsOpenProp !== undefined ? isSettingsOpenProp : isSettingsOpenInternal;
+
   // Snapshot of stored accent colors — used to decide whether to render the
   // "Reset all model colors" affordance. Refreshed when settings open/close.
   const [hasAccentOverrides, setHasAccentOverrides] = useState(false);
@@ -920,8 +937,8 @@ export function Sidebar({
   // Bulk selection: set of selected conversation IDs.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const handleToggleSettings = useCallback(() => {
-    setIsSettingsOpen((prev) => {
+  const handleToggleSettingsInternal = useCallback(() => {
+    setIsSettingsOpenInternal((prev) => {
       const next = !prev;
       // Refresh the accent override check whenever settings open.
       if (next) {
@@ -930,6 +947,21 @@ export function Sidebar({
       return next;
     });
   }, []);
+
+  // Refresh accent override snapshot when the settings panel opens externally.
+  // When external control is active and the panel transitions to open, we must
+  // still update hasAccentOverrides — do so in an effect keyed on isSettingsOpen.
+  const prevIsSettingsOpenRef = useRef(isSettingsOpen);
+  useEffect(() => {
+    if (isSettingsOpen && !prevIsSettingsOpenRef.current) {
+      setHasAccentOverrides(Object.keys(getModelAccentColors()).length > 0);
+    }
+    prevIsSettingsOpenRef.current = isSettingsOpen;
+  }, [isSettingsOpen]);
+
+  // The toggle handler used by the bottom settings toggle button.
+  // When external control is provided, delegates to it; otherwise uses internal.
+  const handleToggleSettings = onToggleSettingsProp ?? handleToggleSettingsInternal;
 
   const handleResetAllAccentColors = useCallback(() => {
     clearAllModelAccentColors();
@@ -1110,27 +1142,57 @@ export function Sidebar({
             <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-        {/* New conversation button — desktop only (mobile top bar has its own) */}
-        <button
-          type="button"
-          onClick={onNewConversation}
-          aria-label="New conversation"
-          className={[
-            'hidden md:flex w-8 h-8 rounded-md items-center justify-center',
-            'text-text-secondary hover:bg-hover',
-            'transition-colors duration-fast',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          ].join(' ')}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M8 2v12M2 8h12"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        {/* Desktop header right-side controls: settings gear + new conversation */}
+        <div className="hidden md:flex items-center gap-1">
+          {/* Settings gear — desktop header trigger for the settings panel */}
+          <button
+            type="button"
+            onClick={handleToggleSettings}
+            aria-label="Settings"
+            aria-expanded={isSettingsOpen}
+            className={[
+              'w-8 h-8 rounded-md flex items-center justify-center',
+              'text-text-muted hover:text-text-secondary hover:bg-hover',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path
+                d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <path
+                d="M11.5 7c0-.28-.03-.55-.07-.81l1.3-1.01-1.25-2.16-1.57.63a4.5 4.5 0 0 0-1.4-.81L8.25 1h-2.5l-.26 1.84a4.5 4.5 0 0 0-1.4.81L2.52 3.02 1.27 5.18l1.3 1.01A4.6 4.6 0 0 0 2.5 7c0 .28.03.55.07.81L1.27 8.82l1.25 2.16 1.57-.63c.43.33.9.6 1.4.81L5.75 13h2.5l.26-1.84c.5-.21.97-.48 1.4-.81l1.57.63 1.25-2.16-1.3-1.01c.04-.26.07-.53.07-.81Z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          {/* New conversation button — desktop only (mobile top bar has its own) */}
+          <button
+            type="button"
+            onClick={onNewConversation}
+            aria-label="New conversation"
+            className={[
+              'w-8 h-8 rounded-md flex items-center justify-center',
+              'text-text-secondary hover:bg-hover',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M8 2v12M2 8h12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Archive filter toggle — below header, above thread list */}
