@@ -24,6 +24,13 @@ Accessibility baseline audit complete.
   id="model-selector-panel" to the panel container div so it matches the trigger
   button's existing aria-controls="model-selector-panel". Awaiting merge authorization.
 
+## Last closed (wave 3 — awaiting merge authorization)
+
+- #57 (Aria): AddModelButton ARIA pattern corrected. listbox/option replaced with
+  menu/menuitem; aria-haspopup="listbox" changed to aria-haspopup="menu";
+  spurious aria-selected={false} removed from each item.
+  File: /src/ui/ModelSelectorPanel.tsx, lines 290, 311, 324.
+
 ## In progress
 
 - #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
@@ -39,6 +46,8 @@ Accessibility baseline audit complete.
 - HTMLCanvasElement.getContext() stderr warnings from axe-core in jsdom are non-fatal.
   axe uses canvas for color contrast checks; canvas is not installed. Violations are
   still detected; only some contrast checks are skipped. This is acceptable for unit tests.
+- #57: AddModelButton items are actions (each triggers onAdd + closes dropdown), not
+  persistent selections. menu/menuitem is correct; listbox/option was wrong.
 
 ## Model providers (all on main)
 
@@ -83,7 +92,6 @@ Do not activate Marque until Aria's a11y fixes are complete.
 1. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
    [run in parallel with #59]
 2. Luma: #59 — error color contrast on card surface (Slate and Ash)
-3. Aria: #48 — MessageBubble streaming state not announced to screen readers
-4. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
-5. Aria: #49–#57 — remaining a11y issues (one per session)
-6. Open branding issue → activate Marque
+3. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
+4. Aria: #49–#56 — remaining a11y issues (one per session)
+5. Open branding issue → activate Marque
