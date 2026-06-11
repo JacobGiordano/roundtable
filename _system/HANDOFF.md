@@ -1,4 +1,4 @@
-Last updated: 2026-06-10
+Last updated: 2026-06-11
 
 ## Current phase
 
@@ -26,12 +26,19 @@ Accessibility baseline audit complete.
 
 ## In progress
 
-None — wave 1 and #47 complete, all awaiting merge authorization.
+- #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
+  Branch: 66-ada-message-bubble-axe-tests. 14 new tests, all passing. Awaiting merge authorization.
 
 ## Decisions made this session
 
-- Aria: aria-controls value was already correct; the fix was adding the matching id
-  to the panel container div. CSS class .model-selector-panel is unaffected.
+- Ada: vitest-axe@0.1.0 exports `toHaveNoViolations` under `export type *` which
+  prevents value-import under strict tsc. Pattern: use `axe(container)` + inline
+  `assertNoViolations(results)` helper that checks `results.violations.length` and
+  formats failures identically to toHaveNoViolations. No type workarounds needed.
+  This pattern should be used in all future axe-core test files.
+- HTMLCanvasElement.getContext() stderr warnings from axe-core in jsdom are non-fatal.
+  axe uses canvas for color contrast checks; canvas is not installed. Violations are
+  still detected; only some contrast checks are skipped. This is acceptable for unit tests.
 
 ## Model providers (all on main)
 
@@ -62,6 +69,8 @@ None — wave 1 and #47 complete, all awaiting merge authorization.
 - accent-deepseek in Slate and Ash is a serious text contrast failure — Luma fix tracked in #60
 - npm audit reports 4 pre-existing vulns (3 moderate, 1 critical) in esbuild/vite chain —
   fix requires Vite v8 upgrade (breaking change), not in current scope
+- vitest-axe axe-core assertion pattern: use assertNoViolations(results) helper, not
+  expect.extend({ toHaveNoViolations }) — see decisions above
 
 ## Brand work (post-a11y)
 
@@ -69,11 +78,12 @@ Marque (brand agent, he/him) is drafted in .claude/agents/marque.md.
 Open a GitHub issue for the branding pass before activating him.
 Do not activate Marque until Aria's a11y fixes are complete.
 
-## Next issues in priority order (wave 2)
+## Next issues in priority order
 
 1. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
    [run in parallel with #59]
 2. Luma: #59 — error color contrast on card surface (Slate and Ash)
 3. Aria: #48 — MessageBubble streaming state not announced to screen readers
-4. Aria: #49–#57 — remaining a11y issues (one per session)
-5. Open branding issue → activate Marque
+4. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
+5. Aria: #49–#57 — remaining a11y issues (one per session)
+6. Open branding issue → activate Marque
