@@ -7,10 +7,9 @@ Accessibility baseline audit complete.
 
 ## Last closed
 
-- #61 (Arch + Atlas + Gate + Aria): Model version selection — fully shipped. Types,
-  registry (2–6 versions per provider), Gate persistence, Aria picker UI with Reset.
-- #62 (Gate + Aria): Resizable sidebar. Drag handle, keyboard (arrow ±8px), clamped
-  [180–600]px, persisted at rt-ui-sidebar-width. prefers-reduced-motion respected.
+- #64 (Scout): Install @testing-library/react + jsdom — fully shipped. RTL, user-event,
+  jsdom, @axe-core/react, vitest-axe all added as devDependencies. Vitest configured
+  with environment: 'jsdom'. All 14 test files pass (415 tests). Lint and build clean.
 
 ## In progress
 
@@ -18,13 +17,10 @@ None. All known issues closed.
 
 ## Decisions made this session
 
-- Atlas: getAvailableVersions() stays off ModelProvider — version lists are static,
-  belong on MODEL_REGISTRY entries. Documented in JSDoc on ModelVersionOption.
-- Atlas: selectedVersionId threaded via VersionAwareProvider cast — no types change.
-- Atlas: Gemini URL is now dynamic (buildGeminiUrl(modelString)) — model is in URL path.
-- Gate: version store at roundtable:model-versions — parallel to ModelConfig, not embedded.
-  Vault untouched; old sessions work as-is.
-- Aria: sidebar width via inline style (dynamic px doesn't work with Tailwind JIT).
+- Scout: Added `test` block to vite.config.ts (no separate vitest.config.ts) — kept
+  the config surface minimal. environment: 'jsdom', globals: true.
+- Scout: Pre-existing esbuild/vite vulnerability chain is NOT introduced by this PR;
+  fix requires Vite v8 upgrade (breaking change, separate issue).
 
 ## Model providers (all on main)
 
@@ -52,16 +48,15 @@ None. All known issues closed.
 - Gemini model string is now in the URL path via buildGeminiUrl() — not a body field
 - Adding new models: update MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
-- React hook layer (useConversationStore, useGhostMode) needs @testing-library/react
-  + jsdom before it can be integration-tested; neither is in devDependencies.
 - accent-deepseek in Slate and Ash is a serious text contrast failure — Luma fix tracked in #60
 
 ## Next issues in priority order
 
-1. #61 (Aria): Model version picker UI — Aria's half, all backend ready
-2. Install @testing-library/react + jsdom — unblocks Scout hook tests + Ada axe-core tests
-3. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
-4. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
-5. Luma: fix text-muted contrast failures (#58) — 5 themes affected
-6. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
-7. Aria: remaining a11y issues #48–#57
+1. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
+2. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
+3. Luma: fix text-muted contrast failures (#58) — 5 themes affected
+4. Luma: fix accent-deepseek/gemini text contrast failures (#60) — Slate and Ash most severe
+5. Luma: fix error color contrast on card surface (#59) — Slate and Ash
+6. Aria: remaining a11y issues #48–#57
+7. Arch: add Marque to CLAUDE.md agent table and boundary rules
+8. Marque: branding pass (logo, icon, favicon, palette, typography) — open issue first
