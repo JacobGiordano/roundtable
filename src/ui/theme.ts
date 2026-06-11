@@ -1,4 +1,31 @@
-import type { CustomThemeJSON, ModelAccentColors, ModelId } from '@/types';
+import ashTheme from '../../_design/themes/ash.json';
+import chalkTheme from '../../_design/themes/chalk.json';
+import emberTheme from '../../_design/themes/ember.json';
+import linenTheme from '../../_design/themes/linen.json';
+import midnightTheme from '../../_design/themes/midnight.json';
+import outrunTheme from '../../_design/themes/outrun.json';
+import slateTheme from '../../_design/themes/slate.json';
+import type { CustomThemeJSON, ModelAccentColors, ModelId, ThemeId } from '@/types';
+
+/**
+ * Static lookup map from ThemeId to the corresponding theme JSON.
+ * Vite requires static imports — no dynamic import() for JSON assets.
+ * Shared by main.tsx (boot) and Sidebar.tsx (theme switcher).
+ */
+export const THEME_MAP: Record<ThemeId, CustomThemeJSON> = {
+  ash: ashTheme as CustomThemeJSON,
+  chalk: chalkTheme as CustomThemeJSON,
+  ember: emberTheme as CustomThemeJSON,
+  linen: linenTheme as CustomThemeJSON,
+  midnight: midnightTheme as CustomThemeJSON,
+  outrun: outrunTheme as CustomThemeJSON,
+  slate: slateTheme as CustomThemeJSON,
+};
+
+/**
+ * All theme IDs in display order for the theme switcher.
+ */
+export const THEME_IDS: ThemeId[] = ['slate', 'midnight', 'ash', 'chalk', 'linen', 'ember', 'outrun'];
 
 /**
  * Applies a theme's design tokens as CSS custom properties on :root.

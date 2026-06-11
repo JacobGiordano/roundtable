@@ -18,6 +18,11 @@ import {
   saveSidebarWidth,
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_MAX,
+  // Gate cross-agent exception: setActiveTheme persists the user's chosen theme ID
+  // to localStorage. getThemePreference reads it for initializing the switcher state.
+  // Both are pure Gate persistence functions — permitted exception per CLAUDE.md.
+  setActiveTheme,
+  getThemePreference,
 } from '@/auth';
 // Atlas cross-agent exception: MODEL_REGISTRY is a pure data constant exported from
 // @/models — permitted per CLAUDE.md. Used to build a modelId→color lookup so that
@@ -26,7 +31,11 @@ import { MODEL_REGISTRY } from '@/models';
 import { groupConversations } from './groupConversations';
 // applyUserAccentColors: re-runs the CSS override pass after clearing all stored colors.
 // Called with {} so every model reverts to its theme default (no overrides applied).
-import { applyUserAccentColors } from './theme';
+// applyTheme: applies the selected theme's token set to :root CSS custom properties.
+// THEME_MAP / THEME_IDS: shared static lookup constants (Vite requires static imports
+// for JSON — these live in theme.ts so both main.tsx and Sidebar share the same map).
+import { applyUserAccentColors, applyTheme, THEME_MAP, THEME_IDS } from './theme';
+import type { ThemeId } from '@/types';
 import { RoundtableLogo } from './RoundtableLogo';
 
 interface SidebarProps {
@@ -899,6 +908,10 @@ export function Sidebar({
   // Snapshot of stored accent colors — used to decide whether to render the
   // "Reset all model colors" affordance. Refreshed when settings open/close.
   const [hasAccentOverrides, setHasAccentOverrides] = useState(false);
+  // Active theme ID — initialized from Gate's stored preference.
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId>(
+    () => getThemePreference().activeThemeId,
+  );
 
   // Track which named groups are collapsed. All groups start open.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -922,6 +935,17 @@ export function Sidebar({
     clearAllModelAccentColors();
     applyUserAccentColors({});
     setHasAccentOverrides(false);
+  }, []);
+
+  const handleThemeChange = useCallback((themeId: ThemeId) => {
+    // Persist via Gate, then apply the token set and re-run the accent
+    // override pass. The applyUserAccentColors call is non-negotiable —
+    // applyTheme resets all accent CSS vars to theme defaults, so user
+    // overrides must be reapplied immediately after.
+    setActiveTheme(themeId);
+    applyTheme(THEME_MAP[themeId]);
+    applyUserAccentColors(getModelAccentColors());
+    setActiveThemeId(themeId);
   }, []);
 
   const handleToggleGroup = useCallback((groupId: string) => {
@@ -1306,6 +1330,49 @@ export function Sidebar({
 
             {/* Token count visibility preference — Gate component, self-contained */}
             <TokenCountControl />
+
+            {/* Theme switcher — 7 themes rendered as a grid of labeled buttons */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted mb-2">
+                Theme
+              </p>
+              <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Theme">
+                {THEME_IDS.map((themeId) => {
+                  const isActive = themeId === activeThemeId;
+                  // Capitalize first letter for display
+                  const label = themeId.charAt(0).toUpperCase() + themeId.slice(1);
+                  return (
+                    <button
+                      key={themeId}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => handleThemeChange(themeId)}
+                      className={[
+                        'flex items-center gap-1.5 px-2 py-1.5 rounded text-[12px]',
+                        'border transition-colors duration-fast',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                        isActive
+                          ? 'bg-hover border-border-strong text-text-primary font-medium'
+                          : 'border-transparent text-text-secondary hover:bg-hover/60 hover:text-text-primary',
+                      ].join(' ')}
+                    >
+                      {/* Mode swatch dot: filled for dark themes, ring for light */}
+                      <span
+                        className={[
+                          'w-2 h-2 rounded-full flex-shrink-0 border',
+                          THEME_MAP[themeId].mode === 'dark'
+                            ? 'bg-text-primary border-transparent'
+                            : 'bg-transparent border-text-muted',
+                        ].join(' ')}
+                        aria-hidden="true"
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Reset all model accent colors — shown only when at least one override is stored */}
             {hasAccentOverrides && (
