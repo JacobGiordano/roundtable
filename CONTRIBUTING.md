@@ -17,6 +17,7 @@ be rejected.
 | **Atlas** | `/src/models`, `/backend` | `/src/ui`, `/src/storage`, `/src/auth` |
 | **Vault** | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | **Gate** | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
+| **Marque** | `/_design/brand/` | `/_design/tokens/`, `/_design/themes/`, `/_design/specs/`, `/src/**`, root-level docs, `CLAUDE.md`, `_system/` |
 | **Luma** | `/_design` | `/src/**` (specs only — produces no code) |
 | **Arch** | `/src/types/index.ts`, `CLAUDE.md` | Everything else |
 | **Quill** | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/`, `/docs/` | `/src/**`, `/_design`, `CLAUDE.md`, `_system/` |
@@ -80,6 +81,7 @@ what's in flight. Always check `HANDOFF.md` before starting work.
 | **Atlas** | API integrations, streaming, parallel broadcast, token tracking, self-hosted backend |
 | **Vault** | LocalStorage provider, session management, ghost mode, export |
 | **Gate** | API key management, theme storage, backend auth, accent color persistence |
+| **Marque** | Brand identity: logo mark, app icon grid, brand palette, typography selection — upstream of Luma (no code) |
 | **Luma** | Design tokens, theme files, component specs (no code) |
 | **Arch** | Cross-agent TypeScript interfaces; `CLAUDE.md` changes |
 | **Quill** | Root-level documentation: `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/` templates |

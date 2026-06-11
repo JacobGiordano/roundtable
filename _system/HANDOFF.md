@@ -5,26 +5,35 @@ Last updated: 2026-06-10
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
 Accessibility baseline audit complete.
 
-## Last closed
+## Last closed (wave 1 — all awaiting merge authorization)
 
-- #61 (Arch + Atlas + Gate + Aria): Model version selection — fully shipped. Types,
-  registry (2–6 versions per provider), Gate persistence, Aria picker UI with Reset.
-- #62 (Gate + Aria): Resizable sidebar. Drag handle, keyboard (arrow ±8px), clamped
-  [180–600]px, persisted at rt-ui-sidebar-width. prefers-reduced-motion respected.
+- #46 (Aria): MessageBubble Reply button a11y fix. Removed aria-hidden from bottom row
+  container; added focus-within:opacity-100. Token count div gets aria-hidden={!rowVisible}.
+- #58 (Luma): text-muted contrast fixed in 5 themes (Slate, Linen, Ash, Ember, Chalk).
+  Minimal per-theme adjustments; each theme file has _a11y annotation with ratios.
+  Ada should remove it.fails() wrappers from B1–B5 in contrast.test.ts.
+- #64 (Scout): @testing-library/react 16.3.2, @testing-library/user-event 14.6.1,
+  jsdom 29.1.1, @axe-core/react 4.11.3, vitest-axe 0.1.0 installed. Vitest config
+  updated to jsdom environment. 415 tests passing, 0 failures.
+- Arch: Marque added to CLAUDE.md routing table and boundary rules.
+- Quill: Marque added to CONTRIBUTING.md ownership and agent profiles tables.
 
 ## In progress
 
-None. All known issues closed.
+None — all wave 1 work complete, awaiting merge authorization.
 
 ## Decisions made this session
 
-- Atlas: getAvailableVersions() stays off ModelProvider — version lists are static,
-  belong on MODEL_REGISTRY entries. Documented in JSDoc on ModelVersionOption.
-- Atlas: selectedVersionId threaded via VersionAwareProvider cast — no types change.
-- Atlas: Gemini URL is now dynamic (buildGeminiUrl(modelString)) — model is in URL path.
-- Gate: version store at roundtable:model-versions — parallel to ModelConfig, not embedded.
-  Vault untouched; old sessions work as-is.
-- Aria: sidebar width via inline style (dynamic px doesn't work with Tailwind JIT).
+- Aria: aria-hidden must never wrap interactive controls. focus-within drives keyboard
+  visibility; hover behavior unchanged.
+- Luma: Ada's suggested Ember (#967A68) and Chalk (#6E6E6E) values were 1 step short —
+  used #987C6A and #6D6D6D respectively. Exact rationale in _a11y annotations.
+- Scout: jsdom environment set in vite.config.ts test block, not a separate vitest.config.ts.
+- Arch: cross-agent comms paragraph in CLAUDE.md unchanged — Marque/Luma is a design-asset
+  handoff, not a runtime interface.
+- New agent SOP: Agency Agents repo format as base, expanded with Roundtable-specific sections.
+  marque.md is the reference implementation.
+- Gender rotation: M → NB → F → M → NB → F → ... Next after Marque: NB (they/them).
 
 ## Model providers (all on main)
 
@@ -52,16 +61,22 @@ None. All known issues closed.
 - Gemini model string is now in the URL path via buildGeminiUrl() — not a body field
 - Adding new models: update MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
-- React hook layer (useConversationStore, useGhostMode) needs @testing-library/react
-  + jsdom before it can be integration-tested; neither is in devDependencies.
 - accent-deepseek in Slate and Ash is a serious text contrast failure — Luma fix tracked in #60
+- npm audit reports 4 pre-existing vulns (3 moderate, 1 critical) in esbuild/vite chain —
+  fix requires Vite v8 upgrade (breaking change), not in current scope
 
-## Next issues in priority order
+## Brand work (post-a11y)
 
-1. #61 (Aria): Model version picker UI — Aria's half, all backend ready
-2. Install @testing-library/react + jsdom — unblocks Scout hook tests + Ada axe-core tests
-3. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
-4. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
-5. Luma: fix text-muted contrast failures (#58) — 5 themes affected
-6. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
-7. Aria: remaining a11y issues #48–#57
+Marque (brand agent, he/him) is drafted in .claude/agents/marque.md.
+Open a GitHub issue for the branding pass before activating him.
+Do not activate Marque until Aria's a11y fixes are complete.
+
+## Next issues in priority order (wave 2)
+
+1. Aria: #47 — ModelSelectorPanel aria-controls id mismatch
+2. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
+   [run in parallel ↑]
+3. Luma: #59 — error color contrast on card surface (Slate and Ash)
+4. Aria: #48 — MessageBubble streaming state not announced to screen readers
+5. Aria: #49–#57 — remaining a11y issues (one per session)
+6. Open branding issue → activate Marque

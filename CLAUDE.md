@@ -36,6 +36,7 @@ automatically — no installation required.
 | Storage (`/src/storage`) | `Vault` |
 | Auth & settings (`/src/auth`) | `Gate` |
 | Design system (`/_design`) | `Luma` |
+| Brand work (`/_design/brand/`) | `Marque` |
 | Whimsy & micro-interactions | `Spark` (called by Aria in Phase 2+) |
 | `/src/types/index.ts` changes | `Arch` 🏛️ |
 | `CLAUDE.md` changes | `Arch` 🏛️ |
@@ -62,6 +63,7 @@ Most agents own exactly one directory; a few (Arch, Quill) own a defined set of 
 | Vault | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | Gate  | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
 | Luma  | `/_design` | `/src/**` (specs only — no code) |
+| Marque | `/_design/brand/` | `/src/**`, `/_design/tokens/`, `/_design/themes/`, `/_design/specs/` |
 | Arch 🏛️ | `/src/types/index.ts`, `CLAUDE.md` | `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`, `/_design` |
 | Spark | *(none — called by Aria)* | owns nothing; produces specs Aria applies |
 | Coda  | *(none — coordinates)* | owns nothing; sequences agents, no implementation |
