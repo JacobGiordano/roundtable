@@ -11,20 +11,25 @@
   -->
 
   <g id="symbol" transform="translate(86, 0)">
-    <!-- Outer filled circle -->
+    <!-- Outer filled circle — brand primary #2D2B55 -->
     <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
 
-    <!-- Hexagon outline, flat-top, inscribed at r=14 -->
-    <polygon
-      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-      fill="none"
-      stroke="#FFFFFF"
-      stroke-width="2"
-      stroke-linejoin="round"
-    />
+    <!-- Ring (table surface) — white stroke at r=14 -->
+    <circle cx="24" cy="24" r="14" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+
+    <!--
+      Six seat dots — white, r=3, pointy-top hexagonal arrangement.
+      Dot centers on the ring at r=14 from (24,24).
+    -->
+    <circle cx="24"    cy="10"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="17"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="24"    cy="38"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="17"    r="3" fill="#FFFFFF"/>
 
     <!-- Center dot -->
-    <circle cx="24" cy="24" r="3" fill="#FFFFFF"/>
+    <circle cx="24" cy="24" r="3.5" fill="#FFFFFF"/>
   </g>
 
   <g id="wordmark">

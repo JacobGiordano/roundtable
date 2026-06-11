@@ -3,43 +3,29 @@
 
   <!--
     Monochrome variant for light backgrounds.
-    Uses currentColor — inherit dark parent color in CSS contexts.
-    Default fill: #2D2B55 (brand primary on light surface).
-    Symbol: filled circle in currentColor with white-fill interior (hexagon outline, dot).
-    Since on light background the interior of the circle must contrast with both
-    the circle fill and the page background, we use the same mask approach
-    but fill the interior marks with white (#FFFFFF explicitly, not currentColor).
-    Note: for full currentColor mono compliance, the consumer must set
-    `color: <dark-value>` on the parent — this file sets currentColor on the
-    outer shape and white on inner details.
+    Uses currentColor — consumer must set color: <dark-value> on the parent.
+    Default rendering: outer circle fill = currentColor (dark); ring + seat dots
+    + center dot = white (#FFFFFF explicitly).
+    No masks required: R1 mark uses only additive elements (ring stroke + filled dots).
   -->
 
   <g id="symbol">
-    <defs>
-      <mask id="mono-light-mask">
-        <rect width="48" height="48" fill="white"/>
-        <polygon
-          points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-          fill="black"
-        />
-        <circle cx="24" cy="24" r="3" fill="black"/>
-      </mask>
-    </defs>
+    <!-- Outer circle — currentColor, renders as dark on light surface -->
+    <circle cx="24" cy="24" r="22" fill="currentColor"/>
 
-    <!-- Outer circle, masked to create hexagon + dot voids -->
-    <circle cx="24" cy="24" r="22" fill="currentColor" mask="url(#mono-light-mask)"/>
+    <!-- Ring (table surface) — white stroke at r=14 -->
+    <circle cx="24" cy="24" r="14" fill="none" stroke="#FFFFFF" stroke-width="2"/>
 
-    <!-- Hexagon stroke in currentColor (renders as ring border) -->
-    <polygon
-      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linejoin="round"
-    />
+    <!-- Six seat dots — white, pointy-top hexagonal arrangement on ring -->
+    <circle cx="24"    cy="10"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="17"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="24"    cy="38"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="17"    r="3" fill="#FFFFFF"/>
 
-    <!-- Center dot in currentColor -->
-    <circle cx="24" cy="24" r="3" fill="currentColor"/>
+    <!-- Center dot — white -->
+    <circle cx="24" cy="24" r="3.5" fill="#FFFFFF"/>
   </g>
 
   <g id="wordmark" transform="translate(64, 0)">

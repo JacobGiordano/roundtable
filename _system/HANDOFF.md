@@ -1,28 +1,36 @@
-Last updated: 2026-06-11 (layout scroll fixes — #71)
+Last updated: 2026-06-11 (Marque — #69, R1 logo mark adopted)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets wired and corrected. Mobile layout complete.
+Accessibility baseline audit complete. Brand assets updated to R1 mark.
 
 ## Last closed
 
-- #71 (Aria): Two layout bugs fixed.
-  1. InteractionModeSwitcher: removed overflow-x-auto wrapper; radiogroup now flex w-full;
-     each ModeButton outer div gets flex-1 min-w-0; button gets w-full + truncate.
-     Buttons share width equally instead of scrolling horizontally.
-  2. ModelSelectorPanel: .model-selector-panel.is-open max-height changed from 320px
-     to 70vh in src/index.css, matching the inner content div's max-h-[70vh].
-     Panel content is now scrollable instead of being cut off.
+- #69 (Marque): R1 logo mark adopted. Hexagon retired. All five logo SVGs updated:
+  symbol.svg, primary.svg, primary-stacked.svg, mono-light.svg, mono-dark.svg.
+  identity.md updated: The Mark section rewritten for R1 geometry, forbidden-uses rule 7
+  updated (rotation prohibition removed — mark is rotationally symmetric), hexagon
+  references purged throughout. logo-exploration.md committed from stale worktree with
+  Decision section added. No palette, token, or typeface changes.
 
 ## Decisions made this session
 
-- InteractionModeSwitcher uses flex w-full layout (not inline-flex in scroll wrapper).
-  The outer AppLayout wrapper already has min-w-0 from #70 — untouched.
-- ModelSelectorPanel outer animation cap is 70vh to match inner scroll div.
-  The overflow: hidden on .model-selector-panel itself is preserved for animation.
-- Button labels use truncate instead of whitespace-nowrap so they gracefully clip
-  rather than overflow at very narrow widths.
+- R1 geometry (authoritative): outer circle r=22 #2D2B55, ring r=14 stroke-width=2 white,
+  six seat dots r=3 white at (24,10)(36.12,17)(36.12,31)(24,38)(11.88,31)(11.88,17),
+  center dot r=3.5 white.
+- mono-light.svg (dark mark on light surface): currentColor on outer circle + #FFFFFF on
+  ring/dots. No mask needed — R1 uses only additive geometry.
+- mono-dark.svg (light mark on dark surface): currentColor on outer circle + #2D2B55 on
+  ring/dots. No mask needed.
+
+## Next issues in priority order
+
+- Aria: update RoundtableLogo.tsx (or equivalent React component in /src/ui/) to match
+  R1 SVG geometry — replace hexagon polygon with ring circle + six seat dot circles +
+  center dot. See symbol.svg for exact geometry. May be in flight in parallel.
+- Dev/staging branch workflow: open Arch ticket to formalize in CLAUDE.md.
+- Branch/worktree pruning: large number of stale branches and worktrees to clean up.
 
 ## Gotchas
 
@@ -62,11 +70,3 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 | Grok | no | accent-grok | xAI | grok-3 |
 | DeepSeek | no | accent-deepseek | DeepSeek | deepseek-chat |
 | Mistral | no | accent-mistral | Mistral | mistral-large-latest |
-
-## Next issues in priority order
-
-- Logo mark direction: user to decide between Option 2 (pointy-top hex) or other from exploration doc.
-  Once decided, open ticket for Marque + Aria to implement.
-- Dev/staging branch workflow: open Arch ticket to formalize in CLAUDE.md (agents branch from main,
-  merge to dev for preview, merge feature branch to main to ship).
-- Branch/worktree pruning: large number of stale branches and worktrees to clean up.
