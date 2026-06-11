@@ -7,7 +7,7 @@
  * switches between Indigo (light mode) and Mist (dark mode) via [data-mode]
  * selectors in brand-tokens.css.
  *
- * The symbol height is 24px (the minimum for the full lockup per identity.md).
+ * The symbol renders at 32px height (identity.md minimum is 24px; 32px is used for legibility).
  * Below 640px (sm breakpoint), the wordmark is hidden and only the symbol renders.
  *
  * Accessibility: role="img" + aria-label on the wrapping element; the inline
@@ -27,15 +27,16 @@ export function RoundtableLogo() {
         viewBox="0 0 48 48"
         fill="none"
         aria-hidden="true"
-        style={{ height: '24px', width: '24px', flexShrink: 0 }}
+        style={{ height: '32px', width: '32px', flexShrink: 0 }}
       >
         <title>Roundtable</title>
-        {/* Solid Indigo circle — always brand-primary, never theme-dependent */}
+        {/* Solid Indigo circle */}
         <circle cx="24" cy="24" r="22" fill="var(--brand-primary)" />
-        {/* Hexagon outline in white — stroke only, no fill */}
+        {/* Hexagon — explicitly filled with brand-primary so the interior is never
+            transparent to the page background; white stroke paints the outline */}
         <polygon
           points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
-          fill="none"
+          fill="var(--brand-primary)"
           stroke="white"
           strokeWidth="2"
           strokeLinejoin="round"
