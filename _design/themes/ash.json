@@ -35,7 +35,7 @@
   "semantic": {
     "success": "#4ACA7A",
     "warning": "#D4A82A",
-    "error": "#E05555",
+    "error": "#EA6060",
     "info": "#4A90D9"
   },
   "radius": {
@@ -68,43 +68,49 @@
   },
   "_a11y": {
     "text.muted": {
-      "fix": "Lightened #7A848D → #838D96 (+9 per channel). Preserves cool blue-gray character of Ash theme.",
+      "fix": "Lightened #7A848D \u2192 #838D96 (+9 per channel).",
       "ratios": {
-        "on-background-#181A1C": "5.17:1 PASS",
+        "on-background-#191C20": "5.01:1 PASS",
         "on-card-#22252A": "4.55:1 PASS",
-        "on-sidebar-#1B1D20": "5.00:1 PASS"
+        "on-sidebar-#1B1E22": "4.84:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
-<<<<<<< HEAD
-=======
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "accents.model-deepseek": {
-      "fix": "Lightened #4472C4 → #648ADC (+32R +24G +24B). Preserves steel-blue identity. Prior value was 3.26:1 on card — serious failure.",
+      "fix": "Lightened #4472C4 \u2192 #648ADC. Prior 3.26:1 on card.",
       "ratios": {
         "on-card-#22252A": "4.55:1 PASS",
-        "on-background-#181A1C": "5.16:1 PASS",
-        "on-sidebar-#1B1D20": "5.00:1 PASS"
+        "on-background-#191C20": "5.08:1 PASS",
+        "on-sidebar-#1B1E22": "4.91:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "accents.model-gemini": {
-      "fix": "Lightened #9B72DB → #A278E1 (+7R +6G +6B). Preserves medium-purple character. Prior value was 4.26:1 on card — narrow failure.",
+      "fix": "Lightened #9B72DB \u2192 #A278E1. Prior 4.26:1 on card.",
       "ratios": {
         "on-card-#22252A": "4.62:1 PASS",
-        "on-background-#181A1C": "5.24:1 PASS",
-        "on-sidebar-#1B1D20": "5.08:1 PASS"
+        "on-background-#191C20": "5.16:1 PASS",
+        "on-sidebar-#1B1E22": "4.99:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "accents.model-mistral": {
-      "fix": "Lightened #D45C8A → #DC6294 (+8R +6G +10B). Preserves raspberry-pink character. Prior value was 4.17:1 on card — moderate failure.",
+      "fix": "Brightened #D45C8A \u2192 #DC6294. Prior 4.17:1 on card.",
       "ratios": {
         "on-card-#22252A": "4.55:1 PASS",
-        "on-background-#181A1C": "5.17:1 PASS",
-        "on-sidebar-#1B1D20": "5.00:1 PASS"
+        "on-background-#191C20": "5.08:1 PASS",
+        "on-sidebar-#1B1E22": "4.91:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
->>>>>>> 420eef1 (fix(design): accent-deepseek, accent-gemini, accent-mistral contrast — #60)
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
+    },
+    "semantic.error": {
+      "fix": "Brightened #E05555 \u2192 #EA6060. Prior 4.10:1 on card.",
+      "ratios": {
+        "on-card-#22252A": "4.64:1 PASS",
+        "on-background-#191C20": "5.27:1 PASS",
+        "on-sidebar-#1B1E22": "5.10:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     }
   }
 }

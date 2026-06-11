@@ -35,7 +35,7 @@
   "semantic": {
     "success": "#22C55E",
     "warning": "#EAB308",
-    "error": "#EF4444",
+    "error": "#F04A4A",
     "info": "#3B82F6"
   },
   "radius": {
@@ -68,34 +68,40 @@
   },
   "_a11y": {
     "text.muted": {
-      "fix": "Lightened #7A82A0 → #7C84A2 (+2 per channel). Preserves blue-gray cool tone.",
+      "fix": "Lightened #7A82A0 \u2192 #7C84A2 (+2 per channel).",
       "ratios": {
         "on-background-#0F1117": "5.10:1 PASS",
         "on-card-#1A1D26": "4.55:1 PASS",
         "on-sidebar-#13151C": "4.93:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
-<<<<<<< HEAD
-=======
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "accents.model-deepseek": {
-      "fix": "Lightened #4468D0 → #5A82E1 (+22R +26G +17B). Preserves medium-blue identity. Prior value was 3.32:1 on card — serious failure.",
+      "fix": "Lightened #4468D0 \u2192 #5A82E1. Prior 3.32:1 on card.",
       "ratios": {
         "on-card-#1A1D26": "4.58:1 PASS",
         "on-background-#0F1117": "5.14:1 PASS",
         "on-sidebar-#13151C": "4.96:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "accents.model-gemini": {
-      "fix": "Lightened #A855F7 → #AF5FF8 (+10R +10G +1B). Preserves violet-purple character. Prior value was 4.25:1 on card — narrow failure.",
+      "fix": "Lightened #A855F7 \u2192 #AF5FF8. Prior 4.25:1 on card.",
       "ratios": {
         "on-card-#1A1D26": "4.66:1 PASS",
         "on-background-#0F1117": "5.23:1 PASS",
         "on-sidebar-#13151C": "5.05:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
->>>>>>> 420eef1 (fix(design): accent-deepseek, accent-gemini, accent-mistral contrast — #60)
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
+    },
+    "semantic.error": {
+      "fix": "Brightened #EF4444 \u2192 #F04A4A. Prior 4.47:1 on card.",
+      "ratios": {
+        "on-card-#1A1D26": "4.64:1 PASS",
+        "on-background-#0F1117": "5.20:1 PASS",
+        "on-sidebar-#13151C": "5.02:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     }
   }
 }
