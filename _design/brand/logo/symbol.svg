@@ -2,38 +2,44 @@
   <title>Roundtable</title>
   <g id="symbol">
     <!--
-      Mark concept: a filled circle containing a regular hexagon outline.
-      The circle = the roundtable form (closed, continuous, no head).
-      The hexagon = six equal seats; also reads as a table surface viewed from above.
+      Mark concept: a filled circle containing a ring (table surface) with six seat
+      dots straddling the ring at hexagonal vertex positions, plus a center dot.
+      Circle = the roundtable form — closed, continuous, no head.
+      Ring = the table surface viewed from directly above.
+      Six seat dots = six equal participants, evenly spaced on the ring.
+      Center dot = the gathering point; the shared conversation.
       Grid: 48-unit base. Circle center (24,24), radius 22.
-      Hexagon inscribed at radius 14, flat-top orientation.
-      Stroke weight 2px — reads as a clean inner ring at 48px, collapses to
-      a readable circle badge at 16px.
+      Ring inscribed at radius 14, pointy-top arrangement (first dot at top).
+      Stroke weight 2px on ring. Seat dot radius 3. Center dot radius 3.5.
+      At 16px the interior collapses to a readable circle badge — this is correct behavior.
     -->
 
     <!-- Outer filled circle — brand primary #2D2B55 -->
     <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
 
-    <!-- Hexagon outline — white, flat-top, inscribed at r=14 -->
-    <!-- Flat-top hexagon vertices (first vertex at 0°, then every 60°):
-         right:        (24 + 14,              24)              = (38,    24)
-         lower-right:  (24 + 14*cos(60°),     24 + 14*sin(60°)) = (31,    36.12)
-         lower-left:   (24 - 14*cos(60°),     24 + 14*sin(60°)) = (17,    36.12)
-         left:         (24 - 14,              24)              = (10,    24)
-         upper-left:   (24 - 14*cos(60°),     24 - 14*sin(60°)) = (17,    11.88)
-         upper-right:  (24 + 14*cos(60°),     24 - 14*sin(60°)) = (31,    11.88)
-         cos(60°)=0.5  sin(60°)=0.866    14*0.5=7    14*0.866=12.12
-    -->
-    <polygon
-      id="hexagon"
-      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-      fill="none"
-      stroke="#FFFFFF"
-      stroke-width="2"
-      stroke-linejoin="round"
-    />
+    <!-- Ring (table surface) — white stroke at r=14 -->
+    <circle cx="24" cy="24" r="14" fill="none" stroke="#FFFFFF" stroke-width="2"/>
 
-    <!-- Center dot — white, 3px radius, anchors the "gathering point" -->
-    <circle cx="24" cy="24" r="3" fill="#FFFFFF"/>
+    <!--
+      Six seat dots — white, r=3, centered on the ring at r=14.
+      Pointy-top hexagonal arrangement (first dot at top, 90°):
+        Top:         (24,    10)    = (24 + 14*cos(270°), 24 + 14*sin(270°))
+        Upper-right: (36.12, 17)   = (24 + 14*cos(330°), 24 + 14*sin(330°))
+        Lower-right: (36.12, 31)   = (24 + 14*cos( 30°), 24 + 14*sin( 30°))
+        Bottom:      (24,    38)   = (24 + 14*cos( 90°), 24 + 14*sin( 90°))
+        Lower-left:  (11.88, 31)   = (24 + 14*cos(150°), 24 + 14*sin(150°))
+        Upper-left:  (11.88, 17)   = (24 + 14*cos(210°), 24 + 14*sin(210°))
+      cos(30°)=0.866  sin(30°)=0.5  14*0.866=12.12  14*0.5=7
+      Dots straddle the ring — dot center sits on the ring circumference.
+    -->
+    <circle cx="24"    cy="10"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="17"    r="3" fill="#FFFFFF"/>
+    <circle cx="36.12" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="24"    cy="38"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="31"    r="3" fill="#FFFFFF"/>
+    <circle cx="11.88" cy="17"    r="3" fill="#FFFFFF"/>
+
+    <!-- Center dot — white, 3.5px radius, anchors the gathering point -->
+    <circle cx="24" cy="24" r="3.5" fill="#FFFFFF"/>
   </g>
 </svg>

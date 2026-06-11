@@ -3,50 +3,32 @@
 
   <!--
     Monochrome variant for dark backgrounds.
-    Uses currentColor — inherits white from parent in CSS contexts.
-    Default fill: #FFFFFF (white on dark).
-    The symbol inverts: white circle, filled background, with dark-colored interior marks.
-    For true mono use: the circle stroke approach — a ring rather than a filled disc.
+    Uses currentColor — consumer must set color: <light-value> on the parent.
+    Default rendering: outer circle fill = currentColor (light/white);
+    ring + seat dots + center dot = dark (#2D2B55 Roundtable Indigo).
+    No masks required: R1 mark uses only additive elements.
+    Note: the inner elements use the explicit dark brand value rather than currentColor
+    because the consumer's currentColor is the light surface value — inner elements
+    must contrast against the light-filled circle, so they invert to dark.
   -->
 
   <g id="symbol">
-    <!-- Outer circle: stroke only, currentColor — reads as ring on any dark surface -->
-    <circle cx="24" cy="24" r="22" fill="currentColor" opacity="1"/>
+    <!-- Outer circle — currentColor, renders as light/white on dark surface -->
+    <circle cx="24" cy="24" r="22" fill="currentColor"/>
 
-    <!-- Hexagon cutout — rendered as dark against light fill -->
-    <!-- On dark bg: circle is white-filled, hexagon and dot are dark -->
-    <!-- Use SVG mask for fill-based cutout effect -->
-    <!-- Simpler approach: filled circle in currentColor, hexagon in background color.
-         Since mono must work in CSS with currentColor, we use a mask instead. -->
+    <!-- Ring (table surface) — dark stroke at r=14, contrasts against light circle -->
+    <circle cx="24" cy="24" r="14" fill="none" stroke="#2D2B55" stroke-width="2"/>
 
-    <!-- Mask: circle with hexagon hole and center dot hole -->
-    <defs>
-      <mask id="mono-dark-mask">
-        <!-- White = show, black = hide (cut through) -->
-        <rect width="48" height="48" fill="white"/>
-        <polygon
-          points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-          fill="black"
-        />
-        <circle cx="24" cy="24" r="3" fill="black"/>
-      </mask>
-    </defs>
+    <!-- Six seat dots — dark, pointy-top hexagonal arrangement on ring -->
+    <circle cx="24"    cy="10"    r="3" fill="#2D2B55"/>
+    <circle cx="36.12" cy="17"    r="3" fill="#2D2B55"/>
+    <circle cx="36.12" cy="31"    r="3" fill="#2D2B55"/>
+    <circle cx="24"    cy="38"    r="3" fill="#2D2B55"/>
+    <circle cx="11.88" cy="31"    r="3" fill="#2D2B55"/>
+    <circle cx="11.88" cy="17"    r="3" fill="#2D2B55"/>
 
-    <!-- Circle with masked hexagon + dot cutouts -->
-    <circle cx="24" cy="24" r="22" fill="currentColor" mask="url(#mono-dark-mask)"/>
-
-    <!-- Hexagon as stroke outline on top — draws the hexagon edge in currentColor
-         so the hexagon shape reads as a ring border, not just a void -->
-    <polygon
-      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linejoin="round"
-    />
-
-    <!-- Center dot in currentColor -->
-    <circle cx="24" cy="24" r="3" fill="currentColor"/>
+    <!-- Center dot — dark -->
+    <circle cx="24" cy="24" r="3.5" fill="#2D2B55"/>
   </g>
 
   <g id="wordmark" transform="translate(64, 0)">

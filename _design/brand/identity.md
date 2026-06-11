@@ -2,7 +2,7 @@
 
 **Owner:** Marque  
 **Status:** Complete  
-**Last updated:** 2026-06-11
+**Last updated:** 2026-06-11 (R1 mark adopted — ring + seat dots, hexagon retired)
 
 ---
 
@@ -14,13 +14,27 @@ Roundtable is a multi-model AI conversation interface for people who want to hea
 
 ## The Mark
 
-The Roundtable symbol is a filled circle containing a regular hexagon outline with a center dot.
+The Roundtable symbol is a filled circle containing a ring with six seat dots and a center dot.
 
 - **Circle:** The roundtable form — closed, continuous, no head of the table.
-- **Hexagon:** Six equal vertices; suggests equal seats and a constructed table surface viewed from above.
+- **Ring:** The table surface viewed from directly above. A stroked circle at r=14 — pure round form, no angular elements.
+- **Six seat dots:** Six equal participants, evenly spaced at the hexagonal vertex positions on the ring. Each dot center sits on the ring circumference (r=14 from center). The dots straddle the ring, simultaneously part of it and distinct from it.
 - **Center dot:** The gathering point. The conversation. The common ground.
 
-The mark is constructed on a 48-unit grid. The outer circle has radius 22. The hexagon is inscribed at radius 14 (flat-top orientation). The center dot has radius 3. All forms are pixel-aligned on the grid.
+The mark is constructed on a 48-unit grid. The outer circle has radius 22. The ring is at radius 14, stroke-width 2. Six seat dots at radius 3 each, centered on the ring at the pointy-top hexagonal positions. The center dot has radius 3.5. All forms are pixel-aligned on the grid. Every element is a circle — no angular geometry anywhere in the mark.
+
+**Seat dot positions (pointy-top arrangement, first dot at top/90°):**
+
+| Seat | cx | cy |
+|------|----|----|
+| Top | 24 | 10 |
+| Upper-right | 36.12 | 17 |
+| Lower-right | 36.12 | 31 |
+| Bottom | 24 | 38 |
+| Lower-left | 11.88 | 31 |
+| Upper-left | 11.88 | 17 |
+
+The mark is rotationally symmetric at 60° intervals. It has no top, no bottom, no head of the table.
 
 ---
 
@@ -47,7 +61,7 @@ For the stacked lockup: same rule — 0.5 × symbol height on all sides from the
 | Stacked lockup (digital) | Symbol at 32px height | Stacked (`primary-stacked.svg`) |
 | Wordmark only (digital) | 14px cap height | Wordmark only (`wordmark.svg`) |
 
-Below minimum sizes, the hexagon interior detail collapses. At the symbol minimum (16px), the mark reads as a circle badge — this is acceptable. The brand identity is preserved in the circle form. The hexagon is a bonus at sizes above 24px.
+Below minimum sizes, the ring and seat dot detail collapses. At the symbol minimum (16px), the mark reads as a circle badge — this is acceptable. The brand identity is preserved in the circle form. The ring and seat dots read clearly at 32px and above. Below 24px, the interior reduces to the outer circle only.
 
 ---
 
@@ -60,7 +74,7 @@ Use the SVG favicon (`public/favicon.svg`) — symbol only. The wordmark is neve
 ### App header / Navigation bar
 
 - **Light themes (Linen, Chalk):** Horizontal lockup (`primary.svg`), Roundtable Indigo mark and wordmark. Minimum symbol height: 24px.
-- **Dark themes (Slate, Midnight, Ash, Ember):** Horizontal lockup with on-dark colors — Mist `#C4C2E8` for both mark fill and wordmark text. Alternatively, the full-color symbol (Indigo-filled circle with white mark) may be used if the header surface provides sufficient contrast.
+- **Dark themes (Slate, Midnight, Ash, Ember):** Horizontal lockup with on-dark colors — Mist `#C4C2E8` for both mark fill and wordmark text. Alternatively, the full-color symbol (Indigo-filled circle with white ring and dots) may be used if the header surface provides sufficient contrast.
 - **Outrun theme:** Symbol in full-color (Indigo circle, white hexagon and dot). Do not use Mist on Outrun — Mist reads washed-out against Outrun's near-black. The solid indigo circle reads as a grounding element against Outrun's neon chrome.
 
 ### Marketing / landing page
@@ -92,7 +106,7 @@ Symbol minimum 8mm. Use Roundtable Indigo on white/cream stock. Use Mist on dark
 |-----------------|----------------|
 | White (`#FFFFFF`, `#F8F8F8`) | Full-color: `primary.svg` with Indigo |
 | Cream / warm light (Linen `#F5F0E8`) | Full-color: `primary.svg` with Indigo |
-| Dark neutral (Slate `#0F1117`, Midnight) | Full-color symbol (Indigo circle, white marks) + Mist wordmark; or `mono-dark.svg` |
+| Dark neutral (Slate `#0F1117`, Midnight) | Full-color symbol (Indigo circle, white ring + dots) + Mist wordmark; or `mono-dark.svg` |
 | Warm dark (Ash, Ember) | Same as dark neutral |
 | Outrun neon-black (`#0D0D0D`) | Full-color symbol only; no wordmark in neon contexts unless on a stable non-Outrun surface |
 | Photography / busy image | Do not place logo directly on images. Use a solid color field (Indigo, white, or cream) as a background container first |
@@ -116,7 +130,7 @@ The following are prohibited in all contexts:
 
 6. **Using model accent colors as brand colors.** Amber `#F59E0B`, teal `#14B8A6`, purple `#AF5FF8`, coral `#F97316` and their theme variants are model identity colors. They identify Claude, GPT, Gemini, and other models respectively. Using them for the Roundtable brand would confuse model identity with product identity.
 
-7. **Rotating or reflecting the mark.** The hexagon inside the circle is flat-top oriented. Rotation produces a pointy-top hexagon which breaks the constructed table metaphor. Never rotate the symbol.
+7. **Rotating or reflecting the mark.** The R1 mark is rotationally symmetric at 60° intervals — all elements are circles. The mark has no preferred orientation and no "head." Despite this symmetry, do not casually rotate the mark in digital contexts, as it introduces inconsistency across placements without adding meaning. Use the canonical SVG files as delivered.
 
 8. **Animating the mark outside authorized animation contexts.** The only authorized mark animation is the app loading state (fade-in at `timing.slow: 350ms`). No pulsing, spinning, bouncing, or morphing of the symbol in any application context.
 

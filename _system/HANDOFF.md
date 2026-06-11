@@ -1,21 +1,25 @@
-Last updated: 2026-06-11 (logo mark R1 — #69)
+Last updated: 2026-06-11 (logo mark R1 — #69 closed)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets wired and corrected. Mobile layout complete.
+Accessibility baseline audit complete. Brand assets updated to R1 mark.
 
 ## Last closed
 
-- #69 (Aria): Logo mark updated from flat-top hexagon to R1 ring+seat-dots.
-  Removed <polygon>. Added white ring (r=14, stroke-width=2), six white seat dots
-  at hexagonal vertex positions on the ring, center dot r changed 3→3.5.
-  JSDoc and SVG <title> updated to describe R1 geometry.
+- #69 (Marque + Aria): R1 logo mark adopted. Hexagon fully retired.
+  Marque: all five logo SVGs updated (symbol, primary, primary-stacked, mono-light,
+  mono-dark); identity.md rewritten for R1; logo-exploration.md committed from
+  stale worktree with Decision section. Mono variants simplified — no SVG masks
+  needed (R1 is all-additive geometry).
+  Aria: RoundtableLogo.tsx — polygon removed; ring r=14 stroke-width=2, six seat
+  dots r=3, center dot r=3.5.
 
 ## Decisions made this session
 
-- Seat dot positions taken verbatim from R1 geometry spec in issue #69 prompt.
-  No aesthetic adjustments made — implemented as specced.
+- R1 geometry (authoritative): outer circle r=22 #2D2B55, ring r=14 stroke-width=2
+  white, six seat dots r=3 white at (24,10)(36.12,17)(36.12,31)(24,38)(11.88,31)
+  (11.88,17), center dot r=3.5 white. Rotationally symmetric at 60°.
 
 ## Gotchas
 
@@ -44,6 +48,7 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
   without reload leaves inline-style guard in mobile mode. Acceptable.
 - Tailwind: `relative` and `fixed` conflict (relative comes later in stylesheet). Always
   scope `relative` to `md:relative` on elements that use `fixed` for mobile positioning.
+- main.tsx hardcodes slateTheme at boot — getThemePreference() not called (#73)
 
 ## Model providers (all on main)
 
@@ -58,6 +63,9 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Next issues in priority order
 
-- Dev/staging branch workflow: open Arch ticket to formalize in CLAUDE.md (agents branch from main,
-  merge to dev for preview, merge feature branch to main to ship).
-- Branch/worktree pruning: large number of stale branches and worktrees to clean up.
+- #73 (Aria): Theme switcher in settings + fix main.tsx boot to read saved preference
+- #74 (Aria): Settings access point / user icon in app chrome
+- #72 (Aria): Accent color picker pre-selects model's current color
+- Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md
+- Scout + Playwright: browser-based integration tests
+- Branch/worktree pruning: clean up stale branches and worktrees
