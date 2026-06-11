@@ -18,22 +18,20 @@ Accessibility baseline audit complete.
 - Arch: Marque added to CLAUDE.md routing table and boundary rules.
 - Quill: Marque added to CONTRIBUTING.md ownership and agent profiles tables.
 
+## Last closed (wave 2)
+
+- #47 (Aria): ModelSelectorPanel aria-controls id mismatch fixed. Added
+  id="model-selector-panel" to the panel container div so it matches the trigger
+  button's existing aria-controls="model-selector-panel". Awaiting merge authorization.
+
 ## In progress
 
-None — all wave 1 work complete, awaiting merge authorization.
+None — wave 1 and #47 complete, all awaiting merge authorization.
 
 ## Decisions made this session
 
-- Aria: aria-hidden must never wrap interactive controls. focus-within drives keyboard
-  visibility; hover behavior unchanged.
-- Luma: Ada's suggested Ember (#967A68) and Chalk (#6E6E6E) values were 1 step short —
-  used #987C6A and #6D6D6D respectively. Exact rationale in _a11y annotations.
-- Scout: jsdom environment set in vite.config.ts test block, not a separate vitest.config.ts.
-- Arch: cross-agent comms paragraph in CLAUDE.md unchanged — Marque/Luma is a design-asset
-  handoff, not a runtime interface.
-- New agent SOP: Agency Agents repo format as base, expanded with Roundtable-specific sections.
-  marque.md is the reference implementation.
-- Gender rotation: M → NB → F → M → NB → F → ... Next after Marque: NB (they/them).
+- Aria: aria-controls value was already correct; the fix was adding the matching id
+  to the panel container div. CSS class .model-selector-panel is unaffected.
 
 ## Model providers (all on main)
 
@@ -73,10 +71,9 @@ Do not activate Marque until Aria's a11y fixes are complete.
 
 ## Next issues in priority order (wave 2)
 
-1. Aria: #47 — ModelSelectorPanel aria-controls id mismatch
-2. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
-   [run in parallel ↑]
-3. Luma: #59 — error color contrast on card surface (Slate and Ash)
-4. Aria: #48 — MessageBubble streaming state not announced to screen readers
-5. Aria: #49–#57 — remaining a11y issues (one per session)
-6. Open branding issue → activate Marque
+1. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
+   [run in parallel with #59]
+2. Luma: #59 — error color contrast on card surface (Slate and Ash)
+3. Aria: #48 — MessageBubble streaming state not announced to screen readers
+4. Aria: #49–#57 — remaining a11y issues (one per session)
+5. Open branding issue → activate Marque

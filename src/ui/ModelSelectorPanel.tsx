@@ -899,6 +899,7 @@ export function ModelSelectorPanel({
     <div className="w-full">
       {/* Slide-up panel — appears between thread and trigger */}
       <div
+        id="model-selector-panel"
         className={panelClass}
         onTransitionEnd={handleTransitionEnd}
         aria-hidden={!isOpen && !isClosing}
