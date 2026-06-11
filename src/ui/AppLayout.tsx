@@ -36,6 +36,16 @@ interface AppLayoutProps {
   /** Called when user edits or clears a per-model system prompt. */
   onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
   /**
+   * Called when the user selects a model version in the per-model version picker.
+   * App persists to Gate and updates ModelConfig.selectedVersionId in state.
+   */
+  onSelectModelVersion: (modelId: ModelId, versionId: string) => void;
+  /**
+   * Called when the user resets a model's version to provider default.
+   * App calls clearModelVersion (Gate) and sets selectedVersionId to undefined in state.
+   */
+  onClearModelVersion: (modelId: ModelId) => void;
+  /**
    * Per-model token usage totals for the current conversation session.
    * Passed through to ModelSelectorPanel for display in the slide-up panel.
    */
@@ -103,6 +113,8 @@ export function AppLayout({
   activeMode,
   onModeChange,
   onUpdateSystemPrompt,
+  onSelectModelVersion,
+  onClearModelVersion,
   sessionUsage,
   directedReplyTarget,
   onDirectedReply,
@@ -158,6 +170,8 @@ export function AppLayout({
               onToggleModel={onToggleModel}
               onAddModel={onAddModel}
               onUpdateSystemPrompt={onUpdateSystemPrompt}
+              onSelectModelVersion={onSelectModelVersion}
+              onClearModelVersion={onClearModelVersion}
               sessionUsage={sessionUsage}
               tokenCountVisibility={tokenCountVisibility}
             />

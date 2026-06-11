@@ -10,7 +10,9 @@ import { sendMessage, getSessionTokenUsage, buildDefaultModelConfigs } from '@/m
 // Gate cross-agent exception: useUserPreferences reads/writes UserPreferences from
 // localStorage. Called at the App root so tokenCountVisibility can be threaded
 // down the component tree without per-component Gate imports.
-import { useUserPreferences } from '@/auth';
+// getModelVersion / setModelVersion / clearModelVersion are Gate-owned utilities
+// for persisting per-model version selections (ModelConfig.selectedVersionId).
+import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion } from '@/auth';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
@@ -31,7 +33,14 @@ export default function App() {
   // Per-conversation model state seeded from the live MODEL_REGISTRY.
   // buildDefaultModelConfigs() maps registry entries to ModelConfig[], respecting
   // defaultActive flags (Claude + GPT active; Gemini + Grok inactive once added).
-  const [models, setModels] = useState<ModelConfig[]>(buildDefaultModelConfigs);
+  // selectedVersionId is seeded from Gate's persisted store (getModelVersion) so
+  // the user's previously chosen version is reflected immediately on load.
+  const [models, setModels] = useState<ModelConfig[]>(() =>
+    buildDefaultModelConfigs().map((m) => ({
+      ...m,
+      selectedVersionId: getModelVersion(m.modelId),
+    })),
+  );
 
   // Directed reply: when set, the next send is targeted at this model only.
   // Cleared automatically after a message is sent, or manually via the × pill.
@@ -252,6 +261,28 @@ export default function App() {
     }
   };
 
+  /**
+   * Persists the user's version choice for a model (Gate) and mirrors it into
+   * local ModelConfig state so the picker reflects the selection immediately.
+   */
+  const handleSelectModelVersion = useCallback((modelId: ModelId, versionId: string) => {
+    setModelVersion(modelId, versionId);
+    setModels((prev) =>
+      prev.map((m) => (m.modelId === modelId ? { ...m, selectedVersionId: versionId } : m)),
+    );
+  }, []);
+
+  /**
+   * Clears the stored version for a model (Gate), reverting to provider default.
+   * Mirrors the reset into local state by setting selectedVersionId to undefined.
+   */
+  const handleClearModelVersion = useCallback((modelId: ModelId) => {
+    clearModelVersion(modelId);
+    setModels((prev) =>
+      prev.map((m) => (m.modelId === modelId ? { ...m, selectedVersionId: undefined } : m)),
+    );
+  }, []);
+
   const handleDirectedReply = useCallback((modelId: ModelId) => {
     setPendingTargetModelId(modelId);
   }, []);
@@ -326,6 +357,8 @@ export default function App() {
       activeMode={activeConversation?.interactionMode ?? 'parallel'}
       onModeChange={handleModeChange}
       onUpdateSystemPrompt={handleUpdateSystemPrompt}
+      onSelectModelVersion={handleSelectModelVersion}
+      onClearModelVersion={handleClearModelVersion}
       sessionUsage={sessionUsage}
       directedReplyTarget={directedReplyTarget}
       onDirectedReply={handleDirectedReply}

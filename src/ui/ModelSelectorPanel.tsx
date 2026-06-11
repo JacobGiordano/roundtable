@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { ModelConfig, ModelId, ModelAccentColors, SessionTokenUsage, TokenCountVisibility } from '@/types';
+import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
-// read-only registry of all model display metadata including providerName.
-// Imported here so AddModelButton can display the correct provider label without
-// requiring providerName to be threaded through ModelConfig (an Arch concern).
+// read-only registry of all model display metadata including providerName and
+// availableVersions. Imported so ModelSelectorPanel can render version pickers
+// without requiring these static lists to be threaded through ModelConfig.
 import { MODEL_REGISTRY } from '@/models';
 // Gate cross-agent exception: getModelAccentColors is called to seed the
 // initial accentColors state and to refresh it after any color save/clear
@@ -20,6 +20,15 @@ import { AccentColorPicker } from './AccentColorPicker';
  */
 const PROVIDER_NAME_BY_MODEL_ID = new Map(
   MODEL_REGISTRY.map((entry) => [entry.modelId, entry.providerName]),
+);
+
+/**
+ * Lookup map from modelId → availableVersions[], built once from MODEL_REGISTRY.
+ * Used by ModelVersionRow to render the version picker without importing from @/models
+ * directly inside the component body.
+ */
+const AVAILABLE_VERSIONS_BY_MODEL_ID = new Map<ModelId, ModelVersionOption[]>(
+  MODEL_REGISTRY.map((entry) => [entry.modelId, entry.availableVersions]),
 );
 
 /**
@@ -529,6 +538,118 @@ function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
   );
 }
 
+// ─── ModelVersionRow ──────────────────────────────────────────────────────────
+
+interface ModelVersionRowProps {
+  model: ModelConfig;
+  availableVersions: ModelVersionOption[];
+  onSelect: (modelId: ModelId, versionId: string) => void;
+  onClear: (modelId: ModelId) => void;
+}
+
+/**
+ * A single row in the model versions section.
+ *
+ * Shows the model name, color dot, and a <select> element listing all available
+ * versions. The currently selected version (ModelConfig.selectedVersionId) is
+ * pre-selected; absence defaults to the first entry (provider default).
+ *
+ * A "Reset" button appears when the user has an explicit selection that differs
+ * from the first (default) version — clicking it calls onClear to remove the
+ * stored selection and revert to provider default.
+ *
+ * Only rendered when availableVersions.length > 1 (enforced by the parent).
+ */
+function ModelVersionRow({ model, availableVersions, onSelect, onClear }: ModelVersionRowProps) {
+  const defaultVersionId = availableVersions[0]?.id ?? '';
+  // The effective selection: stored choice if present, else provider default (first entry).
+  const effectiveVersionId = model.selectedVersionId ?? defaultVersionId;
+  const isCustom = Boolean(
+    model.selectedVersionId && model.selectedVersionId !== defaultVersionId,
+  );
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const chosen = e.target.value;
+      if (chosen === defaultVersionId && !model.selectedVersionId) return; // already default
+      onSelect(model.modelId, chosen);
+    },
+    [model.modelId, model.selectedVersionId, defaultVersionId, onSelect],
+  );
+
+  const handleReset = useCallback(() => {
+    onClear(model.modelId);
+  }, [model.modelId, onClear]);
+
+  const selectId = `model-version-${model.modelId}`;
+
+  return (
+    <div className="flex items-center gap-2 h-9 px-1 border-b border-border-subtle last:border-b-0">
+      {/* Color dot */}
+      <span
+        className="w-[7px] h-[7px] rounded-full flex-shrink-0"
+        style={getModelDotStyle(model)}
+        aria-hidden="true"
+      />
+
+      {/* Model name */}
+      <label
+        htmlFor={selectId}
+        className="text-[13px] font-medium text-text-primary w-[72px] flex-shrink-0 truncate cursor-pointer"
+      >
+        {model.name}
+      </label>
+
+      {/* Version select */}
+      <select
+        id={selectId}
+        value={effectiveVersionId}
+        onChange={handleChange}
+        aria-label={`Model version for ${model.name}`}
+        className={[
+          'flex-1 min-w-0 h-7 rounded',
+          'bg-input border border-border',
+          'text-[12px] text-text-primary',
+          'px-2',
+          'focus:outline-none focus:border-border-strong',
+          'transition-[border-color] duration-fast',
+          'cursor-pointer',
+        ].join(' ')}
+      >
+        {availableVersions.map((v, i) => (
+          <option key={v.id} value={v.id}>
+            {v.displayName}{i === 0 ? ' (default)' : ''}
+          </option>
+        ))}
+      </select>
+
+      {/* Reset button — only shown when a non-default version is stored */}
+      {isCustom ? (
+        <button
+          type="button"
+          onClick={handleReset}
+          aria-label={`Reset ${model.name} to default version`}
+          title="Reset to provider default"
+          className={[
+            'flex-shrink-0 h-6 px-[6px]',
+            'text-[11px] text-text-muted',
+            'rounded border border-border-subtle',
+            'hover:border-border hover:text-text-secondary',
+            'transition-[border-color,color] duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+            'cursor-pointer',
+          ].join(' ')}
+        >
+          Reset
+        </button>
+      ) : (
+        // Reserve space so layout doesn't shift when Reset appears/disappears
+        <span className="flex-shrink-0 w-[44px]" aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
 // ─── SessionTokenSection ──────────────────────────────────────────────────────
 
 interface SessionTokenSectionProps {
@@ -663,6 +784,17 @@ interface ModelSelectorPanelProps {
   /** Called when the user edits or clears a model's system prompt. */
   onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
   /**
+   * Called when the user picks a version for a model in the version picker.
+   * App persists to Gate and updates ModelConfig.selectedVersionId in state.
+   * Only called for models with availableVersions.length > 1.
+   */
+  onSelectModelVersion: (modelId: ModelId, versionId: string) => void;
+  /**
+   * Called when the user resets a model version to the provider default.
+   * App calls clearModelVersion (Gate) and sets selectedVersionId to undefined.
+   */
+  onClearModelVersion: (modelId: ModelId) => void;
+  /**
    * Per-model token usage totals for the current session.
    * Computed by App via getSessionTokenUsage() from @/models (documented exception).
    * Empty array when no tokens have been used yet.
@@ -687,6 +819,8 @@ export function ModelSelectorPanel({
   onToggleModel,
   onAddModel,
   onUpdateSystemPrompt,
+  onSelectModelVersion,
+  onClearModelVersion,
   sessionUsage,
   tokenCountVisibility,
 }: ModelSelectorPanelProps) {
@@ -794,6 +928,37 @@ export function ModelSelectorPanel({
             ))}
             <AddModelButton availableModels={inactiveModels} onAdd={onAddModel} />
           </div>
+
+          {/* ── Model versions section ──
+               Only rendered when at least one active model has > 1 version available. */}
+          {(() => {
+            const versionableModels = activeModels.filter((m) => {
+              const versions = AVAILABLE_VERSIONS_BY_MODEL_ID.get(m.modelId);
+              return versions !== undefined && versions.length > 1;
+            });
+            if (versionableModels.length === 0) return null;
+            return (
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
+                  Model versions
+                </p>
+                <div className="rounded-md border border-border-subtle overflow-hidden">
+                  {versionableModels.map((model) => {
+                    const versions = AVAILABLE_VERSIONS_BY_MODEL_ID.get(model.modelId)!;
+                    return (
+                      <ModelVersionRow
+                        key={model.modelId}
+                        model={model}
+                        availableVersions={versions}
+                        onSelect={onSelectModelVersion}
+                        onClear={onClearModelVersion}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── System prompts section ── */}
           <div className="mt-4 pt-4 border-t border-border-subtle">
