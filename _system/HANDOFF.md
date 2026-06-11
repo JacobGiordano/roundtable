@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (layout scroll fixes — #71)
+Last updated: 2026-06-11 (logo mark R1 — #69)
 
 ## Current phase
 
@@ -7,22 +7,15 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Last closed
 
-- #71 (Aria): Two layout bugs fixed.
-  1. InteractionModeSwitcher: removed overflow-x-auto wrapper; radiogroup now flex w-full;
-     each ModeButton outer div gets flex-1 min-w-0; button gets w-full + truncate.
-     Buttons share width equally instead of scrolling horizontally.
-  2. ModelSelectorPanel: .model-selector-panel.is-open max-height changed from 320px
-     to 70vh in src/index.css, matching the inner content div's max-h-[70vh].
-     Panel content is now scrollable instead of being cut off.
+- #69 (Aria): Logo mark updated from flat-top hexagon to R1 ring+seat-dots.
+  Removed <polygon>. Added white ring (r=14, stroke-width=2), six white seat dots
+  at hexagonal vertex positions on the ring, center dot r changed 3→3.5.
+  JSDoc and SVG <title> updated to describe R1 geometry.
 
 ## Decisions made this session
 
-- InteractionModeSwitcher uses flex w-full layout (not inline-flex in scroll wrapper).
-  The outer AppLayout wrapper already has min-w-0 from #70 — untouched.
-- ModelSelectorPanel outer animation cap is 70vh to match inner scroll div.
-  The overflow: hidden on .model-selector-panel itself is preserved for animation.
-- Button labels use truncate instead of whitespace-nowrap so they gracefully clip
-  rather than overflow at very narrow widths.
+- Seat dot positions taken verbatim from R1 geometry spec in issue #69 prompt.
+  No aesthetic adjustments made — implemented as specced.
 
 ## Gotchas
 
@@ -65,8 +58,6 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Next issues in priority order
 
-- Logo mark direction: user to decide between Option 2 (pointy-top hex) or other from exploration doc.
-  Once decided, open ticket for Marque + Aria to implement.
 - Dev/staging branch workflow: open Arch ticket to formalize in CLAUDE.md (agents branch from main,
   merge to dev for preview, merge feature branch to main to ship).
 - Branch/worktree pruning: large number of stale branches and worktrees to clean up.
