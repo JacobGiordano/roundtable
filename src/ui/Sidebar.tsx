@@ -27,6 +27,7 @@ import { groupConversations } from './groupConversations';
 // applyUserAccentColors: re-runs the CSS override pass after clearing all stored colors.
 // Called with {} so every model reverts to its theme default (no overrides applied).
 import { applyUserAccentColors } from './theme';
+import { RoundtableLogo } from './RoundtableLogo';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -1022,9 +1023,7 @@ export function Sidebar({
 
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
-        <span className="text-[15px] font-semibold text-text-primary tracking-tight">
-          Roundtable
-        </span>
+        <RoundtableLogo />
         <button
           type="button"
           onClick={onNewConversation}

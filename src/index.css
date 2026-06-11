@@ -1,6 +1,19 @@
+/* ─── Brand Fonts (variable font packages via @fontsource-variable) ─────────── */
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/dm-sans';
+
+/* ─── Brand Tokens ──────────────────────────────────────────────────────────── */
+@import './brand-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Base Typography ───────────────────────────────────────────────────────── */
+
+body {
+  font-family: var(--font-ui);
+}
 
 /* ─── Design Token Fallbacks ───────────────────────────────────────────────── */
 /* Midnight theme values used as defaults; applyTheme() overrides at runtime.  */
