@@ -19,7 +19,7 @@
       <mask id="mono-light-mask">
         <rect width="48" height="48" fill="white"/>
         <polygon
-          points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+          points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
           fill="black"
         />
         <circle cx="24" cy="24" r="3" fill="black"/>
@@ -31,7 +31,7 @@
 
     <!-- Hexagon stroke in currentColor (renders as ring border) -->
     <polygon
-      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
       fill="none"
       stroke="currentColor"
       stroke-width="2"

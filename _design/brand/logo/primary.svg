@@ -10,7 +10,7 @@
 
     <!-- Hexagon outline, flat-top, inscribed at r=14 -->
     <polygon
-      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
       fill="none"
       stroke="#FFFFFF"
       stroke-width="2"

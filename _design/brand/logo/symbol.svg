@@ -15,19 +15,18 @@
     <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
 
     <!-- Hexagon outline — white, flat-top, inscribed at r=14 -->
-    <!-- Flat-top hexagon vertices (angle offset 0°):
-         top-right:    (24 + 14*cos(30°), 24 - 14*sin(30°)) = (36.12, 17)
-         right:        (24 + 14, 24)                         = (38, 24)
-         bottom-right: (24 + 14*cos(30°), 24 + 14*sin(30°)) = (36.12, 31)
-         bottom-left:  (24 - 14*cos(30°), 24 + 14*sin(30°)) = (11.88, 31)
-         left:         (24 - 14, 24)                         = (10, 24)
-         top-left:     (24 - 14*cos(30°), 24 - 14*sin(30°)) = (11.88, 17)
-         cos(30°)=0.866  sin(30°)=0.5
-         14*0.866=12.12  14*0.5=7
+    <!-- Flat-top hexagon vertices (first vertex at 0°, then every 60°):
+         right:        (24 + 14,              24)              = (38,    24)
+         lower-right:  (24 + 14*cos(60°),     24 + 14*sin(60°)) = (31,    36.12)
+         lower-left:   (24 - 14*cos(60°),     24 + 14*sin(60°)) = (17,    36.12)
+         left:         (24 - 14,              24)              = (10,    24)
+         upper-left:   (24 - 14*cos(60°),     24 - 14*sin(60°)) = (17,    11.88)
+         upper-right:  (24 + 14*cos(60°),     24 - 14*sin(60°)) = (31,    11.88)
+         cos(60°)=0.5  sin(60°)=0.866    14*0.5=7    14*0.866=12.12
     -->
     <polygon
       id="hexagon"
-      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
       fill="none"
       stroke="#FFFFFF"
       stroke-width="2"

@@ -35,7 +35,7 @@ export function RoundtableLogo() {
         {/* Hexagon — explicitly filled with brand-primary so the interior is never
             transparent to the page background; white stroke paints the outline */}
         <polygon
-          points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+          points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
           fill="var(--brand-primary)"
           stroke="white"
           strokeWidth="2"
