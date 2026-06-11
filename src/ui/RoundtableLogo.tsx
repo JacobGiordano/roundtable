@@ -1,8 +1,9 @@
 /**
  * RoundtableLogo — horizontal lockup (symbol + wordmark) for the app header.
  *
- * Symbol: solid Indigo circle (`--brand-primary`) with white hexagon stroke and
- * white center dot, per Marque's identity spec (issue #69).
+ * Symbol: solid Indigo circle (`--brand-primary`) with a white ring (table surface,
+ * r=14) and six white seat dots at the hexagonal vertex positions on the ring,
+ * plus a white center dot. This is the R1 mark per Marque's identity spec (issue #69).
  * Wordmark: `fill="currentColor"` — the wrapper `color: var(--brand-logo-color)`
  * switches between Indigo (light mode) and Mist (dark mode) via [data-mode]
  * selectors in brand-tokens.css.
@@ -29,20 +30,26 @@ export function RoundtableLogo() {
         aria-hidden="true"
         style={{ height: '32px', width: '32px', flexShrink: 0 }}
       >
-        <title>Roundtable</title>
-        {/* Solid Indigo circle */}
+        <title>Roundtable — ring and six seat dots mark</title>
+        {/* Solid Indigo circle — outer badge */}
         <circle cx="24" cy="24" r="22" fill="var(--brand-primary)" />
-        {/* Hexagon — explicitly filled with brand-primary so the interior is never
-            transparent to the page background; white stroke paints the outline */}
-        <polygon
-          points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-          fill="var(--brand-primary)"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        {/* Center dot in white */}
-        <circle cx="24" cy="24" r="3" fill="white" />
+        {/* Ring — table surface, r=14 */}
+        <circle cx="24" cy="24" r="14" fill="none" stroke="white" strokeWidth="2" />
+        {/* Six seat dots at hexagonal vertex positions on the ring (r=14 from center) */}
+        {/* Top */}
+        <circle cx="24" cy="10" r="3" fill="white" />
+        {/* Upper-right */}
+        <circle cx="36.12" cy="17" r="3" fill="white" />
+        {/* Lower-right */}
+        <circle cx="36.12" cy="31" r="3" fill="white" />
+        {/* Bottom */}
+        <circle cx="24" cy="38" r="3" fill="white" />
+        {/* Lower-left */}
+        <circle cx="11.88" cy="31" r="3" fill="white" />
+        {/* Upper-left */}
+        <circle cx="11.88" cy="17" r="3" fill="white" />
+        {/* Center dot */}
+        <circle cx="24" cy="24" r="3.5" fill="white" />
       </svg>
 
       {/* Wordmark — hidden on mobile (below sm breakpoint) */}
