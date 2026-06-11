@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (#73 + #75 closed)
+Last updated: 2026-06-11 (#74 complete — branch 74-aria-settings-access, pending merge)
 
 ## Current phase
 
@@ -6,25 +6,23 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #73 (Aria): Theme switcher in settings panel + boot fix. THEME_MAP and THEME_IDS
-  added to /src/ui/theme.ts (shared by main.tsx and Sidebar.tsx). main.tsx now calls
-  getThemePreference() at boot and applies the saved theme. Settings panel has a
-  2-column theme grid (radiogroup/radio a11y) with dark/light mode swatch dots.
-- #75 (Scout): Playwright wired. @playwright/test@1.60.0 installed. playwright.config.ts
-  at project root, baseURL http://localhost:5173, Chromium only. 10 smoke tests across
-  desktop (1280×800) and mobile (375×812). vite.config.ts updated to exclude tests/e2e/
-  from Vitest. Firewall updated — playwright.download.prss.microsoft.com now in
-  init-firewall.sh. To activate: restart container, then run
-  `npx playwright install --with-deps chromium`.
+- #74 (Aria): Settings access point in app chrome. Gear icon button added to:
+  (1) desktop sidebar header (right of logo, left of new-conversation button),
+  (2) mobile top bar header (left of new-conversation button).
+  isSettingsOpen state lifted from Sidebar to AppLayout and threaded via props.
+  Sidebar bottom toggle kept intact — smoke test selector unchanged.
 
 ## Decisions made this session
 
-- THEME_MAP / THEME_IDS live in /src/ui/theme.ts to avoid circular import. Both
-  main.tsx and Sidebar.tsx import from @/ui/theme.
-- Theme switcher uses role="radiogroup" / role="radio" / aria-checked for a11y.
-- Mode swatch: filled dot = dark theme, ring dot = light theme (from THEME_MAP[id].mode).
-- Playwright webServer auto-start intentionally NOT configured — dev server must be
-  running before npm run test:e2e.
+- isSettingsOpen lifted to AppLayout; Sidebar accepts optional isSettingsOpen/onToggleSettings
+  props for external control, falls back to internal state when not provided.
+- Sidebar uses a ref+effect to refresh hasAccentOverrides when the panel opens via
+  external control (previously only done in the internal toggle handler).
+- Desktop gear: text-text-muted (quieter than the new-conv button) — visually subordinate.
+- Mobile gear: text-text-secondary — matches other mobile header buttons.
+- Sidebar bottom toggle (button[aria-controls="sidebar-settings-panel"]) kept intact
+  to preserve smoke test selector; bottom toggle now delegates to handleToggleSettings
+  which routes to external control when AppLayout provides it.
 
 ## Gotchas
 
@@ -68,6 +66,5 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Next issues in priority order
 
-- #74 (Aria): Settings access point / user icon in app chrome
 - #72 (Aria): Accent color picker pre-selects model's current color
 - Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md

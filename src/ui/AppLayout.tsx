@@ -136,6 +136,11 @@ export function AppLayout({
   // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Settings panel open state — lifted here so both the mobile header gear button
+  // and the sidebar header gear button (desktop) share a single source of truth.
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const handleToggleSettings = useCallback(() => setIsSettingsOpen((prev) => !prev), []);
+
   const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);
   const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
@@ -167,6 +172,8 @@ export function AppLayout({
         onBulkDelete={onBulkDelete}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={handleCloseMobileMenu}
+        isSettingsOpen={isSettingsOpen}
+        onToggleSettings={handleToggleSettings}
       />
 
       {/* Main area — flex-1 */}
@@ -199,29 +206,62 @@ export function AppLayout({
           {/* Logo — symbol only on very small screens, wordmark appears at sm (640px) */}
           <RoundtableLogo />
 
-          {/* New conversation button */}
-          <button
-            type="button"
-            onClick={onNewConversation}
-            aria-label="New conversation"
-            className={[
-              'flex items-center justify-center',
-              'min-w-[44px] min-h-[44px]',
-              'text-text-secondary hover:text-text-primary',
-              'hover:bg-hover rounded-md',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M8 2v12M2 8h12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+          {/* Right-side controls: settings gear + new conversation */}
+          <div className="flex items-center">
+            {/* Settings gear — opens the sidebar settings panel from the mobile header */}
+            <button
+              type="button"
+              onClick={handleToggleSettings}
+              aria-label="Settings"
+              aria-expanded={isSettingsOpen}
+              className={[
+                'flex items-center justify-center',
+                'min-w-[44px] min-h-[44px]',
+                'text-text-secondary hover:text-text-primary',
+                'hover:bg-hover rounded-md',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="M13.5 8c0-.34-.03-.67-.09-.99l1.59-1.24-1.5-2.6-1.9.76a5.5 5.5 0 0 0-1.71-.99L9.5 1h-3l-.39 1.94c-.62.26-1.19.58-1.71.99l-1.9-.76-1.5 2.6 1.59 1.24A5.6 5.6 0 0 0 2.5 8c0 .34.03.67.09.99L1 10.23l1.5 2.6 1.9-.76c.52.41 1.09.73 1.71.99L6.5 15h3l.39-1.94c.62-.26 1.19-.58 1.71-.99l1.9.76 1.5-2.6-1.59-1.24c.06-.32.09-.65.09-.99Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+
+            {/* New conversation button */}
+            <button
+              type="button"
+              onClick={onNewConversation}
+              aria-label="New conversation"
+              className={[
+                'flex items-center justify-center',
+                'min-w-[44px] min-h-[44px]',
+                'text-text-secondary hover:text-text-primary',
+                'hover:bg-hover rounded-md',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M8 2v12M2 8h12"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Message thread — scrollable, fills available height */}
