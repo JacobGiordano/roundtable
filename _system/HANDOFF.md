@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (end of session — brand assets wired into UI)
+Last updated: 2026-06-11 (end of session — sidebar min width fix)
 
 ## Current phase
 
@@ -7,23 +7,19 @@ Accessibility baseline audit complete. Brand assets wired.
 
 ## Last closed
 
-- #67 (Marque): brand identity pass complete — fonts, palette, favicon spec, logo SVGs.
-- #68 (Aria): brand assets wired into live app — fonts, brand-tokens.css, favicon, logo in header.
+- #70 (Gate): raised SIDEBAR_WIDTH_MIN from 180 to 278 — prevents TokenCountControl
+  wrapping at narrow sidebar widths. Single-line change in /src/auth/sidebarWidth.ts.
 
-## Decisions made this session (#68)
+## Decisions made this session (#70)
 
-- Variable font packages used (@fontsource-variable/*) — single CSS import, wght axis covers all weights.
-- brand-tokens.css created as a static file outside the theme JSON system (per Marque's recommendation).
-  Brand tokens are stable across themes; no theme file changes needed.
-- Logo uses a single inlined SVG with mask-based cutout (monochrome approach).
-  `--brand-logo-color` CSS var set to Indigo (light mode) or Mist (dark mode) via [data-mode] selectors.
-- Wordmark hidden below sm breakpoint (640px); symbol-only on mobile.
-- body font-family set to var(--font-ui) in index.css.
-- RoundtableLogo exported from /src/ui/index.ts.
+- 278px chosen as minimum: just below SIDEBAR_WIDTH_DEFAULT (280) so the default
+  remains valid, while providing enough room for the "On tap" label to render
+  on a single line in the segmented button group.
 
 ## Status
 
-All a11y work complete. Brand pass complete. App header now shows the Roundtable logo mark.
+All a11y work complete. Brand pass complete. App header shows Roundtable logo mark.
+Sidebar minimum width now prevents content clipping in settings panel.
 
 ## Gotchas
 
@@ -47,6 +43,7 @@ All a11y work complete. Brand pass complete. App header now shows the Roundtable
 - prefers-reduced-motion: streaming shimmers use per-model selectors — must override each
 - brand-tokens.css uses [data-mode] attribute set by applyTheme() — brand logo color only
   works correctly once applyTheme() has run (which happens before first render in main.tsx)
+- SIDEBAR_WIDTH_MIN is 278; Aria's drag UI must enforce this same floor
 
 ## Model providers (all on main)
 
