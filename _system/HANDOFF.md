@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (logo mark R1 — #69 closed)
+Last updated: 2026-06-11 (#75 Scout — Playwright smoke tests)
 
 ## Current phase
 
@@ -7,19 +7,23 @@ Accessibility baseline audit complete. Brand assets updated to R1 mark.
 
 ## Last closed
 
-- #69 (Marque + Aria): R1 logo mark adopted. Hexagon fully retired.
-  Marque: all five logo SVGs updated (symbol, primary, primary-stacked, mono-light,
-  mono-dark); identity.md rewritten for R1; logo-exploration.md committed from
-  stale worktree with Decision section. Mono variants simplified — no SVG masks
-  needed (R1 is all-additive geometry).
-  Aria: RoundtableLogo.tsx — polygon removed; ring r=14 stroke-width=2, six seat
-  dots r=3, center dot r=3.5.
+- #75 (Scout): Playwright wired. @playwright/test@1.60.0 installed.
+  playwright.config.ts at project root, baseURL http://localhost:5173, Chromium only.
+  src/tests/e2e/smoke.spec.ts — 10 tests across desktop (1280×800) and mobile
+  (375×812): JS errors, logo mark, model selector open/close, settings open/close,
+  new conversation button, mobile layout overflow, mobile drawer open/close.
+  vite.config.ts exclude added so Vitest ignores tests/e2e/**. Vitest: 441 pass.
+  BLOCKER: Chromium binary not installed — playwright.download.prss.microsoft.com
+  is not on the container firewall allowlist. Tests will fail with "Executable
+  doesn't exist" until Chromium is installed. Fix: add domain to init-firewall.sh
+  and restart container, then run `npx playwright install --with-deps chromium`.
 
 ## Decisions made this session
 
-- R1 geometry (authoritative): outer circle r=22 #2D2B55, ring r=14 stroke-width=2
-  white, six seat dots r=3 white at (24,10)(36.12,17)(36.12,31)(24,38)(11.88,31)
-  (11.88,17), center dot r=3.5 white. Rotationally symmetric at 60°.
+- Playwright webServer auto-start intentionally NOT configured. Dev server must
+  be running (`npm run dev`) before `npm run test:e2e`.
+- e2e tests excluded from Vitest via `exclude: ['**/tests/e2e/**']` in vite.config.ts.
+- Playwright tests live in src/tests/e2e/ per the acceptance criteria.
 
 ## Gotchas
 
@@ -49,6 +53,8 @@ Accessibility baseline audit complete. Brand assets updated to R1 mark.
 - Tailwind: `relative` and `fixed` conflict (relative comes later in stylesheet). Always
   scope `relative` to `md:relative` on elements that use `fixed` for mobile positioning.
 - main.tsx hardcodes slateTheme at boot — getThemePreference() not called (#73)
+- Playwright Chromium: container firewall blocks playwright.download.prss.microsoft.com.
+  Run `npx playwright install --with-deps chromium` outside container or update firewall.
 
 ## Model providers (all on main)
 
@@ -63,9 +69,9 @@ Accessibility baseline audit complete. Brand assets updated to R1 mark.
 
 ## Next issues in priority order
 
+- UNBLOCK #75: add playwright.download.prss.microsoft.com to firewall, install Chromium, run smoke tests
 - #73 (Aria): Theme switcher in settings + fix main.tsx boot to read saved preference
 - #74 (Aria): Settings access point / user icon in app chrome
 - #72 (Aria): Accent color picker pre-selects model's current color
 - Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md
-- Scout + Playwright: browser-based integration tests
 - Branch/worktree pruning: clean up stale branches and worktrees
