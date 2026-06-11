@@ -208,6 +208,18 @@ export function InputBar({
           </div>
         )}
 
+        {/* Visually-hidden live region — announces ghost mode state changes to screen readers.
+            Always present in the DOM so the browser registers it as a live region before any
+            update fires. Text changes on every isGhostMode toggle, causing a polite announcement.
+            The initial render text is not announced; only subsequent changes are. */}
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {isGhostMode ? 'Ghost mode on — messages won\'t be saved' : 'Ghost mode off'}
+        </span>
+
         {/* Textarea */}
         <textarea
           ref={textareaRef}

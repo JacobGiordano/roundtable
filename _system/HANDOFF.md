@@ -1,61 +1,37 @@
-Last updated: 2026-06-11 (end of session)
+Last updated: 2026-06-11 (mid-session — Wave 2 launching)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
 Accessibility baseline audit complete.
 
-## Last closed (wave 1 — all awaiting merge authorization)
+## Recently merged (this session)
 
-- #46 (Aria): MessageBubble Reply button a11y fix. Removed aria-hidden from bottom row
-  container; added focus-within:opacity-100. Token count div gets aria-hidden={!rowVisible}.
-- #58 (Luma): text-muted contrast fixed in 5 themes (Slate, Linen, Ash, Ember, Chalk).
-  Minimal per-theme adjustments; each theme file has _a11y annotation with ratios.
-  Ada should remove it.fails() wrappers from B1–B5 in contrast.test.ts.
-- #64 (Scout): @testing-library/react 16.3.2, @testing-library/user-event 14.6.1,
-  jsdom 29.1.1, @axe-core/react 4.11.3, vitest-axe 0.1.0 installed. Vitest config
-  updated to jsdom environment. 415 tests passing, 0 failures.
-- Arch: Marque added to CLAUDE.md routing table and boundary rules.
-- Quill: Marque added to CONTRIBUTING.md ownership and agent profiles tables.
-
-## Last closed (wave 2)
-
-- #47 (Aria): ModelSelectorPanel aria-controls id mismatch fixed. Added
-  id="model-selector-panel" to the panel container div so it matches the trigger
-  button's existing aria-controls="model-selector-panel". Awaiting merge authorization.
-
-## Last closed (wave 3)
-
-- #56 (Aria): SessionTokenSection toggle button missing aria-controls. Added
-  aria-controls="session-token-panel" to the toggle button; added id="session-token-panel"
-  to the panel container. Panel changed from conditional render to always-in-DOM with
-  hidden={!isExpanded} so aria-controls resolves to a real element at all times.
-  aria-expanded was already present. Awaiting merge authorization.
+- Ada: removed 11 it.fails() wrappers from contrast.test.ts (B1–B5 themes × 3 surfaces).
+  Also updated THEMES snapshot to post-#58 values. it.fails() wrappers for #59/#60 remain —
+  those need a follow-up Ada pass (both Luma fixes already on main).
+- #56 (Aria): SessionTokenSection toggle missing aria-controls. Panel switched from
+  conditional render to always-in-DOM with hidden={!isExpanded}.
+- #51 (Aria): ThreadRow three-dot button invisible on keyboard focus. Added
+  focus-visible:opacity-100 + focus-visible:ring-2/ring-focus/ring-offset-1.
+- #52 (Aria): InputBar ghost mode not announced. Added sr-only aria-live="polite" span.
+- #55 (Aria): pill-shake + streaming shimmers + ThreadSkeleton missing prefers-reduced-motion.
+  Fixed all in src/index.css and Sidebar.tsx.
+- #57 (Aria): AddModelButton listbox/option → menu/menuitem (action items, not select).
 
 ## In progress
 
-- #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
-  Branch: 66-ada-message-bubble-axe-tests. 14 new tests, all passing. Awaiting merge authorization.
-
-## Last closed (wave 3)
-
-- #51 (Aria): ThreadRow three-dot button invisible on keyboard focus. Added
-  focus-visible:opacity-100, focus-visible:outline-none, focus-visible:ring-2,
-  focus-visible:ring-focus, focus-visible:ring-offset-1 to the button.
-  Branch: 51-aria-threadrow-focus-ring. Awaiting merge authorization.
+Wave 2 running — #49, #50, #53, #54 (Aria a11y issues).
 
 ## Decisions made this session
 
-- Ada: vitest-axe@0.1.0 exports `toHaveNoViolations` under `export type *` which
-  prevents value-import under strict tsc. Pattern: use `axe(container)` + inline
-  `assertNoViolations(results)` helper that checks `results.violations.length` and
-  formats failures identically to toHaveNoViolations. No type workarounds needed.
-  This pattern should be used in all future axe-core test files.
-- HTMLCanvasElement.getContext() stderr warnings from axe-core in jsdom are non-fatal.
-  axe uses canvas for color contrast checks; canvas is not installed. Violations are
-  still detected; only some contrast checks are skipped. This is acceptable for unit tests.
-- aria-controls pattern: panel must always be in the DOM (use hidden attribute, not
-  conditional render) so the aria-controls relationship resolves at all times.
+- Ada: vitest-axe assertNoViolations helper pattern (not expect.extend). See prior sessions.
+- aria-controls: collapsible panels must always be in the DOM (hidden attr, not conditional
+  render) so aria-controls resolves at all times. Pattern: #47, #56.
+- Aria (#52): live regions must always be mounted before first toggle fires. sr-only span
+  with aria-live="polite" aria-atomic="true", text = ternary on state.
+- AddModelButton: items trigger actions (not selection) → menu/menuitem is correct ARIA.
+- prefers-reduced-motion: streaming shimmers use per-model selectors — must override each.
 
 ## Model providers (all on main)
 
@@ -83,13 +59,11 @@ Accessibility baseline audit complete.
 - Gemini model string is now in the URL path via buildGeminiUrl() — not a body field
 - Adding new models: update MODEL_REGISTRY in /src/models/registry.ts — UI auto-updates
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry
-- accent-deepseek in Slate and Ash is a serious text contrast failure — Luma fix tracked in #60
 - npm audit reports 4 pre-existing vulns (3 moderate, 1 critical) in esbuild/vite chain —
   fix requires Vite v8 upgrade (breaking change), not in current scope
-- vitest-axe axe-core assertion pattern: use assertNoViolations(results) helper, not
-  expect.extend({ toHaveNoViolations }) — see decisions above
-- aria-controls: collapsible panels must always be in the DOM; use hidden attribute,
-  not conditional render — both SessionTokenSection (#56) and ModelSelectorPanel (#47) follow this
+- vitest-axe axe-core assertion pattern: use assertNoViolations(results) helper
+- aria-controls: panels must always be in DOM (hidden attr, not conditional render)
+- prefers-reduced-motion: streaming shimmers use per-model selectors — must override each
 
 ## Brand work (post-a11y)
 
@@ -99,10 +73,9 @@ Do not activate Marque until Aria's a11y fixes are complete.
 
 ## Next issues in priority order
 
-1. Luma: #60 — accent-deepseek/gemini text contrast (Slate and Ash most severe)
-   [run in parallel with #59]
-2. Luma: #59 — error color contrast on card surface (Slate and Ash)
-3. Aria: #48 — MessageBubble streaming state not announced to screen readers
-4. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
-5. Aria: #49–#57 (excluding #51 — done) — remaining a11y issues (one per session)
+1. Aria: #49 — ModelSelectorPanel aria-hidden set too late during close animation
+2. Aria: #50 — ThreadActionMenu no focus trap or arrow key navigation (most complex)
+3. Aria: #53 — AccentColorPicker focus not moved into dialog on open
+4. Aria: #54 — MessageThread no live region for incoming messages
+5. Ada: remove remaining it.fails() wrappers for #59/#60 in contrast.test.ts
 6. Open branding issue → activate Marque
