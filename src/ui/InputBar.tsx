@@ -131,7 +131,13 @@ export function InputBar({
     : 'Ask all models...';
 
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      // Safe-area inset for iOS home indicator — prevents content from being
+      // obscured by the gesture bar on modern iPhones. env() with a 0px fallback
+      // for browsers that don't support the safe-area-inset environment variables.
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       {/* Directed-reply pill — rendered above the input row when a target model is set.
           Uses the model's accent color to make directed mode visually distinct.
           The pill sits flush against the input row (no gap) to read as a single unit. */}
@@ -244,14 +250,16 @@ export function InputBar({
           aria-multiline="true"
         />
 
-        {/* Send button */}
+        {/* Send button — visible area is 36×36px but tap target is expanded to 44×44px
+            via min-w/min-h to meet WCAG 2.5.5 (AAA) and iOS HIG touch target guidelines.
+            The visual button uses w-9 h-9 (36px); the extra area is transparent padding. */}
         <button
           type="button"
           onClick={handleSend}
           disabled={!canSend}
           aria-label="Send message"
           className={[
-            'flex-shrink-0 w-9 h-9 rounded-md',
+            'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
             'flex items-center justify-center',
             'transition-[background-color,filter,transform] duration-fast',
             canSend

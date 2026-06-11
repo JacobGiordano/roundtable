@@ -1,9 +1,11 @@
+import { useState, useCallback } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
 import { Sidebar } from './Sidebar';
 import { ModelSelectorPanel } from './ModelSelectorPanel';
+import { RoundtableLogo } from './RoundtableLogo';
 
 interface AppLayoutProps {
   conversations: Conversation[];
@@ -130,9 +132,26 @@ export function AppLayout({
   onBulkArchive,
   onBulkDelete,
 }: AppLayoutProps) {
+  // Mobile drawer state — controls the Sidebar slide-in overlay on small screens.
+  // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);
+  const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
-      {/* Sidebar — 256px fixed */}
+      {/* Mobile backdrop — covers main content while the sidebar drawer is open.
+          Tapping it closes the drawer. Hidden on desktop via md:hidden. */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          aria-hidden="true"
+          onClick={handleCloseMobileMenu}
+        />
+      )}
+
+      {/* Sidebar — static on desktop, fixed drawer on mobile */}
       <Sidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -146,10 +165,65 @@ export function AppLayout({
         onSetConversationGroup={onSetConversationGroup}
         onBulkArchive={onBulkArchive}
         onBulkDelete={onBulkDelete}
+        isMobileOpen={isMobileMenuOpen}
+        onMobileClose={handleCloseMobileMenu}
       />
 
       {/* Main area — flex-1 */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile top header bar — visible only on small screens (below md breakpoint).
+            Contains: hamburger (opens sidebar) | logo | new-conversation button.
+            Hidden on desktop where the sidebar is always visible. */}
+        <div className="flex md:hidden h-12 items-center justify-between px-3 border-b border-border bg-sidebar flex-shrink-0">
+          {/* Hamburger — opens mobile sidebar drawer */}
+          <button
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded={isMobileMenuOpen}
+            onClick={handleOpenMobileMenu}
+            className={[
+              'flex items-center justify-center',
+              'min-w-[44px] min-h-[44px]',
+              'text-text-secondary hover:text-text-primary',
+              'hover:bg-hover rounded-md',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            {/* Three-line hamburger icon */}
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          {/* Logo — symbol only on very small screens, wordmark appears at sm (640px) */}
+          <RoundtableLogo />
+
+          {/* New conversation button */}
+          <button
+            type="button"
+            onClick={onNewConversation}
+            aria-label="New conversation"
+            className={[
+              'flex items-center justify-center',
+              'min-w-[44px] min-h-[44px]',
+              'text-text-secondary hover:text-text-primary',
+              'hover:bg-hover rounded-md',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M8 2v12M2 8h12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
         {/* Message thread — scrollable, fills available height */}
         <MessageThread
           messages={messages}

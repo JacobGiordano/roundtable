@@ -179,7 +179,9 @@ function ModelPill({
   return (
     <div
       className={[
-        'relative inline-flex',
+        // flex-shrink-0 prevents pill from compressing when inside the
+        // horizontally-scrollable pills row on narrow screens.
+        'relative inline-flex flex-shrink-0',
         showPaletteIcon ? 'group' : '',
       ].join(' ')}
       onMouseEnter={() => showPaletteIcon && setIsPillHovered(true)}
@@ -282,7 +284,9 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
   if (availableModels.length === 0) return null;
 
   return (
-    <div className="relative">
+    // flex-shrink-0: prevents the add button from compressing in the horizontal
+    // scroll container on narrow screens (same as ModelPill outer wrapper).
+    <div className="relative flex-shrink-0">
       <button
         ref={buttonRef}
         type="button"
@@ -920,6 +924,9 @@ export function ModelSelectorPanel({
         <div
           className={[
             'bg-sidebar border border-border rounded-lg shadow-lg',
+            // Cap panel height on small screens so it doesn't push off-screen.
+            // overflow-y-auto lets the panel scroll when content exceeds 70vh.
+            'max-h-[70vh] overflow-y-auto',
             'p-4 mb-2',
           ].join(' ')}
         >
@@ -928,8 +935,10 @@ export function ModelSelectorPanel({
             Active models
           </p>
 
-          {/* Pills row */}
-          <div className="flex flex-wrap gap-[6px]" role="group" aria-label="Model toggles">
+          {/* Pills row — horizontally scrollable on narrow screens so pills never wrap
+              off-screen when many models are active. flex-nowrap + overflow-x-auto.
+              flex-shrink-0 is applied to each pill via ModelPill's outer wrapper. */}
+          <div className="flex flex-nowrap overflow-x-auto gap-[6px] pb-1" role="group" aria-label="Model toggles">
             {models.map((model) => (
               <ModelPill
                 key={model.modelId}
