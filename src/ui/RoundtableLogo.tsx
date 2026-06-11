@@ -1,10 +1,11 @@
 /**
  * RoundtableLogo — horizontal lockup (symbol + wordmark) for the app header.
  *
- * Uses the mono SVG approach: all paths render with `currentColor` so that
- * setting CSS `color` on the container controls the entire mark.
- * Brand token `--brand-logo-color` switches between Indigo (light mode) and
- * Mist (dark mode) via `[data-mode]` selectors in brand-tokens.css.
+ * Symbol: solid Indigo circle (`--brand-primary`) with white hexagon stroke and
+ * white center dot, per Marque's identity spec (issue #69).
+ * Wordmark: `fill="currentColor"` — the wrapper `color: var(--brand-logo-color)`
+ * switches between Indigo (light mode) and Mist (dark mode) via [data-mode]
+ * selectors in brand-tokens.css.
  *
  * The symbol height is 24px (the minimum for the full lockup per identity.md).
  * Below 640px (sm breakpoint), the wordmark is hidden and only the symbol renders.
@@ -29,29 +30,18 @@ export function RoundtableLogo() {
         style={{ height: '24px', width: '24px', flexShrink: 0 }}
       >
         <title>Roundtable</title>
-        <defs>
-          <mask id="rt-logo-mask">
-            {/* White = show, black = cut through to reveal page bg */}
-            <rect width="48" height="48" fill="white" />
-            <polygon
-              points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
-              fill="black"
-            />
-            <circle cx="24" cy="24" r="3" fill="black" />
-          </mask>
-        </defs>
-        {/* Filled circle with hexagon + dot voids punched through */}
-        <circle cx="24" cy="24" r="22" fill="currentColor" mask="url(#rt-logo-mask)" />
-        {/* Hexagon stroke ring on top — makes the hexagon edge visible in currentColor */}
+        {/* Solid Indigo circle — always brand-primary, never theme-dependent */}
+        <circle cx="24" cy="24" r="22" fill="var(--brand-primary)" />
+        {/* Hexagon outline in white — stroke only, no fill */}
         <polygon
           points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
           fill="none"
-          stroke="currentColor"
+          stroke="white"
           strokeWidth="2"
           strokeLinejoin="round"
         />
-        {/* Center dot */}
-        <circle cx="24" cy="24" r="3" fill="currentColor" />
+        {/* Center dot in white */}
+        <circle cx="24" cy="24" r="3" fill="white" />
       </svg>
 
       {/* Wordmark — hidden on mobile (below sm breakpoint) */}

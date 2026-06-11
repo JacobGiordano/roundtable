@@ -1,25 +1,30 @@
-Last updated: 2026-06-11 (end of session — sidebar min width fix)
+Last updated: 2026-06-11 (end of session — logo fix #69, sidebar min-width #70, mobile layout #71 in progress)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets wired.
+Accessibility baseline audit complete. Brand assets wired and corrected.
 
 ## Last closed
 
 - #70 (Gate): raised SIDEBAR_WIDTH_MIN from 180 to 278 — prevents TokenCountControl
   wrapping at narrow sidebar widths. Single-line change in /src/auth/sidebarWidth.ts.
+- #69 (Aria): logo symbol rendering corrected — removed CSS mask approach, now
+  renders solid Indigo circle (`--brand-primary`) with white hexagon stroke and
+  white center dot per Marque's identity spec. Wordmark unchanged.
 
-## Decisions made this session (#70)
+## Decisions made this session
 
-- 278px chosen as minimum: just below SIDEBAR_WIDTH_DEFAULT (280) so the default
-  remains valid, while providing enough room for the "On tap" label to render
-  on a single line in the segmented button group.
+- SIDEBAR_WIDTH_MIN: 278px — just below SIDEBAR_WIDTH_DEFAULT (280) so default
+  remains valid; gives "On tap" label enough room on one line.
+- Logo: dropped the SVG mask-based cutout entirely; replaced with three flat paint-order
+  elements: filled circle, polygon stroke, circle fill. `--brand-primary` drives the
+  circle fill unconditionally. `--brand-logo-color` continues to drive the wordmark only.
 
 ## Status
 
-All a11y work complete. Brand pass complete. App header shows Roundtable logo mark.
-Sidebar minimum width now prevents content clipping in settings panel.
+#69 and #70 merged to main. #71 (mobile layout) is in progress — Aria agent running in
+worktree `71-aria-mobile-layout`.
 
 ## Gotchas
 
@@ -58,4 +63,4 @@ Sidebar minimum width now prevents content clipping in settings panel.
 
 ## Next issues in priority order
 
-No open issues known. Await user direction for next work.
+- #71 (Aria): mobile layout — in progress
