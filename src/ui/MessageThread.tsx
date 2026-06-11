@@ -70,7 +70,7 @@ export function MessageThread({
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Visually hidden live region for streaming completion announcements.
+  // ─── Live region 1: streaming completion (#48) ─────────────────────────────
   // When a model finishes streaming (its message leaves streamingMessages),
   // we announce "[Model name] responded" once via aria-live="assertive".
   // The message is cleared after a brief delay so the region is ready
@@ -108,6 +108,68 @@ export function MessageThread({
     }
   }, [streamingMessages, messages, models]);
 
+  // ─── Live region 2: non-streaming message arrival (#54) ───────────────────
+  // Announces the content of messages that arrive complete (never streamed).
+  // Streaming messages are explicitly excluded: when their stream ends, live
+  // region 1 fires "[Model] responded" — announcing content here too would be
+  // duplicate audio.
+  //
+  // Trigger: a message ID appears in messages[] that was not present last render
+  // AND was never tracked in streamingMessages (i.e., arrived pre-complete).
+  //
+  // Announcement format: "Author: [first 100 chars of content]"
+  // aria-live="polite" yields to in-progress TTS and does not interrupt the user.
+  // aria-atomic="false" is intentional — only the updated text node is read, not
+  // the full region, since this is a replacement rather than an append.
+  const [arrivalAnnouncement, setArrivalAnnouncement] = useState('');
+  const prevMessageIdsRef = useRef<Set<string>>(new Set());
+  // Tracks every message ID that has ever appeared in streamingMessages, so we
+  // can exclude those from the arrival announcement (region 1 covers them).
+  const everStreamedIdsRef = useRef<Set<string>>(new Set());
+
+  // Keep everStreamedIdsRef current as streaming messages arrive.
+  useEffect(() => {
+    for (const m of streamingMessages) {
+      everStreamedIdsRef.current.add(m.id);
+    }
+  }, [streamingMessages]);
+
+  useEffect(() => {
+    const currentIds = new Set(messages.map((m) => m.id));
+    const prevIds = prevMessageIdsRef.current;
+
+    // New IDs: present now but not in the previous render.
+    const newIds = [...currentIds].filter((id) => !prevIds.has(id));
+
+    // Always advance the ref.
+    prevMessageIdsRef.current = currentIds;
+
+    // Exclude IDs that went through streamingMessages — region 1 handles those.
+    const nonStreamedNewIds = newIds.filter((id) => !everStreamedIdsRef.current.has(id));
+
+    if (nonStreamedNewIds.length > 0) {
+      const newMessages = messages.filter((m) => nonStreamedNewIds.includes(m.id));
+
+      // When multiple non-streamed messages arrive simultaneously (rare but possible
+      // in parallel mode if the provider returns instantly), announce only the last
+      // one. The thread is navigable by keyboard; reading every arrival in rapid
+      // succession would overwhelm the user.
+      const msg = newMessages[newMessages.length - 1];
+      const author =
+        msg.role === 'user'
+          ? 'You'
+          : findModelConfig(msg.modelId, models)?.name ?? msg.modelId ?? 'Model';
+      const snippet = msg.content.slice(0, 100).trim();
+      const ellipsis = msg.content.length > 100 ? '…' : '';
+      const announcement = `${author}: ${snippet}${ellipsis}`;
+
+      setArrivalAnnouncement(announcement);
+      // Clear after 1.5 s so the region is ready for the next arrival.
+      const timer = setTimeout(() => setArrivalAnnouncement(''), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, models]);
+
   // Combine persisted messages and in-flight streaming messages for rendering.
   // Streaming messages are always appended after persisted ones so the thread
   // ordering is: all committed messages → all in-flight streaming messages.
@@ -128,17 +190,31 @@ export function MessageThread({
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
-      {/* Visually hidden live region — announces streaming completion to screen readers.
-          aria-live="assertive" is intentional: completion is a discrete event (not
-          continuous updates) and "polite" risks being deferred indefinitely when the
-          user is still reading streamed text from the message body live region above.
-          aria-atomic="true": the full announcement string is read as a unit. */}
+      {/* Live region 1 — streaming completion (#48).
+          Fires "[Model] responded" when a stream transitions from
+          streamingMessages to messages. aria-live="assertive" so the
+          completion is announced immediately even if TTS is active.
+          aria-atomic="true": the full string is read as a unit. */}
       <div
         aria-live="assertive"
         aria-atomic="true"
         className="sr-only"
       >
         {completionAnnouncement}
+      </div>
+
+      {/* Live region 2 — non-streaming message arrival (#54).
+          Fires "Author: [first 100 chars]" when a complete (non-streamed)
+          message lands in messages[]. Streaming messages are excluded to
+          avoid double-announcing with live region 1 above.
+          aria-live="polite" defers to any in-progress TTS.
+          aria-atomic="false": only the updated text node is read. */}
+      <div
+        aria-live="polite"
+        aria-atomic="false"
+        className="sr-only"
+      >
+        {arrivalAnnouncement}
       </div>
 
       {/* Thread header — only shown when there are messages */}

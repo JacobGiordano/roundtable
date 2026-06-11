@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (mid-session — Wave 2 launching)
+Last updated: 2026-06-11 (post #54)
 
 ## Current phase
 
@@ -7,17 +7,10 @@ Accessibility baseline audit complete.
 
 ## Recently merged (this session)
 
-- Ada: removed 11 it.fails() wrappers from contrast.test.ts (B1–B5 themes × 3 surfaces).
-  Also updated THEMES snapshot to post-#58 values. it.fails() wrappers for #59/#60 remain —
-  those need a follow-up Ada pass (both Luma fixes already on main).
-- #56 (Aria): SessionTokenSection toggle missing aria-controls. Panel switched from
-  conditional render to always-in-DOM with hidden={!isExpanded}.
-- #51 (Aria): ThreadRow three-dot button invisible on keyboard focus. Added
-  focus-visible:opacity-100 + focus-visible:ring-2/ring-focus/ring-offset-1.
-- #52 (Aria): InputBar ghost mode not announced. Added sr-only aria-live="polite" span.
-- #55 (Aria): pill-shake + streaming shimmers + ThreadSkeleton missing prefers-reduced-motion.
-  Fixed all in src/index.css and Sidebar.tsx.
-- #57 (Aria): AddModelButton listbox/option → menu/menuitem (action items, not select).
+- #54 (Aria): MessageThread live region for non-streaming message arrivals.
+  Added aria-live="polite" sr-only div that announces "Author: [first 100 chars]"
+  when a complete (non-streamed) message lands. Excludes messages that went through
+  streamingMessages (those are handled by the assertive region from #48).
 
 ## Last closed (wave 3 — awaiting merge authorization)
 
@@ -28,19 +21,20 @@ Accessibility baseline audit complete.
 
 ## In progress
 
-Wave 2 running — #49, #50, #53, #54 (Aria a11y issues).
+Wave 2 remaining — #49, #50, #53 (Aria a11y issues).
 
 ## Decisions made this session
 
+- #54: Two distinct live regions in MessageThread.
+  Region 1 (assertive, #48): "[Model] responded" — fires on stream completion.
+  Region 2 (polite, #54): "Author: [snippet]" — fires on non-streamed message arrival.
+  Dedup via everStreamedIdsRef: any ID that ever appeared in streamingMessages is
+  excluded from region 2 to prevent double-announcing.
 - Ada: vitest-axe assertNoViolations helper pattern (not expect.extend). See prior sessions.
 - aria-controls: collapsible panels must always be in the DOM (hidden attr, not conditional
   render) so aria-controls resolves at all times. Pattern: #47, #56.
-- Aria (#52): live regions must always be mounted before first toggle fires. sr-only span
-  with aria-live="polite" aria-atomic="true", text = ternary on state.
 - AddModelButton: items trigger actions (not selection) → menu/menuitem is correct ARIA.
 - prefers-reduced-motion: streaming shimmers use per-model selectors — must override each.
-  claude variant re-added animation via its own rule, overriding the base ::after override.
-  Grok/deepseek/mistral had no reduced-motion overrides. All fixed in #55.
 
 ## Model providers (all on main)
 
@@ -85,6 +79,5 @@ Do not activate Marque until Aria's a11y fixes are complete.
 1. Aria: #49 — ModelSelectorPanel aria-hidden set too late during close animation
 2. Aria: #50 — ThreadActionMenu no focus trap or arrow key navigation (most complex)
 3. Aria: #53 — AccentColorPicker focus not moved into dialog on open
-4. Aria: #54 — MessageThread no live region for incoming messages
-5. Ada: remove remaining it.fails() wrappers for #59/#60 in contrast.test.ts
-6. Open branding issue → activate Marque
+4. Ada: remove remaining it.fails() wrappers for #59/#60 in contrast.test.ts
+5. Open branding issue → activate Marque
