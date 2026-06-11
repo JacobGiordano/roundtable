@@ -10,7 +10,7 @@
   "text": {
     "primary": "#E8EAF0",
     "secondary": "#A0A8BC",
-    "muted": "#7A82A0",
+    "muted": "#7C84A2",
     "inverse": "#0F1117"
   },
   "borders": {
@@ -65,5 +65,16 @@
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "_a11y": {
+    "text.muted": {
+      "fix": "Lightened #7A82A0 → #7C84A2 (+2 per channel). Preserves blue-gray cool tone.",
+      "ratios": {
+        "on-background-#0F1117": "5.10:1 PASS",
+        "on-card-#1A1D26": "4.55:1 PASS",
+        "on-sidebar-#13151C": "4.93:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    }
   }
 }

@@ -10,7 +10,7 @@
   "text": {
     "primary": "#D8DCDF",
     "secondary": "#8E969E",
-    "muted": "#7A848D",
+    "muted": "#838D96",
     "inverse": "#181A1C"
   },
   "borders": {
@@ -65,5 +65,16 @@
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "_a11y": {
+    "text.muted": {
+      "fix": "Lightened #7A848D → #838D96 (+9 per channel). Preserves cool blue-gray character of Ash theme.",
+      "ratios": {
+        "on-background-#181A1C": "5.17:1 PASS",
+        "on-card-#22252A": "4.55:1 PASS",
+        "on-sidebar-#1B1D20": "5.00:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    }
   }
 }
