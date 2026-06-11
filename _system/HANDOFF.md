@@ -1,29 +1,26 @@
-Last updated: 2026-06-11 (end of session — brand assets wired into UI)
+Last updated: 2026-06-11 (end of session — logo rendering fix)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete. Brand assets wired.
+Accessibility baseline audit complete. Brand assets wired and corrected.
 
 ## Last closed
 
-- #67 (Marque): brand identity pass complete — fonts, palette, favicon spec, logo SVGs.
-- #68 (Aria): brand assets wired into live app — fonts, brand-tokens.css, favicon, logo in header.
+- #69 (Aria): logo symbol rendering corrected — removed CSS mask approach, now
+  renders solid Indigo circle (`--brand-primary`) with white hexagon stroke and
+  white center dot per Marque's identity spec. Wordmark unchanged.
 
-## Decisions made this session (#68)
+## Decisions made this session (#69)
 
-- Variable font packages used (@fontsource-variable/*) — single CSS import, wght axis covers all weights.
-- brand-tokens.css created as a static file outside the theme JSON system (per Marque's recommendation).
-  Brand tokens are stable across themes; no theme file changes needed.
-- Logo uses a single inlined SVG with mask-based cutout (monochrome approach).
-  `--brand-logo-color` CSS var set to Indigo (light mode) or Mist (dark mode) via [data-mode] selectors.
-- Wordmark hidden below sm breakpoint (640px); symbol-only on mobile.
-- body font-family set to var(--font-ui) in index.css.
-- RoundtableLogo exported from /src/ui/index.ts.
+- Dropped the SVG mask-based cutout entirely; replaced with three flat paint-order
+  elements: filled circle, polygon stroke, circle fill. Simpler, no z-order issues.
+- `--brand-primary` drives the circle fill unconditionally (no theme dependence).
+  `--brand-logo-color` continues to drive the wordmark only.
 
 ## Status
 
-All a11y work complete. Brand pass complete. App header now shows the Roundtable logo mark.
+All a11y work complete. Brand pass complete. Logo symbol now matches Marque spec.
 
 ## Gotchas
 
