@@ -10,7 +10,7 @@
   "text": {
     "primary": "#111111",
     "secondary": "#404040",
-    "muted": "#737373",
+    "muted": "#6D6D6D",
     "inverse": "#FFFFFF"
   },
   "borders": {
@@ -65,5 +65,16 @@
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "_a11y": {
+    "text.muted": {
+      "fix": "Darkened #737373 → #6D6D6D (-6 per channel). Sidebar is the most constraining surface (#F0F0F0). Neutral gray preserved.",
+      "ratios": {
+        "on-background-#F8F8F8": "4.87:1 PASS",
+        "on-card-#FFFFFF": "5.17:1 PASS",
+        "on-sidebar-#F0F0F0": "4.54:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    }
   }
 }
