@@ -21,10 +21,10 @@
   "accents": {
     "model-claude": "#FFE600",
     "model-gpt": "#00FFFF",
-    "model-gemini": "#BF00FF",
+    "model-gemini": "#C828FF",
     "model-other": "#FF00AA",
     "model-grok": "#00BFFF",
-    "model-deepseek": "#4060FF",
+    "model-deepseek": "#6070FF",
     "model-mistral": "#FF2D78"
   },
   "interactive": {
@@ -65,5 +65,27 @@
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "_a11y": {
+    "accents.model-deepseek": {
+      "fix": "Lightened #4060FF → #6070FF (+32R +16G +0B). Original deep-indigo blue was 3.99:1 on card — near-black card (#130A1A) makes this the hardest pairing in the theme. #6070FF keeps the hue firmly in neon-blue-indigo territory without crossing into the cyan range occupied by accent-gpt (#00FFFF). Outrun's character is maximalist neon; this adjustment shifts the blue ~20% brighter while preserving its identity.",
+      "ratios": {
+        "on-card-#130A1A": "4.84:1 PASS",
+        "on-background-#0D0D0D": "4.87:1 PASS",
+        "on-sidebar-#0A070F": "5.01:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass",
+      "character-note": "Outrun deepseek required the largest absolute lightening of all fixes in this session (+32 on red channel). The near-black card surface (#130A1A) leaves little headroom for dark blues. The new value is the minimum brightness that achieves AA compliance while keeping the color distinguishable from accent-gpt cyan."
+    },
+    "accents.model-gemini": {
+      "fix": "Lightened #BF00FF → #C828FF (+9R +40G +0B). Increases green channel minimally to brighten without shifting hue toward red. Prior value was 4.29:1 on card — moderate failure. The green-channel increase rather than pure lightening keeps the purple from drifting toward hot pink (occupied by accent-other #FF00AA).",
+      "ratios": {
+        "on-card-#130A1A": "4.79:1 PASS",
+        "on-background-#0D0D0D": "4.82:1 PASS",
+        "on-sidebar-#0A070F": "4.95:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass",
+      "character-note": "Outrun gemini retains full neon-purple character. The adjustment is deliberately small — #BF00FF to #C828FF — to preserve the aggressive saturation that defines Outrun's palette. The green channel addition is visually imperceptible as a hue shift."
+    }
   }
 }

@@ -21,11 +21,11 @@
   "accents": {
     "model-claude": "#E8943A",
     "model-gpt": "#3DB8A8",
-    "model-gemini": "#9B72DB",
+    "model-gemini": "#A278E1",
     "model-other": "#E07060",
     "model-grok": "#4DA8D8",
-    "model-deepseek": "#4472C4",
-    "model-mistral": "#D45C8A"
+    "model-deepseek": "#648ADC",
+    "model-mistral": "#DC6294"
   },
   "interactive": {
     "hover": "#2A2E33",
@@ -75,6 +75,36 @@
         "on-sidebar-#1B1D20": "5.00:1 PASS"
       },
       "wcag": "AA 4.5:1 normal text — all surfaces pass"
+<<<<<<< HEAD
+=======
+    },
+    "accents.model-deepseek": {
+      "fix": "Lightened #4472C4 → #648ADC (+32R +24G +24B). Preserves steel-blue identity. Prior value was 3.26:1 on card — serious failure.",
+      "ratios": {
+        "on-card-#22252A": "4.55:1 PASS",
+        "on-background-#181A1C": "5.16:1 PASS",
+        "on-sidebar-#1B1D20": "5.00:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    },
+    "accents.model-gemini": {
+      "fix": "Lightened #9B72DB → #A278E1 (+7R +6G +6B). Preserves medium-purple character. Prior value was 4.26:1 on card — narrow failure.",
+      "ratios": {
+        "on-card-#22252A": "4.62:1 PASS",
+        "on-background-#181A1C": "5.24:1 PASS",
+        "on-sidebar-#1B1D20": "5.08:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    },
+    "accents.model-mistral": {
+      "fix": "Lightened #D45C8A → #DC6294 (+8R +6G +10B). Preserves raspberry-pink character. Prior value was 4.17:1 on card — moderate failure.",
+      "ratios": {
+        "on-card-#22252A": "4.55:1 PASS",
+        "on-background-#181A1C": "5.17:1 PASS",
+        "on-sidebar-#1B1D20": "5.00:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+>>>>>>> 420eef1 (fix(design): accent-deepseek, accent-gemini, accent-mistral contrast — #60)
     }
   }
 }
