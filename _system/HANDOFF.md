@@ -29,6 +29,13 @@ Accessibility baseline audit complete.
 - #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
   Branch: 66-ada-message-bubble-axe-tests. 14 new tests, all passing. Awaiting merge authorization.
 
+## Last closed (wave 3)
+
+- #51 (Aria): ThreadRow three-dot button invisible on keyboard focus. Added
+  focus-visible:opacity-100, focus-visible:outline-none, focus-visible:ring-2,
+  focus-visible:ring-focus, focus-visible:ring-offset-1 to the button.
+  Branch: 51-aria-threadrow-focus-ring. Awaiting merge authorization.
+
 ## Decisions made this session
 
 - Ada: vitest-axe@0.1.0 exports `toHaveNoViolations` under `export type *` which
@@ -85,5 +92,5 @@ Do not activate Marque until Aria's a11y fixes are complete.
 2. Luma: #59 — error color contrast on card surface (Slate and Ash)
 3. Aria: #48 — MessageBubble streaming state not announced to screen readers
 4. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
-5. Aria: #49–#57 — remaining a11y issues (one per session)
+5. Aria: #49–#57 (excluding #51 — done) — remaining a11y issues (one per session)
 6. Open branding issue → activate Marque

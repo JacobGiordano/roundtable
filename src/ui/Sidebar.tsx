@@ -444,7 +444,8 @@ function ThreadRow({
           'w-6 h-6 rounded flex items-center justify-center',
           'text-text-muted hover:text-text-secondary hover:bg-hover',
           'transition-colors duration-fast',
-          menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+          menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
         ].join(' ')}
       >
         {/* Vertical three-dot (ellipsis) icon */}
