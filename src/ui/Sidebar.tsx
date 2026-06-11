@@ -1034,8 +1034,9 @@ export function Sidebar({
         prefersReducedMotion.current ? '' : 'transition-transform duration-200 ease-in-out',
         // Desktop: static, restores inline-style width, overrides fixed positioning
         'md:static md:translate-x-0 md:z-auto md:h-full md:flex-shrink-0',
-        // Common layout classes
-        'flex flex-col bg-sidebar border-r border-border overflow-hidden relative',
+        // Common layout classes — relative scoped to desktop only so it doesn't
+        // override the mobile `fixed` class (Tailwind orders relative after fixed)
+        'flex flex-col bg-sidebar border-r border-border overflow-hidden md:relative',
         // Width transition for desktop drag-resize (suppressed during drag or reduced-motion)
         transitionClass,
       ].join(' ')}
