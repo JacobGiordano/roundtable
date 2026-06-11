@@ -7,7 +7,7 @@
  * re-runs applyUserAccentColors after every save/clear.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import type { ModelId, ModelAccentColors } from '@/types';
 // Gate cross-agent exception: setModelAccentColor and clearModelAccentColor are
 // the persistence functions from @/auth. Aria must validate before calling
@@ -134,6 +134,16 @@ export function AccentColorPicker({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  // Ref on the first swatch button — receives focus when the picker opens.
+  const firstSwatchRef = useRef<HTMLButtonElement>(null);
+
+  // WCAG 2.1 SC 2.4.3: move focus into the dialog when it opens.
+  // useLayoutEffect fires synchronously after DOM paint, before the browser
+  // yields to the user, ensuring focus lands here before any Tab keypress
+  // can escape to the page behind the popover.
+  useLayoutEffect(() => {
+    firstSwatchRef.current?.focus();
+  }, []);
 
   // Close on click outside.
   useEffect(() => {
@@ -306,12 +316,13 @@ export function AccentColorPicker({
           className="grid gap-[6px]"
           style={{ gridTemplateColumns: 'repeat(4, 28px)' }}
         >
-          {SWATCHES.map((swatch) => {
+          {SWATCHES.map((swatch, index) => {
             const isActive =
               selectedHex.toUpperCase() === swatch.hex.toUpperCase();
             return (
               <button
                 key={swatch.hex}
+                ref={index === 0 ? firstSwatchRef : undefined}
                 type="button"
                 aria-label={swatch.name}
                 aria-pressed={isActive}
