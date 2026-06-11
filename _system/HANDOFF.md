@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (theme switcher + boot fix — #73 closed)
+Last updated: 2026-06-11 (#73 + #75 closed)
 
 ## Current phase
 
@@ -6,20 +6,25 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #73 (Aria): Theme switcher in settings panel + fix main.tsx boot to read saved preference.
-  THEME_MAP and THEME_IDS constants added to /src/ui/theme.ts (shared by main.tsx and
-  Sidebar.tsx). main.tsx now calls getThemePreference() at boot and applies the saved
-  theme. Sidebar settings panel has a 2-column theme grid (radio semantics) showing
-  all 7 themes with a dark/light mode swatch dot indicator.
+- #73 (Aria): Theme switcher in settings panel + boot fix. THEME_MAP and THEME_IDS
+  added to /src/ui/theme.ts (shared by main.tsx and Sidebar.tsx). main.tsx now calls
+  getThemePreference() at boot and applies the saved theme. Settings panel has a
+  2-column theme grid (radiogroup/radio a11y) with dark/light mode swatch dots.
+- #75 (Scout): Playwright wired. @playwright/test@1.60.0 installed. playwright.config.ts
+  at project root, baseURL http://localhost:5173, Chromium only. 10 smoke tests across
+  desktop (1280×800) and mobile (375×812). vite.config.ts updated to exclude tests/e2e/
+  from Vitest. Firewall updated — playwright.download.prss.microsoft.com now in
+  init-firewall.sh. To activate: restart container, then run
+  `npx playwright install --with-deps chromium`.
 
 ## Decisions made this session
 
-- THEME_MAP / THEME_IDS live in /src/ui/theme.ts (not main.tsx) to avoid a circular
-  import (main → App → Sidebar → main). Both main.tsx and Sidebar.tsx import from
-  @/ui/theme.
+- THEME_MAP / THEME_IDS live in /src/ui/theme.ts to avoid circular import. Both
+  main.tsx and Sidebar.tsx import from @/ui/theme.
 - Theme switcher uses role="radiogroup" / role="radio" / aria-checked for a11y.
-- Mode swatch: filled dot = dark theme, ring dot = light theme (data-driven from
-  THEME_MAP[id].mode — no hardcoding).
+- Mode swatch: filled dot = dark theme, ring dot = light theme (from THEME_MAP[id].mode).
+- Playwright webServer auto-start intentionally NOT configured — dev server must be
+  running before npm run test:e2e.
 
 ## Gotchas
 
@@ -66,5 +71,3 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 - #74 (Aria): Settings access point / user icon in app chrome
 - #72 (Aria): Accent color picker pre-selects model's current color
 - Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md
-- Scout + Playwright: browser-based integration tests
-- Branch/worktree pruning: clean up stale branches and worktrees
