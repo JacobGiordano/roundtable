@@ -7,24 +7,22 @@ Accessibility baseline audit complete.
 
 ## Last closed
 
-- #61 (Arch + Atlas + Gate + Aria): Model version selection — fully shipped. Types,
-  registry (2–6 versions per provider), Gate persistence, Aria picker UI with Reset.
-- #62 (Gate + Aria): Resizable sidebar. Drag handle, keyboard (arrow ±8px), clamped
-  [180–600]px, persisted at rt-ui-sidebar-width. prefers-reduced-motion respected.
+- #46 (Aria): MessageBubble Reply button a11y fix. Removed aria-hidden from the
+  bottom row container; added focus-within:opacity-100 so the row (and Reply button)
+  surfaces on keyboard focus. Token count div carries aria-hidden when row is not
+  visible — it is non-interactive and supplementary only.
 
 ## In progress
 
-None. All known issues closed.
+None.
 
 ## Decisions made this session
 
-- Atlas: getAvailableVersions() stays off ModelProvider — version lists are static,
-  belong on MODEL_REGISTRY entries. Documented in JSDoc on ModelVersionOption.
-- Atlas: selectedVersionId threaded via VersionAwareProvider cast — no types change.
-- Atlas: Gemini URL is now dynamic (buildGeminiUrl(modelString)) — model is in URL path.
-- Gate: version store at roundtable:model-versions — parallel to ModelConfig, not embedded.
-  Vault untouched; old sessions work as-is.
-- Aria: sidebar width via inline style (dynamic px doesn't work with Tailwind JIT).
+- Aria: aria-hidden must never wrap interactive controls. The fix lifts aria-hidden
+  off the bottom row container entirely. focus-within drives row visibility for
+  keyboard users; mouse hover behavior unchanged.
+- Aria: token count div gets aria-hidden={!rowVisible} — non-interactive, supplementary
+  only (tooltip already carries the detail). This is safe since AT users cannot act on it.
 
 ## Model providers (all on main)
 
@@ -56,12 +54,35 @@ None. All known issues closed.
   + jsdom before it can be integration-tested; neither is in devDependencies.
 - accent-deepseek in Slate and Ash is a serious text contrast failure — Luma fix tracked in #60
 
+## Agent SOP update
+
+New agents must be based on the Agency Agents repo (https://github.com/msitarzewski/agency-agents)
+format, then expanded with Roundtable-specific Ownership & Boundaries, Session Start Checklist,
+Persona, and Operating Authority sections. See crest.md as the reference implementation.
+
+Gender rotation going forward: M → NB → F → M → NB → F → ...
+Next new agent after Marque: NB (they/them).
+
+## Pending: CLAUDE.md update (Arch required)
+
+Marque needs to be added to the agent table and boundary rules in CLAUDE.md.
+Activate Arch for this — Marque's entry:
+- Owns: `/_design/brand/`
+- Must never touch: `/src/**`, `/_design/tokens/`, `/_design/themes/`, `/_design/specs/`
+
+## Brand work (post-a11y)
+
+Marque (brand agent, he/him) is drafted in .claude/agents/crest.md.
+Open a GitHub issue for the branding pass before activating him.
+Do not activate Marque until Aria's a11y fixes are complete.
+
 ## Next issues in priority order
 
-1. #61 (Aria): Model version picker UI — Aria's half, all backend ready
-2. Install @testing-library/react + jsdom — unblocks Scout hook tests + Ada axe-core tests
-3. Aria: fix A1 (MessageBubble Reply button aria-hidden — #46) — blocks keyboard users
-4. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
-5. Luma: fix text-muted contrast failures (#58) — 5 themes affected
-6. Luma: fix accent-deepseek text contrast failures (#60) — Slate and Ash most severe
-7. Aria: remaining a11y issues #48–#57
+1. Install @testing-library/react + jsdom — unblocks Scout hook tests + Ada axe-core tests
+2. Aria: fix A2 (ModelSelectorPanel aria-controls id mismatch — #47)
+3. Luma: fix text-muted contrast failures (#58) — 5 themes affected
+4. Luma: fix accent-deepseek/gemini text contrast failures (#60) — Slate and Ash most severe
+5. Luma: fix error color contrast on card surface (#59) — Slate and Ash
+6. Aria: remaining a11y issues #48–#57
+7. Arch: add Marque to CLAUDE.md agent table and boundary rules
+8. Marque: branding pass (logo, icon, favicon, palette, typography) — open issue first
