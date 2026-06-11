@@ -840,8 +840,14 @@ export function ModelSelectorPanel({
   const [openPickerModelId, setOpenPickerModelId] = useState<ModelId | null>(null);
   const [pickerAnchorRect, setPickerAnchorRect] = useState<DOMRect | null>(null);
 
+  // WCAG 2.1 SC 2.4.3: store the element that had focus before the picker
+  // opened so we can return focus to it when the picker closes.
+  const pickerTriggerRef = useRef<Element | null>(null);
+
   const handleOpenColorPicker = useCallback(
     (modelId: ModelId, anchorRect: DOMRect) => {
+      // Capture focus owner before the picker mounts and steals focus.
+      pickerTriggerRef.current = document.activeElement;
       setOpenPickerModelId(modelId);
       setPickerAnchorRect(anchorRect);
     },
@@ -853,6 +859,11 @@ export function ModelSelectorPanel({
     setPickerAnchorRect(null);
     // Refresh the accent color snapshot so pill icons reflect any changes.
     setAccentColors(getModelAccentColors());
+    // Return focus to the palette button that opened the picker.
+    if (pickerTriggerRef.current instanceof HTMLElement) {
+      pickerTriggerRef.current.focus();
+    }
+    pickerTriggerRef.current = null;
   }, []);
 
   // ── Panel open/close ───────────────────────────────────────────────────────
