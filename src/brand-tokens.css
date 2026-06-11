@@ -1,0 +1,21 @@
+/* Brand identity tokens — static across all themes.
+   These are Roundtable brand colors, not theme-relative semantic tokens.
+   Loaded before theme tokens so theme tokens can reference them if needed.
+   See /_design/brand/palette/palette.md for contrast ratio documentation. */
+
+:root {
+  --brand-primary: #2D2B55;
+  --brand-primary-on-dark: #C4C2E8;
+  --brand-neutral: #2E2926;
+  --font-brand: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+}
+
+/* Logo color adapts to theme mode via data-mode attribute set by applyTheme(). */
+[data-mode="light"] {
+  --brand-logo-color: var(--brand-primary);
+}
+
+[data-mode="dark"] {
+  --brand-logo-color: var(--brand-primary-on-dark);
+}

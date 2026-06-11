@@ -1,50 +1,29 @@
-Last updated: 2026-06-11 (end of session — a11y queue fully clear, Marque unblocked)
+Last updated: 2026-06-11 (end of session — brand assets wired into UI)
 
 ## Current phase
 
 Phase 4 — Feature-complete. Open source launch prep complete. Doc audit complete.
-Accessibility baseline audit complete.
+Accessibility baseline audit complete. Brand assets wired.
 
-## Closed this session (all merged to main)
+## Last closed
 
-- Ada: removed 11 it.fails() wrappers from contrast.test.ts (B1–B5 themes × 3 surfaces).
-  Updated THEMES snapshot to post-#58 values.
-- #56 (Aria): SessionTokenSection toggle missing aria-controls. Panel switched to
-  always-in-DOM with hidden={!isExpanded}.
-- #51 (Aria): ThreadRow three-dot button invisible on keyboard focus. focus-visible classes.
-- #52 (Aria): InputBar ghost mode not announced. sr-only aria-live="polite" span.
-- #55 (Aria): pill-shake + streaming shimmers + ThreadSkeleton reduced-motion fixes.
-- #57 (Aria): AddModelButton listbox/option → menu/menuitem.
-- #49 (Aria): ModelSelectorPanel aria-hidden set too late. aria-hidden={!isOpen} (removed &&!isClosing).
-- #50 (Aria): ThreadActionMenu full keyboard nav — ArrowDown/Up/Home/End/Escape/Tab, focus trap.
-- #53 (Aria): AccentColorPicker focus-on-open (useLayoutEffect) + focus-restore-on-close.
-- #54 (Aria): MessageThread polite live region for incoming messages; deduped vs #48 streaming region.
+- #67 (Marque): brand identity pass complete — fonts, palette, favicon spec, logo SVGs.
+- #68 (Aria): brand assets wired into live app — fonts, brand-tokens.css, favicon, logo in header.
+
+## Decisions made this session (#68)
+
+- Variable font packages used (@fontsource-variable/*) — single CSS import, wght axis covers all weights.
+- brand-tokens.css created as a static file outside the theme JSON system (per Marque's recommendation).
+  Brand tokens are stable across themes; no theme file changes needed.
+- Logo uses a single inlined SVG with mask-based cutout (monochrome approach).
+  `--brand-logo-color` CSS var set to Indigo (light mode) or Mist (dark mode) via [data-mode] selectors.
+- Wordmark hidden below sm breakpoint (640px); symbol-only on mobile.
+- body font-family set to var(--font-ui) in index.css.
+- RoundtableLogo exported from /src/ui/index.ts.
 
 ## Status
 
-**All a11y work is complete.** Aria's queue (#49–#57) cleared. Ada's contrast test scaffolding fully removed. Marque's issue (#67) is open — ready to activate.
-
-## Decisions made this session
-
-- aria-controls: collapsible panels must always be in the DOM (hidden attr, not conditional render).
-- Live regions must be mounted before first state change fires (sr-only, always-present).
-- AddModelButton items are actions → menu/menuitem, not listbox/option.
-- prefers-reduced-motion: streaming shimmers have per-model selectors — must override each one.
-- aria-hidden must update synchronously with isOpen, not after animation completes.
-- ARIA menu keyboard: tabIndex={-1} on all menuitems; arrow keys only; Tab/Escape close+return focus.
-- AccentColorPicker: useLayoutEffect (not useEffect) for focus-on-open — prevents Tab escape gap.
-- MessageThread live region: track everStreamedIds to prevent double-announcement with #48.
-
-## Model providers (all on main)
-
-| Model | Default active | Accent token | providerName | Default version |
-|-------|---------------|--------------|--------------|-----------------|
-| Claude | yes | accent-claude | Anthropic | claude-sonnet-4-6 |
-| GPT-5.5 | yes | accent-gpt | OpenAI | gpt-5.5 |
-| Gemini | no | accent-gemini | Google | gemini-2.5-flash |
-| Grok | no | accent-grok | xAI | grok-3 |
-| DeepSeek | no | accent-deepseek | DeepSeek | deepseek-chat |
-| Mistral | no | accent-mistral | Mistral | mistral-large-latest |
+All a11y work complete. Brand pass complete. App header now shows the Roundtable logo mark.
 
 ## Gotchas
 
@@ -66,13 +45,20 @@ Accessibility baseline audit complete.
 - vitest-axe axe-core assertion pattern: use assertNoViolations(results) helper
 - aria-controls: panels must always be in DOM (hidden attr, not conditional render)
 - prefers-reduced-motion: streaming shimmers use per-model selectors — must override each
+- brand-tokens.css uses [data-mode] attribute set by applyTheme() — brand logo color only
+  works correctly once applyTheme() has run (which happens before first render in main.tsx)
 
-## Brand work (next phase)
+## Model providers (all on main)
 
-Marque (brand agent, he/him) is drafted in .claude/agents/marque.md.
-Aria's a11y queue is now clear — open a GitHub issue for the branding pass and activate Marque.
+| Model | Default active | Accent token | providerName | Default version |
+|-------|---------------|--------------|--------------|-----------------|
+| Claude | yes | accent-claude | Anthropic | claude-sonnet-4-6 |
+| GPT-5.5 | yes | accent-gpt | OpenAI | gpt-5.5 |
+| Gemini | no | accent-gemini | Google | gemini-2.5-flash |
+| Grok | no | accent-grok | xAI | grok-3 |
+| DeepSeek | no | accent-deepseek | DeepSeek | deepseek-chat |
+| Mistral | no | accent-mistral | Mistral | mistral-large-latest |
 
 ## Next issues in priority order
 
-1. Activate Marque — issue #67 is open, a11y gate is clear
-2. After Marque: Aria implements brand assets into UI (follow-on issue TBD)
+No open issues known. Await user direction for next work.
