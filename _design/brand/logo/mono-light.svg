@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48" fill="none">
+  <title>Roundtable</title>
+
+  <!--
+    Monochrome variant for light backgrounds.
+    Uses currentColor — inherit dark parent color in CSS contexts.
+    Default fill: #2D2B55 (brand primary on light surface).
+    Symbol: filled circle in currentColor with white-fill interior (hexagon outline, dot).
+    Since on light background the interior of the circle must contrast with both
+    the circle fill and the page background, we use the same mask approach
+    but fill the interior marks with white (#FFFFFF explicitly, not currentColor).
+    Note: for full currentColor mono compliance, the consumer must set
+    `color: <dark-value>` on the parent — this file sets currentColor on the
+    outer shape and white on inner details.
+  -->
+
+  <g id="symbol">
+    <defs>
+      <mask id="mono-light-mask">
+        <rect width="48" height="48" fill="white"/>
+        <polygon
+          points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+          fill="black"
+        />
+        <circle cx="24" cy="24" r="3" fill="black"/>
+      </mask>
+    </defs>
+
+    <!-- Outer circle, masked to create hexagon + dot voids -->
+    <circle cx="24" cy="24" r="22" fill="currentColor" mask="url(#mono-light-mask)"/>
+
+    <!-- Hexagon stroke in currentColor (renders as ring border) -->
+    <polygon
+      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+
+    <!-- Center dot in currentColor -->
+    <circle cx="24" cy="24" r="3" fill="currentColor"/>
+  </g>
+
+  <g id="wordmark" transform="translate(64, 0)">
+    <text
+      x="0"
+      y="30"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif"
+      font-size="20"
+      font-weight="500"
+      letter-spacing="2.4"
+      fill="currentColor"
+    >ROUNDTABLE</text>
+  </g>
+</svg>

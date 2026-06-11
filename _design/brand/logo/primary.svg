@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48" fill="none">
+  <title>Roundtable</title>
+
+  <!-- Primary lockup: symbol (48×48) + wordmark, horizontal, symbol left-aligned -->
+  <!-- Total width: 48 (symbol) + 16 (gap) + ~216 (wordmark) = 280 -->
+
+  <g id="symbol">
+    <!-- Outer filled circle -->
+    <circle cx="24" cy="24" r="22" fill="#2D2B55"/>
+
+    <!-- Hexagon outline, flat-top, inscribed at r=14 -->
+    <polygon
+      points="36.12,17 38,24 36.12,31 11.88,31 10,24 11.88,17"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+
+    <!-- Center dot -->
+    <circle cx="24" cy="24" r="3" fill="#FFFFFF"/>
+  </g>
+
+  <g id="wordmark" transform="translate(64, 0)">
+    <!--
+      Wordmark vertically centered in 48px height.
+      Font size 20px, baseline at y=30 (cap-height ≈ 14px, centered: (48-14)/2 + 14 ≈ 31).
+    -->
+    <text
+      x="0"
+      y="30"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, sans-serif"
+      font-size="20"
+      font-weight="500"
+      letter-spacing="2.4"
+      fill="#2D2B55"
+    >ROUNDTABLE</text>
+  </g>
+</svg>
