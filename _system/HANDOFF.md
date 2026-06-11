@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (hexagon geometry fix + #70 overflow bugs)
+Last updated: 2026-06-11 (layout scroll fixes — #71)
 
 ## Current phase
 
@@ -7,19 +7,22 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Last closed
 
-- #70 (Aria): InteractionModeSwitcher overflow bugs fixed — label viewport overflow + tooltip clipping.
-- Logo (no issue): hexagon polygon geometry corrected to proper flat-top orientation across all SVG files and RoundtableLogo.tsx. Previous geometry mixed pointy-top and flat-top vertices, producing a razor-blade shape.
+- #71 (Aria): Two layout bugs fixed.
+  1. InteractionModeSwitcher: removed overflow-x-auto wrapper; radiogroup now flex w-full;
+     each ModeButton outer div gets flex-1 min-w-0; button gets w-full + truncate.
+     Buttons share width equally instead of scrolling horizontally.
+  2. ModelSelectorPanel: .model-selector-panel.is-open max-height changed from 320px
+     to 70vh in src/index.css, matching the inner content div's max-h-[70vh].
+     Panel content is now scrollable instead of being cut off.
 
 ## Decisions made this session
 
-- Overflow fix: outer scrollable wrapper (overflow-x-auto) inside InteractionModeSwitcher;
-  AppLayout wrapper changed from flex-shrink-0 to min-w-0.
-- Tooltip fix: TooltipAlign ('left' | 'center' | 'right') on ModeButton. First item left-aligns,
-  middle centers, last item (Auto-chain) right-aligns. Caret tracks anchor.
-- Hexagon fix: correct flat-top vertices are 38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88
-  (60° intervals from 0°). Wrong vertices (cos(30°) math) corrected in all 7 SVG files + TSX.
-- Logo exploration doc produced by Marque at /_design/brand/logo-exploration.md (worktree, not merged).
-  Recommendation: pointy-top hexagon (Option 2). Awaiting user direction before implementing.
+- InteractionModeSwitcher uses flex w-full layout (not inline-flex in scroll wrapper).
+  The outer AppLayout wrapper already has min-w-0 from #70 — untouched.
+- ModelSelectorPanel outer animation cap is 70vh to match inner scroll div.
+  The overflow: hidden on .model-selector-panel itself is preserved for animation.
+- Button labels use truncate instead of whitespace-nowrap so they gracefully clip
+  rather than overflow at very narrow widths.
 
 ## Gotchas
 

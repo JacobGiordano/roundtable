@@ -43,6 +43,8 @@ interface ModeButtonProps {
 }
 
 function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: ModeButtonProps) {
+  // flex-1 min-w-0: each button takes equal share of the available width
+  // and is allowed to shrink below its natural content width at narrow sizes.
   // Tooltip horizontal positioning classes — chosen to prevent right-edge clipping
   const tooltipPositionClass =
     tooltipAlign === 'right'
@@ -60,7 +62,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         : 'left-1/2 -translate-x-1/2';
 
   return (
-    <div className="relative group">
+    <div className="relative group flex-1 min-w-0">
       <button
         type="button"
         role="radio"
@@ -68,12 +70,12 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         aria-label={`${config.label} — ${config.description}`}
         onClick={() => onSelect(config.mode)}
         className={[
-          'relative h-7 px-3 rounded-full',
+          'relative w-full h-7 px-3 rounded-full',
           'text-[12px] font-medium',
           'border',
           'transition-[background-color,border-color,color] duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          'cursor-pointer select-none whitespace-nowrap',
+          'cursor-pointer select-none truncate',
           isSelected
             ? 'bg-hover border-border text-text-primary'
             : 'bg-transparent border-transparent text-text-muted hover:text-text-secondary hover:border-border-subtle',
@@ -122,8 +124,9 @@ export interface InteractionModeSwitcherProps {
  * Reads from the `INTERACTION_MODES` registry for labels and tooltip descriptions.
  * Place above the InputBar in AppLayout (e.g. in the bottom controls strip).
  *
- * Overflow handling: the outer wrapper uses overflow-x-auto so the switcher
- * scrolls horizontally rather than overflowing the viewport at narrow widths.
+ * Layout: the radiogroup is `flex w-full` so all three buttons share the
+ * available width equally (each ModeButton's outer div carries `flex-1 min-w-0`).
+ * This prevents horizontal scroll while keeping the pills contained.
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
  * middle item centers — preventing right-edge clipping for Auto-chain.
  */
@@ -134,27 +137,24 @@ export function InteractionModeSwitcher({
   const lastIndex = INTERACTION_MODES.length - 1;
 
   return (
-    /* Scrollable wrapper — prevents the pill row from overflowing the viewport */
-    <div className="overflow-x-auto">
-      <div
-        role="radiogroup"
-        aria-label="Interaction mode"
-        className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
-      >
-        {INTERACTION_MODES.map((config, index) => {
-          const tooltipAlign: TooltipAlign =
-            index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
-          return (
-            <ModeButton
-              key={config.mode}
-              config={config}
-              isSelected={activeMode === config.mode}
-              onSelect={onModeChange}
-              tooltipAlign={tooltipAlign}
-            />
-          );
-        })}
-      </div>
+    <div
+      role="radiogroup"
+      aria-label="Interaction mode"
+      className="flex items-center w-full gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
+    >
+      {INTERACTION_MODES.map((config, index) => {
+        const tooltipAlign: TooltipAlign =
+          index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
+        return (
+          <ModeButton
+            key={config.mode}
+            config={config}
+            isSelected={activeMode === config.mode}
+            onSelect={onModeChange}
+            tooltipAlign={tooltipAlign}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -154,7 +154,10 @@ body {
 }
 
 .model-selector-panel.is-open {
-  max-height: 320px;
+  /* Match the inner content div's max-h-[70vh] so the animation cap is never
+     lower than the scrollable area. Previously 320px, which cut off content on
+     any viewport where the panel content exceeded that fixed pixel height. */
+  max-height: 70vh;
   opacity: 1;
 }
 
