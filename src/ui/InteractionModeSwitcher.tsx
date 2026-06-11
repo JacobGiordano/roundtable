@@ -43,8 +43,6 @@ interface ModeButtonProps {
 }
 
 function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: ModeButtonProps) {
-  // flex-1 min-w-0: each button takes equal share of the available width
-  // and is allowed to shrink below its natural content width at narrow sizes.
   // Tooltip horizontal positioning classes — chosen to prevent right-edge clipping
   const tooltipPositionClass =
     tooltipAlign === 'right'
@@ -62,7 +60,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         : 'left-1/2 -translate-x-1/2';
 
   return (
-    <div className="relative group flex-1 min-w-0">
+    <div className="relative group">
       <button
         type="button"
         role="radio"
@@ -70,12 +68,12 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         aria-label={`${config.label} — ${config.description}`}
         onClick={() => onSelect(config.mode)}
         className={[
-          'relative w-full h-7 px-3 rounded-full',
-          'text-[12px] font-medium',
+          'relative h-7 px-3 rounded-full',
+          'text-[12px] font-medium whitespace-nowrap',
           'border',
           'transition-[background-color,border-color,color] duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          'cursor-pointer select-none truncate',
+          'cursor-pointer select-none',
           isSelected
             ? 'bg-hover border-border text-text-primary'
             : 'bg-transparent border-transparent text-text-muted hover:text-text-secondary hover:border-border-subtle',
@@ -124,9 +122,10 @@ export interface InteractionModeSwitcherProps {
  * Reads from the `INTERACTION_MODES` registry for labels and tooltip descriptions.
  * Place above the InputBar in AppLayout (e.g. in the bottom controls strip).
  *
- * Layout: the radiogroup is `flex w-full` so all three buttons share the
- * available width equally (each ModeButton's outer div carries `flex-1 min-w-0`).
- * This prevents horizontal scroll while keeping the pills contained.
+ * Layout: the radiogroup is `inline-flex` so it renders at natural content width.
+ * Buttons use `whitespace-nowrap` to stay fully readable at all sizes.
+ * The parent wrapper in AppLayout carries `flex-shrink-0` so the switcher is
+ * never compressed — the ModelSelectorPanel side yields space instead.
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
  * middle item centers — preventing right-edge clipping for Auto-chain.
  */
@@ -140,7 +139,7 @@ export function InteractionModeSwitcher({
     <div
       role="radiogroup"
       aria-label="Interaction mode"
-      className="flex items-center w-full gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
+      className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
     >
       {INTERACTION_MODES.map((config, index) => {
         const tooltipAlign: TooltipAlign =

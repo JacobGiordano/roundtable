@@ -239,19 +239,21 @@ export function AppLayout({
         <div className="flex-shrink-0 px-4 pb-0">
           {/* Row: model selector trigger (left) + mode switcher (right) */}
           <div className="flex items-end justify-between">
-            <ModelSelectorPanel
-              models={allModels}
-              onToggleModel={onToggleModel}
-              onAddModel={onAddModel}
-              onUpdateSystemPrompt={onUpdateSystemPrompt}
-              onSelectModelVersion={onSelectModelVersion}
-              onClearModelVersion={onClearModelVersion}
-              sessionUsage={sessionUsage}
-              tokenCountVisibility={tokenCountVisibility}
-            />
-            {/* Interaction mode switcher — persisted per conversation via onModeChange */}
-            {/* min-w-0 lets the wrapper shrink; overflow-x-auto is inside the component */}
-            <div className="mb-2 min-w-0">
+            {/* Model selector side — min-w-0 + overflow-hidden so it yields space to the switcher */}
+            <div className="min-w-0 overflow-hidden flex-1 mr-3">
+              <ModelSelectorPanel
+                models={allModels}
+                onToggleModel={onToggleModel}
+                onAddModel={onAddModel}
+                onUpdateSystemPrompt={onUpdateSystemPrompt}
+                onSelectModelVersion={onSelectModelVersion}
+                onClearModelVersion={onClearModelVersion}
+                sessionUsage={sessionUsage}
+                tokenCountVisibility={tokenCountVisibility}
+              />
+            </div>
+            {/* Interaction mode switcher — flex-shrink-0 so it always renders at natural width */}
+            <div className="mb-2 flex-shrink-0">
               <InteractionModeSwitcher
                 activeMode={activeMode}
                 onModeChange={onModeChange}
