@@ -7,19 +7,14 @@ Accessibility baseline audit complete.
 
 ## Last closed
 
+- #61 (Arch + Atlas + Gate + Aria): Model version selection — fully shipped. Types,
+  registry (2–6 versions per provider), Gate persistence, Aria picker UI with Reset.
 - #62 (Gate + Aria): Resizable sidebar. Drag handle, keyboard (arrow ±8px), clamped
   [180–600]px, persisted at rt-ui-sidebar-width. prefers-reduced-motion respected.
-- #61 partial (Arch + Atlas + Gate): Model version selection types, registry, and
-  persistence merged. Aria model picker UI is the remaining piece — see In progress.
 
 ## In progress
 
-- #61 (Aria): Model version picker UI — NOT YET STARTED. Aria needs to:
-  1. Read availableVersions from MODEL_REGISTRY (same cross-agent exception as buildDefaultModelConfigs)
-  2. On init: call getModelVersion(modelId) for each model, set ModelConfig.selectedVersionId
-  3. Render version picker in per-model settings panel
-  4. On selection: call setModelVersion(modelId, versionId), update local state
-  5. Optionally: clearModelVersion(modelId) for reset to default
+None. All known issues closed.
 
 ## Decisions made this session
 
