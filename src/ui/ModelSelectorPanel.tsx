@@ -696,6 +696,7 @@ function SessionTokenSection({
       <button
         type="button"
         aria-expanded={isExpanded}
+        aria-controls="session-token-panel"
         onClick={handleToggle}
         className={[
           'w-full flex items-center justify-between',
@@ -719,58 +720,60 @@ function SessionTokenSection({
         </div>
       </button>
 
-      {/* Per-model breakdown — revealed on expand */}
-      {isExpanded && (
-        <div className="rounded-md border border-border-subtle overflow-hidden">
-          {sessionUsage.map((usage, i) => {
-            // Find the display name for this modelId
-            const modelConfig = activeModels.find((m) => m.modelId === usage.modelId);
-            const displayName = modelConfig?.name ?? usage.modelId;
+      {/* Per-model breakdown — revealed on expand. Always in DOM so aria-controls resolves. */}
+      <div
+        id="session-token-panel"
+        hidden={!isExpanded}
+        className="rounded-md border border-border-subtle overflow-hidden"
+      >
+        {sessionUsage.map((usage, i) => {
+          // Find the display name for this modelId
+          const modelConfig = activeModels.find((m) => m.modelId === usage.modelId);
+          const displayName = modelConfig?.name ?? usage.modelId;
 
-            return (
-              <div
-                key={usage.modelId}
-                className={[
-                  'flex items-center gap-2 px-3 py-2',
-                  i < sessionUsage.length - 1 ? 'border-b border-border-subtle' : '',
-                ].join(' ')}
-              >
-                {/* Color dot — use modelConfig if found, else fall back to accent-other */}
-                <span
-                  className="w-[7px] h-[7px] rounded-full flex-shrink-0"
-                  style={
-                    modelConfig
-                      ? getModelDotStyle(modelConfig)
-                      : { backgroundColor: 'var(--accent-other)' }
-                  }
-                  aria-hidden="true"
-                />
+          return (
+            <div
+              key={usage.modelId}
+              className={[
+                'flex items-center gap-2 px-3 py-2',
+                i < sessionUsage.length - 1 ? 'border-b border-border-subtle' : '',
+              ].join(' ')}
+            >
+              {/* Color dot — use modelConfig if found, else fall back to accent-other */}
+              <span
+                className="w-[7px] h-[7px] rounded-full flex-shrink-0"
+                style={
+                  modelConfig
+                    ? getModelDotStyle(modelConfig)
+                    : { backgroundColor: 'var(--accent-other)' }
+                }
+                aria-hidden="true"
+              />
 
-                {/* Model name */}
-                <span className="text-[12px] text-text-secondary flex-1 font-medium">
-                  {displayName}
+              {/* Model name */}
+              <span className="text-[12px] text-text-secondary flex-1 font-medium">
+                {displayName}
+              </span>
+
+              {/* Per-model token breakdown */}
+              <div className="flex items-center gap-3 text-[11px] text-text-muted tabular-nums">
+                <span title="Input tokens">
+                  ↑ {usage.inputTokens.toLocaleString()}
                 </span>
-
-                {/* Per-model token breakdown */}
-                <div className="flex items-center gap-3 text-[11px] text-text-muted tabular-nums">
-                  <span title="Input tokens">
-                    ↑ {usage.inputTokens.toLocaleString()}
-                  </span>
-                  <span title="Output tokens">
-                    ↓ {usage.outputTokens.toLocaleString()}
-                  </span>
-                  <span
-                    className="font-medium text-text-secondary"
-                    title="Total tokens this session"
-                  >
-                    {usage.totalTokens.toLocaleString()}
-                  </span>
-                </div>
+                <span title="Output tokens">
+                  ↓ {usage.outputTokens.toLocaleString()}
+                </span>
+                <span
+                  className="font-medium text-text-secondary"
+                  title="Total tokens this session"
+                >
+                  {usage.totalTokens.toLocaleString()}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

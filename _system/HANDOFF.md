@@ -24,6 +24,14 @@ Accessibility baseline audit complete.
   id="model-selector-panel" to the panel container div so it matches the trigger
   button's existing aria-controls="model-selector-panel". Awaiting merge authorization.
 
+## Last closed (wave 3)
+
+- #56 (Aria): SessionTokenSection toggle button missing aria-controls. Added
+  aria-controls="session-token-panel" to the toggle button; added id="session-token-panel"
+  to the panel container. Panel changed from conditional render to always-in-DOM with
+  hidden={!isExpanded} so aria-controls resolves to a real element at all times.
+  aria-expanded was already present. Awaiting merge authorization.
+
 ## In progress
 
 - #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
@@ -39,6 +47,8 @@ Accessibility baseline audit complete.
 - HTMLCanvasElement.getContext() stderr warnings from axe-core in jsdom are non-fatal.
   axe uses canvas for color contrast checks; canvas is not installed. Violations are
   still detected; only some contrast checks are skipped. This is acceptable for unit tests.
+- aria-controls pattern: panel must always be in the DOM (use hidden attribute, not
+  conditional render) so the aria-controls relationship resolves at all times.
 
 ## Model providers (all on main)
 
@@ -71,6 +81,8 @@ Accessibility baseline audit complete.
   fix requires Vite v8 upgrade (breaking change), not in current scope
 - vitest-axe axe-core assertion pattern: use assertNoViolations(results) helper, not
   expect.extend({ toHaveNoViolations }) — see decisions above
+- aria-controls: collapsible panels must always be in the DOM; use hidden attribute,
+  not conditional render — both SessionTokenSection (#56) and ModelSelectorPanel (#47) follow this
 
 ## Brand work (post-a11y)
 
