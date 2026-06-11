@@ -525,8 +525,8 @@ function GroupHeader({ label, isOpen, onToggle }: GroupHeaderProps) {
 function ThreadSkeleton() {
   return (
     <div className="h-16 flex flex-col justify-center pl-[14px] pr-4 gap-2 opacity-40">
-      <div className="h-2.5 w-3/4 rounded bg-border animate-pulse" />
-      <div className="h-2 w-1/2 rounded bg-border animate-pulse" />
+      <div className="h-2.5 w-3/4 rounded bg-border animate-pulse motion-reduce:animate-none" />
+      <div className="h-2 w-1/2 rounded bg-border animate-pulse motion-reduce:animate-none" />
     </div>
   );
 }
