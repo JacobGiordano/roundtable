@@ -70,9 +70,9 @@ const THEMES: Record<string, ThemeTokens> = {
   slate: {
     bg: '#0F1117', card: '#1A1D26', sidebar: '#13151C', input: '#1F2230',
     textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#7C84A2' /* #58 fix */,
-    accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#A855F7',
-    accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#4468D0',
-    accentMistral: '#E0568A', error: '#EF4444', focusRing: '#F59E0B',
+    accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#AF5FF8' /* #60 fix */,
+    accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#5A82E1' /* #60 fix */,
+    accentMistral: '#E0568A', error: '#F04A4A' /* #59 fix */, focusRing: '#F59E0B',
   },
   linen: {
     bg: '#F5F0E8', card: '#FDFAF5', sidebar: '#EDE8DF', input: '#F9F5EE',
@@ -91,9 +91,9 @@ const THEMES: Record<string, ThemeTokens> = {
   ash: {
     bg: '#181A1C', card: '#22252A', sidebar: '#1B1D20', input: '#272B31',
     textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#838D96' /* #58 fix */,
-    accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#9B72DB',
-    accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#4472C4',
-    accentMistral: '#D45C8A', error: '#E05555', focusRing: '#3DB8A8',
+    accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#A278E1' /* #60 fix */,
+    accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#648ADC' /* #60 fix */,
+    accentMistral: '#DC6294' /* #60 fix */, error: '#EA6060' /* #59 fix */, focusRing: '#3DB8A8',
   },
   ember: {
     bg: '#110D09', card: '#1D1712', sidebar: '#140F0A', input: '#231B14',
@@ -112,8 +112,8 @@ const THEMES: Record<string, ThemeTokens> = {
   outrun: {
     bg: '#0D0D0D', card: '#130A1A', sidebar: '#0A070F', input: '#180E22',
     textPrimary: '#F0E8FF', textSecondary: '#C880FF', textMuted: '#A468CC',
-    accentClaude: '#FFE600', accentGpt: '#00FFFF', accentGemini: '#BF00FF',
-    accentOther: '#FF00AA', accentGrok: '#00BFFF', accentDeepseek: '#4060FF',
+    accentClaude: '#FFE600', accentGpt: '#00FFFF', accentGemini: '#C828FF' /* #60 fix */,
+    accentOther: '#FF00AA', accentGrok: '#00BFFF', accentDeepseek: '#6070FF' /* #60 fix */,
     accentMistral: '#FF2D78', error: '#FF3366', focusRing: '#00FFFF',
   },
 };
@@ -142,7 +142,7 @@ describe('theme contrast — primary and secondary text (WCAG 2.1 AA, 4.5:1)', (
   }
 });
 
-// ─── text-muted — per-surface, per-theme (many known failures) ────────────────
+// ─── text-muted — per-surface, per-theme ─────────────────────────────────────
 // text-muted (#text.muted in theme tokens) is used for timestamps, token counts,
 // placeholders, and helper copy — all normal-weight small text (11–13px), not
 // large text. Threshold: 4.5:1.
@@ -230,10 +230,13 @@ describe('theme contrast — text-muted on sidebar surface (4.5:1)', () => {
   });
 });
 
-// ─── Error text — most pass; slate and ash card surface fail ──────────────────
+// ─── Error text — all pass after #59 fixes ────────────────────────────────────
+// Pre-#59 failures (against card surface):
+//   slate: FAIL (4.47:1) — #EF4444 → #F04A4A fixed in #59
+//   ash:   FAIL (4.10:1) — #E05555 → #EA6060 fixed in #59
 
 describe('theme contrast — error text on card (WCAG 2.1 AA, 4.5:1)', () => {
-  it.fails('slate: FAIL (4.47:1) — tracked gh issue', () => {
+  it('slate: PASS (fixed #59)', () => {
     expect(contrastRatio(THEMES.slate.error, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('linen: PASS', () => {
@@ -242,7 +245,7 @@ describe('theme contrast — error text on card (WCAG 2.1 AA, 4.5:1)', () => {
   it('midnight: PASS', () => {
     expect(contrastRatio(THEMES.midnight.error, THEMES.midnight.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: FAIL (4.10:1) — tracked gh issue', () => {
+  it('ash: PASS (fixed #59)', () => {
     expect(contrastRatio(THEMES.ash.error, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('ember: PASS', () => {
@@ -286,12 +289,12 @@ describe('theme contrast — focus rings (WCAG 2.1 AA, 3.0:1 UI component)', () 
 //   - Directed-reply pill text (12px font-medium — NOT large text)
 // Threshold: 4.5:1 on the card surface (message bubble background).
 //
-// Known failures identified in audit (against card surface):
-//   slate:  accent-gemini (4.25), accent-deepseek (3.32)
-//   ash:    accent-deepseek (3.26), accent-gemini (4.26), accent-mistral (4.17)
-//   outrun: accent-deepseek (3.99), accent-gemini (4.29)
+// Pre-#60 failures identified in audit (against card surface):
+//   slate:  accent-gemini (4.25), accent-deepseek (3.32) → FIXED in #60
+//   ash:    accent-deepseek (3.26), accent-gemini (4.26), accent-mistral (4.17) → FIXED in #60
+//   outrun: accent-deepseek (3.99), accent-gemini (4.29) → FIXED in #60
 //
-// All other accents in all themes pass on card.
+// All accents in all themes now pass on card.
 
 describe('theme contrast — accent colors as text on card (4.5:1)', () => {
   // Themes where all accents pass
@@ -308,14 +311,14 @@ describe('theme contrast — accent colors as text on card (4.5:1)', () => {
     }
   }
 
-  // slate — most pass, deepseek and gemini fail
+  // slate — all pass after #60 fixes
   it('slate: accent-claude PASS', () => {
     expect(contrastRatio(THEMES.slate.accentClaude, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('slate: accent-gpt PASS', () => {
     expect(contrastRatio(THEMES.slate.accentGpt, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('slate: accent-gemini FAIL (4.25:1) — tracked gh issue', () => {
+  it('slate: accent-gemini PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.slate.accentGemini, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('slate: accent-other PASS', () => {
@@ -324,21 +327,21 @@ describe('theme contrast — accent colors as text on card (4.5:1)', () => {
   it('slate: accent-grok PASS', () => {
     expect(contrastRatio(THEMES.slate.accentGrok, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('slate: accent-deepseek FAIL (3.32:1) — tracked gh issue', () => {
+  it('slate: accent-deepseek PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.slate.accentDeepseek, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('slate: accent-mistral PASS', () => {
     expect(contrastRatio(THEMES.slate.accentMistral, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
 
-  // ash — deepseek, gemini, mistral fail
+  // ash — all pass after #60 fixes
   it('ash: accent-claude PASS', () => {
     expect(contrastRatio(THEMES.ash.accentClaude, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('ash: accent-gpt PASS', () => {
     expect(contrastRatio(THEMES.ash.accentGpt, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: accent-gemini FAIL (4.26:1) — tracked gh issue', () => {
+  it('ash: accent-gemini PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.ash.accentGemini, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('ash: accent-other PASS', () => {
@@ -347,21 +350,21 @@ describe('theme contrast — accent colors as text on card (4.5:1)', () => {
   it('ash: accent-grok PASS', () => {
     expect(contrastRatio(THEMES.ash.accentGrok, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: accent-deepseek FAIL (3.26:1) — tracked gh issue', () => {
+  it('ash: accent-deepseek PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.ash.accentDeepseek, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('ash: accent-mistral FAIL (4.17:1) — tracked gh issue', () => {
+  it('ash: accent-mistral PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.ash.accentMistral, THEMES.ash.card)).toBeGreaterThanOrEqual(4.5);
   });
 
-  // outrun — deepseek and gemini fail
+  // outrun — all pass after #60 fixes
   it('outrun: accent-claude PASS', () => {
     expect(contrastRatio(THEMES.outrun.accentClaude, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('outrun: accent-gpt PASS', () => {
     expect(contrastRatio(THEMES.outrun.accentGpt, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('outrun: accent-gemini FAIL (4.29:1) — tracked gh issue', () => {
+  it('outrun: accent-gemini PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.outrun.accentGemini, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('outrun: accent-other PASS', () => {
@@ -370,7 +373,7 @@ describe('theme contrast — accent colors as text on card (4.5:1)', () => {
   it('outrun: accent-grok PASS', () => {
     expect(contrastRatio(THEMES.outrun.accentGrok, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
-  it.fails('outrun: accent-deepseek FAIL (3.99:1) — tracked gh issue', () => {
+  it('outrun: accent-deepseek PASS (fixed #60)', () => {
     expect(contrastRatio(THEMES.outrun.accentDeepseek, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('outrun: accent-mistral PASS', () => {
