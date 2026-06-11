@@ -18,7 +18,7 @@
 const SIDEBAR_WIDTH_STORAGE_KEY = 'rt-ui-sidebar-width' as const;
 
 /** Minimum sidebar width in pixels. Aria should enforce the same floor in the drag UI. */
-export const SIDEBAR_WIDTH_MIN = 180;
+export const SIDEBAR_WIDTH_MIN = 278;
 
 /** Maximum sidebar width in pixels. Aria should enforce the same ceiling in the drag UI. */
 export const SIDEBAR_WIDTH_MAX = 600;
