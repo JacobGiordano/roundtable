@@ -24,6 +24,14 @@ Accessibility baseline audit complete.
   id="model-selector-panel" to the panel container div so it matches the trigger
   button's existing aria-controls="model-selector-panel". Awaiting merge authorization.
 
+## Last closed (this session)
+
+- #52 (Aria): InputBar ghost mode not announced to screen readers. Added visually-hidden
+  aria-live="polite" aria-atomic="true" span that updates text when isGhostMode changes.
+  "Ghost mode on — messages won't be saved" / "Ghost mode off". Region always present in
+  DOM so browser registers it before first toggle. Branch: 52-aria-inputbar-ghost-mode-a11y.
+  Awaiting merge authorization.
+
 ## In progress
 
 - #66 (Ada): axe-core tests for MessageBubble (#46 Reply button + #48 streaming live region).
@@ -39,6 +47,10 @@ Accessibility baseline audit complete.
 - HTMLCanvasElement.getContext() stderr warnings from axe-core in jsdom are non-fatal.
   axe uses canvas for color contrast checks; canvas is not installed. Violations are
   still detected; only some contrast checks are skipped. This is acceptable for unit tests.
+- Aria (#52): ghost mode live region always renders with text (not conditionally mounted)
+  so the browser registers the region as live before the first toggle fires. Initial text
+  is not announced; only subsequent changes are. Pattern: sr-only span with aria-live="polite"
+  aria-atomic="true", text = isGhostMode ternary.
 
 ## Model providers (all on main)
 
@@ -85,5 +97,5 @@ Do not activate Marque until Aria's a11y fixes are complete.
 2. Luma: #59 — error color contrast on card surface (Slate and Ash)
 3. Aria: #48 — MessageBubble streaming state not announced to screen readers
 4. Ada: remove it.fails() wrappers from B1–B5 in contrast.test.ts (#58 Luma fix merged)
-5. Aria: #49–#57 — remaining a11y issues (one per session)
+5. Aria: #49–#57 (minus #52, done) — remaining a11y issues (one per session)
 6. Open branding issue → activate Marque
