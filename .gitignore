@@ -42,3 +42,6 @@ npm-debug.log*
 
 # Docker
 backend/postgres_data/
+
+# Screenshots for the team
+_screenshots/
