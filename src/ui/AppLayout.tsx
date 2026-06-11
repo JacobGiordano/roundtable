@@ -250,7 +250,8 @@ export function AppLayout({
               tokenCountVisibility={tokenCountVisibility}
             />
             {/* Interaction mode switcher — persisted per conversation via onModeChange */}
-            <div className="mb-2 flex-shrink-0">
+            {/* min-w-0 lets the wrapper shrink; overflow-x-auto is inside the component */}
+            <div className="mb-2 min-w-0">
               <InteractionModeSwitcher
                 activeMode={activeMode}
                 onModeChange={onModeChange}

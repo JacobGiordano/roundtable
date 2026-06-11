@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (end of session — #69 logo fix, #70 sidebar min-width, #71 mobile layout)
+Last updated: 2026-06-11 (hexagon geometry fix + #70 overflow bugs)
 
 ## Current phase
 
@@ -7,27 +7,19 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Last closed
 
-- #70 (Gate): raised SIDEBAR_WIDTH_MIN from 180 to 278 — prevents TokenCountControl
-  wrapping at narrow sidebar widths.
-- #69 (Aria): logo symbol rendering corrected — removed CSS mask approach, now renders
-  solid Indigo circle (`--brand-primary`) with white hexagon stroke and white center dot
-  per Marque's identity spec.
-- #71 (Aria): mobile layout — sidebar drawer, mobile header, safe-area inset, touch targets.
-  Post-merge fixes: `relative` → `md:relative` (freed chat area width), × close button
-  in drawer header.
+- #70 (Aria): InteractionModeSwitcher overflow bugs fixed — label viewport overflow + tooltip clipping.
+- Logo (no issue): hexagon polygon geometry corrected to proper flat-top orientation across all SVG files and RoundtableLogo.tsx. Previous geometry mixed pointy-top and flat-top vertices, producing a razor-blade shape.
 
 ## Decisions made this session
 
-- SIDEBAR_WIDTH_MIN: 278px — just below SIDEBAR_WIDTH_DEFAULT (280) so default remains valid.
-- Logo: dropped SVG mask; three flat paint layers. `--brand-primary` drives circle fill;
-  `--brand-logo-color` drives wordmark only.
-- Mobile sidebar: fixed drawer on mobile (w-72/288px, translate-based show/hide), static on
-  desktop. Inline-style width guarded by `isMobileViewport.current` ref to avoid specificity
-  conflict with Tailwind `w-72`.
-- AppLayout: `isMobileMenuOpen` state, mobile header (hamburger + logo + new-convo), backdrop.
-- InputBar: safe-area-inset-bottom via inline style (env()). Send button min 44×44px tap target.
-- ModelSelectorPanel: pills row flex-nowrap + overflow-x-auto. Panel body max-h-[70vh].
-- Sidebar header on mobile: × (close drawer); on desktop: + (new conversation).
+- Overflow fix: outer scrollable wrapper (overflow-x-auto) inside InteractionModeSwitcher;
+  AppLayout wrapper changed from flex-shrink-0 to min-w-0.
+- Tooltip fix: TooltipAlign ('left' | 'center' | 'right') on ModeButton. First item left-aligns,
+  middle centers, last item (Auto-chain) right-aligns. Caret tracks anchor.
+- Hexagon fix: correct flat-top vertices are 38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88
+  (60° intervals from 0°). Wrong vertices (cos(30°) math) corrected in all 7 SVG files + TSX.
+- Logo exploration doc produced by Marque at /_design/brand/logo-exploration.md (worktree, not merged).
+  Recommendation: pointy-top hexagon (Option 2). Awaiting user direction before implementing.
 
 ## Gotchas
 
@@ -70,4 +62,8 @@ Accessibility baseline audit complete. Brand assets wired and corrected. Mobile 
 
 ## Next issues in priority order
 
-No open issues known. Await user direction for next work.
+- Logo mark direction: user to decide between Option 2 (pointy-top hex) or other from exploration doc.
+  Once decided, open ticket for Marque + Aria to implement.
+- Dev/staging branch workflow: open Arch ticket to formalize in CLAUDE.md (agents branch from main,
+  merge to dev for preview, merge feature branch to main to ship).
+- Branch/worktree pruning: large number of stale branches and worktrees to clean up.

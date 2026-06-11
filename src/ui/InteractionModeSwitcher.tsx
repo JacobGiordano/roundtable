@@ -26,13 +26,39 @@ const INTERACTION_MODES: InteractionModeConfig[] = [
 
 // ─── ModeButton ───────────────────────────────────────────────────────────────
 
+/**
+ * Tooltip anchor direction.
+ * - 'left'   → tooltip left-aligns with the button (safe for leftmost item)
+ * - 'center' → tooltip centers on the button
+ * - 'right'  → tooltip right-aligns with the button (safe for rightmost item, prevents viewport clip)
+ */
+type TooltipAlign = 'left' | 'center' | 'right';
+
 interface ModeButtonProps {
   config: InteractionModeConfig;
   isSelected: boolean;
   onSelect: (mode: InteractionMode) => void;
+  /** Controls which edge the tooltip anchors to avoid viewport clipping. */
+  tooltipAlign?: TooltipAlign;
 }
 
-function ModeButton({ config, isSelected, onSelect }: ModeButtonProps) {
+function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: ModeButtonProps) {
+  // Tooltip horizontal positioning classes — chosen to prevent right-edge clipping
+  const tooltipPositionClass =
+    tooltipAlign === 'right'
+      ? 'right-0'
+      : tooltipAlign === 'left'
+        ? 'left-0'
+        : 'left-1/2 -translate-x-1/2';
+
+  // Caret horizontal positioning — kept in sync with tooltip anchor
+  const caretPositionClass =
+    tooltipAlign === 'right'
+      ? 'right-3'
+      : tooltipAlign === 'left'
+        ? 'left-3'
+        : 'left-1/2 -translate-x-1/2';
+
   return (
     <div className="relative group">
       <button
@@ -60,7 +86,7 @@ function ModeButton({ config, isSelected, onSelect }: ModeButtonProps) {
       <div
         role="tooltip"
         className={[
-          'absolute bottom-full left-1/2 -translate-x-1/2 mb-2',
+          `absolute bottom-full ${tooltipPositionClass} mb-2`,
           'w-max max-w-[200px]',
           'bg-sidebar border border-border rounded-sm shadow-md',
           'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
@@ -72,9 +98,9 @@ function ModeButton({ config, isSelected, onSelect }: ModeButtonProps) {
         ].join(' ')}
       >
         {config.description}
-        {/* Caret */}
+        {/* Caret — anchored to match tooltip alignment */}
         <span
-          className="absolute top-full left-1/2 -translate-x-1/2 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+          className={`absolute top-full ${caretPositionClass} -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border`}
           aria-hidden="true"
         />
       </div>
@@ -95,25 +121,40 @@ export interface InteractionModeSwitcherProps {
  * Segmented radio group for switching between Parallel / Manual / Auto-chain.
  * Reads from the `INTERACTION_MODES` registry for labels and tooltip descriptions.
  * Place above the InputBar in AppLayout (e.g. in the bottom controls strip).
+ *
+ * Overflow handling: the outer wrapper uses overflow-x-auto so the switcher
+ * scrolls horizontally rather than overflowing the viewport at narrow widths.
+ * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
+ * middle item centers — preventing right-edge clipping for Auto-chain.
  */
 export function InteractionModeSwitcher({
   activeMode,
   onModeChange,
 }: InteractionModeSwitcherProps) {
+  const lastIndex = INTERACTION_MODES.length - 1;
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Interaction mode"
-      className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
-    >
-      {INTERACTION_MODES.map((config) => (
-        <ModeButton
-          key={config.mode}
-          config={config}
-          isSelected={activeMode === config.mode}
-          onSelect={onModeChange}
-        />
-      ))}
+    /* Scrollable wrapper — prevents the pill row from overflowing the viewport */
+    <div className="overflow-x-auto">
+      <div
+        role="radiogroup"
+        aria-label="Interaction mode"
+        className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
+      >
+        {INTERACTION_MODES.map((config, index) => {
+          const tooltipAlign: TooltipAlign =
+            index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
+          return (
+            <ModeButton
+              key={config.mode}
+              config={config}
+              isSelected={activeMode === config.mode}
+              onSelect={onModeChange}
+              tooltipAlign={tooltipAlign}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
