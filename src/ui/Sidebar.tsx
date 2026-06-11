@@ -1070,14 +1070,30 @@ export function Sidebar({
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
         <RoundtableLogo />
+        {/* Close button — mobile drawer only (desktop uses backdrop or hamburger toggle) */}
+        <button
+          type="button"
+          onClick={onMobileClose}
+          aria-label="Close navigation"
+          className={[
+            'md:hidden w-8 h-8 rounded-md flex items-center justify-center',
+            'text-text-secondary hover:bg-hover',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          ].join(' ')}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+        {/* New conversation button — desktop only (mobile top bar has its own) */}
         <button
           type="button"
           onClick={onNewConversation}
           aria-label="New conversation"
           className={[
-            'w-8 h-8 rounded-md flex items-center justify-center',
-            'text-text-secondary',
-            'hover:bg-hover',
+            'hidden md:flex w-8 h-8 rounded-md items-center justify-center',
+            'text-text-secondary hover:bg-hover',
             'transition-colors duration-fast',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           ].join(' ')}
