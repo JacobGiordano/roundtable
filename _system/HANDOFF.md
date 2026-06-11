@@ -32,6 +32,8 @@ Wave 2 running — #49, #50, #53, #54 (Aria a11y issues).
   with aria-live="polite" aria-atomic="true", text = ternary on state.
 - AddModelButton: items trigger actions (not selection) → menu/menuitem is correct ARIA.
 - prefers-reduced-motion: streaming shimmers use per-model selectors — must override each.
+  claude variant re-added animation via its own rule, overriding the base ::after override.
+  Grok/deepseek/mistral had no reduced-motion overrides. All fixed in #55.
 
 ## Model providers (all on main)
 
