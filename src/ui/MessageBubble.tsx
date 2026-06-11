@@ -98,6 +98,7 @@ export function MessageBubble({
       data-model={getModelDataAttr(message.modelId)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      aria-busy={isStreaming && message.role === 'assistant' ? true : undefined}
     >
       {/* Model name header — assistant messages only */}
       {showHeader && (
@@ -108,8 +109,19 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Message body */}
-      <div className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words">
+      {/* Message body
+          aria-live="polite": notifies screen readers as streaming content arrives.
+          aria-atomic="false": the region updates incrementally — only newly appended
+          text is announced, not the full accumulated content on every chunk.
+          aria-live is only set during streaming on assistant bubbles; once streaming
+          completes the attribute switches to "off" so finalized content is not
+          re-announced on subsequent re-renders.
+          User messages are never streaming, so they always get aria-live="off". */}
+      <div
+        className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words"
+        aria-live={isStreaming && message.role === 'assistant' ? 'polite' : 'off'}
+        aria-atomic={isStreaming && message.role === 'assistant' ? 'false' : undefined}
+      >
         {message.content}
         {isStreaming && !hasError && (
           <span className="cursor-blink select-none" aria-hidden="true">|</span>

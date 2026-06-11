@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
@@ -70,6 +70,44 @@ export function MessageThread({
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Visually hidden live region for streaming completion announcements.
+  // When a model finishes streaming (its message leaves streamingMessages),
+  // we announce "[Model name] responded" once via aria-live="assertive".
+  // The message is cleared after a brief delay so the region is ready
+  // for the next announcement.
+  const [completionAnnouncement, setCompletionAnnouncement] = useState('');
+  const prevStreamingIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(streamingMessages.map((m) => m.id));
+    const prevIds = prevStreamingIdsRef.current;
+
+    // Find IDs that were streaming last render but are no longer — these finished.
+    const completedIds = [...prevIds].filter((id) => !currentIds.has(id));
+
+    // Always advance the ref so the next run diffs from the current state.
+    prevStreamingIdsRef.current = currentIds;
+
+    if (completedIds.length > 0) {
+      // Build announcement from recently-committed messages that match.
+      // messages[] is the committed list, so completed streams are there now.
+      const completedMessages = messages.filter((m) => completedIds.includes(m.id));
+      const names = completedMessages
+        .map((m) => findModelConfig(m.modelId, models)?.name ?? m.modelId ?? 'Model')
+        .filter((name, i, arr) => arr.indexOf(name) === i); // deduplicate
+
+      if (names.length > 0) {
+        const announcement = names.length === 1
+          ? `${names[0]} responded`
+          : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} responded`;
+        setCompletionAnnouncement(announcement);
+        // Clear after 1 s so the region is ready for the next completion event.
+        const timer = setTimeout(() => setCompletionAnnouncement(''), 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [streamingMessages, messages, models]);
+
   // Combine persisted messages and in-flight streaming messages for rendering.
   // Streaming messages are always appended after persisted ones so the thread
   // ordering is: all committed messages → all in-flight streaming messages.
@@ -90,6 +128,19 @@ export function MessageThread({
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
+      {/* Visually hidden live region — announces streaming completion to screen readers.
+          aria-live="assertive" is intentional: completion is a discrete event (not
+          continuous updates) and "polite" risks being deferred indefinitely when the
+          user is still reading streamed text from the message body live region above.
+          aria-atomic="true": the full announcement string is read as a unit. */}
+      <div
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {completionAnnouncement}
+      </div>
+
       {/* Thread header — only shown when there are messages */}
       {onExport && (
         <div className="flex-shrink-0 flex items-center justify-end px-4 pt-3 pb-0">
