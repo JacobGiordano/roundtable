@@ -389,3 +389,75 @@ Everything needed to ship as a proper open source project.
 - [ ] Issue and PR templates
 - [ ] Code of conduct
 - [ ] Agency Agents setup instructions for contributors
+
+---
+
+## Post-Launch Polish
+
+---
+
+**Issue #69: [Aria] Logo rendering does not match brand spec**
+Labels: `aria`, `bug`
+
+The `RoundtableLogo.tsx` uses a mask/void approach that differs from Marque's specification. A CSS mask punches the hexagon and center dot out as transparent holes through the filled circle, then draws the hexagon border stroke and center dot in `currentColor` on top. The result: hexagon interior shows the page background through the circle (not a white stroke on an Indigo fill), and all mark elements share one color when the spec requires two.
+
+**Marque spec** (`/_design/brand/logo/symbol.svg`, `/_design/brand/identity.md`):
+- Outer circle: solid Indigo fill (`#2D2B55`), always — use `--brand-primary` CSS var
+- Hexagon: `stroke: white`, `fill: none`, `stroke-width: 2`, `stroke-linejoin: round`
+- Center dot: `fill: white`
+- Wordmark: controlled by `--brand-logo-color` (Indigo on light themes, Mist on dark)
+
+**Fix:**
+- [ ] Remove the `<defs><mask>` block entirely
+- [ ] Circle: `fill="var(--brand-primary)"` (no mask needed)
+- [ ] Hexagon polygon: same points, `stroke="white"` `fill="none"`
+- [ ] Center dot: `fill="white"`
+- [ ] Move `color: var(--brand-logo-color)` to the wordmark SVG only (symbol no longer uses `currentColor`)
+- [ ] `npm run lint && npm run build` must pass
+- [ ] Update `HANDOFF.md` before final commit
+
+---
+
+**Issue #70: [Gate] Sidebar minimum width too narrow — token count option wraps**
+Labels: `gate`, `bug`
+
+`SIDEBAR_WIDTH_MIN` in `/src/auth/sidebarWidth.ts` is 180px. At that width the `TokenCountControl` segmented button group ("Always" | "On tap" | "Never") clips and "On tap" wraps to two lines.
+
+**Fix:**
+- [ ] Change `SIDEBAR_WIDTH_MIN` from `180` to `278` in `/src/auth/sidebarWidth.ts`
+- [ ] `npm run lint && npm run build` must pass
+- [ ] Update `HANDOFF.md` before final commit
+
+---
+
+**Issue #71: [Aria] No mobile layout — app is unusable on small screens**
+Labels: `aria`, `bug`, `enhancement`
+
+The app has no responsive design beyond the logo wordmark hiding below 640px. The sidebar renders unconditionally at a fixed pixel width (~280px), leaving ~95px for the chat area on a 375px phone. Every interactive element is desktop-only.
+
+**Required changes:**
+
+_AppLayout.tsx_
+- Add `isMobileMenuOpen: boolean` state (default false)
+- On mobile (`< md`, 768px), render a thin top header bar containing: hamburger button (left, opens sidebar drawer), Roundtable logo (center-left), new-conversation button (right)
+- Render a semi-transparent backdrop (`fixed inset-0 z-40 bg-black/40`) behind the sidebar when `isMobileMenuOpen && mobile`; tapping backdrop closes the drawer
+- Pass `isMobileMenuOpen` and `onCloseMobileMenu` down to `Sidebar`
+
+_Sidebar.tsx_
+- On desktop: behavior unchanged (fixed inline-width `<aside>`)
+- On mobile: `fixed inset-y-0 left-0 z-50 w-72 h-full`; translate-x-full when closed, translate-x-0 when open; `transition-transform duration-200`
+- The close affordance: tapping the backdrop (in AppLayout) handles this; no need for an X button inside the sidebar
+- The drag-resize handle must be disabled (hidden) on mobile
+
+_InputBar.tsx_
+- Add `pb-safe` / `env(safe-area-inset-bottom)` padding so the input isn't obscured by iOS home indicator
+- Ensure tap target height ≥ 44px on the send button
+
+_ModelSelectorPanel.tsx_
+- The trigger pill row and slide-up panel must be horizontally scrollable on narrow screens; no overflow clipping
+
+_General_
+- All interactive elements must meet 44×44px minimum touch target (WCAG 2.5.5)
+- Test at 375px (iPhone SE) and 390px (iPhone 14) viewport widths
+- `npm run lint && npm run build` must pass
+- Update `HANDOFF.md` before final commit
