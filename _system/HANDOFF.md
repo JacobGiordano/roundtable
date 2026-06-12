@@ -1,17 +1,18 @@
-Last updated: 2026-06-12 (Gate: TokenCountControl role fix #78)
+Last updated: 2026-06-12 (Aria: AppLayout mobile gear aria-controls #80)
 
 ## Current phase
 
-Phase 4 — Feature-complete. 1 a11y bug open; 5 test gap tickets open.
+Phase 4 — Feature-complete. All Ada-filed a11y bugs closed. 5 test gap tickets open.
 
 ## Session summary
 
-- Gate: #78 — changed `role="group"` → `role="radiogroup"` on TokenCountControl container
-- One-line fix; lint/build clean; Ada-filed issue resolved
+- All 4 Ada a11y bugs resolved this session: #82, #79, #78, #80
+- Aria: #82 (nested-interactive) + #79 (focus trap) — batched, AccentColorPicker
+- Gate: #78 (role="group" → role="radiogroup") — TokenCountControl
+- Aria: #80 (aria-controls on mobile gear) — AppLayout
 
 ## Open issues — priority order
 
-- #80 [Aria] Minor — AppLayout mobile gear missing `aria-controls`
 - Forge: CI workflow `.github/workflows/ci.yml` (first Forge session)
 - Bastion: bootstrap `/backend/tests/` infrastructure (first Bastion session)
 - Scout #83–#87: 5 test gap tickets (accentColors sync, ghost mode, getSessionTokenUsage, hex field, MODEL_REGISTRY)
