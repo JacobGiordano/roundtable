@@ -169,23 +169,32 @@ export function AccentColorPicker({
   const colorInputRef = useRef<HTMLInputElement>(null);
   // Ref on the swatch that should receive focus when the picker opens.
   // Points to whichever swatch matches selectedHex (case-insensitive);
-  // falls back to index 0 if the current color is a custom hex not in the list.
+  // falls back to the custom swatch button if the current color is not in the list.
   const initialFocusRef = useRef<HTMLButtonElement>(null);
+  // Ref on the custom color swatch button — receives focus when the active color
+  // is a custom hex not in the preset list, so the selection ring is visible.
+  const customSwatchRef = useRef<HTMLButtonElement>(null);
 
   // Index of the swatch that should receive initial focus.
-  const initialFocusIndex = (() => {
-    const match = SWATCHES.findIndex(
-      (s) => s.hex.toUpperCase() === selectedHex.toUpperCase(),
-    );
-    return match === -1 ? 0 : match;
-  })();
+  // Returns -1 when the color is not in the preset list (custom color).
+  const initialFocusIndex = SWATCHES.findIndex(
+    (s) => s.hex.toUpperCase() === selectedHex.toUpperCase(),
+  );
+
+  // True when the active color is not one of the 12 presets.
+  const isCustomColor = initialFocusIndex === -1;
 
   // WCAG 2.1 SC 2.4.3: move focus into the dialog when it opens.
   // useLayoutEffect fires synchronously after DOM paint, before the browser
   // yields to the user, ensuring focus lands here before any Tab keypress
   // can escape to the page behind the popover.
   useLayoutEffect(() => {
-    initialFocusRef.current?.focus();
+    if (isCustomColor) {
+      customSwatchRef.current?.focus();
+    } else {
+      initialFocusRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close on click outside.
@@ -416,6 +425,7 @@ export function AccentColorPicker({
         <div className="flex items-center gap-2">
           {/* Color swatch button — triggers hidden native picker */}
           <button
+            ref={customSwatchRef}
             type="button"
             aria-label="Open color picker"
             onClick={handleColorSwatchButtonClick}
@@ -424,7 +434,11 @@ export function AccentColorPicker({
               'border border-border',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
-            style={{ backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888' }}
+            style={{
+              backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888',
+              outline: isCustomColor ? '2px solid var(--text-primary)' : undefined,
+              outlineOffset: isCustomColor ? '2px' : undefined,
+            }}
           >
             {/* Hidden native color input — overlaid and invisible */}
             <input
