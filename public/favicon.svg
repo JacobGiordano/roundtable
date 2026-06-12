@@ -4,24 +4,30 @@
   <style>
     @media (prefers-color-scheme: light) {
       .icon-bg   { fill: #2D2B55; }
-      .icon-mark { stroke: #FFFFFF; fill: #FFFFFF; }
+      .icon-mark { stroke: #FFFFFF; fill: none; }
       .icon-mark-fill { fill: #FFFFFF; }
     }
     @media (prefers-color-scheme: dark) {
       .icon-bg   { fill: #2D2B55; }
-      .icon-mark { stroke: #FFFFFF; fill: #FFFFFF; }
+      .icon-mark { stroke: #FFFFFF; fill: none; }
       .icon-mark-fill { fill: #FFFFFF; }
     }
   </style>
 
+  <!-- Outer filled circle — brand primary #2D2B55 -->
   <circle cx="24" cy="24" r="22" class="icon-bg" fill="#2D2B55"/>
-  <polygon
-    points="38,24 31,36.12 17,36.12 10,24 17,11.88 31,11.88"
-    fill="none"
-    class="icon-mark"
-    stroke="#FFFFFF"
-    stroke-width="2"
-    stroke-linejoin="round"
-  />
-  <circle cx="24" cy="24" r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+
+  <!-- Ring (table surface) — stroke color supplied by .icon-mark CSS class -->
+  <circle cx="24" cy="24" r="14" fill="none" class="icon-mark" stroke-width="2"/>
+
+  <!-- Six seat dots — pointy-top hexagonal arrangement on the ring at r=14 -->
+  <circle cx="24"    cy="10"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+  <circle cx="36.12" cy="17"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+  <circle cx="36.12" cy="31"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+  <circle cx="24"    cy="38"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+  <circle cx="11.88" cy="31"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+  <circle cx="11.88" cy="17"    r="3" class="icon-mark-fill" fill="#FFFFFF"/>
+
+  <!-- Center dot — gathering point -->
+  <circle cx="24" cy="24" r="3.5" class="icon-mark-fill" fill="#FFFFFF"/>
 </svg>
