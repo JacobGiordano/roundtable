@@ -83,16 +83,8 @@ function renderPicker(currentColor?: string) {
 // ─── Axe — no violations ─────────────────────────────────────────────────────
 
 describe('AccentColorPicker — no axe violations', () => {
-  /**
-   * Issue #82 (OPEN): The custom swatch button nests an <input type="color">
-   * inside a <button> element. HTML spec prohibits interactive content inside
-   * <button>. axe flags this as `nested-interactive` (serious severity).
-   *
-   * These tests are marked it.fails() until #82 is resolved.
-   * When Aria fixes the markup (moves <input> outside <button>), remove it.fails().
-   */
-  it.fails(
-    '[#82 OPEN] has no axe violations — no current color (nested-interactive bug)',
+  it(
+    'has no axe violations — no current color',
     async () => {
       const { container } = renderPicker(undefined);
       const results = await axe(container);
@@ -100,8 +92,8 @@ describe('AccentColorPicker — no axe violations', () => {
     },
   );
 
-  it.fails(
-    '[#82 OPEN] has no axe violations — preset color active (nested-interactive bug)',
+  it(
+    'has no axe violations — preset color active',
     async () => {
       const { container } = renderPicker(PRESET_COLOR);
       const results = await axe(container);
@@ -109,8 +101,8 @@ describe('AccentColorPicker — no axe violations', () => {
     },
   );
 
-  it.fails(
-    '[#82 OPEN] has no axe violations — custom color active (nested-interactive bug)',
+  it(
+    'has no axe violations — custom color active',
     async () => {
       const { container } = renderPicker(CUSTOM_COLOR);
       const results = await axe(container);

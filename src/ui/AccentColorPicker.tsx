@@ -324,6 +324,30 @@ export function AccentColorPicker({
     onClose();
   }, [modelId, onClose]);
 
+  // ── Focus trap (WCAG 2.1.2, issue #79) ───────────────────────────────────
+  // Wraps Tab / Shift+Tab within the dialog's focusable elements.
+  // Excludes elements with tabindex="-1" (the hidden <input type="color">).
+
+  const handleDialogKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== 'Tab') return;
+      const focusable = popoverRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"])',
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    },
+    [],
+  );
+
   // ── Check whether a custom color is stored for this model ─────────────────
 
   // We check getModelAccentColors() at render time to know if Reset should show.
@@ -345,6 +369,7 @@ export function AccentColorPicker({
       role="dialog"
       aria-label={`Accent color picker for ${modelName}`}
       aria-modal="true"
+      onKeyDown={handleDialogKeyDown}
       style={popoverStyle}
       className="bg-card border border-border rounded-[12px] shadow-lg overflow-hidden"
     >
@@ -423,24 +448,31 @@ export function AccentColorPicker({
           Custom
         </span>
         <div className="flex items-center gap-2">
-          {/* Color swatch button — triggers hidden native picker */}
-          <button
-            ref={customSwatchRef}
-            type="button"
-            aria-label="Open color picker"
-            onClick={handleColorSwatchButtonClick}
-            className={[
-              'w-9 h-9 rounded-sm flex-shrink-0 relative',
-              'border border-border',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-            style={{
-              backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888',
-              outline: isCustomColor ? '2px solid var(--text-primary)' : undefined,
-              outlineOffset: isCustomColor ? '2px' : undefined,
-            }}
-          >
-            {/* Hidden native color input — overlaid and invisible */}
+          {/* Wrapper keeps button and hidden native input as siblings.
+              The input must NOT be inside the button — HTML forbids interactive
+              content inside <button> (axe: nested-interactive, WCAG 4.1.1, issue #82).
+              The button calls colorInputRef.current?.click() programmatically so the
+              input does not need to be a child of the button. */}
+          <div className="relative flex-shrink-0 w-9 h-9">
+            <button
+              ref={customSwatchRef}
+              type="button"
+              aria-label="Open color picker"
+              onClick={handleColorSwatchButtonClick}
+              className={[
+                'w-9 h-9 rounded-sm',
+                'border border-border',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+              style={{
+                backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888',
+                outline: isCustomColor ? '2px solid var(--text-primary)' : undefined,
+                outlineOffset: isCustomColor ? '2px' : undefined,
+              }}
+            />
+            {/* Hidden native color input — sibling of button, not a child.
+                pointer-events-none prevents it from intercepting clicks;
+                the button's onClick triggers it via colorInputRef.current?.click(). */}
             <input
               ref={colorInputRef}
               type="color"
@@ -451,11 +483,11 @@ export function AccentColorPicker({
               }
               onChange={handleColorPickerChange}
               onBlur={handleColorPickerClose}
-              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              className="absolute inset-0 opacity-0 w-full h-full pointer-events-none"
               aria-hidden="true"
               tabIndex={-1}
             />
-          </button>
+          </div>
 
           {/* Hex text field */}
           <input
