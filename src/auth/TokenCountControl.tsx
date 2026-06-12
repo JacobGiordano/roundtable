@@ -51,7 +51,7 @@ export function TokenCountControl() {
 
       <div className="rounded-lg border border-border bg-card px-4 py-3">
         <div
-          role="group"
+          role="radiogroup"
           aria-label="Token count visibility"
           className="inline-flex rounded-md border border-border bg-input overflow-hidden"
         >
