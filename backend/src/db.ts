@@ -14,7 +14,13 @@ import path from 'path';
 const DATABASE_PATH = process.env.DATABASE_PATH ?? './roundtable.db';
 
 // Resolve relative paths from the working directory.
-const resolvedPath = path.resolve(process.cwd(), DATABASE_PATH);
+// Pass ':memory:' through unchanged — path.resolve() would turn it into a real
+// filesystem path like /workspace/backend/:memory: which defeats the SQLite
+// in-memory sentinel.
+const resolvedPath =
+  DATABASE_PATH === ':memory:'
+    ? ':memory:'
+    : path.resolve(process.cwd(), DATABASE_PATH);
 
 export const db: Database = new DatabaseConstructor(resolvedPath);
 
