@@ -47,6 +47,38 @@ function isValidHex(value: string): boolean {
 }
 
 /**
+ * Maps each ModelId to its CSS custom property name on :root.
+ * Mirrors the mapping in theme.ts applyUserAccentColors — kept in sync manually.
+ * GPT's CSS var is --accent-gpt (not --accent-gpt-5.5), hence the explicit map.
+ */
+const MODEL_ACCENT_CSS_VARS: Record<ModelId, string> = {
+  'claude':    '--accent-claude',
+  'gpt-5.5':  '--accent-gpt',
+  'gemini':   '--accent-gemini',
+  'grok':     '--accent-grok',
+  'deepseek': '--accent-deepseek',
+  'mistral':  '--accent-mistral',
+};
+
+/**
+ * Reads the model's current effective accent color directly from the live
+ * CSS custom property on :root. This reflects the theme default (Pass 1) or a
+ * user override (Pass 2) — whichever applyTheme + applyUserAccentColors last set.
+ *
+ * Used as the initial selectedHex when no stored override exists, so the picker
+ * opens pre-populated with the model's actual visible color rather than Amber.
+ */
+function getModelDefaultAccentHex(modelId: ModelId): string {
+  if (typeof document === 'undefined') return SWATCHES[0].hex;
+  const cssVar = MODEL_ACCENT_CSS_VARS[modelId];
+  if (!cssVar) return SWATCHES[0].hex;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(cssVar)
+    .trim();
+  return isValidHex(value) ? value : SWATCHES[0].hex;
+}
+
+/**
  * Read the active theme's background color from the :root CSS custom property.
  * Returns the hex string if available, or a fallback dark color.
  */
@@ -92,15 +124,16 @@ export function AccentColorPicker({
   onClose,
 }: AccentColorPickerProps) {
   // The color currently "selected" in the UI (not yet saved until the user
-  // confirms). Starts from the stored value (if any) or the first swatch.
+  // confirms). Starts from the stored override (if any) or the model's live
+  // theme accent color read from the CSS custom property on :root.
   const [selectedHex, setSelectedHex] = useState<string>(
-    currentColor ?? SWATCHES[0].hex,
+    currentColor ?? getModelDefaultAccentHex(modelId),
   );
 
   // Hex field value — kept in sync with selectedHex but may temporarily
   // diverge while the user types (before validation on blur/Enter).
   const [hexFieldValue, setHexFieldValue] = useState<string>(
-    currentColor ?? SWATCHES[0].hex,
+    currentColor ?? getModelDefaultAccentHex(modelId),
   );
 
   // Whether the hex text field has a validation error (invalid value on blur).
