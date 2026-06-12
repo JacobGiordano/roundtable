@@ -47,6 +47,38 @@ function isValidHex(value: string): boolean {
 }
 
 /**
+ * Maps each ModelId to its CSS custom property name on :root.
+ * Mirrors the mapping in theme.ts applyUserAccentColors — kept in sync manually.
+ * GPT's CSS var is --accent-gpt (not --accent-gpt-5.5), hence the explicit map.
+ */
+const MODEL_ACCENT_CSS_VARS: Record<ModelId, string> = {
+  'claude':    '--accent-claude',
+  'gpt-5.5':  '--accent-gpt',
+  'gemini':   '--accent-gemini',
+  'grok':     '--accent-grok',
+  'deepseek': '--accent-deepseek',
+  'mistral':  '--accent-mistral',
+};
+
+/**
+ * Reads the model's current effective accent color directly from the live
+ * CSS custom property on :root. This reflects the theme default (Pass 1) or a
+ * user override (Pass 2) — whichever applyTheme + applyUserAccentColors last set.
+ *
+ * Used as the initial selectedHex when no stored override exists, so the picker
+ * opens pre-populated with the model's actual visible color rather than Amber.
+ */
+function getModelDefaultAccentHex(modelId: ModelId): string {
+  if (typeof document === 'undefined') return SWATCHES[0].hex;
+  const cssVar = MODEL_ACCENT_CSS_VARS[modelId];
+  if (!cssVar) return SWATCHES[0].hex;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(cssVar)
+    .trim();
+  return isValidHex(value) ? value : SWATCHES[0].hex;
+}
+
+/**
  * Read the active theme's background color from the :root CSS custom property.
  * Returns the hex string if available, or a fallback dark color.
  */
@@ -92,15 +124,16 @@ export function AccentColorPicker({
   onClose,
 }: AccentColorPickerProps) {
   // The color currently "selected" in the UI (not yet saved until the user
-  // confirms). Starts from the stored value (if any) or the first swatch.
+  // confirms). Starts from the stored override (if any) or the model's live
+  // theme accent color read from the CSS custom property on :root.
   const [selectedHex, setSelectedHex] = useState<string>(
-    currentColor ?? SWATCHES[0].hex,
+    currentColor ?? getModelDefaultAccentHex(modelId),
   );
 
   // Hex field value — kept in sync with selectedHex but may temporarily
   // diverge while the user types (before validation on blur/Enter).
   const [hexFieldValue, setHexFieldValue] = useState<string>(
-    currentColor ?? SWATCHES[0].hex,
+    currentColor ?? getModelDefaultAccentHex(modelId),
   );
 
   // Whether the hex text field has a validation error (invalid value on blur).
@@ -136,23 +169,32 @@ export function AccentColorPicker({
   const colorInputRef = useRef<HTMLInputElement>(null);
   // Ref on the swatch that should receive focus when the picker opens.
   // Points to whichever swatch matches selectedHex (case-insensitive);
-  // falls back to index 0 if the current color is a custom hex not in the list.
+  // falls back to the custom swatch button if the current color is not in the list.
   const initialFocusRef = useRef<HTMLButtonElement>(null);
+  // Ref on the custom color swatch button — receives focus when the active color
+  // is a custom hex not in the preset list, so the selection ring is visible.
+  const customSwatchRef = useRef<HTMLButtonElement>(null);
 
   // Index of the swatch that should receive initial focus.
-  const initialFocusIndex = (() => {
-    const match = SWATCHES.findIndex(
-      (s) => s.hex.toUpperCase() === selectedHex.toUpperCase(),
-    );
-    return match === -1 ? 0 : match;
-  })();
+  // Returns -1 when the color is not in the preset list (custom color).
+  const initialFocusIndex = SWATCHES.findIndex(
+    (s) => s.hex.toUpperCase() === selectedHex.toUpperCase(),
+  );
+
+  // True when the active color is not one of the 12 presets.
+  const isCustomColor = initialFocusIndex === -1;
 
   // WCAG 2.1 SC 2.4.3: move focus into the dialog when it opens.
   // useLayoutEffect fires synchronously after DOM paint, before the browser
   // yields to the user, ensuring focus lands here before any Tab keypress
   // can escape to the page behind the popover.
   useLayoutEffect(() => {
-    initialFocusRef.current?.focus();
+    if (isCustomColor) {
+      customSwatchRef.current?.focus();
+    } else {
+      initialFocusRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close on click outside.
@@ -383,6 +425,7 @@ export function AccentColorPicker({
         <div className="flex items-center gap-2">
           {/* Color swatch button — triggers hidden native picker */}
           <button
+            ref={customSwatchRef}
             type="button"
             aria-label="Open color picker"
             onClick={handleColorSwatchButtonClick}
@@ -391,7 +434,11 @@ export function AccentColorPicker({
               'border border-border',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
-            style={{ backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888' }}
+            style={{
+              backgroundColor: isValidHex(selectedHex) ? selectedHex : '#888888',
+              outline: isCustomColor ? '2px solid var(--text-primary)' : undefined,
+              outlineOffset: isCustomColor ? '2px' : undefined,
+            }}
           >
             {/* Hidden native color input — overlaid and invisible */}
             <input
