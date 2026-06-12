@@ -215,6 +215,7 @@ export function AppLayout({
               onClick={() => { handleOpenMobileMenu(); if (!isSettingsOpen) handleToggleSettings(); }}
               aria-label="Settings"
               aria-expanded={isSettingsOpen}
+              aria-controls="sidebar-settings-panel"
               className={[
                 'flex items-center justify-center',
                 'min-w-[44px] min-h-[44px]',
