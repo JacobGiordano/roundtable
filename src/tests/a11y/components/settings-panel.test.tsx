@@ -118,24 +118,16 @@ describe('TokenCountControl — accessibility (WCAG 4.1.2 Role/State)', () => {
   });
 
   /**
-   * Regression test for issue #78 — TokenCountControl uses role="group" instead
-   * of role="radiogroup".
+   * Regression test for issue #78 — TokenCountControl must use role="radiogroup".
    *
    * WCAG 4.1.2: radio buttons (role="radio") must be owned by role="radiogroup".
-   * Using role="group" is a violation of the WAI-ARIA ownership rules.
-   *
-   * This test FAILS until #78 is fixed (role changed from "group" to "radiogroup").
-   * Mark it as known-failing with it.fails() until the fix lands.
+   * Fixed in #78 (Gate); this test guards against regression.
    */
-  it.fails(
-    '[#78 OPEN] button group uses role="radiogroup" (not role="group") — WCAG 4.1.2',
-    () => {
-      const { container } = render(<TokenCountControl />);
-      // Must be role="radiogroup", not role="group"
-      const radiogroup = container.querySelector('[role="radiogroup"]');
-      expect(radiogroup).not.toBeNull();
-    },
-  );
+  it('button group uses role="radiogroup" (not role="group") — WCAG 4.1.2', () => {
+    const { container } = render(<TokenCountControl />);
+    const radiogroup = container.querySelector('[role="radiogroup"]');
+    expect(radiogroup).not.toBeNull();
+  });
 
   it('each option button has role="radio" and aria-checked', () => {
     const { container } = render(<TokenCountControl />);
