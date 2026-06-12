@@ -1,4 +1,4 @@
-Last updated: 2026-06-12 (#72 complete — branch 72-aria-accent-picker-preselect, pending merge)
+Last updated: 2026-06-12 (#72 closed — branch 72-aria-accent-picker-preselect merged)
 
 ## Current phase
 
@@ -6,19 +6,18 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #72 (Aria): Accent color picker focus-on-open now lands on the swatch matching the
-  model's current color, not always Amber (index 0).
-  - `firstSwatchRef` renamed to `initialFocusRef`
-  - `initialFocusIndex` computed via `SWATCHES.findIndex` matching `selectedHex`
-    case-insensitively; falls back to 0 if current color is a custom hex not in swatches
-  - `useLayoutEffect` unchanged — still calls `initialFocusRef.current?.focus()`
+- #72 (Aria): Accent color picker three-part fix
+  1. Pre-populate picker with model's actual live accent color (not always Amber)
+  2. Focus the swatch matching the model's current color on open
+  3. Highlight the custom swatch button (with selection ring + initial focus) when
+     the color is a custom hex not matching any of the 12 presets
 
 ## Decisions made this session
 
-- No design gaps; Luma's spec implied "focus should follow selection" — fix is mechanical.
-- The `selectedHex` state initializes from `currentColor ?? SWATCHES[0].hex` (pre-existing),
-  so `initialFocusIndex` is derived from the already-correct starting selection value.
-  No additional state needed.
+- "No highlighted swatch" for non-preset colors was ambiguous UX; custom swatch
+  ring is the correct signal — confirmed by user.
+- CLAUDE.md SOP refined: "done" vs "ship it" steps clarified, local-main merge
+  for dev-server review is permitted before push.
 
 ## Gotchas
 

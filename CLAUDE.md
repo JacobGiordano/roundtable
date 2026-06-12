@@ -95,8 +95,9 @@ the project.
 
 - NEVER silently modify files outside your assigned directory
 - NEVER skip the branch check before starting work (see SOP step 4)
-- NEVER merge to main or push without explicit user authorization
-- NEVER update HANDOFF.md after pushing — update it BEFORE the final commit
+- NEVER push to remote or close a GitHub issue without explicit user authorization ("ship it")
+- Merging the WIP branch into local `main` for dev-server review is permitted at "done" time — push to remote is not
+- NEVER update HANDOFF.md before "ship it" — it is written and committed as the first act of the ship step
 - Keep HANDOFF.md under ~30 lines — it is a whiteboard, not a log
 - Do not introduce new dependencies without noting them in the PR description
 - `npm run lint` and `npm run build` must pass before any PR is opened
@@ -178,28 +179,37 @@ the user explicitly requests a plan.**
 
 ### Session close-out (required)
 
-13. When the issue is complete, report back and stop. Do not merge into `main`,
-    push to the repo, or begin any additional work without explicit user
-    authorization. Wait. Do not proceed.
-14. **Update `HANDOFF.md` first** — before the final commit and push. Stage it.
-    Include it in the fix commit or as a separate `chore: update handoff` commit.
-15. Once approved: merge the WIP branch into `main`, then **before pushing**:
-    close the GitHub issue (`gh issue close <n> --comment "..."`) with the merge
-    commit hash, decisions made, and anything the next agent needs to know.
-    Then push `main` and delete the WIP branch. No PRs needed for solo work.
-    Changes to `/src/types/index.ts` require a PR reviewed and approved by all
-    active agents — agents handle this review with each other; the user does not
-    need to be in the approval loop.
-16. **Rewrite** `HANDOFF.md` — not append. Replace the entire contents with:
+#### Step 1 — "done"
+
+13. When the issue is complete: merge the WIP branch into local `main` so the
+    user can verify in the dev server. Report back — "merged to local main, ready
+    for dev-server review." Stop. Do not push to remote, do not close the GitHub
+    issue, do not touch `HANDOFF.md`. Wait for explicit authorization to ship.
+
+#### Step 2 — "ship it" (requires explicit user authorization)
+
+14. **Rewrite `HANDOFF.md` first** — not append. Replace the entire contents
+    with:
     - Last updated date
     - Current phase
-    - Active Agency Agent for next session
+    - Active agent for next session
     - Last issue closed and outcome
     - Decisions made this session that affect future work
     - Next issue(s) in priority order
     - Any live gotchas or blockers
 
-**The rule:** `HANDOFF.md` is a whiteboard. Erase and rewrite every session.
+    Stage `HANDOFF.md` and commit as `chore: update handoff` (or include it in
+    the final fix commit if one is needed).
+
+15. Close the GitHub issue: `gh issue close <n> --comment "..."` — include the
+    merge commit hash, decisions made, and anything the next agent needs to know.
+
+16. Push `main` to remote and delete the WIP branch. No PRs needed for solo
+    work. Changes to `/src/types/index.ts` require a PR reviewed and approved by
+    all active agents — agents handle this review with each other; the user does
+    not need to be in the approval loop.
+
+**The rule:** `HANDOFF.md` is a whiteboard. Erase and rewrite at ship time.
 Git is the log.
 
 ---
