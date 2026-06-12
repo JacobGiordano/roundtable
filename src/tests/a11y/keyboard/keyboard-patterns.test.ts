@@ -165,3 +165,115 @@ describe('AccentColorPicker hex field keyboard logic', () => {
     expect(hexKeyAction('Escape')).toBe('none');
   });
 });
+
+// ─── Sidebar drag handle keyboard pattern ─────────────────────────────────────
+
+/**
+ * The sidebar drag handle responds to ArrowLeft/ArrowRight to resize.
+ * Mirrors handleDragKeyDown in Sidebar.tsx:899-917.
+ *
+ * Contract:
+ *   ArrowRight → increase width (clamped to SIDEBAR_WIDTH_MAX)
+ *   ArrowLeft  → decrease width (clamped to SIDEBAR_WIDTH_MIN)
+ *   Other keys → no action
+ */
+describe('Sidebar drag handle keyboard resize logic', () => {
+  const SIDEBAR_WIDTH_MIN = 278;
+  const SIDEBAR_WIDTH_MAX = 600;
+  const NUDGE_PX = 8;
+
+  function handleKey(key: string, currentWidth: number): number {
+    if (key === 'ArrowRight') {
+      return Math.min(SIDEBAR_WIDTH_MAX, currentWidth + NUDGE_PX);
+    }
+    if (key === 'ArrowLeft') {
+      return Math.max(SIDEBAR_WIDTH_MIN, currentWidth - NUDGE_PX);
+    }
+    return currentWidth; // no-op
+  }
+
+  it('ArrowRight increases width by 8px', () => {
+    expect(handleKey('ArrowRight', 300)).toBe(308);
+  });
+
+  it('ArrowLeft decreases width by 8px', () => {
+    expect(handleKey('ArrowLeft', 300)).toBe(292);
+  });
+
+  it('ArrowRight clamps to SIDEBAR_WIDTH_MAX', () => {
+    expect(handleKey('ArrowRight', SIDEBAR_WIDTH_MAX)).toBe(SIDEBAR_WIDTH_MAX);
+    expect(handleKey('ArrowRight', SIDEBAR_WIDTH_MAX - 4)).toBe(SIDEBAR_WIDTH_MAX);
+  });
+
+  it('ArrowLeft clamps to SIDEBAR_WIDTH_MIN', () => {
+    expect(handleKey('ArrowLeft', SIDEBAR_WIDTH_MIN)).toBe(SIDEBAR_WIDTH_MIN);
+    expect(handleKey('ArrowLeft', SIDEBAR_WIDTH_MIN + 4)).toBe(SIDEBAR_WIDTH_MIN);
+  });
+
+  it('other keys produce no width change', () => {
+    expect(handleKey('Tab', 300)).toBe(300);
+    expect(handleKey('Enter', 300)).toBe(300);
+    expect(handleKey('Escape', 300)).toBe(300);
+    expect(handleKey('Home', 300)).toBe(300);
+  });
+});
+
+// ─── Settings toggle disclosure pattern ───────────────────────────────────────
+
+/**
+ * The sidebar settings toggle is a disclosure widget (not a modal).
+ * It uses aria-expanded to communicate open/closed state.
+ * Focus stays on the toggle after click — the panel body is in natural DOM
+ * order immediately after the toggle, so Tab enters the panel.
+ *
+ * Contract: toggle inverts isSettingsOpen state on every activation.
+ */
+describe('Settings toggle disclosure keyboard logic', () => {
+  function toggleSettings(currentState: boolean): boolean {
+    return !currentState;
+  }
+
+  it('opens closed panel', () => {
+    expect(toggleSettings(false)).toBe(true);
+  });
+
+  it('closes open panel', () => {
+    expect(toggleSettings(true)).toBe(false);
+  });
+});
+
+// ─── Version picker select pattern ────────────────────────────────────────────
+
+/**
+ * ModelVersionRow uses a native <select> element.
+ * Native selects are fully keyboard-operable without additional ARIA —
+ * the browser provides arrow-key navigation, Enter to confirm, etc.
+ *
+ * Contract: the version change handler fires when a non-default version
+ * is selected; it is a no-op when the same default is reselected without
+ * a prior stored selection.
+ */
+describe('ModelVersionRow version selection logic', () => {
+  function shouldFireOnChange(
+    chosenId: string,
+    defaultVersionId: string,
+    storedVersionId: string | undefined,
+  ): boolean {
+    // Mirrors the handleChange logic in ModelVersionRow:
+    // if (chosen === defaultVersionId && !model.selectedVersionId) return; // no-op
+    if (chosenId === defaultVersionId && !storedVersionId) return false;
+    return true;
+  }
+
+  it('fires when a non-default version is selected', () => {
+    expect(shouldFireOnChange('claude-opus-4-5', 'claude-sonnet-4-6', undefined)).toBe(true);
+  });
+
+  it('does NOT fire when the default is selected and no override is stored', () => {
+    expect(shouldFireOnChange('claude-sonnet-4-6', 'claude-sonnet-4-6', undefined)).toBe(false);
+  });
+
+  it('fires when default is reselected but a different override was stored (reset)', () => {
+    expect(shouldFireOnChange('claude-sonnet-4-6', 'claude-sonnet-4-6', 'claude-opus-4-5')).toBe(true);
+  });
+});
