@@ -45,3 +45,7 @@ backend/postgres_data/
 
 # Screenshots for the team
 _screenshots/
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/

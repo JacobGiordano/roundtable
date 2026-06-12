@@ -1,4 +1,4 @@
-Last updated: 2026-06-11 (#74 complete — branch 74-aria-settings-access, pending merge)
+Last updated: 2026-06-12 (#76 + #77 complete — branch 76-77-aria-gear-favicon, pending merge)
 
 ## Current phase
 
@@ -6,23 +6,24 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #74 (Aria): Settings access point in app chrome. Gear icon button added to:
-  (1) desktop sidebar header (right of logo, left of new-conversation button),
-  (2) mobile top bar header (left of new-conversation button).
-  isSettingsOpen state lifted from Sidebar to AppLayout and threaded via props.
-  Sidebar bottom toggle kept intact — smoke test selector unchanged.
+- #76 (Aria): Two gear-button bugs fixed.
+  (1) Mobile gear now fires handleOpenMobileMenu + conditional handleToggleSettings — drawer
+      opens and settings panel is visible. Previously settings opened inside a closed drawer.
+  (2) Gear removed from desktop sidebar header — was confusingly adjacent to the + button.
+      Bottom settings toggle remains the desktop entry point. smoke test selector unchanged.
+- #77 (Aria): favicon.svg updated to R1 geometry. Removed flat-top hexagon polygon.
+  Added ring (circle r=14, icon-mark CSS class for stroke), six seat dots at hexagonal
+  vertex positions (r=3, icon-mark-fill), center dot r=3.5 (icon-mark-fill).
+  prefers-color-scheme media query and all CSS class theming preserved.
 
 ## Decisions made this session
 
-- isSettingsOpen lifted to AppLayout; Sidebar accepts optional isSettingsOpen/onToggleSettings
-  props for external control, falls back to internal state when not provided.
-- Sidebar uses a ref+effect to refresh hasAccentOverrides when the panel opens via
-  external control (previously only done in the internal toggle handler).
-- Desktop gear: text-text-muted (quieter than the new-conv button) — visually subordinate.
-- Mobile gear: text-text-secondary — matches other mobile header buttons.
-- Sidebar bottom toggle (button[aria-controls="sidebar-settings-panel"]) kept intact
-  to preserve smoke test selector; bottom toggle now delegates to handleToggleSettings
-  which routes to external control when AppLayout provides it.
+- Mobile gear onClick: `() => { handleOpenMobileMenu(); if (!isSettingsOpen) handleToggleSettings(); }`
+  Guard prevents double-toggle if settings is already open when gear is clicked.
+- Desktop sidebar header: gear button removed entirely. The bottom "Settings" toggle row
+  (aria-controls="sidebar-settings-panel") is the canonical desktop entry point.
+- favicon.svg `.icon-mark` CSS rule updated: `fill: none` (was `fill: #FFFFFF`) so the ring
+  renders as a stroke-only circle. icon-mark-fill continues to handle filled dots.
 
 ## Gotchas
 

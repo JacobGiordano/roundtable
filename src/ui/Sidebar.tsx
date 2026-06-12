@@ -1142,35 +1142,11 @@ export function Sidebar({
             <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-        {/* Desktop header right-side controls: settings gear + new conversation */}
+        {/* Desktop header right-side controls: new conversation only.
+            Settings gear removed — it sat next to the + button and read as a chat
+            action rather than app settings. Bottom settings toggle is the desktop
+            entry point for settings. (Issue #76) */}
         <div className="hidden md:flex items-center gap-1">
-          {/* Settings gear — desktop header trigger for the settings panel */}
-          <button
-            type="button"
-            onClick={handleToggleSettings}
-            aria-label="Settings"
-            aria-expanded={isSettingsOpen}
-            className={[
-              'w-8 h-8 rounded-md flex items-center justify-center',
-              'text-text-muted hover:text-text-secondary hover:bg-hover',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path
-                d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-              <path
-                d="M11.5 7c0-.28-.03-.55-.07-.81l1.3-1.01-1.25-2.16-1.57.63a4.5 4.5 0 0 0-1.4-.81L8.25 1h-2.5l-.26 1.84a4.5 4.5 0 0 0-1.4.81L2.52 3.02 1.27 5.18l1.3 1.01A4.6 4.6 0 0 0 2.5 7c0 .28.03.55.07.81L1.27 8.82l1.25 2.16 1.57-.63c.43.33.9.6 1.4.81L5.75 13h2.5l.26-1.84c.5-.21.97-.48 1.4-.81l1.57.63 1.25-2.16-1.3-1.01c.04-.26.07-.53.07-.81Z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
           {/* New conversation button — desktop only (mobile top bar has its own) */}
           <button
             type="button"
