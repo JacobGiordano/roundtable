@@ -1,21 +1,19 @@
-Last updated: 2026-06-12 (phase review + test coverage + a11y audit + agent roster expansion)
+Last updated: 2026-06-12 (Aria: AccentColorPicker a11y fixes #82 + #79)
 
 ## Current phase
 
-Phase 4 — Feature-complete. 4 a11y bugs open; 5 test gap tickets open.
+Phase 4 — Feature-complete. 2 a11y bugs open; 5 test gap tickets open.
 
 ## Session summary
 
-- Phase review: build/lint/test all clean, 0 open issues before this session
-- Scout: 94 new tests (modelVersion sync guard, sendMessage error paths, AccentColorPicker, ExportButton)
-- Ada: 59 new a11y tests; 4 bugs found — #78 #79 #80 #82
-- Agent roster: Forge (CI/DevOps ⚙️) and Bastion (backend test 🛡️) added
-- Methodology: all new agents must start from https://github.com/msitarzewski/agency-agents/ base
+- Aria batched #82 + #79 (same component, both Serious) — authorized by user
+- #82: moved `<input type="color">` outside `<button>` (nested-interactive fixed)
+- #79: added focus trap (Tab/Shift+Tab wraps within dialog focusable elements)
+- Ada audited both fixes — clean PASS, 1035 tests green
+- 3 former `it.fails()` axe markers removed from accent-color-picker.test.tsx
 
 ## Open issues — priority order
 
-- #82 [Aria] Serious — AccentColorPicker: `<input>` nested inside `<button>` (axe: nested-interactive)
-- #79 [Aria] Serious — AccentColorPicker: no focus trap in dialog (WCAG 2.1.2)
 - #78 [Gate] Moderate — TokenCountControl: `role="group"` → `role="radiogroup"`
 - #80 [Aria] Minor — AppLayout mobile gear missing `aria-controls`
 - Forge: CI workflow `.github/workflows/ci.yml` (first Forge session)
@@ -29,7 +27,6 @@ Phase 4 — Feature-complete. 4 a11y bugs open; 5 test gap tickets open.
 - applyUserAccentColors must be called after EVERY applyTheme() — wired at boot and in handleThemeChange
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (documented, tested)
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
-- AccentColorPicker #82/#79 open — axe tests for #82 are marked it.fails() until Aria fixes it
 
 ## Model providers (all on main)
 
