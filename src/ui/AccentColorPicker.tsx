@@ -134,15 +134,25 @@ export function AccentColorPicker({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
-  // Ref on the first swatch button — receives focus when the picker opens.
-  const firstSwatchRef = useRef<HTMLButtonElement>(null);
+  // Ref on the swatch that should receive focus when the picker opens.
+  // Points to whichever swatch matches selectedHex (case-insensitive);
+  // falls back to index 0 if the current color is a custom hex not in the list.
+  const initialFocusRef = useRef<HTMLButtonElement>(null);
+
+  // Index of the swatch that should receive initial focus.
+  const initialFocusIndex = (() => {
+    const match = SWATCHES.findIndex(
+      (s) => s.hex.toUpperCase() === selectedHex.toUpperCase(),
+    );
+    return match === -1 ? 0 : match;
+  })();
 
   // WCAG 2.1 SC 2.4.3: move focus into the dialog when it opens.
   // useLayoutEffect fires synchronously after DOM paint, before the browser
   // yields to the user, ensuring focus lands here before any Tab keypress
   // can escape to the page behind the popover.
   useLayoutEffect(() => {
-    firstSwatchRef.current?.focus();
+    initialFocusRef.current?.focus();
   }, []);
 
   // Close on click outside.
@@ -322,7 +332,7 @@ export function AccentColorPicker({
             return (
               <button
                 key={swatch.hex}
-                ref={index === 0 ? firstSwatchRef : undefined}
+                ref={index === initialFocusIndex ? initialFocusRef : undefined}
                 type="button"
                 aria-label={swatch.name}
                 aria-pressed={isActive}
