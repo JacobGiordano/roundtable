@@ -1,4 +1,4 @@
-Last updated: 2026-06-12 (#76 + #77 complete — branch 76-77-aria-gear-favicon, pending merge)
+Last updated: 2026-06-12 (#72 complete — branch 72-aria-accent-picker-preselect, pending merge)
 
 ## Current phase
 
@@ -6,24 +6,19 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Last closed
 
-- #76 (Aria): Two gear-button bugs fixed.
-  (1) Mobile gear now fires handleOpenMobileMenu + conditional handleToggleSettings — drawer
-      opens and settings panel is visible. Previously settings opened inside a closed drawer.
-  (2) Gear removed from desktop sidebar header — was confusingly adjacent to the + button.
-      Bottom settings toggle remains the desktop entry point. smoke test selector unchanged.
-- #77 (Aria): favicon.svg updated to R1 geometry. Removed flat-top hexagon polygon.
-  Added ring (circle r=14, icon-mark CSS class for stroke), six seat dots at hexagonal
-  vertex positions (r=3, icon-mark-fill), center dot r=3.5 (icon-mark-fill).
-  prefers-color-scheme media query and all CSS class theming preserved.
+- #72 (Aria): Accent color picker focus-on-open now lands on the swatch matching the
+  model's current color, not always Amber (index 0).
+  - `firstSwatchRef` renamed to `initialFocusRef`
+  - `initialFocusIndex` computed via `SWATCHES.findIndex` matching `selectedHex`
+    case-insensitively; falls back to 0 if current color is a custom hex not in swatches
+  - `useLayoutEffect` unchanged — still calls `initialFocusRef.current?.focus()`
 
 ## Decisions made this session
 
-- Mobile gear onClick: `() => { handleOpenMobileMenu(); if (!isSettingsOpen) handleToggleSettings(); }`
-  Guard prevents double-toggle if settings is already open when gear is clicked.
-- Desktop sidebar header: gear button removed entirely. The bottom "Settings" toggle row
-  (aria-controls="sidebar-settings-panel") is the canonical desktop entry point.
-- favicon.svg `.icon-mark` CSS rule updated: `fill: none` (was `fill: #FFFFFF`) so the ring
-  renders as a stroke-only circle. icon-mark-fill continues to handle filled dots.
+- No design gaps; Luma's spec implied "focus should follow selection" — fix is mechanical.
+- The `selectedHex` state initializes from `currentColor ?? SWATCHES[0].hex` (pre-existing),
+  so `initialFocusIndex` is derived from the already-correct starting selection value.
+  No additional state needed.
 
 ## Gotchas
 
@@ -67,5 +62,4 @@ Phase 4 — Feature-complete. Open source launch prep complete.
 
 ## Next issues in priority order
 
-- #72 (Aria): Accent color picker pre-selects model's current color
 - Dev/staging branch workflow: Arch ticket to formalize in CLAUDE.md
