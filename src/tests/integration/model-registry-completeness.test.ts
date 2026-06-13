@@ -10,15 +10,23 @@
  * without fully populating all fields, or adds a provider to PROVIDERS without
  * a matching registry entry (or vice versa).
  *
+ * Also covers buildDefaultModelConfigs() — issue #89. Verifies the function
+ * correctly maps MODEL_REGISTRY to ModelConfig[] with the right shape and
+ * isActive defaults. A bug here (wrong length, wrong isActive, missing field)
+ * would be silent until the UI misbehaves at startup.
+ *
  * Source contracts exercised:
  *   MODEL_REGISTRY: ModelRegistryEntry[] — Atlas (registry.ts)
  *   PROVIDERS: ModelProvider[]           — Atlas (registry.ts)
+ *   buildDefaultModelConfigs()           — Atlas (registry.ts)
+ *   ModelConfig                          — Arch (types/index.ts)
  *   ModelProviderConfig                  — Arch (types/index.ts)
  *   ModelRegistryEntry                   — Atlas (registry.ts, local interface)
  */
 
 import { describe, it, expect } from 'vitest';
-import { MODEL_REGISTRY, PROVIDERS } from '@/models/registry';
+import type { ModelConfig } from '@/types';
+import { MODEL_REGISTRY, PROVIDERS, buildDefaultModelConfigs } from '@/models/registry';
 
 // ─── ModelRegistryEntry completeness ─────────────────────────────────────────
 
@@ -232,6 +240,94 @@ describe('PROVIDERS — ModelProviderConfig has no unexpected nulls or empty str
         provider.config.credentialKey.trim().length,
         `config.credentialKey is blank on provider for modelId "${provider.config.modelId}"`
       ).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ─── buildDefaultModelConfigs — issue #89 ────────────────────────────────────
+
+describe('buildDefaultModelConfigs — output shape', () => {
+  // Cast to ModelConfig[] so TypeScript can see the full interface including
+  // optional fields (selectedVersionId, systemPrompt). The function's return
+  // type is inferred as a narrower literal — the cast validates that the output
+  // satisfies the full ModelConfig contract expected by Aria.
+  it('returns exactly one ModelConfig per MODEL_REGISTRY entry', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    expect(configs).toHaveLength(MODEL_REGISTRY.length);
+  });
+
+  it('each config carries the correct isActive default from the registry', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (const config of configs) {
+      const entry = MODEL_REGISTRY.find((e) => e.modelId === config.modelId);
+      expect(
+        entry,
+        `no MODEL_REGISTRY entry found for modelId "${config.modelId}"`
+      ).toBeDefined();
+      expect(
+        config.isActive,
+        `isActive mismatch for modelId "${config.modelId}": expected ${entry!.defaultActive}`
+      ).toBe(entry!.defaultActive);
+    }
+  });
+
+  it('each config modelId matches its corresponding registry entry in order', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (let i = 0; i < MODEL_REGISTRY.length; i++) {
+      expect(
+        configs[i].modelId,
+        `config at index ${i} has modelId "${configs[i].modelId}" but registry has "${MODEL_REGISTRY[i].modelId}"`
+      ).toBe(MODEL_REGISTRY[i].modelId);
+    }
+  });
+
+  it('each config has a truthy name that matches the registry entry', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (const config of configs) {
+      expect(
+        config.name,
+        `name is missing or empty on config for modelId "${config.modelId}"`
+      ).toBeTruthy();
+      const entry = MODEL_REGISTRY.find((e) => e.modelId === config.modelId)!;
+      expect(
+        config.name,
+        `name mismatch for modelId "${config.modelId}"`
+      ).toBe(entry.name);
+    }
+  });
+
+  it('each config has a truthy color that matches the registry entry', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (const config of configs) {
+      expect(
+        config.color,
+        `color is missing or empty on config for modelId "${config.modelId}"`
+      ).toBeTruthy();
+      const entry = MODEL_REGISTRY.find((e) => e.modelId === config.modelId)!;
+      expect(
+        config.color,
+        `color mismatch for modelId "${config.modelId}"`
+      ).toBe(entry.color);
+    }
+  });
+
+  it('no config carries a selectedVersionId (absent means use provider default)', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (const config of configs) {
+      expect(
+        config.selectedVersionId,
+        `config for modelId "${config.modelId}" unexpectedly carries a selectedVersionId`
+      ).toBeUndefined();
+    }
+  });
+
+  it('no config carries a systemPrompt (clean slate for new conversations)', () => {
+    const configs: ModelConfig[] = buildDefaultModelConfigs();
+    for (const config of configs) {
+      expect(
+        config.systemPrompt,
+        `config for modelId "${config.modelId}" unexpectedly carries a systemPrompt`
+      ).toBeUndefined();
     }
   });
 });
