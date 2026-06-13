@@ -9,6 +9,7 @@ import {
   removeProvider,
   hasCredential,
   saveCredentials,
+  clearCredentials,
 } from '@/auth';
 
 // ─── Built-in model metadata ───────────────────────────────────────────────────
@@ -107,10 +108,60 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
   const [confirmState, setConfirmState] = useState<RowConfirmState>('idle');
   const [isRemoving, setIsRemoving] = useState(false);
 
+  // ── Inline key editor state ────────────────────────────────────────────────
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [keyInputValue, setKeyInputValue] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const keyInputRef = useRef<HTMLInputElement>(null);
+
   const name = getProviderName(provider);
   const id = getProviderId(provider);
   const dotColor = getProviderDotColor(provider);
-  const badgeState = getBadgeState(provider);
+
+  // The credential key for this provider (undefined means keyless).
+  const credentialKey: string | undefined =
+    provider.kind === 'builtin' ? provider.credentialKey : provider.credentialKey;
+
+  // Badge state is stored in component state so it can be refreshed after a
+  // save/clear without relying on a prop update from the parent.
+  const [badgeState, setBadgeState] = useState<BadgeState>(() => getBadgeState(provider));
+
+  // Open the inline key editor and move focus to the input.
+  const handleOpenKeyEditor = useCallback(() => {
+    setIsEditingKey(true);
+    setKeyInputValue('');
+    setShowKeyInput(false);
+    requestAnimationFrame(() => {
+      keyInputRef.current?.focus();
+    });
+  }, []);
+
+  // Close the inline editor without saving.
+  const handleCancelKeyEdit = useCallback(() => {
+    setIsEditingKey(false);
+    setKeyInputValue('');
+    setShowKeyInput(false);
+  }, []);
+
+  // Save the new key and close the editor.
+  const handleSaveKey = useCallback(() => {
+    if (!credentialKey || !keyInputValue.trim()) return;
+    saveCredentials(credentialKey, keyInputValue.trim());
+    setIsEditingKey(false);
+    setKeyInputValue('');
+    setShowKeyInput(false);
+    setBadgeState(getBadgeState(provider));
+  }, [credentialKey, keyInputValue, provider]);
+
+  // Clear the stored key and close the editor.
+  const handleClearKey = useCallback(() => {
+    if (!credentialKey) return;
+    clearCredentials(credentialKey);
+    setIsEditingKey(false);
+    setKeyInputValue('');
+    setShowKeyInput(false);
+    setBadgeState(getBadgeState(provider));
+  }, [credentialKey, provider]);
 
   const handleRemoveClick = useCallback(() => {
     setConfirmState(isLast ? 'last-provider' : 'confirm-remove');
@@ -136,44 +187,171 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     ? { animation: 'provider-enter 200ms ease-out' }
     : {};
 
+  // Edit affordance button — only when credentialKey is defined and not in remove-confirm.
+  const editButtonLabel =
+    badgeState === 'key-set' ? `Edit API key for ${name}` : `Set API key for ${name}`;
+  const editButtonText = badgeState === 'key-set' ? 'Edit' : 'Set key';
+  const showEditButton = badgeState !== 'no-key-required' && credentialKey !== undefined;
+
   return (
     // aria-live="polite" lets screen readers announce confirmation message on row update.
     <div role="listitem" aria-live="polite" style={{ ...rowStyle, ...enterStyle }}>
       {confirmState === 'idle' ? (
         <div
           className={[
-            'flex items-center gap-2 h-12 px-3 rounded-md',
+            'px-3 rounded-md',
             'bg-card border border-border',
             'hover:bg-hover hover:border-border-strong',
             'transition-colors duration-fast',
           ].join(' ')}
         >
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: dotColor }}
-            aria-hidden="true"
-          />
-          <span className="flex-1 text-[14px] font-medium text-text-primary truncate min-w-0">
-            {name}
-          </span>
-          <ApiKeyBadge state={badgeState} />
-          <button
-            type="button"
-            aria-label={`Remove ${name}`}
-            onClick={handleRemoveClick}
-            className={[
-              'w-7 h-7 flex items-center justify-center rounded-sm flex-shrink-0 ml-2',
-              'bg-transparent text-text-muted',
-              'hover:bg-hover hover:text-error',
-              'transition-all duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            {/* Trash icon — 14px */}
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          {/* ── Main row ──────────────────────────────────────────────── */}
+          <div className="flex items-center gap-2 h-12">
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: dotColor }}
+              aria-hidden="true"
+            />
+            <span className="flex-1 text-[14px] font-medium text-text-primary truncate min-w-0">
+              {name}
+            </span>
+            <ApiKeyBadge state={badgeState} />
+            {showEditButton && !isEditingKey && (
+              <button
+                type="button"
+                aria-label={editButtonLabel}
+                onClick={handleOpenKeyEditor}
+                className={[
+                  'ml-2 text-[11px] text-text-muted underline cursor-pointer',
+                  'hover:text-text-secondary bg-transparent border-0 p-0',
+                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+                  'transition-colors duration-fast',
+                ].join(' ')}
+              >
+                {editButtonText}
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={`Remove ${name}`}
+              onClick={handleRemoveClick}
+              className={[
+                'w-7 h-7 flex items-center justify-center rounded-sm flex-shrink-0 ml-2',
+                'bg-transparent text-text-muted',
+                'hover:bg-hover hover:text-error',
+                'transition-all duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              {/* Trash icon — 14px */}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          {/* ── Inline key editor (expands below row) ─────────────────── */}
+          {isEditingKey && (
+            <div className="mt-2 pb-3">
+              {/* Password input with show/hide toggle */}
+              <div className="relative flex items-center">
+                <input
+                  ref={keyInputRef}
+                  id={`key-input-${id}`}
+                  type={showKeyInput ? 'text' : 'password'}
+                  aria-label="New API key"
+                  value={keyInputValue}
+                  onChange={(e) => setKeyInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && keyInputValue.trim()) handleSaveKey();
+                    if (e.key === 'Escape') handleCancelKeyEdit();
+                  }}
+                  placeholder="Enter new API key"
+                  className={[
+                    'flex-1 h-9 rounded-md text-[13px] text-text-primary placeholder:text-text-muted',
+                    'bg-input border border-border',
+                    'focus:outline-none focus:border-border-strong',
+                    'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    'transition-colors duration-fast',
+                  ].join(' ')}
+                  style={{ paddingLeft: '10px', paddingRight: '36px' }}
+                />
+                {/* Eye toggle */}
+                <button
+                  type="button"
+                  aria-label={showKeyInput ? 'Hide API key' : 'Show API key'}
+                  onClick={() => setShowKeyInput((v) => !v)}
+                  className={[
+                    'absolute right-3 top-1/2 -translate-y-1/2',
+                    'text-text-muted hover:text-text-secondary',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+                  ].join(' ')}
+                >
+                  {showKeyInput ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z" stroke="currentColor" strokeWidth="1.2" />
+                      <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 mt-2">
+                {/* Save */}
+                <button
+                  type="button"
+                  disabled={!keyInputValue.trim()}
+                  aria-disabled={!keyInputValue.trim()}
+                  onClick={handleSaveKey}
+                  className={[
+                    'h-7 px-3 rounded-md text-[12px] text-text-inverse',
+                    'bg-accent-claude',
+                    'hover:brightness-110 transition-all duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    !keyInputValue.trim() ? 'opacity-40 cursor-not-allowed' : '',
+                  ].join(' ')}
+                >
+                  Save
+                </button>
+
+                {/* Remove key — only when a key is already set */}
+                {badgeState === 'key-set' && (
+                  <button
+                    type="button"
+                    onClick={handleClearKey}
+                    className={[
+                      'h-7 px-3 rounded-md text-[12px] text-error',
+                      'bg-transparent border border-error',
+                      'hover:bg-error/10 transition-all duration-fast',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    ].join(' ')}
+                  >
+                    Remove key
+                  </button>
+                )}
+
+                {/* Cancel */}
+                <button
+                  type="button"
+                  onClick={handleCancelKeyEdit}
+                  className={[
+                    'h-7 px-3 rounded-md text-[12px] text-text-secondary',
+                    'bg-transparent border border-border',
+                    'hover:bg-hover transition-all duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : confirmState === 'confirm-remove' ? (
         <div
