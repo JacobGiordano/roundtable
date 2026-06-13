@@ -2,41 +2,41 @@
   "name": "Outrun",
   "mode": "dark",
   "surfaces": {
-    "background": "#0D0D0D",
-    "card": "#130A1A",
-    "sidebar": "#0A070F",
-    "input": "#180E22"
+    "background": "#16141D",
+    "card": "#12203A",
+    "sidebar": "#0E1220",
+    "input": "#221E34"
   },
   "text": {
-    "primary": "#F0E8FF",
-    "secondary": "#C880FF",
-    "muted": "#A468CC",
-    "inverse": "#0D0D0D"
+    "primary": "#EEEAF8",
+    "secondary": "#FF6EB4",
+    "muted": "#6BBFB8",
+    "inverse": "#120F1A"
   },
   "borders": {
-    "default": "#FF00AA",
-    "subtle": "#4A1060",
-    "strong": "#00FFFF"
+    "default": "#FF2070",
+    "subtle": "#2A2438",
+    "strong": "#2EE4B9"
   },
   "accents": {
     "model-claude": "#FFE600",
-    "model-gpt": "#00FFFF",
-    "model-gemini": "#C828FF",
-    "model-other": "#FF00AA",
-    "model-grok": "#00BFFF",
-    "model-deepseek": "#6070FF",
-    "model-mistral": "#FF2D78"
+    "model-gpt": "#2EE4B9",
+    "model-gemini": "#D060FF",
+    "model-other": "#FF8D77",
+    "model-grok": "#C0CFFF",
+    "model-deepseek": "#7AA0FF",
+    "model-mistral": "#FF6090"
   },
   "interactive": {
-    "hover": "#1F0F2E",
-    "active": "#2A1040",
-    "focusRing": "#00FFFF"
+    "hover": "#2A2640",
+    "active": "#33305A",
+    "focusRing": "#2EE4B9"
   },
   "semantic": {
-    "success": "#00FF88",
-    "warning": "#FFE600",
-    "error": "#FF3366",
-    "info": "#00FFFF"
+    "success": "#3DDB96",
+    "warning": "#FFE259",
+    "error": "#FF4040",
+    "info": "#CD44FF"
   },
   "radius": {
     "sm": "4px",
@@ -56,9 +56,9 @@
   },
   "shadow": {
     "none": "none",
-    "sm": "0 0 8px rgba(255,0,170,0.4)",
-    "md": "0 0 20px rgba(0,255,255,0.35), 0 4px 16px rgba(0,0,0,0.7)",
-    "lg": "0 0 40px rgba(191,0,255,0.4), 0 8px 40px rgba(0,0,0,0.8)"
+    "sm": "0 0 8px rgba(255,32,112,0.35), 0 0 4px rgba(46,228,185,0.20)",
+    "md": "0 0 20px rgba(255,32,112,0.30), 0 4px 16px rgba(0,0,0,0.85)",
+    "lg": "0 0 40px rgba(255,32,112,0.40), 0 0 80px rgba(46,228,185,0.20), 0 8px 40px rgba(0,0,0,0.90)"
   },
   "timing": {
     "instant": "0ms",
@@ -67,25 +67,211 @@
     "slow": "350ms"
   },
   "_a11y": {
-    "accents.model-deepseek": {
-      "fix": "Lightened #4060FF → #6070FF (+32R +16G +0B). Original deep-indigo blue was 3.99:1 on card — near-black card (#130A1A) makes this the hardest pairing in the theme. #6070FF keeps the hue firmly in neon-blue-indigo territory without crossing into the cyan range occupied by accent-gpt (#00FFFF). Outrun's character is maximalist neon; this adjustment shifts the blue ~20% brighter while preserving its identity.",
+    "surfaces": {
+      "sidebar_luminance": "0.00630",
+      "background_luminance": "0.00760",
+      "card_luminance": "0.01467",
+      "input_luminance": "0.01517",
+      "note": "sidebar (#0E1220) and card (#12203A) are dark blue. background (#16141D) and input (#221E34) remain dark purple-near-black. Luminance ordering preserved: sidebar < background < card < input. card and input are very close in luminance (0.01467 vs 0.01517) — intentional; they occupy the same visual tier."
+    },
+    "text.primary": {
+      "color": "#EEEAF8",
       "ratios": {
-        "on-card-#130A1A": "4.84:1 PASS",
-        "on-background-#0D0D0D": "4.87:1 PASS",
-        "on-sidebar-#0A070F": "5.01:1 PASS"
+        "on-sidebar-#0E1220": "15.77:1 PASS",
+        "on-background-#16141D": "15.42:1 PASS",
+        "on-card-#12203A": "13.73:1 PASS",
+        "on-input-#221E34": "13.63:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Outrun deepseek required the largest absolute lightening of all fixes in this session (+32 on red channel). The near-black card surface (#130A1A) leaves little headroom for dark blues. The new value is the minimum brightness that achieves AA compliance while keeping the color distinguishable from accent-gpt cyan."
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with very high margin"
+    },
+    "text.secondary": {
+      "color": "#FF6EB4",
+      "ratios": {
+        "on-sidebar-#0E1220": "7.23:1 PASS",
+        "on-background-#16141D": "7.07:1 PASS",
+        "on-card-#12203A": "6.29:1 PASS",
+        "on-input-#221E34": "6.25:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with strong margin",
+      "note": "Hot pink-family secondary text — model names and thread titles. Lighter than borders.default (#FF2070) so it reads as text rather than chrome."
+    },
+    "text.muted": {
+      "color": "#6BBFB8",
+      "ratios": {
+        "on-sidebar-#0E1220": "8.68:1 PASS",
+        "on-background-#16141D": "8.48:1 PASS",
+        "on-card-#12203A": "7.55:1 PASS",
+        "on-input-#221E34": "7.50:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with strong margin",
+      "note": "Desaturated teal — shifted from muted purple #A090C0 to bring teal presence to timestamps and placeholder text. Luminance is lower than borders.strong (#2EE4B9) and model-gpt (#2EE4B9) — reads as dim/secondary, not competing with those tokens. Teal family is consistent: borders.strong, focusRing, model-gpt, and now text.muted all use the same hue family, with text.muted desaturated and darker to signal secondary hierarchy."
+    },
+    "text.inverse": {
+      "color": "#120F1A",
+      "ratios_on_accent_backgrounds": {
+        "on-hot-pink-#FF2070": "5.13:1 PASS",
+        "on-teal-#2EE4B9": "11.65:1 PASS",
+        "on-mistral-pink-#FF6090": "6.61:1 PASS"
+      },
+      "wcag": "AA 4.5:1 — passes on all accent-colored button and badge surfaces"
+    },
+    "borders.default": {
+      "color": "#FF2070",
+      "ratios": {
+        "on-sidebar-#0E1220": "5.06:1 PASS",
+        "on-background-#16141D": "4.94:1 PASS",
+        "on-card-#12203A": "4.40:1 borderline",
+        "on-input-#221E34": "4.37:1 borderline"
+      },
+      "wcag": "borders.default is a structural border (hot pink card edges), not text. WCAG SC 1.4.3 applies to text and images of text only. The 4.40:1 on card and 4.37:1 on input are below the 4.5:1 text threshold but above the 3:1 SC 1.4.11 UI component threshold. Card borders appear against card surfaces, input outlines appear against input surfaces — the borderline cases are on their matching surfaces. Sidebar and background pass 4.5:1.",
+      "note": "The card surface shift from purple #1E1B2E to dark blue #12203A reduced borders.default contrast on card from 4.55:1 to 4.40:1 — the blue surface has marginally lower luminance delta with hot pink than the former purple. Still above the SC 1.4.11 3:1 UI component threshold. Deliberate and documented."
+    },
+    "borders.subtle": {
+      "color": "#2A2438",
+      "ratios": {
+        "on-sidebar-#0E1220": "1.25:1 decorative",
+        "on-background-#16141D": "1.22:1 decorative",
+        "on-card-#12203A": "1.09:1 decorative",
+        "on-input-#221E34": "1.08:1 decorative"
+      },
+      "wcag": "Exempt — decorative structural separator, not text or interactive control. Near-invisible hairline divider. Consistent with all other themes where borders.subtle is intentionally low-contrast."
+    },
+    "borders.strong": {
+      "color": "#2EE4B9",
+      "ratios": {
+        "on-sidebar-#0E1220": "11.47:1 PASS",
+        "on-background-#16141D": "11.21:1 PASS",
+        "on-card-#12203A": "9.98:1 PASS",
+        "on-input-#221E34": "9.91:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass with very high margin",
+      "note": "Night Drive teal. Contrast on new dark blue card is 9.98:1 — essentially unchanged from v2's 10.32:1 on purple card, as the blue and purple card values share similar luminance."
+    },
+    "interactive.focusRing": {
+      "color": "#2EE4B9",
+      "ratios": "Same as borders.strong — 9.91:1 worst case (on input). AA PASS.",
+      "note": "Teal focus ring is clearly visible on all surfaces including the new dark blue sidebar and card."
+    },
+    "accents.model-claude": {
+      "color": "#FFE600",
+      "ratios": {
+        "on-sidebar-#0E1220": "14.72:1 PASS",
+        "on-background-#16141D": "14.39:1 PASS",
+        "on-card-#12203A": "12.81:1 PASS",
+        "on-input-#221E34": "12.71:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Amber identity unchanged."
+    },
+    "accents.model-gpt": {
+      "color": "#2EE4B9",
+      "ratios": {
+        "on-sidebar-#0E1220": "11.47:1 PASS",
+        "on-background-#16141D": "11.21:1 PASS",
+        "on-card-#12203A": "9.98:1 PASS",
+        "on-input-#221E34": "9.91:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
     },
     "accents.model-gemini": {
-      "fix": "Lightened #BF00FF → #C828FF (+9R +40G +0B). Increases green channel minimally to brighten without shifting hue toward red. Prior value was 4.29:1 on card — moderate failure. The green-channel increase rather than pure lightening keeps the purple from drifting toward hot pink (occupied by accent-other #FF00AA).",
+      "color": "#D060FF",
       "ratios": {
-        "on-card-#130A1A": "4.79:1 PASS",
-        "on-background-#0D0D0D": "4.82:1 PASS",
-        "on-sidebar-#0A070F": "4.95:1 PASS"
+        "on-sidebar-#0E1220": "6.04:1 PASS",
+        "on-background-#16141D": "5.90:1 PASS",
+        "on-card-#12203A": "5.26:1 PASS",
+        "on-input-#221E34": "5.22:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Outrun gemini retains full neon-purple character. The adjustment is deliberately small — #BF00FF to #C828FF — to preserve the aggressive saturation that defines Outrun's palette. The green channel addition is visually imperceptible as a hue shift."
+      "wcag": "AA — all surfaces pass."
+    },
+    "accents.model-other": {
+      "color": "#FF8D77",
+      "ratios": {
+        "on-sidebar-#0E1220": "8.28:1 PASS",
+        "on-background-#16141D": "8.10:1 PASS",
+        "on-card-#12203A": "7.21:1 PASS",
+        "on-input-#221E34": "7.16:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "accents.model-grok": {
+      "color": "#C0CFFF",
+      "ratios": {
+        "on-sidebar-#0E1220": "12.09:1 PASS",
+        "on-background-#16141D": "11.82:1 PASS",
+        "on-card-#12203A": "10.52:1 PASS",
+        "on-input-#221E34": "10.44:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "accents.model-deepseek": {
+      "color": "#7AA0FF",
+      "ratios": {
+        "on-sidebar-#0E1220": "7.37:1 PASS",
+        "on-background-#16141D": "7.21:1 PASS",
+        "on-card-#12203A": "6.42:1 PASS",
+        "on-input-#221E34": "6.37:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "accents.model-mistral": {
+      "color": "#FF6090",
+      "ratios": {
+        "on-sidebar-#0E1220": "6.51:1 PASS",
+        "on-background-#16141D": "6.36:1 PASS",
+        "on-card-#12203A": "5.67:1 PASS",
+        "on-input-#221E34": "5.62:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "semantic.success": {
+      "color": "#3DDB96",
+      "ratios": {
+        "on-sidebar-#0E1220": "10.45:1 PASS",
+        "on-background-#16141D": "10.22:1 PASS",
+        "on-card-#12203A": "9.10:1 PASS",
+        "on-input-#221E34": "9.03:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "semantic.warning": {
+      "color": "#FFE259",
+      "ratios": {
+        "on-sidebar-#0E1220": "14.45:1 PASS",
+        "on-background-#16141D": "14.13:1 PASS",
+        "on-card-#12203A": "12.58:1 PASS",
+        "on-input-#221E34": "12.49:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "semantic.error": {
+      "color": "#FF4040",
+      "ratios": {
+        "on-sidebar-#0E1220": "5.38:1 PASS",
+        "on-background-#16141D": "5.26:1 PASS",
+        "on-card-#12203A": "4.68:1 PASS",
+        "on-input-#221E34": "4.65:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass."
+    },
+    "semantic.info": {
+      "color": "#CD44FF",
+      "ratios": {
+        "on-sidebar-#0E1220": "5.21:1 PASS",
+        "on-background-#16141D": "5.09:1 PASS",
+        "on-card-#12203A": "4.54:1 PASS",
+        "on-input-#221E34": "4.50:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. 4.50:1 on input meets AA exactly (unchanged from v2). 4.54:1 on card passes with a slim margin.",
+      "note": "Thinnest margin in the audit. If semantic.info is ever needed as body text on the input surface, bump to #D060FF (5.22:1 worst case). For current use (streaming indicator), 4.50:1 is sufficient."
     }
+  },
+  "_design_notes": {
+    "revision": "Issue #96 v3 — polish pass on v2. Two changes: teal expansion (text.muted, shadow.sm) and dark blue surfaces (sidebar, card).",
+    "surface_philosophy": "sidebar (#0E1220) and card (#12203A) shift to dark blue. background (#16141D) and input (#221E34) remain dark purple-near-black. The split palette creates structural depth: the outer frame (sidebar navigation, content cards) reads as dark navy while the content zone (main background, input field) retains the moody purple character established in v2. Progressive luminance preserved: sidebar (0.00630) < background (0.00760) < card (0.01467) < input (0.01517).",
+    "surface_shift_rationale": "Sidebar and card are the natural candidates for the blue shift because they are visually distinct frame regions — the sidebar is the navigation chrome and card surfaces are where model responses live. Shifting these to dark blue grounds the structural frame in cool techno-navy and makes the purple background/input surfaces feel warmer by contrast. Keeping background and input in the same purple family maintains coherence in the content zone where most reading happens. Effect: structural frame in dark blue, content zone in moody purple — two clearly different regions, one palette.",
+    "teal_expansion": "text.muted shifts from muted purple #A090C0 to desaturated teal #6BBFB8. Teal is now present at every level: borders.strong (#2EE4B9), focusRing (#2EE4B9), model-gpt (#2EE4B9), shadow.sm (rgba teal layer), shadow.lg (rgba teal layer), text.muted (#6BBFB8). #6BBFB8 is desaturated and lower-luminance than #2EE4B9 — reads as dim/secondary, not as an accent. Timestamps, placeholder text, and helper labels carry a cool teal undertone consistent with the Night Drive palette.",
+    "shadow_sm_update": "shadow.sm updated from pure pink glow (rgba(255,32,112,0.45)) to pink-dominant dual-channel: 0 0 8px rgba(255,32,112,0.35), 0 0 4px rgba(46,228,185,0.20). Pink opacity reduced from 0.45 to 0.35 to leave room for the teal layer without increasing total glow intensity. Pink remains the dominant read at this elevation; teal adds depth. shadow.md and shadow.lg unchanged.",
+    "hot_pink_as_dominant_accent": "Hot pink (#FF2070) remains the primary structural accent. borders.default on the new dark blue card surface is 4.40:1 — structural chrome exemption applies (SC 1.4.11, 3:1 threshold for UI components). Unchanged reasoning from v2.",
+    "teal_as_counterpoint": "Teal is now a full-palette presence: borders.strong, focusRing, model-gpt, shadow.sm (minor layer), shadow.lg (secondary layer), text.muted. The hot-pink/teal chromatic engine runs from structural borders through glows to secondary text.",
+    "night_drive_treatment": "Unchanged from v2. Dark-purple-near-black content zone + hot-pink/teal pairing are the essential mood anchors. Dark blue frame surfaces add a new dimension: navy outer shell, purple interior warmth. Consistent with nocturnal synthwave aesthetics."
   }
 }
