@@ -31,7 +31,9 @@ import type {
   ModelId,
   SessionTokenUsage,
 } from '@/types';
+import { getProviderRoster } from '@/auth';
 import { PROVIDERS } from './registry';
+import { createCustomProvider } from './generic';
 
 // Internal provider type alias for clarity
 type Provider = typeof PROVIDERS[number];
@@ -56,14 +58,95 @@ interface VersionAwareProvider extends Provider {
 }
 
 /**
- * Given a conversation, return providers whose modelId is active in the
- * conversation's model list.
+ * Result of resolving active providers for a conversation.
+ *
+ * `providers` — successfully resolved ModelProvider instances, in the order
+ *   the active modelIds appear in conversation.models.
+ * `missing` — active modelIds that had no matching entry in the ProviderRoster.
+ *   Each of these must receive an auth_failure StreamChunk before dispatch.
  */
-function getActiveProviders(conversation: Conversation): Provider[] {
-  const activeIds = new Set(
-    conversation.models.filter((m) => m.isActive).map((m) => m.modelId)
-  );
-  return PROVIDERS.filter((p) => activeIds.has(p.config.modelId));
+interface ResolvedProviders {
+  providers: Provider[];
+  missing: ModelId[];
+}
+
+/**
+ * Given a conversation, resolve the active providers from the ProviderRoster.
+ *
+ * Built-in providers: resolved from the static PROVIDERS array (kind: 'builtin'
+ * roster entries are authoritative for visibility/version, but the PROVIDERS
+ * array is always the fallback — built-ins are always available whether or not
+ * they have an explicit roster entry). This preserves backward compatibility
+ * with conversations that predate roster configuration.
+ *
+ * Custom providers (kind: 'custom'): require a roster entry. Instantiated
+ * on-the-fly via createCustomProvider(). Each call produces a fresh instance;
+ * no shared state exists between calls. This is intentional: custom providers
+ * are stateless wrappers around a config+credential fetch.
+ *
+ * Active modelIds with no matching roster entry AND no built-in implementation
+ * are returned in `missing`. The caller is responsible for emitting an
+ * auth_failure StreamChunk for each missing ID and skipping it from dispatch.
+ *
+ * The static PROVIDERS array is never modified.
+ */
+function getActiveProviders(conversation: Conversation): ResolvedProviders {
+  const activeIds = conversation.models
+    .filter((m) => m.isActive)
+    .map((m) => m.modelId);
+
+  if (activeIds.length === 0) {
+    return { providers: [], missing: [] };
+  }
+
+  const roster = getProviderRoster();
+  const providers: Provider[] = [];
+  const missing: ModelId[] = [];
+
+  for (const modelId of activeIds) {
+    // Check the static PROVIDERS array first — built-ins are always resolvable
+    // regardless of roster state (backward compatible with pre-roster conversations).
+    const builtIn = PROVIDERS.find((p) => p.config.modelId === modelId);
+    if (builtIn) {
+      providers.push(builtIn);
+      continue;
+    }
+
+    // Not a built-in — look for a custom roster entry.
+    const customEntry = roster.find(
+      (e) => e.kind === 'custom' && e.id === modelId
+    );
+
+    if (customEntry && customEntry.kind === 'custom') {
+      // Custom provider — instantiate from config.
+      providers.push(createCustomProvider(customEntry));
+    } else {
+      // Neither a built-in nor a roster-backed custom provider.
+      // Caller will emit auth_failure and skip.
+      missing.push(modelId);
+    }
+  }
+
+  return { providers, missing };
+}
+
+/**
+ * Emit an auth_failure StreamChunk for each modelId that had no roster entry.
+ * This is called at every dispatch site before handing off to the routing mode.
+ */
+function emitMissingProviderErrors(missing: ModelId[], onChunk: StreamHandler): void {
+  for (const modelId of missing) {
+    const chunk: StreamChunk = {
+      modelId,
+      content: '',
+      isDone: true,
+      error: {
+        code: 'auth_failure',
+        message: `Provider not found in roster: ${modelId}`,
+      },
+    };
+    onChunk(chunk);
+  }
 }
 
 /**
@@ -201,8 +284,8 @@ async function runDirected(
  * When a step has appendToContext=true, the model's response text is appended
  * to the shared context before the next step executes.
  *
- * Active-model guard: steps referencing inactive models emit a synthetic error
- * chunk and continue the chain (they do not append to context).
+ * Active-model guard: steps referencing inactive or roster-missing models emit a
+ * synthetic error chunk and continue the chain (they do not append to context).
  */
 async function runAutoChain(
   options: SendMessageOptions & { conversation?: Conversation; systemPrompt?: string },
@@ -215,17 +298,33 @@ async function runAutoChain(
   const { steps, maxPasses } = chainConfig;
   if (steps.length === 0 || maxPasses < 1) return;
 
-  const activeProviders = conversation ? getActiveProviders(conversation) : PROVIDERS;
+  // Resolve providers from the roster when a conversation is available.
+  // Missing entries get error chunks emitted inline per-step (see below).
+  let activeProviders: Provider[];
+  let missingIds: ModelId[];
+  if (conversation) {
+    const resolved = getActiveProviders(conversation);
+    activeProviders = resolved.providers;
+    missingIds = resolved.missing;
+    // Emit missing-provider errors upfront (before any step runs).
+    emitMissingProviderErrors(missingIds, onChunk);
+  } else {
+    activeProviders = PROVIDERS;
+    missingIds = [];
+  }
 
   // Shared context that grows as appendToContext steps complete.
   let sharedMessages: Message[] = [...initialMessages];
 
   for (let pass = 0; pass < maxPasses; pass++) {
     for (const step of steps) {
+      // Skip steps whose modelId had no roster entry — error was emitted above.
+      if (missingIds.includes(step.modelId)) continue;
+
       const provider = activeProviders.find((p) => p.config.modelId === step.modelId);
 
       if (!provider) {
-        // Model inactive — emit error chunk and skip (do not halt the chain).
+        // Model not in the active provider list (inactive in conversation).
         const errorChunk: StreamChunk = {
           modelId: step.modelId,
           content: '',
@@ -285,6 +384,16 @@ async function runAutoChain(
  * Each provider streams incremental chunks back via onChunk independently.
  * Resolves when the chosen mode has completed all provider calls.
  *
+ * Provider resolution (issue #95):
+ *   When a conversation is provided, active providers are resolved from the
+ *   ProviderRoster (Gate's `getProviderRoster()`). Built-in roster entries map
+ *   to static PROVIDERS instances; custom entries are instantiated via
+ *   `createCustomProvider()`. Active modelIds with no roster entry receive an
+ *   auth_failure StreamChunk and are excluded from dispatch.
+ *
+ *   When no conversation is provided (legacy/test path), PROVIDERS is used
+ *   directly as before — no roster lookup occurs.
+ *
  * Usage by Aria:
  *   import { sendMessage } from '@/models';
  *   // Parallel:
@@ -304,7 +413,22 @@ export async function sendMessage(
 ): Promise<void> {
   const { conversation, systemPrompt, content, targetModelId, chainConfig } = options;
 
-  const activeProviders = conversation ? getActiveProviders(conversation) : PROVIDERS;
+  // Resolve active providers from the ProviderRoster when a conversation is available.
+  // The PROVIDERS fallback (no conversation) preserves existing behavior for callers
+  // that do not pass a conversation — e.g. legacy call sites and some tests.
+  let activeProviders: Provider[];
+  if (conversation) {
+    const { providers, missing } = getActiveProviders(conversation);
+    activeProviders = providers;
+    // Emit auth_failure chunks for any active modelIds missing from the roster
+    // before routing — this happens for all modes except auto-chain (which handles
+    // its own per-step emission in runAutoChain).
+    if (!chainConfig) {
+      emitMissingProviderErrors(missing, onChunk);
+    }
+  } else {
+    activeProviders = PROVIDERS;
+  }
 
   // Build message history from the conversation, if provided.
   // The current user message is appended at the end.
@@ -322,6 +446,7 @@ export async function sendMessage(
   // ── Mode selection ──────────────────────────────────────────────────────────
 
   // Auto-chain takes precedence — if chainConfig is supplied, sequence the steps.
+  // runAutoChain performs its own roster resolution and missing-entry handling.
   if (chainConfig) {
     await runAutoChain(
       { ...options, conversation, systemPrompt },
