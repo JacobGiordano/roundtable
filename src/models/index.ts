@@ -6,6 +6,7 @@ export { GeminiModelProvider, geminiProvider, GEMINI_CONFIG } from './gemini';
 export { GrokModelProvider, grokProvider, GROK_CONFIG } from './grok';
 export { DeepSeekModelProvider, deepseekProvider, DEEPSEEK_CONFIG } from './deepseek';
 export { MistralModelProvider, mistralProvider, MISTRAL_CONFIG } from './mistral';
+export { GenericOpenAIProvider, createCustomProvider } from './generic';
 export { sendMessage, getSessionTokenUsage } from './sendMessage';
 
 // Central model registry — Aria may import MODEL_REGISTRY and buildDefaultModelConfigs
