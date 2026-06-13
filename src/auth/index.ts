@@ -49,3 +49,11 @@ export {
   setModelVersion,
   clearModelVersion,
 } from './modelVersion';
+export {
+  getProviderRoster,
+  saveProviderRoster,
+  addBuiltInProvider,
+  addCustomProvider,
+  removeProvider,
+  getProviderById,
+} from './providerRoster';

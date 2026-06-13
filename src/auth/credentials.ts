@@ -11,7 +11,7 @@
  *   - localStorage is the sole persistence layer
  */
 
-import type { CredentialKey, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn, ModelId, ModelConfig } from '@/types';
+import type { BuiltInCredentialKey, BuiltInModelId, CredentialKey, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn, ModelConfig } from '@/types';
 
 // ─── Storage key prefix ────────────────────────────────────────────────────────
 
@@ -59,10 +59,15 @@ export function hasCredential(key: CredentialKey): boolean {
 
 /**
  * Gate owns this mapping. Do NOT import from /src/models — Gate maintains its
- * own ModelId → CredentialKey relationship so the auth layer has no dependency
- * on Atlas.
+ * own BuiltInModelId → BuiltInCredentialKey relationship so the auth layer has
+ * no dependency on Atlas.
+ *
+ * Typed as Record<BuiltInModelId, BuiltInCredentialKey> — this is a complete,
+ * exhaustive mapping over the closed set of built-in providers only. Custom
+ * provider credentials are managed separately via their own CredentialKey
+ * (pattern: "custom:<id>") and are NOT entries in this map.
  */
-export const MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey> = {
+export const MODEL_CREDENTIAL_MAP: Record<BuiltInModelId, BuiltInCredentialKey> = {
   'claude': 'anthropic',
   'gpt-5.5': 'openai',
   'gemini': 'google',
@@ -78,12 +83,20 @@ export const MODEL_CREDENTIAL_MAP: Record<ModelId, CredentialKey> = {
  * Only models with `isActive === true` are considered. The result contains no
  * duplicates (e.g. two active Claude variants both requiring 'anthropic' yield
  * only one entry).
+ *
+ * Custom model IDs (those not in MODEL_CREDENTIAL_MAP) are silently skipped —
+ * custom providers manage their own credential lookup via ProviderRoster and
+ * the "custom:<id>" key convention. This function covers built-ins only.
  */
 export function getRequiredCredentialKeys(models: ModelConfig[]): CredentialKey[] {
   const keys = new Set<CredentialKey>();
   for (const model of models) {
     if (model.isActive) {
-      keys.add(MODEL_CREDENTIAL_MAP[model.modelId]);
+      const credKey = MODEL_CREDENTIAL_MAP[model.modelId as BuiltInModelId];
+      if (credKey !== undefined) {
+        keys.add(credKey);
+      }
+      // Custom model IDs not in MODEL_CREDENTIAL_MAP are intentionally skipped.
     }
   }
   return Array.from(keys);
