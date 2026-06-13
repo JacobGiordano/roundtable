@@ -7,6 +7,7 @@ import { Sidebar } from './Sidebar';
 import { ModelSelectorPanel } from './ModelSelectorPanel';
 import { RoundtableLogo } from './RoundtableLogo';
 import { ProviderSettingsPanel } from './ProviderSettingsPanel';
+import { OnboardingEmptyState } from './OnboardingEmptyState';
 
 interface AppLayoutProps {
   conversations: Conversation[];
@@ -96,6 +97,19 @@ interface AppLayoutProps {
   onBulkArchive?: (ids: string[]) => void;
   /** Delete multiple conversations. Threaded App → AppLayout → Sidebar. */
   onBulkDelete?: (ids: string[]) => void;
+  /**
+   * True when the ProviderRoster is empty (no built-in or custom providers configured).
+   * When true, the conversation column body is replaced by OnboardingEmptyState.
+   * Derived in App from getProviderRoster().length === 0 — see #100.
+   * When false (or omitted), the normal MessageThread renders.
+   */
+  isRosterEmpty?: boolean;
+  /**
+   * Called whenever the ProviderSettingsPanel closes, giving App a chance to
+   * re-read the roster and update isRosterEmpty. This is the simplest subscription
+   * model: Gate exposes sync-only CRUD; AppLayout notifies App on panel close.
+   */
+  onRosterChange?: () => void;
 }
 
 export function AppLayout({
@@ -132,6 +146,8 @@ export function AppLayout({
   onSetConversationGroup,
   onBulkArchive,
   onBulkDelete,
+  isRosterEmpty = false,
+  onRosterChange,
 }: AppLayoutProps) {
   // Mobile drawer state — controls the Sidebar slide-in overlay on small screens.
   // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
@@ -152,7 +168,13 @@ export function AppLayout({
   const providerSettingsTriggerRef = useRef<HTMLButtonElement>(null);
 
   const handleOpenProviderSettings = useCallback(() => setIsProviderPanelOpen(true), []);
-  const handleCloseProviderSettings = useCallback(() => setIsProviderPanelOpen(false), []);
+  const handleCloseProviderSettings = useCallback(() => {
+    setIsProviderPanelOpen(false);
+    // Notify App that the panel closed so it can re-read the roster.
+    // This is the roster subscription mechanism: Gate is sync-only, so App
+    // learns about roster changes by rechecking on panel close.
+    onRosterChange?.();
+  }, [onRosterChange]);
 
   const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);
   const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
@@ -290,16 +312,22 @@ export function AppLayout({
           </div>
         </div>
 
-        {/* Message thread — scrollable, fills available height */}
-        <MessageThread
-          messages={messages}
-          streamingMessages={streamingMessages}
-          models={activeModels}
-          onRetry={onRetry}
-          onDirectedReply={onDirectedReply}
-          tokenCountVisibility={tokenCountVisibility}
-          onExport={onExportConversation}
-        />
+        {/* Conversation column body — either onboarding (empty roster) or message thread.
+            OnboardingEmptyState unmounts automatically when isRosterEmpty becomes false
+            (first provider added), revealing the normal MessageThread. */}
+        {isRosterEmpty ? (
+          <OnboardingEmptyState onOpenProviderSettings={handleOpenProviderSettings} />
+        ) : (
+          <MessageThread
+            messages={messages}
+            streamingMessages={streamingMessages}
+            models={activeModels}
+            onRetry={onRetry}
+            onDirectedReply={onDirectedReply}
+            tokenCountVisibility={tokenCountVisibility}
+            onExport={onExportConversation}
+          />
+        )}
 
         {/* Bottom section: model selector + mode switcher + input bar */}
         <div className="flex-shrink-0 px-4 pb-0">

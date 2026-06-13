@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage, getSessionTokenUsage, and MODEL_REGISTRY
@@ -81,6 +81,22 @@ export default function App() {
   // be threaded down the tree without per-component Gate imports.
   const [userPrefs] = useUserPreferences();
   const { tokenCountVisibility } = userPrefs;
+
+
+  // ── Provider roster empty state (#100) ────────────────────────────────────
+  // rosterVersion is a monotonic counter. Bumping it forces a re-read of
+  // getProviderRoster() whenever the ProviderSettingsPanel closes. This is the
+  // simplest roster subscription model: Gate is sync-only, so we re-derive
+  // isRosterEmpty on-demand instead of subscribing to storage events.
+  const [rosterVersion, setRosterVersion] = useState(0);
+  const isRosterEmpty = useMemo(
+    () => getProviderRoster().length === 0,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rosterVersion],
+  );
+  const handleRosterChange = useCallback(() => {
+    setRosterVersion((v) => v + 1);
+  }, []);
 
   // ── Streaming state ───────────────────────────────────────────────────────
   // streamingMessages holds in-flight assistant responses, keyed by
@@ -406,6 +422,8 @@ export default function App() {
       onSetConversationGroup={handleSetConversationGroup}
       onBulkArchive={handleBulkArchive}
       onBulkDelete={handleBulkDelete}
+      isRosterEmpty={isRosterEmpty}
+      onRosterChange={handleRosterChange}
     />
   );
 }
