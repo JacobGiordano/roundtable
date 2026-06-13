@@ -28,6 +28,10 @@ test-results/
 # OS
 .DS_Store
 Thumbs.db
+*.db
+
+# Backend database directory (created at runtime)
+data/
 
 # Editor
 .vscode/

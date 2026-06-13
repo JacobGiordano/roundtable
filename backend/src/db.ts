@@ -9,9 +9,10 @@
 
 import DatabaseConstructor, { Database } from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
 import path from 'path';
 
-const DATABASE_PATH = process.env.DATABASE_PATH ?? './roundtable.db';
+const DATABASE_PATH = process.env.DATABASE_PATH ?? './data/roundtable.db';
 
 // Resolve relative paths from the working directory.
 // Pass ':memory:' through unchanged — path.resolve() would turn it into a real
@@ -21,6 +22,12 @@ const resolvedPath =
   DATABASE_PATH === ':memory:'
     ? ':memory:'
     : path.resolve(process.cwd(), DATABASE_PATH);
+
+// Ensure the parent directory exists before opening the database.
+// This is a no-op for ':memory:' and for directories that already exist.
+if (resolvedPath !== ':memory:') {
+  fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+}
 
 export const db: Database = new DatabaseConstructor(resolvedPath);
 
