@@ -1,19 +1,24 @@
-Last updated: 2026-06-12 (Atlas #88)
+Last updated: 2026-06-13 (Scout #84 #83 #86 #87)
 
 ## Current phase
 
-Phase 4 — Feature-complete. CI live. Backend test infrastructure live. 4 Scout test gap tickets remain.
+Phase 4 — Feature-complete. CI live. All Scout test gap tickets closed.
 
 ## Session summary
 
-- Atlas: closed #88 — `db.ts` now guards `:memory:` before `path.resolve()`. Bastion's temp-file workaround removed from `setup.ts`. All 63 backend tests pass against true in-memory SQLite.
+- Scout: closed #84, #83, #86, #87 in parallel (4 isolated worktrees, octopus merge)
+  - #84: +5 tests covering hook-layer ghost guards in useConversationStore (provider layer was already tested)
+  - #83: +39 tests — VALID_MODEL_IDS sync guard + full accentColors coverage, placed in /src/tests/auth/ (not /src/auth/ — Gate territory)
+  - #86: +20 tests — AccentColorPicker hex field blur/Enter edge cases; established fireEvent + vi.useFakeTimers() pattern (userEvent deadlocks with fake timers)
+  - #87: +21 tests — MODEL_REGISTRY completeness + PROVIDERS sync guard; issue spec had wrong field path (top-level, not .config)
 
-## Open issues — priority order
+## Open issues
 
-- Scout #84: ghost mode storage isolation (extend existing integration test)
-- Scout #83: accentColors VALID_MODEL_IDS sync guard ⚠️ test file lives in `/src/auth/` — Scout boundary issue, needs resolution
-- Scout #86: AccentColorPicker hex field validation (requires `vi.useFakeTimers()`)
-- Scout #87: MODEL_REGISTRY completeness guard
+None. All Scout test gap tickets resolved.
+
+## Potential next ticket
+
+- Scout: `buildDefaultModelConfigs()` in `/src/models/registry.ts` has no test — maps MODEL_REGISTRY to ModelConfig[]. Low priority; flag to user before opening.
 
 ## Gotchas
 
@@ -23,7 +28,8 @@ Phase 4 — Feature-complete. CI live. Backend test infrastructure live. 4 Scout
 - applyUserAccentColors must be called after EVERY applyTheme() — wired at boot and in handleThemeChange
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (documented, tested)
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
-- Scout #83 boundary issue: proposed test file is in `/src/auth/accentColors.test.ts` — Scout can't write there (Gate territory). Resolve before activating Scout on this ticket.
+- userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
+- ModelRegistryEntry fields are top-level (modelId, name, color) — NOT nested under .config
 
 ## Model providers (all on main)
 
