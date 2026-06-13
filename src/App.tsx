@@ -1,18 +1,21 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
-// Cross-agent exception: sendMessage, getSessionTokenUsage, and
-// buildDefaultModelConfigs are pure utilities exported from @/models per the
-// documented exception in CLAUDE.md. buildDefaultModelConfigs replaces the
-// former MOCK_MODELS hardcoded array so the model selector reflects the live
-// MODEL_REGISTRY maintained by Atlas.
-import { sendMessage, getSessionTokenUsage, buildDefaultModelConfigs } from '@/models';
+// Cross-agent exception: sendMessage, getSessionTokenUsage, and MODEL_REGISTRY
+// are pure utilities exported from @/models per the documented exception in
+// CLAUDE.md. MODEL_REGISTRY is the static display-metadata registry Atlas
+// maintains; we use it to resolve name/color/versions for built-in providers
+// when mapping ProviderRoster → ModelConfig[].
+import { sendMessage, getSessionTokenUsage, MODEL_REGISTRY } from '@/models';
 // Gate cross-agent exception: useUserPreferences reads/writes UserPreferences from
 // localStorage. Called at the App root so tokenCountVisibility can be threaded
 // down the component tree without per-component Gate imports.
 // getModelVersion / setModelVersion / clearModelVersion are Gate-owned utilities
 // for persisting per-model version selections (ModelConfig.selectedVersionId).
-import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion } from '@/auth';
+// getProviderRoster is Gate's public API for the user's configured provider list.
+// Aria reads it at app boot to seed model selector state from the real roster
+// instead of the static buildDefaultModelConfigs() fallback.
+import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion, getProviderRoster } from '@/auth';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
@@ -30,17 +33,45 @@ export default function App() {
   // former MOCK_CONVERSATIONS + useState<Conversation[]> approach.
   const store = useConversationStore();
 
-  // Per-conversation model state seeded from the live MODEL_REGISTRY.
-  // buildDefaultModelConfigs() maps registry entries to ModelConfig[], respecting
-  // defaultActive flags (Claude + GPT active; Gemini + Grok inactive once added).
-  // selectedVersionId is seeded from Gate's persisted store (getModelVersion) so
-  // the user's previously chosen version is reflected immediately on load.
-  const [models, setModels] = useState<ModelConfig[]>(() =>
-    buildDefaultModelConfigs().map((m) => ({
-      ...m,
-      selectedVersionId: getModelVersion(m.modelId),
-    })),
-  );
+  // Model state seeded from the user's ProviderRoster (Gate) rather than the
+  // static buildDefaultModelConfigs(). On app boot we read the roster and map
+  // each entry to a ModelConfig:
+  //   - Built-in: look up name/color/versions from MODEL_REGISTRY; all start inactive.
+  //   - Custom: use displayName and optional color; no versions available.
+  // If the roster is empty we produce [] — AppLayout / ModelSelectorPanel will
+  // render the empty-roster placeholder (no fallback to buildDefaultModelConfigs).
+  // selectedVersionId is seeded from Gate's persisted store (getModelVersion).
+  const [models, setModels] = useState<ModelConfig[]>(() => {
+    const roster = getProviderRoster();
+    if (roster.length === 0) return [];
+
+    // Build a lookup map from MODEL_REGISTRY for O(1) access.
+    const registryMap = new Map(MODEL_REGISTRY.map((e) => [e.modelId, e]));
+
+    return roster.map((config): ModelConfig => {
+      if (config.kind === 'builtin') {
+        const entry = registryMap.get(config.modelId);
+        return {
+          modelId: config.modelId,
+          name: entry?.name ?? config.modelId,
+          color: entry?.color ?? 'accent-other',
+          isActive: false,
+          systemPrompt: undefined,
+          selectedVersionId: getModelVersion(config.modelId),
+        };
+      } else {
+        // Custom provider — no registry entry; use roster display metadata.
+        return {
+          modelId: config.id,
+          name: config.displayName,
+          color: config.color ?? 'accent-other',
+          isActive: false,
+          systemPrompt: undefined,
+          selectedVersionId: undefined,
+        };
+      }
+    });
+  });
 
   // Directed reply: when set, the next send is targeted at this model only.
   // Cleared automatically after a message is sent, or manually via the × pill.
