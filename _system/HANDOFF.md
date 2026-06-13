@@ -1,4 +1,4 @@
-Last updated: 2026-06-13 (Scout #89)
+Last updated: 2026-06-13 (Atlas #90)
 
 ## Current phase
 
@@ -6,7 +6,7 @@ Phase 4 — Feature-complete. CI live. No open issues.
 
 ## Session summary
 
-- Scout: closed #89 — 7 tests added to model-registry-completeness.test.ts covering buildDefaultModelConfigs(): length guard, isActive defaults, order preservation, name/color fidelity, clean-slate guards (no selectedVersionId, no systemPrompt). No bugs found.
+- Atlas: closed #90 — default DATABASE_PATH changed to `./data/roundtable.db`; `data/` dir created at runtime via mkdirSync; `data/` added to .gitignore; `:memory:` sentinel in tests unaffected. 63/63 backend tests passing.
 
 ## Open issues
 
