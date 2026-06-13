@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, StreamChunk } from '@/types';
+import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 // Cross-agent exception: sendMessage, getSessionTokenUsage, and MODEL_REGISTRY
 // are pure utilities exported from @/models per the documented exception in
@@ -24,6 +24,51 @@ import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion
 // after exportConversation returns the serialized content.
 import { useConversationStore, downloadExportedConversation } from '@/storage';
 
+// ─── Roster → ModelConfig mapping ─────────────────────────────────────────────
+
+/**
+ * Maps a ProviderRoster to ModelConfig[]. Called both at boot (initializer)
+ * and on every roster change (handleRosterChange) to keep the model selector
+ * in sync with provider additions and removals without a full page reload.
+ *
+ * prevModels is used to preserve runtime state (isActive, systemPrompt,
+ * selectedVersionId) for models that already exist. New models start inactive.
+ */
+function rosterToModelConfigs(
+  roster: ProviderRoster,
+  prevModels: ModelConfig[],
+): ModelConfig[] {
+  if (roster.length === 0) return [];
+  const registryMap = new Map(MODEL_REGISTRY.map((e) => [e.modelId, e]));
+  const prevMap = new Map(prevModels.map((m) => [m.modelId, m]));
+  return roster.map((config): ModelConfig => {
+    const modelId = config.kind === 'builtin' ? config.modelId : config.id;
+    const existing = prevMap.get(modelId);
+    if (existing) return existing;
+    if (config.kind === 'builtin') {
+      const entry = registryMap.get(config.modelId);
+      return {
+        modelId: config.modelId,
+        name: entry?.name ?? config.modelId,
+        color: entry?.color ?? 'accent-other',
+        isActive: false,
+        systemPrompt: undefined,
+        selectedVersionId: getModelVersion(config.modelId),
+      };
+    } else {
+      // Custom provider — no registry entry; use roster display metadata.
+      return {
+        modelId: config.id,
+        name: config.displayName,
+        color: config.color ?? 'accent-other',
+        isActive: false,
+        systemPrompt: undefined,
+        selectedVersionId: undefined,
+      };
+    }
+  });
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -41,37 +86,10 @@ export default function App() {
   // If the roster is empty we produce [] — AppLayout / ModelSelectorPanel will
   // render the empty-roster placeholder (no fallback to buildDefaultModelConfigs).
   // selectedVersionId is seeded from Gate's persisted store (getModelVersion).
-  const [models, setModels] = useState<ModelConfig[]>(() => {
-    const roster = getProviderRoster();
-    if (roster.length === 0) return [];
-
-    // Build a lookup map from MODEL_REGISTRY for O(1) access.
-    const registryMap = new Map(MODEL_REGISTRY.map((e) => [e.modelId, e]));
-
-    return roster.map((config): ModelConfig => {
-      if (config.kind === 'builtin') {
-        const entry = registryMap.get(config.modelId);
-        return {
-          modelId: config.modelId,
-          name: entry?.name ?? config.modelId,
-          color: entry?.color ?? 'accent-other',
-          isActive: false,
-          systemPrompt: undefined,
-          selectedVersionId: getModelVersion(config.modelId),
-        };
-      } else {
-        // Custom provider — no registry entry; use roster display metadata.
-        return {
-          modelId: config.id,
-          name: config.displayName,
-          color: config.color ?? 'accent-other',
-          isActive: false,
-          systemPrompt: undefined,
-          selectedVersionId: undefined,
-        };
-      }
-    });
-  });
+  // Re-derived on every roster change via handleRosterChange (see below).
+  const [models, setModels] = useState<ModelConfig[]>(() =>
+    rosterToModelConfigs(getProviderRoster(), []),
+  );
 
   // Directed reply: when set, the next send is targeted at this model only.
   // Cleared automatically after a message is sent, or manually via the × pill.
@@ -96,6 +114,7 @@ export default function App() {
   );
   const handleRosterChange = useCallback(() => {
     setRosterVersion((v) => v + 1);
+    setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev));
   }, []);
 
   // ── Streaming state ───────────────────────────────────────────────────────
