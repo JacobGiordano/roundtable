@@ -15,7 +15,7 @@
   },
   "borders": {
     "default": "#FF2070",
-    "subtle": "#2A2438",
+    "subtle": "#112828",
     "strong": "#2EE4B9"
   },
   "accents": {
@@ -29,7 +29,7 @@
   },
   "interactive": {
     "hover": "#1C2840",
-    "active": "#33305A",
+    "active": "#122E2C",
     "focusRing": "#2EE4B9"
   },
   "semantic": {
@@ -56,8 +56,8 @@
   },
   "shadow": {
     "none": "none",
-    "sm": "0 0 8px rgba(255,32,112,0.30), 0 0 5px rgba(61,200,255,0.25)",
-    "md": "0 0 20px rgba(61,200,255,0.35), 0 4px 16px rgba(0,0,0,0.85)",
+    "sm": "0 0 8px rgba(255,32,112,0.30), 0 0 5px rgba(61,200,255,0.20), 0 0 3px rgba(46,228,185,0.20)",
+    "md": "0 0 20px rgba(61,200,255,0.30), 0 0 12px rgba(46,228,185,0.25), 0 4px 16px rgba(0,0,0,0.85)",
     "lg": "0 0 40px rgba(255,32,112,0.35), 0 0 80px rgba(61,200,255,0.25), 0 0 60px rgba(46,228,185,0.15), 0 8px 40px rgba(0,0,0,0.90)"
   },
   "timing": {
@@ -128,14 +128,15 @@
       "note": "v4: borders.default remains hot pink (#FF2070). With text.secondary now electric blue and shadow.md now blue-dominant, borders.default is the anchor that keeps hot pink structurally present. Card borders remain the largest single-area pink element — intentional. The Outrun identity requires hot pink to be unmistakably present at scale."
     },
     "borders.subtle": {
-      "color": "#2A2438",
+      "color": "#112828",
       "ratios": {
-        "on-sidebar-#0E1220": "1.25:1 decorative",
-        "on-background-#16141D": "1.22:1 decorative",
-        "on-card-#12203A": "1.09:1 decorative",
-        "on-input-#221E34": "1.08:1 decorative"
+        "on-sidebar-#0E1220": "1.17:1 decorative",
+        "on-background-#16141D": "1.15:1 decorative",
+        "on-card-#12203A": "1.02:1 decorative",
+        "on-input-#221E34": "1.02:1 decorative"
       },
-      "wcag": "Exempt — decorative structural separator, not text or interactive control."
+      "wcag": "Exempt — decorative structural separator, not text or interactive control.",
+      "note": "v5 change: #2A2438 (near-invisible purple) → #112828 (near-invisible dark teal). Still effectively invisible at 1.02:1–1.17:1 — this is a surface separator, not a legibility element. The shift from purple-family to teal-family aligns subtle borders with the teal accent tier rather than implying an unrelated purple layer."
     },
     "borders.strong": {
       "color": "#2EE4B9",
@@ -156,7 +157,12 @@
     "interactive.hover": {
       "color": "#1C2840",
       "luminance": "0.02135",
-      "note": "v4 change: hover shifts from purple-tinted #2A2640 (luminance 0.02249) to blue-tinted #1C2840 (luminance 0.02135). Both are near-identical in lift intensity — the change is hue, not brightness. Blue-tinted hover is consistent with the electric blue accent tier and the dark blue sidebar/card surfaces. interactive.active (#33305A) remains purple — blue-hover / purple-active creates a legible two-state machine: cool and transient on hover, deeper and committed on press."
+      "note": "v4 change: hover shifts from purple-tinted #2A2640 (luminance 0.02249) to blue-tinted #1C2840 (luminance 0.02135). Both are near-identical in lift intensity — the change is hue, not brightness. Blue-tinted hover is consistent with the electric blue accent tier and the dark blue sidebar/card surfaces."
+    },
+    "interactive.active": {
+      "color": "#122E2C",
+      "luminance": "0.02620",
+      "note": "v5 change: #33305A (purple-tinted, luminance 0.03556) → #122E2C (teal-tinted, luminance 0.02620). Three-step interaction surface sequence is now: rest (surface bg) → hover #1C2840 (blue-tinted) → active #122E2C (teal-tinted). Each state carries a distinct hue from the three-accent-tier language — blue for transient hover, teal for committed press. No contrast requirement applies — this is a surface token, not a text token."
     },
     "accents.model-claude": {
       "color": "#FFE600",
@@ -271,14 +277,15 @@
     }
   },
   "_design_notes": {
-    "revision": "Issue #96 v4 — tertiary neon blue (#3DC8FF) added; pink dominance balanced across four redistribution points.",
+    "revision": "Issue #96 v5 — teal amplification: four targeted changes make teal genuinely co-equal with electric blue in the interaction and shadow layers.",
+    "v5_changes": "Four changes from v4: (1) interactive.active: #33305A (purple) → #122E2C (teal-tinted dark surface). The hover→active state machine is now hue-distinct across the blue and teal accent tiers — hover is blue-tinted (#1C2840), active is teal-tinted (#122E2C); purple is fully retired from the interaction layer. (2) shadow.sm: pink+blue dual-layer → pink+blue+teal three-layer — rgba(255,32,112,0.30) / rgba(61,200,255,0.20) / rgba(46,228,185,0.20). Teal now appears at every elevation tier. Blue opacity reduced from 0.25 to 0.20 to make room. (3) shadow.md: all-blue → blue-dominant with teal secondary — rgba(61,200,255,0.30) + rgba(46,228,185,0.25) + black depth. Blue opacity reduced from 0.35 to 0.30; teal at 0.25 is a genuine secondary presence, not a trace. (4) borders.subtle: #2A2438 (near-invisible purple) → #112828 (near-invisible dark teal). Decorative separator family shifts from purple to teal — still effectively invisible, but teal-family rather than an unrelated purple.",
     "tertiary_blue": "#3DC8FF — electric sky blue. Distinctly bluer than the teal family (#2EE4B9, #6BBFB8): teal has significant green content, electric blue does not. Slightly warmer than pure deep sky (#00BFFF) — the +61 red channel keeps it from reading as flat cyan and grounds it in the Outrun neon palette. Passes 4.5:1 on all four surfaces with strong margins (worst case: 8.37:1 on input). text.inverse on tertiary blue: 9.83:1. No schema changes required — tertiary blue is a value assigned to existing tokens.",
     "v4_redistribution": "Four changes redistribute color away from pink dominance: (1) text.secondary: #FF6EB4 → #3DC8FF — model names and thread titles shift from pink to electric blue. Highest-impact single move: the most frequently recurring colored text elements now carry the tertiary blue. (2) shadow.md: pink-primary glow → blue-primary glow (rgba 61,200,255,0.35 + black depth). Mid-elevation elements lift with an electric blue corona. (3) shadow.sm: pink+teal dual glow → pink+blue dual glow. Low-elevation lift carries blue secondary layer (0.25 opacity) with pink primary (0.30). (4) interactive.hover: purple-tinted #2A2640 → blue-tinted #1C2840. Hover states carry the tertiary blue at the surface level.",
     "what_stays_pink": "borders.default (#FF2070) — hot pink card borders remain the structural anchor. Card borders are the largest-area single-color chromatic element in the UI. Hot pink here is non-negotiable for Outrun character: every card in the interface has a hot pink edge. This single element ensures pink is unmistakably present at scale. The balance shift comes from redistributing where blue appears, not from removing pink from borders.",
-    "three_accent_tiers": "v4 establishes three clearly distinct chromatic tiers: (1) HOT PINK (#FF2070, #FF6090) — structural borders (largest area) and Mistral model identity; (2) ELECTRIC BLUE (#3DC8FF) — text.secondary, shadow.md primary glow, shadow.sm secondary layer, interactive.hover tint; (3) TEAL (#2EE4B9, #6BBFB8) — borders.strong, focusRing, model-gpt, text.muted. Each tier has a different role: pink is structural chrome (always visible, largest area), blue is textual identity and elevation glow (most readable, most frequent text), teal is interactive feedback and model identity (functional/semantic).",
-    "shadow_philosophy": "v4 shadow system: shadow.sm is low-elevation lift — pink primary (0.30) + blue secondary (0.25). Two-color neon bloom: pink outlines, blue depth. shadow.md is mid-elevation glow — blue primary (0.35) + black depth. Modal panels and elevated elements rise with an electric blue corona — this distributes blue into the elevation system and makes sm (pink-first) and md (blue-first) feel distinctly different in character. shadow.lg is the three-way neon corona — pink (0.35) + blue (0.25) + teal (0.15) + black depth. High-elevation elements (model selector panel) are lit with all three accent colors at proportional intensities: pink dominant, blue secondary, teal tertiary. Maximalist and earned for the highest elevation tier.",
-    "hover_active_logic": "interactive.hover shifts to blue-tinted #1C2840 (luminance 0.02135). interactive.active stays purple #33305A (luminance 0.03556). Previously both states were purple-tinted, making the state machine feel like one color at two brightness levels. The blue hover creates a hue-distinct transition: hover is cool/blue (transient), active is warm/purple (committed). More legible and consistent with the three-accent-tier character.",
+    "three_accent_tiers": "v5 maintains three clearly distinct chromatic tiers, with teal now genuinely co-equal with blue: (1) HOT PINK (#FF2070, #FF6090) — structural borders (largest area) and Mistral model identity; (2) ELECTRIC BLUE (#3DC8FF) — text.secondary, shadow.sm secondary layer, shadow.md primary glow, interactive.hover tint; (3) TEAL (#2EE4B9, #6BBFB8, #122E2C, #112828) — borders.strong, focusRing, model-gpt, text.muted, interactive.active surface, borders.subtle family, shadow.sm tertiary layer, shadow.md secondary layer. Pink is structural chrome, blue is textual identity, teal is now the interaction and feedback tier — appearing in every shadow level and both interactive states.",
+    "shadow_philosophy": "v5 shadow system: shadow.sm is low-elevation lift — pink primary (0.30) + blue secondary (0.20) + teal tertiary (0.20). Three-color neon bloom at every elevation. shadow.md is mid-elevation glow — blue primary (0.30) + teal secondary (0.25) + black depth. Blue drops from 0.35 to 0.30 to make room for teal at 0.25 — teal is a genuine second color, not a trace. The two-color blue+teal corona reads as electric water. shadow.lg is unchanged — pink (0.35) + blue (0.25) + teal (0.15) + black depth. High-elevation elements retain the full three-way proportional cascade.",
+    "hover_active_logic": "Three-step hue-distinct interaction state machine: rest (surface bg) → hover #1C2840 (blue-tinted, luminance 0.02135, transient) → active #122E2C (teal-tinted, luminance 0.02620, committed). v4 introduced blue hover. v5 makes active teal, retiring purple from the interaction layer entirely. Distinguishing signal is hue, not brightness — both hover and active are near-identical in luminance, so the color shift is what communicates the state change.",
     "surface_philosophy": "Unchanged from v3. sidebar (#0E1220) and card (#12203A) are dark blue. background (#16141D) and input (#221E34) remain dark purple-near-black. Progressive luminance: sidebar (0.00630) < background (0.00760) < card (0.01467) < input (0.01517).",
-    "night_drive_treatment": "Unchanged from v3. The dark-purple-near-black content zone and the hot-pink/teal pairing remain the essential Night Drive mood anchors. v4 adds the electric blue tier as a distinct third accent — expanding the palette without replacing the foundation."
+    "night_drive_treatment": "Unchanged from v3. The dark-purple-near-black content zone and the hot-pink/teal pairing remain the essential Night Drive mood anchors. v4 added electric blue as a distinct third accent. v5 amplifies teal to co-equal standing without adding new hues — the three-tier structure is the same, teal's surface area is expanded."
   }
 }
