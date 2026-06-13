@@ -2,41 +2,41 @@
   "name": "Outrun",
   "mode": "dark",
   "surfaces": {
-    "background": "#080B14",
-    "card": "#0D1428",
-    "sidebar": "#060A12",
-    "input": "#111E3A"
+    "background": "#16141D",
+    "card": "#1E1B2E",
+    "sidebar": "#120F1A",
+    "input": "#221E34"
   },
   "text": {
-    "primary": "#E8F0FF",
-    "secondary": "#60C8FF",
-    "muted": "#7898CC",
-    "inverse": "#080B14"
+    "primary": "#EEEAF8",
+    "secondary": "#FF6EB4",
+    "muted": "#A090C0",
+    "inverse": "#120F1A"
   },
   "borders": {
-    "default": "#0080FF",
-    "subtle": "#0A1E40",
-    "strong": "#00FFFF"
+    "default": "#FF2070",
+    "subtle": "#2A2438",
+    "strong": "#2EE4B9"
   },
   "accents": {
     "model-claude": "#FFE600",
-    "model-gpt": "#00FFFF",
-    "model-gemini": "#D040FF",
-    "model-other": "#FF00AA",
-    "model-grok": "#00BFFF",
-    "model-deepseek": "#6A7AFF",
-    "model-mistral": "#FF2D78"
+    "model-gpt": "#2EE4B9",
+    "model-gemini": "#D060FF",
+    "model-other": "#FF8D77",
+    "model-grok": "#C0CFFF",
+    "model-deepseek": "#7AA0FF",
+    "model-mistral": "#FF6090"
   },
   "interactive": {
-    "hover": "#0D1E3A",
-    "active": "#162848",
-    "focusRing": "#00FFFF"
+    "hover": "#2A2640",
+    "active": "#33305A",
+    "focusRing": "#2EE4B9"
   },
   "semantic": {
-    "success": "#00FF88",
-    "warning": "#FFE600",
-    "error": "#FF3366",
-    "info": "#00FFFF"
+    "success": "#3DDB96",
+    "warning": "#FFE259",
+    "error": "#FF4040",
+    "info": "#CD44FF"
   },
   "radius": {
     "sm": "4px",
@@ -56,9 +56,9 @@
   },
   "shadow": {
     "none": "none",
-    "sm": "0 0 8px rgba(0,128,255,0.5)",
-    "md": "0 0 20px rgba(0,255,255,0.35), 0 4px 16px rgba(0,0,0,0.8)",
-    "lg": "0 0 40px rgba(0,128,255,0.45), 0 0 80px rgba(191,0,255,0.25), 0 8px 40px rgba(0,0,0,0.9)"
+    "sm": "0 0 8px rgba(255,32,112,0.45)",
+    "md": "0 0 20px rgba(255,32,112,0.30), 0 4px 16px rgba(0,0,0,0.85)",
+    "lg": "0 0 40px rgba(255,32,112,0.40), 0 0 80px rgba(46,228,185,0.20), 0 8px 40px rgba(0,0,0,0.90)"
   },
   "timing": {
     "instant": "0ms",
@@ -67,84 +67,211 @@
     "slow": "350ms"
   },
   "_a11y": {
-    "accents.model-gemini": {
-      "fix": "Lightened #C828FF → #D040FF (+8R +24G +0B relative to previous value). Previous #C828FF was itself a fix from the original #BF00FF. New dark navy surfaces — especially input #111E3A (luminance 0.0135, higher than the old dark-purple input #180E22 at luminance 0.0062) — require a brighter purple to maintain 4.5:1. Green-channel increase keeps the hue in neon-purple territory without drifting toward pink (occupied by accent-other #FF00AA).",
-      "ratios": {
-        "on-background-#080B14": "5.48:1 PASS",
-        "on-card-#0D1428": "5.10:1 PASS",
-        "on-sidebar-#060A12": "5.53:1 PASS",
-        "on-input-#111E3A": "4.61:1 PASS"
-      },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Outrun gemini retains neon-purple identity. The #D040FF value is a small visual step from the previous #C828FF — the additional green channel brightness is not perceptible as a hue shift. The adjustment was forced by the surface revision: navy-blue input (#111E3A) has significantly higher luminance than the former dark-purple input (#180E22), leaving less headroom for mid-range accent colors on that surface."
-    },
-    "accents.model-deepseek": {
-      "fix": "Lightened #6070FF → #6A7AFF (+10R +10G +0B relative to previous value). Previous #6070FF passed on the former dark-purple surfaces but fails on the new navy-blue input #111E3A and is marginal on the new card #0D1428. #6A7AFF achieves comfortable headroom on all four surfaces while preserving periwinkle-blue character distinct from model-grok (#00BFFF) and model-gpt (#00FFFF).",
-      "ratios": {
-        "on-background-#080B14": "5.72:1 PASS",
-        "on-card-#0D1428": "5.32:1 PASS",
-        "on-sidebar-#060A12": "5.77:1 PASS",
-        "on-input-#111E3A": "4.81:1 PASS"
-      },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Deepseek retains periwinkle-blue identity. The uniform +10 per channel from #6070FF to #6A7AFF is the minimum adjustment that passes all four surfaces with comfortable margin. The color remains clearly distinct from model-grok (#00BFFF, pure sky-blue) and model-gpt (#00FFFF, pure cyan)."
-    },
-    "borders.subtle": {
-      "note": "borders.subtle (#0A1E40) is intentionally near-invisible. It is a hairline structural separator, not text or an interactive control. WCAG contrast requirements apply to text and interactive controls. The dark-navy value is perceptible against the dark-navy surfaces by a small but sufficient margin for its structural role.",
-      "ratios": {
-        "on-background-#080B14": "1.19:1 decorative",
-        "on-card-#0D1428": "1.11:1 decorative"
-      },
-      "wcag": "Exempt — decorative structural separator, not text or interactive control. Consistent with the previous dark-purple subtle border (#4A1060) which had the same near-invisible intent."
+    "surfaces": {
+      "background_luminance": "0.00760",
+      "card_luminance": "0.01257",
+      "sidebar_luminance": "0.00545",
+      "input_luminance": "0.01517",
+      "note": "All surfaces are very dark purple-near-black. input (#221E34) has the highest luminance and is therefore the most challenging surface for accent contrast."
     },
     "text.primary": {
+      "color": "#EEEAF8",
       "ratios": {
-        "on-background-#080B14": "17.17:1 PASS",
-        "on-card-#0D1428": "15.98:1 PASS",
-        "on-sidebar-#060A12": "17.30:1 PASS",
-        "on-input-#111E3A": "14.43:1 PASS"
+        "on-background-#16141D": "15.42:1 PASS",
+        "on-card-#1E1B2E": "14.19:1 PASS",
+        "on-sidebar-#120F1A": "16.01:1 PASS",
+        "on-input-#221E34": "13.63:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass with very high margin"
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with very high margin",
+      "note": "Soft warm white with purple undertone — reads as white against dark surfaces while harmonizing with the purple-tinted surface palette."
     },
     "text.secondary": {
-      "note": "Changed from #C880FF (purple) to #60C8FF (electric blue). Most visible text character change in this revision.",
+      "color": "#FF6EB4",
       "ratios": {
-        "on-background-#080B14": "10.49:1 PASS",
-        "on-card-#0D1428": "9.76:1 PASS",
-        "on-sidebar-#060A12": "10.57:1 PASS",
-        "on-input-#111E3A": "8.82:1 PASS"
+        "on-background-#16141D": "7.07:1 PASS",
+        "on-card-#1E1B2E": "6.51:1 PASS",
+        "on-sidebar-#120F1A": "7.34:1 PASS",
+        "on-input-#221E34": "6.25:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass with high margin"
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with strong margin",
+      "note": "Hot pink-family secondary text — model names and thread titles carry energy. Lighter than borders.default (#FF2070) so it reads as clearly readable text rather than chrome. This color gives Outrun its synthwave character at the text level."
     },
     "text.muted": {
-      "note": "Changed from #A468CC (purple) to #7898CC (cool slate blue). Timestamps and placeholder text shift to a desaturated blue consistent with the navy surface tone.",
+      "color": "#A090C0",
       "ratios": {
-        "on-background-#080B14": "6.70:1 PASS",
-        "on-card-#0D1428": "6.24:1 PASS",
-        "on-sidebar-#060A12": "6.76:1 PASS",
-        "on-input-#111E3A": "5.64:1 PASS"
+        "on-background-#16141D": "6.29:1 PASS",
+        "on-card-#1E1B2E": "5.79:1 PASS",
+        "on-sidebar-#120F1A": "6.53:1 PASS",
+        "on-input-#221E34": "5.56:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+      "wcag": "AA 4.5:1 normal text — all surfaces pass",
+      "note": "Muted purple — timestamps and placeholder text. Desaturated relative to the surface undertone, reads as dim without being inaccessible."
+    },
+    "text.inverse": {
+      "color": "#120F1A",
+      "ratios_on_accent_backgrounds": {
+        "on-hot-pink-#FF2070": "5.13:1 PASS",
+        "on-teal-#2EE4B9": "11.65:1 PASS",
+        "on-mistral-pink-#FF6090": "6.61:1 PASS"
+      },
+      "wcag": "AA 4.5:1 — passes on all accent-colored button and badge surfaces"
     },
     "borders.default": {
-      "note": "Changed from #FF00AA (hot pink) to #0080FF (electric cobalt blue). Card borders are now definitively blue, not magenta. This is the most structurally significant change addressing the pink-dominance feedback.",
+      "color": "#FF2070",
       "ratios": {
-        "on-background-#080B14": "5.18:1 PASS",
-        "on-card-#0D1428": "4.82:1 PASS",
-        "on-sidebar-#060A12": "5.22:1 PASS",
-        "on-input-#111E3A": "4.35:1 borderline"
+        "on-background-#16141D": "4.94:1 PASS",
+        "on-card-#1E1B2E": "4.55:1 PASS",
+        "on-sidebar-#120F1A": "5.13:1 PASS",
+        "on-input-#221E34": "4.37:1 borderline"
       },
-      "wcag": "borders.default is a structural border, not text. 4.35:1 on input is below 4.5:1 text threshold but above 3:1 large-text threshold. Borders are not required to meet 4.5:1 under WCAG SC 1.4.3 (which applies to text). A blue card border appearing on a navy input background is an edge case that does not occur in normal layout — the input surface does not typically host bordered cards."
+      "wcag": "borders.default is a structural border, not text. WCAG SC 1.4.3 applies to text and images of text — not to decorative structural borders. The 4.37:1 on input is below the 4.5:1 text threshold but above the 3:1 large-text threshold. Card borders do not appear on input backgrounds in normal layout. All other surfaces pass the full 4.5:1 threshold.",
+      "note": "Hot pink neon card borders are the dominant visual character statement of Outrun v2. Intentional — consistent with the Outrun creative brief."
+    },
+    "borders.subtle": {
+      "color": "#2A2438",
+      "ratios": {
+        "on-background-#16141D": "1.22:1 decorative",
+        "on-card-#1E1B2E": "1.13:1 decorative",
+        "on-sidebar-#120F1A": "1.27:1 decorative",
+        "on-input-#221E34": "1.08:1 decorative"
+      },
+      "wcag": "Exempt — decorative structural separator, not text or interactive control. Near-invisible hairline divider. Consistent with all other themes where borders.subtle is intentionally low-contrast."
+    },
+    "borders.strong": {
+      "color": "#2EE4B9",
+      "ratios": {
+        "on-background-#16141D": "11.21:1 PASS",
+        "on-card-#1E1B2E": "10.32:1 PASS",
+        "on-sidebar-#120F1A": "11.65:1 PASS",
+        "on-input-#221E34": "9.91:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass with very high margin",
+      "note": "Night Drive teal — the teal counterpoint to hot pink. Used on focused input outlines and emphasized borders."
+    },
+    "interactive.focusRing": {
+      "color": "#2EE4B9",
+      "ratios": "Same as borders.strong — 9.91:1 worst case (on input). AA PASS.",
+      "note": "Teal focus ring is clearly visible on all surfaces and distinct from text content."
+    },
+    "accents.model-claude": {
+      "color": "#FFE600",
+      "ratios": {
+        "on-background-#16141D": "14.39:1 PASS",
+        "on-card-#1E1B2E": "13.24:1 PASS",
+        "on-sidebar-#120F1A": "14.94:1 PASS",
+        "on-input-#221E34": "12.71:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Amber identity unchanged — holds perfectly on purple-tinted dark surfaces."
+    },
+    "accents.model-gpt": {
+      "color": "#2EE4B9",
+      "ratios": {
+        "on-background-#16141D": "11.21:1 PASS",
+        "on-card-#1E1B2E": "10.32:1 PASS",
+        "on-sidebar-#120F1A": "11.65:1 PASS",
+        "on-input-#221E34": "9.91:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. GPT shifts from pure cyan (#00FFFF) to Night Drive teal (#2EE4B9) — more sophisticated, clearly teal family. Consistent with the Night Drive palette where teal is the secondary accent."
+    },
+    "accents.model-gemini": {
+      "color": "#D060FF",
+      "ratios": {
+        "on-background-#16141D": "5.90:1 PASS",
+        "on-card-#1E1B2E": "5.43:1 PASS",
+        "on-sidebar-#120F1A": "6.13:1 PASS",
+        "on-input-#221E34": "5.22:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Neon purple, brightened from #D040FF to #D060FF (+32 green channel) to maintain contrast on the new purple-tinted surfaces."
+    },
+    "accents.model-other": {
+      "color": "#FF8D77",
+      "ratios": {
+        "on-background-#16141D": "8.10:1 PASS",
+        "on-card-#1E1B2E": "7.45:1 PASS",
+        "on-sidebar-#120F1A": "8.41:1 PASS",
+        "on-input-#221E34": "7.16:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Warm peach/coral from Night Drive palette. Visually distinct from the hot-pink chrome (#FF2070, #FF6EB4)."
+    },
+    "accents.model-grok": {
+      "color": "#C0CFFF",
+      "ratios": {
+        "on-background-#16141D": "11.82:1 PASS",
+        "on-card-#1E1B2E": "10.88:1 PASS",
+        "on-sidebar-#120F1A": "12.27:1 PASS",
+        "on-input-#221E34": "10.44:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass with very high margin. Light periwinkle — distinct from GPT teal (#2EE4B9) and DeepSeek blue (#7AA0FF)."
+    },
+    "accents.model-deepseek": {
+      "color": "#7AA0FF",
+      "ratios": {
+        "on-background-#16141D": "7.21:1 PASS",
+        "on-card-#1E1B2E": "6.63:1 PASS",
+        "on-sidebar-#120F1A": "7.48:1 PASS",
+        "on-input-#221E34": "6.37:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Electric periwinkle-blue — distinct from GPT teal and Grok light periwinkle."
+    },
+    "accents.model-mistral": {
+      "color": "#FF6090",
+      "ratios": {
+        "on-background-#16141D": "6.36:1 PASS",
+        "on-card-#1E1B2E": "5.86:1 PASS",
+        "on-sidebar-#120F1A": "6.61:1 PASS",
+        "on-input-#221E34": "5.62:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Coral pink — in the pink family but warmer/lighter than the dominant hot pink (#FF2070). Mistral identity preserved."
+    },
+    "semantic.success": {
+      "color": "#3DDB96",
+      "ratios": {
+        "on-background-#16141D": "10.22:1 PASS",
+        "on-card-#1E1B2E": "9.41:1 PASS",
+        "on-sidebar-#120F1A": "10.61:1 PASS",
+        "on-input-#221E34": "9.03:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Mint green — clearly green rather than teal, distinguishable from model-gpt (#2EE4B9) and borders.strong (#2EE4B9)."
+    },
+    "semantic.warning": {
+      "color": "#FFE259",
+      "ratios": {
+        "on-background-#16141D": "14.13:1 PASS",
+        "on-card-#1E1B2E": "13.00:1 PASS",
+        "on-sidebar-#120F1A": "14.68:1 PASS",
+        "on-input-#221E34": "12.49:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Warm yellow."
+    },
+    "semantic.error": {
+      "color": "#FF4040",
+      "ratios": {
+        "on-background-#16141D": "5.26:1 PASS",
+        "on-card-#1E1B2E": "4.84:1 PASS",
+        "on-sidebar-#120F1A": "5.46:1 PASS",
+        "on-input-#221E34": "4.65:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Pure red — unambiguously an error state, not confused with the pink hot-pink family."
+    },
+    "semantic.info": {
+      "color": "#CD44FF",
+      "ratios": {
+        "on-background-#16141D": "5.09:1 PASS",
+        "on-card-#1E1B2E": "4.69:1 PASS",
+        "on-sidebar-#120F1A": "5.29:1 PASS",
+        "on-input-#221E34": "4.50:1 PASS"
+      },
+      "wcag": "AA — all surfaces pass. Night Drive purple (#CD44FF) — 4.50:1 on input is the exact AA threshold (meets requirement). Used for streaming/loading state indicators.",
+      "note": "Thinnest margin in the Outrun v2 audit. If semantic.info is ever needed as body text on the input surface in a future use case, bump to #D060FF (5.22:1 worst case). For the current use case (small streaming indicator icon/label), 4.50:1 is sufficient."
     }
   },
   "_design_notes": {
-    "palette_revision": "Issue #96 — expanded palette from magenta/purple dominance to balanced neon spectrum. Retrowave target: dark navy sky, cyan horizon grid, electric blue and magenta neon signage.",
-    "surface_philosophy": "All surfaces shifted from purple-black to deep navy-indigo. background (#080B14) reads as a night-sky — near-black with a blue undertone. card (#0D1428) is the first clearly navy surface, distinguishable from background. sidebar (#060A12) is the deepest, slightly darker than background per convention. input (#111E3A) has visible navy saturation — the action zone reads blue, not purple.",
-    "text_secondary_rationale": "text.secondary changed from #C880FF (purple-pink) to #60C8FF (electric blue). This is the most visible character change in the revision — model names and thread titles now appear in electric blue rather than purple. The choice reinforces the navy surface tone and places cyan/blue as the dominant mid-ground accent color alongside hot pink rather than subordinate to it.",
-    "border_default_rationale": "borders.default changed from #FF00AA (hot pink) to #0080FF (electric cobalt blue). Card borders were the largest surface area of hot pink in the previous theme. Shifting them to electric blue dramatically reduces pink dominance while introducing cobalt as a structural color rather than just an accent.",
-    "accent_stability": "All model accent hues are intentionally preserved with minimal brightness adjustments only. Model identity is load-bearing — users must instantly recognize Claude (amber #FFE600), GPT (cyan #00FFFF), Gemini (purple #D040FF), Grok (sky blue #00BFFF), DeepSeek (periwinkle #6A7AFF), Mistral (coral pink #FF2D78), Other (magenta #FF00AA). Gemini and DeepSeek required slight brightening due to the increased luminance of the new navy input surface.",
-    "what_stayed_pink_or_purple": "Hot pink (#FF00AA) is retained as model-other accent and as the identity of Mistral (#FF2D78). Neon purple remains as model-gemini (#D040FF). Semantic error (#FF3366) retains pink-red. Pink and purple are still present and prominent — the revision makes them share the stage with cyan and electric blue rather than dominate it.",
-    "shadow_revision": "shadow.sm changed from pink glow to electric blue glow (0 0 8px rgba(0,128,255,0.5)) — floating elements now lift with a blue corona. shadow.lg changed from single-color purple to layered blue-and-purple (electric blue primary, purple secondary) — high-elevation modals have a multi-hue neon corona that captures the full retrowave spectrum.",
-    "retrowave_target_achieved": "The revised composition reads: sky (dark navy surfaces), grid (cyan #00FFFF as borders.strong, model-gpt, semantic.info), neon signage (electric blue #0080FF/#60C8FF default borders and text, hot pink #FF00AA model-other, purple #D040FF model-gemini, amber #FFE600 model-claude). This is a complete retrowave scene rather than a magenta-first palette."
+    "revision": "Issue #96 v2 — complete palette direction change from navy/electric-blue (take 1) to dark-purple-near-black / hot-pink / teal synthwave. Inspiration: Night Drive VS Code theme palette (mood board, not 1:1 mapping).",
+    "surface_philosophy": "All surfaces are very dark purple-near-black — not pure black, not navy. The purple undertone (#16141D / #1E1B2E / #120F1A / #221E34) is the essential character shift from take 1, which used navy-blue surfaces. It reads as moody and nocturnal rather than technical. Directly references Night Drive's #16141d base. Progressive lightening: sidebar < background < card < input.",
+    "hot_pink_as_dominant_accent": "Hot pink (#FF2070) is the primary structural accent — card borders are the largest-area chrome element. text.secondary (#FF6EB4) extends the pink family into readable text. interactive.hover/active use purple tints rather than pink to avoid pink-on-pink hover wash. The send button and other filled interactive elements use hot pink with dark-surface inverse text.",
+    "teal_as_counterpoint": "Teal (#2EE4B9, Night Drive's secondary accent) is the counterpoint to pink: borders.strong, focusRing, model-gpt, and semantic.success (mint green #3DDB96 to distinguish from exact teal). The hot-pink/teal pairing is the chromatic engine of Outrun v2. This is the Synthwave 84 / outrun racing aesthetic — magenta and cyan neon against dark sky.",
+    "shadow_philosophy": "Shadows use rgba pink and teal glow channels. shadow.sm is a pure pink corona — subtle lift with neon glow character. shadow.md layers a pink primary glow with black depth. shadow.lg creates a multi-hue neon corona: pink primary (40% opacity), teal secondary (20% opacity), black depth — appropriate for high-elevation elements like the model selector panel.",
+    "model_identity_shifts": "Claude amber (#FFE600) unchanged. GPT shifts from pure cyan (#00FFFF) to Night Drive teal (#2EE4B9) — same family, more sophisticated. Gemini brightened to #D060FF to compensate for the modestly higher luminance of the purple-tinted surfaces versus the former near-black surfaces. Grok is light periwinkle (#C0CFFF) — high contrast, ethereal. DeepSeek is electric periwinkle (#7AA0FF). Mistral is coral pink (#FF6090) — pink family but distinct from chrome. model-other shifts from pure magenta (#FF00AA) to warm peach (#FF8D77) — coral-warm, clearly different from the hot-pink chrome.",
+    "night_drive_treatment": "Night Drive is a code editor theme — the mapping is intentionally non-literal. The moody dark-purple-near-black base and the hot-pink/teal pairing are taken as the essential mood. Code editor accent colors (keyword purple, string teal, constant peach) inform the model accent and semantic palettes. The cursor hot pink (#FF1A66 in Night Drive, #FF2070 here — slightly brighter to pass card surface contrast) becomes the dominant UI accent."
   }
 }
