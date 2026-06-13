@@ -1,12 +1,13 @@
-Last updated: 2026-06-13 (ship #101)
+Last updated: 2026-06-13 (ship #102 #103)
 
 ## Current phase
 
-Phase 4+ — Custom provider infrastructure complete. All model selector edge states implemented.
+Phase 4+ — Custom provider infrastructure complete. Roster live-sync and per-provider credential management shipped.
 
 ## Session summary
 
-- Aria: closed #101 — Model selector edge states. §3.4: "Add providers" chip (with `+` icon, no chevron) replaces the old plain-text placeholder when roster is empty; clicking opens ProviderSettingsPanel directly. §3.3: "No models active" dashed placeholder chip renders in the pill row when `activeCount === 0` and `models.length > 0`. InputBar gains `activeModelCount` prop — when 0, send button disabled and textarea placeholder reads "Add a model to start chatting".
+- Aria: closed #102 — `rosterToModelConfigs` extracted as module-level pure function in `App.tsx`. `handleRosterChange` now calls `setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev))` alongside `setRosterVersion`. Adding or removing a provider from the panel immediately updates the model selector pills without a reload. Existing providers retain their runtime state (`isActive`, `systemPrompt`, `selectedVersionId`).
+- Aria: closed #103 — Per-provider credential management in `ProviderSettingsPanel`. Each provider row now shows "Edit" (when key is set) or "Set key" (when no key) affordances. Clicking expands an inline editor below the row: password input with show/hide toggle, Save, Remove key (only shown when a key is currently stored), Cancel. Badge refreshes immediately after save/clear via local `setBadgeState`. Enter submits, Escape cancels. Keyless endpoints ("No key required") show no affordance.
 
 ## Open issues
 
@@ -15,17 +16,15 @@ None. All Phase 4 work is complete.
 ## What's next
 
 Candidates for the next session:
-- Per-provider credential management in ProviderSettingsPanel — currently shows "Key set" / "No key" status badges but provides no way to edit or clear an existing key value. Likely a Gate + Aria issue pair.
-- Tests for ProviderSettingsPanel and OnboardingEmptyState — Aria flagged these as good candidates; Ada flagged axe-violations tests as high value.
-- Gate guard: `getRequiredCredentialKeys` iterates `ModelConfig[]` and calls `MODEL_CREDENTIAL_MAP[model.modelId]` with no guard for custom model IDs — will throw/return undefined for custom providers. Small Gate fix.
-- Roster live-update: `models` state in `App.tsx` is NOT re-derived on roster change (only `isRosterEmpty` is). If a user adds/removes a provider from the panel, the model selector pills don't update until reload. This will surface as a UX bug once users interact with the panel.
+- Tests — `rosterToModelConfigs` is a pure function worth unit-testing (Scout); credential editor state transitions are good candidates for component tests (Scout or Ada)
+- Roster reactivity gap: `models` now re-derives on panel close, but NOT in real time while the panel is open. If the user adds a provider and immediately closes without the pill appearing, the pill appears on the next close. This is acceptable for now — the close trigger is the designed sync point.
+- Verify/manual testing pass — none of the Phase 4 UI has been manually verified in the browser. Worth a dev-server review session.
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
-- Worktrees can cause Vitest to discover test files twice — always `git worktree remove --force` before running the final test suite
-- `isRosterEmpty` recomputes on panel close only; `models` state does NOT re-derive on roster change — both are gotchas for any future work touching panel → selector reactivity
-- `addCustomProvider()` returns the config with generated `credentialKey` — `saveCredentials(newConfig.credentialKey, apiKeyValue)` is called separately (non-atomic)
-- Gate: `getRequiredCredentialKeys` needs a guard for custom model IDs (not yet fixed)
+- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run
+- `models` re-derives on panel CLOSE only (the `onRosterChange` callback fires in `handleCloseProviderSettings` in AppLayout). Mid-panel mutations are not reflected until close — by design.
+- `addCustomProvider()` returns config with generated `credentialKey` — `saveCredentials(newConfig.credentialKey, apiKeyValue)` is called separately (non-atomic). If the credential save fails, the roster entry exists but has no stored key.
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
