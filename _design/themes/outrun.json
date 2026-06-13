@@ -2,34 +2,34 @@
   "name": "Outrun",
   "mode": "dark",
   "surfaces": {
-    "background": "#0D0D0D",
-    "card": "#130A1A",
-    "sidebar": "#0A070F",
-    "input": "#180E22"
+    "background": "#080B14",
+    "card": "#0D1428",
+    "sidebar": "#060A12",
+    "input": "#111E3A"
   },
   "text": {
-    "primary": "#F0E8FF",
-    "secondary": "#C880FF",
-    "muted": "#A468CC",
-    "inverse": "#0D0D0D"
+    "primary": "#E8F0FF",
+    "secondary": "#60C8FF",
+    "muted": "#7898CC",
+    "inverse": "#080B14"
   },
   "borders": {
-    "default": "#FF00AA",
-    "subtle": "#4A1060",
+    "default": "#0080FF",
+    "subtle": "#0A1E40",
     "strong": "#00FFFF"
   },
   "accents": {
     "model-claude": "#FFE600",
     "model-gpt": "#00FFFF",
-    "model-gemini": "#C828FF",
+    "model-gemini": "#D040FF",
     "model-other": "#FF00AA",
     "model-grok": "#00BFFF",
-    "model-deepseek": "#6070FF",
+    "model-deepseek": "#6A7AFF",
     "model-mistral": "#FF2D78"
   },
   "interactive": {
-    "hover": "#1F0F2E",
-    "active": "#2A1040",
+    "hover": "#0D1E3A",
+    "active": "#162848",
     "focusRing": "#00FFFF"
   },
   "semantic": {
@@ -56,9 +56,9 @@
   },
   "shadow": {
     "none": "none",
-    "sm": "0 0 8px rgba(255,0,170,0.4)",
-    "md": "0 0 20px rgba(0,255,255,0.35), 0 4px 16px rgba(0,0,0,0.7)",
-    "lg": "0 0 40px rgba(191,0,255,0.4), 0 8px 40px rgba(0,0,0,0.8)"
+    "sm": "0 0 8px rgba(0,128,255,0.5)",
+    "md": "0 0 20px rgba(0,255,255,0.35), 0 4px 16px rgba(0,0,0,0.8)",
+    "lg": "0 0 40px rgba(0,128,255,0.45), 0 0 80px rgba(191,0,255,0.25), 0 8px 40px rgba(0,0,0,0.9)"
   },
   "timing": {
     "instant": "0ms",
@@ -67,25 +67,84 @@
     "slow": "350ms"
   },
   "_a11y": {
-    "accents.model-deepseek": {
-      "fix": "Lightened #4060FF → #6070FF (+32R +16G +0B). Original deep-indigo blue was 3.99:1 on card — near-black card (#130A1A) makes this the hardest pairing in the theme. #6070FF keeps the hue firmly in neon-blue-indigo territory without crossing into the cyan range occupied by accent-gpt (#00FFFF). Outrun's character is maximalist neon; this adjustment shifts the blue ~20% brighter while preserving its identity.",
-      "ratios": {
-        "on-card-#130A1A": "4.84:1 PASS",
-        "on-background-#0D0D0D": "4.87:1 PASS",
-        "on-sidebar-#0A070F": "5.01:1 PASS"
-      },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Outrun deepseek required the largest absolute lightening of all fixes in this session (+32 on red channel). The near-black card surface (#130A1A) leaves little headroom for dark blues. The new value is the minimum brightness that achieves AA compliance while keeping the color distinguishable from accent-gpt cyan."
-    },
     "accents.model-gemini": {
-      "fix": "Lightened #BF00FF → #C828FF (+9R +40G +0B). Increases green channel minimally to brighten without shifting hue toward red. Prior value was 4.29:1 on card — moderate failure. The green-channel increase rather than pure lightening keeps the purple from drifting toward hot pink (occupied by accent-other #FF00AA).",
+      "fix": "Lightened #C828FF → #D040FF (+8R +24G +0B relative to previous value). Previous #C828FF was itself a fix from the original #BF00FF. New dark navy surfaces — especially input #111E3A (luminance 0.0135, higher than the old dark-purple input #180E22 at luminance 0.0062) — require a brighter purple to maintain 4.5:1. Green-channel increase keeps the hue in neon-purple territory without drifting toward pink (occupied by accent-other #FF00AA).",
       "ratios": {
-        "on-card-#130A1A": "4.79:1 PASS",
-        "on-background-#0D0D0D": "4.82:1 PASS",
-        "on-sidebar-#0A070F": "4.95:1 PASS"
+        "on-background-#080B14": "5.48:1 PASS",
+        "on-card-#0D1428": "5.10:1 PASS",
+        "on-sidebar-#060A12": "5.53:1 PASS",
+        "on-input-#111E3A": "4.61:1 PASS"
       },
       "wcag": "AA 4.5:1 normal text — all surfaces pass",
-      "character-note": "Outrun gemini retains full neon-purple character. The adjustment is deliberately small — #BF00FF to #C828FF — to preserve the aggressive saturation that defines Outrun's palette. The green channel addition is visually imperceptible as a hue shift."
+      "character-note": "Outrun gemini retains neon-purple identity. The #D040FF value is a small visual step from the previous #C828FF — the additional green channel brightness is not perceptible as a hue shift. The adjustment was forced by the surface revision: navy-blue input (#111E3A) has significantly higher luminance than the former dark-purple input (#180E22), leaving less headroom for mid-range accent colors on that surface."
+    },
+    "accents.model-deepseek": {
+      "fix": "Lightened #6070FF → #6A7AFF (+10R +10G +0B relative to previous value). Previous #6070FF passed on the former dark-purple surfaces but fails on the new navy-blue input #111E3A and is marginal on the new card #0D1428. #6A7AFF achieves comfortable headroom on all four surfaces while preserving periwinkle-blue character distinct from model-grok (#00BFFF) and model-gpt (#00FFFF).",
+      "ratios": {
+        "on-background-#080B14": "5.72:1 PASS",
+        "on-card-#0D1428": "5.32:1 PASS",
+        "on-sidebar-#060A12": "5.77:1 PASS",
+        "on-input-#111E3A": "4.81:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass",
+      "character-note": "Deepseek retains periwinkle-blue identity. The uniform +10 per channel from #6070FF to #6A7AFF is the minimum adjustment that passes all four surfaces with comfortable margin. The color remains clearly distinct from model-grok (#00BFFF, pure sky-blue) and model-gpt (#00FFFF, pure cyan)."
+    },
+    "borders.subtle": {
+      "note": "borders.subtle (#0A1E40) is intentionally near-invisible. It is a hairline structural separator, not text or an interactive control. WCAG contrast requirements apply to text and interactive controls. The dark-navy value is perceptible against the dark-navy surfaces by a small but sufficient margin for its structural role.",
+      "ratios": {
+        "on-background-#080B14": "1.19:1 decorative",
+        "on-card-#0D1428": "1.11:1 decorative"
+      },
+      "wcag": "Exempt — decorative structural separator, not text or interactive control. Consistent with the previous dark-purple subtle border (#4A1060) which had the same near-invisible intent."
+    },
+    "text.primary": {
+      "ratios": {
+        "on-background-#080B14": "17.17:1 PASS",
+        "on-card-#0D1428": "15.98:1 PASS",
+        "on-sidebar-#060A12": "17.30:1 PASS",
+        "on-input-#111E3A": "14.43:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with very high margin"
+    },
+    "text.secondary": {
+      "note": "Changed from #C880FF (purple) to #60C8FF (electric blue). Most visible text character change in this revision.",
+      "ratios": {
+        "on-background-#080B14": "10.49:1 PASS",
+        "on-card-#0D1428": "9.76:1 PASS",
+        "on-sidebar-#060A12": "10.57:1 PASS",
+        "on-input-#111E3A": "8.82:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass with high margin"
+    },
+    "text.muted": {
+      "note": "Changed from #A468CC (purple) to #7898CC (cool slate blue). Timestamps and placeholder text shift to a desaturated blue consistent with the navy surface tone.",
+      "ratios": {
+        "on-background-#080B14": "6.70:1 PASS",
+        "on-card-#0D1428": "6.24:1 PASS",
+        "on-sidebar-#060A12": "6.76:1 PASS",
+        "on-input-#111E3A": "5.64:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    },
+    "borders.default": {
+      "note": "Changed from #FF00AA (hot pink) to #0080FF (electric cobalt blue). Card borders are now definitively blue, not magenta. This is the most structurally significant change addressing the pink-dominance feedback.",
+      "ratios": {
+        "on-background-#080B14": "5.18:1 PASS",
+        "on-card-#0D1428": "4.82:1 PASS",
+        "on-sidebar-#060A12": "5.22:1 PASS",
+        "on-input-#111E3A": "4.35:1 borderline"
+      },
+      "wcag": "borders.default is a structural border, not text. 4.35:1 on input is below 4.5:1 text threshold but above 3:1 large-text threshold. Borders are not required to meet 4.5:1 under WCAG SC 1.4.3 (which applies to text). A blue card border appearing on a navy input background is an edge case that does not occur in normal layout — the input surface does not typically host bordered cards."
     }
+  },
+  "_design_notes": {
+    "palette_revision": "Issue #96 — expanded palette from magenta/purple dominance to balanced neon spectrum. Retrowave target: dark navy sky, cyan horizon grid, electric blue and magenta neon signage.",
+    "surface_philosophy": "All surfaces shifted from purple-black to deep navy-indigo. background (#080B14) reads as a night-sky — near-black with a blue undertone. card (#0D1428) is the first clearly navy surface, distinguishable from background. sidebar (#060A12) is the deepest, slightly darker than background per convention. input (#111E3A) has visible navy saturation — the action zone reads blue, not purple.",
+    "text_secondary_rationale": "text.secondary changed from #C880FF (purple-pink) to #60C8FF (electric blue). This is the most visible character change in the revision — model names and thread titles now appear in electric blue rather than purple. The choice reinforces the navy surface tone and places cyan/blue as the dominant mid-ground accent color alongside hot pink rather than subordinate to it.",
+    "border_default_rationale": "borders.default changed from #FF00AA (hot pink) to #0080FF (electric cobalt blue). Card borders were the largest surface area of hot pink in the previous theme. Shifting them to electric blue dramatically reduces pink dominance while introducing cobalt as a structural color rather than just an accent.",
+    "accent_stability": "All model accent hues are intentionally preserved with minimal brightness adjustments only. Model identity is load-bearing — users must instantly recognize Claude (amber #FFE600), GPT (cyan #00FFFF), Gemini (purple #D040FF), Grok (sky blue #00BFFF), DeepSeek (periwinkle #6A7AFF), Mistral (coral pink #FF2D78), Other (magenta #FF00AA). Gemini and DeepSeek required slight brightening due to the increased luminance of the new navy input surface.",
+    "what_stayed_pink_or_purple": "Hot pink (#FF00AA) is retained as model-other accent and as the identity of Mistral (#FF2D78). Neon purple remains as model-gemini (#D040FF). Semantic error (#FF3366) retains pink-red. Pink and purple are still present and prominent — the revision makes them share the stage with cyan and electric blue rather than dominate it.",
+    "shadow_revision": "shadow.sm changed from pink glow to electric blue glow (0 0 8px rgba(0,128,255,0.5)) — floating elements now lift with a blue corona. shadow.lg changed from single-color purple to layered blue-and-purple (electric blue primary, purple secondary) — high-elevation modals have a multi-hue neon corona that captures the full retrowave spectrum.",
+    "retrowave_target_achieved": "The revised composition reads: sky (dark navy surfaces), grid (cyan #00FFFF as borders.strong, model-gpt, semantic.info), neon signage (electric blue #0080FF/#60C8FF default borders and text, hot pink #FF00AA model-other, purple #D040FF model-gemini, amber #FFE600 model-claude). This is a complete retrowave scene rather than a magenta-first palette."
   }
 }
