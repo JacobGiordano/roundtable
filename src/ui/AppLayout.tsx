@@ -344,6 +344,7 @@ export function AppLayout({
                 onClearModelVersion={onClearModelVersion}
                 sessionUsage={sessionUsage}
                 tokenCountVisibility={tokenCountVisibility}
+                onOpenProviderSettings={handleOpenProviderSettings}
               />
             </div>
             {/* Interaction mode switcher — flex-shrink-0 so it always renders at natural width */}
@@ -364,6 +365,7 @@ export function AppLayout({
             isGhostMode={isGhostMode}
             directedReplyTarget={directedReplyTarget}
             onClearDirectedReply={onClearDirectedReply}
+            activeModelCount={allModels.filter((m) => m.isActive).length}
           />
         </div>
       </main>
