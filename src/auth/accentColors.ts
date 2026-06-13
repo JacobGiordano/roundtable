@@ -15,6 +15,7 @@
  */
 
 import type {
+  BuiltInModelId,
   ModelId,
   ModelAccentColors,
   GetModelAccentColorsFn,
@@ -30,11 +31,17 @@ const ACCENT_COLORS_STORAGE_KEY = 'roundtable:model-accent-colors' as const;
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 /**
- * The complete set of valid ModelId values. Gate maintains this list
+ * The complete set of built-in model IDs. Gate maintains this list
  * independently — no import from /src/models (boundary rule).
- * Must stay in sync with the ModelId union in /src/types/index.ts.
+ * Must stay in sync with BuiltInModelId in /src/types/index.ts.
+ *
+ * ReadonlySet<BuiltInModelId>: covers the closed set of named built-ins.
+ * Custom model IDs are not in this set, so they will be filtered out during
+ * deserialization of stored accent colors. This is correct behavior for the
+ * current phase — custom model accent color persistence is out of scope until
+ * ProviderRoster-aware storage is implemented.
  */
-const VALID_MODEL_IDS: ReadonlySet<string> = new Set<ModelId>([
+const VALID_MODEL_IDS: ReadonlySet<BuiltInModelId> = new Set<BuiltInModelId>([
   'claude',
   'gpt-5.5',
   'gemini',
@@ -45,8 +52,8 @@ const VALID_MODEL_IDS: ReadonlySet<string> = new Set<ModelId>([
 
 const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
-function isValidModelId(value: unknown): value is ModelId {
-  return typeof value === 'string' && VALID_MODEL_IDS.has(value);
+function isValidModelId(value: unknown): value is BuiltInModelId {
+  return typeof value === 'string' && VALID_MODEL_IDS.has(value as BuiltInModelId);
 }
 
 function isValidHex(value: unknown): value is string {

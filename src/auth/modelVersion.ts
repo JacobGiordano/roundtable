@@ -13,7 +13,7 @@
  *     no entry, which is identical in meaning to the field being undefined
  */
 
-import type { ModelId } from '@/types';
+import type { BuiltInModelId, ModelId } from '@/types';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
@@ -22,11 +22,17 @@ const MODEL_VERSION_STORAGE_KEY = 'roundtable:model-versions' as const;
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 /**
- * The complete set of valid ModelId values. Gate maintains this list
+ * The complete set of built-in model IDs. Gate maintains this list
  * independently — no import from /src/models (boundary rule).
- * Must stay in sync with the ModelId union in /src/types/index.ts.
+ * Must stay in sync with BuiltInModelId in /src/types/index.ts.
+ *
+ * This is intentionally ReadonlySet<BuiltInModelId> (not ModelId) — this guard
+ * covers the closed set of built-ins only. Custom model IDs are not rejected;
+ * they simply won't be in this set, which is the correct behavior for version
+ * storage (custom providers may also store version selections — they pass through
+ * the ModelId-typed public API).
  */
-const VALID_MODEL_IDS: ReadonlySet<string> = new Set<ModelId>([
+const VALID_MODEL_IDS: ReadonlySet<BuiltInModelId> = new Set<BuiltInModelId>([
   'claude',
   'gpt-5.5',
   'gemini',
@@ -35,8 +41,8 @@ const VALID_MODEL_IDS: ReadonlySet<string> = new Set<ModelId>([
   'mistral',
 ]);
 
-function isValidModelId(value: unknown): value is ModelId {
-  return typeof value === 'string' && VALID_MODEL_IDS.has(value);
+function isValidModelId(value: unknown): value is BuiltInModelId {
+  return typeof value === 'string' && VALID_MODEL_IDS.has(value as BuiltInModelId);
 }
 
 // ─── Internal read helper ─────────────────────────────────────────────────────
