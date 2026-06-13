@@ -15,6 +15,12 @@ interface InputBarProps {
   directedReplyTarget?: ModelConfig;
   /** Called when the user clicks × on the directed-reply pill to return to broadcast mode. */
   onClearDirectedReply?: () => void;
+  /**
+   * Number of currently active models. When 0, the send button is disabled and
+   * the placeholder changes to "Add a model to start chatting".
+   * Spec: provider-settings.md §3.3. Omitting (undefined) disables this gate.
+   */
+  activeModelCount?: number;
 }
 
 /** Ghost icon: SVG outline, 16×16. Used when ghost mode is active. */
@@ -87,13 +93,16 @@ export function InputBar({
   isGhostMode = false,
   directedReplyTarget,
   onClearDirectedReply,
+  activeModelCount,
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   const isEmpty = value.trim().length === 0;
-  const canSend = !isEmpty && !isStreaming;
+  // §3.3: gate on zero active models in addition to the streaming/empty checks.
+  // activeModelCount undefined means the gate is not wired — don't block send.
+  const canSend = !isEmpty && !isStreaming && (activeModelCount === undefined || activeModelCount > 0);
 
   const handleSend = useCallback(() => {
     if (!canSend) return;
@@ -126,9 +135,12 @@ export function InputBar({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
 
+  // §3.3: when zero models are active, tell the user they need to add one first.
   const placeholderText = directedReplyTarget
     ? `Ask ${directedReplyTarget.name}...`
-    : 'Ask all models...';
+    : activeModelCount === 0
+      ? 'Add a model to start chatting'
+      : 'Ask all models...';
 
   return (
     <div

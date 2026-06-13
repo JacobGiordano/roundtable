@@ -865,6 +865,12 @@ interface ModelSelectorPanelProps {
    * Defaults to 'active' when omitted.
    */
   tokenCountVisibility?: TokenCountVisibility;
+  /**
+   * Called when the user clicks the "Add providers" chip in the no-providers state.
+   * Opens the ProviderSettingsPanel. UI-internal prop — not in types/index.ts.
+   * Spec: provider-settings.md §3.4.
+   */
+  onOpenProviderSettings?: () => void;
 }
 
 /**
@@ -882,6 +888,7 @@ export function ModelSelectorPanel({
   onClearModelVersion,
   sessionUsage,
   tokenCountVisibility,
+  onOpenProviderSettings,
 }: ModelSelectorPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -949,13 +956,33 @@ export function ModelSelectorPanel({
 
   // ── Empty roster guard ─────────────────────────────────────────────────────
   // All hooks are above this point. Safe to conditionally return here.
-  // When models is empty the user has no configured providers. Show an inline
-  // placeholder — #100 will replace this with the full onboarding experience.
+  // §3.4: When roster is empty, render an "Add providers" chip instead of the
+  // normal trigger + panel. Clicking it opens the ProviderSettingsPanel directly —
+  // no intermediate model selector panel (spec: opening an empty panel then
+  // requiring a second click is poor UX).
   if (models.length === 0) {
     return (
-      <p className="text-[13px] text-text-muted pb-2">
-        No providers configured. Add a provider to get started.
-      </p>
+      <button
+        type="button"
+        onClick={onOpenProviderSettings}
+        className={[
+          'inline-flex items-center gap-[6px]',
+          'h-6 px-[10px]',
+          'text-[12px] font-medium text-text-muted',
+          'bg-transparent border border-border-subtle rounded-full',
+          'hover:border-border transition-[border-color] duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          'cursor-pointer select-none',
+          'mb-2',
+        ].join(' ')}
+        aria-label="Add providers to get started"
+      >
+        {/* + icon, 12px, per §3.4 spec */}
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        Add providers
+      </button>
     );
   }
 
@@ -1004,18 +1031,35 @@ export function ModelSelectorPanel({
 
           {/* Pills row — horizontally scrollable on narrow screens so pills never wrap
               off-screen when many models are active. flex-nowrap + overflow-x-auto.
-              flex-shrink-0 is applied to each pill via ModelPill's outer wrapper. */}
+              flex-shrink-0 is applied to each pill via ModelPill's outer wrapper.
+              §3.3: when activeCount === 0, pills are replaced by a placeholder chip. */}
           <div className="flex flex-nowrap overflow-x-auto gap-[6px] pb-1" role="group" aria-label="Model toggles">
-            {models.map((model) => (
-              <ModelPill
-                key={model.modelId}
-                model={model}
-                isLastActive={model.isActive && activeCount === 1}
-                onToggle={onToggleModel}
-                onOpenColorPicker={handleOpenColorPicker}
-                isOverrideActive={Boolean(accentColors[model.modelId])}
-              />
-            ))}
+            {activeCount === 0 ? (
+              /* §3.3 zero-active placeholder chip — not interactive, cursor: default */
+              <div
+                className={[
+                  'inline-flex items-center justify-center',
+                  'h-8 px-3',
+                  'text-[13px] text-text-muted',
+                  'bg-transparent border border-dashed border-border rounded-full',
+                  'cursor-default select-none flex-shrink-0',
+                ].join(' ')}
+                aria-label="No models active"
+              >
+                No models active
+              </div>
+            ) : (
+              models.map((model) => (
+                <ModelPill
+                  key={model.modelId}
+                  model={model}
+                  isLastActive={model.isActive && activeCount === 1}
+                  onToggle={onToggleModel}
+                  onOpenColorPicker={handleOpenColorPicker}
+                  isOverrideActive={Boolean(accentColors[model.modelId])}
+                />
+              ))
+            )}
             <AddModelButton availableModels={inactiveModels} onAdd={onAddModel} />
           </div>
 
