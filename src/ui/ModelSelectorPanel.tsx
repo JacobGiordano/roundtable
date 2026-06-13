@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
 // read-only registry of all model display metadata including providerName and
@@ -260,11 +261,49 @@ interface AddModelButtonProps {
 /**
  * Dashed-border pill that opens a dropdown of inactive models to add back.
  * Hidden when all models are already active.
+ *
+ * The dropdown is rendered via createPortal into document.body with
+ * position:fixed coordinates derived from getBoundingClientRect(). This
+ * escapes the panel's overflow-y:auto container, which would otherwise clip
+ * the absolutely-positioned dropdown invisible. Follows the same pattern as
+ * AccentColorPicker (also fixed-positioned via anchorRect).
  */
 function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Viewport-relative position for the portal dropdown, captured on open.
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const DROPDOWN_WIDTH = 220;
+  const VERTICAL_GAP = 4;
+
+  const openDropdown = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    // Prefer rendering above the button; if not enough room above, render below.
+    const spaceAbove = rect.top;
+    const APPROX_DROPDOWN_HEIGHT = 200; // conservative estimate
+    const flipBelow = spaceAbove < APPROX_DROPDOWN_HEIGHT + VERTICAL_GAP;
+
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      width: DROPDOWN_WIDTH,
+      zIndex: 50,
+      left: rect.left,
+    };
+
+    if (flipBelow) {
+      style.top = rect.bottom + VERTICAL_GAP;
+    } else {
+      style.bottom = window.innerHeight - rect.top + VERTICAL_GAP;
+    }
+
+    setDropdownStyle(style);
+    setIsOpen(true);
+  }, []);
+
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
 
   // Close on outside click
   useEffect(() => {
@@ -274,51 +313,36 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
         buttonRef.current && !buttonRef.current.contains(e.target as Node) &&
         dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
       ) {
-        setIsOpen(false);
+        closeDropdown();
       }
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
-  }, [isOpen]);
+  }, [isOpen, closeDropdown]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeDropdown();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, closeDropdown]);
 
   if (availableModels.length === 0) return null;
 
-  return (
-    // flex-shrink-0: prevents the add button from compressing in the horizontal
-    // scroll container on narrow screens (same as ModelPill outer wrapper).
-    <div className="relative flex-shrink-0">
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label="Add model to conversation"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={[
-          'inline-flex items-center gap-2 h-8 rounded-full',
-          'px-3',
-          'text-[13px] font-medium text-text-muted',
-          'border border-dashed border-border',
-          'transition-[border-color] duration-fast hover:border-border-strong',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          'cursor-pointer select-none',
-        ].join(' ')}
-      >
-        <span aria-hidden="true" className="text-[14px] leading-none">+</span>
-        Add model
-      </button>
-
-      {/* Dropdown */}
-      {isOpen && (
+  const dropdown = isOpen
+    ? createPortal(
         <div
           ref={dropdownRef}
           role="menu"
           aria-label="Available models"
+          style={dropdownStyle}
           className={[
-            'absolute bottom-full left-0 mb-2',
-            'w-[220px] max-h-[240px] overflow-y-auto',
+            'max-h-[240px] overflow-y-auto',
             'bg-card border border-border rounded-md shadow-md',
-            'py-1 z-10',
+            'py-1',
           ].join(' ')}
         >
           {availableModels.map((model) => (
@@ -328,7 +352,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
               role="menuitem"
               onClick={() => {
                 onAdd(model.modelId);
-                setIsOpen(false);
+                closeDropdown();
               }}
               className={[
                 'w-full flex items-center gap-3 h-10 px-3',
@@ -349,8 +373,37 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
               </span>
             </button>
           ))}
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    // flex-shrink-0: prevents the add button from compressing in the horizontal
+    // scroll container on narrow screens (same as ModelPill outer wrapper).
+    <div className="flex-shrink-0">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="Add model to conversation"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? closeDropdown() : openDropdown())}
+        className={[
+          'inline-flex items-center gap-2 h-8 rounded-full',
+          'px-3',
+          'text-[13px] font-medium text-text-muted',
+          'border border-dashed border-border',
+          'transition-[border-color] duration-fast hover:border-border-strong',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+          'cursor-pointer select-none',
+        ].join(' ')}
+      >
+        <span aria-hidden="true" className="text-[14px] leading-none">+</span>
+        Add model
+      </button>
+
+      {dropdown}
     </div>
   );
 }
