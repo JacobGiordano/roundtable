@@ -1,4 +1,4 @@
-Last updated: 2026-06-13 (Arch #92)
+Last updated: 2026-06-13 (Wave 1 ship — #93, #94, #96)
 
 ## Current phase
 
@@ -6,15 +6,13 @@ Phase 4+ — Custom provider infrastructure in progress.
 
 ## Session summary
 
-- Aria: closed #91 — AddModelButton dropdown portal-rendered to escape overflow-y:auto clipping. Lint/build clean.
-- Arch: closed #92 — open-union ModelId/CredentialKey, BuiltInModelId/BuiltInCredentialKey extracted, ProviderConfig discriminated union, ProviderRoster, ModelCatalogEntry added to /src/types/index.ts. Zero breaking changes to existing consumers.
+- Gate: closed #93 — ProviderRoster CRUD (`getProviderRoster`, `saveProviderRoster`, `addBuiltInProvider`, `addCustomProvider`, `removeProvider`, `getProviderById`). MODEL_CREDENTIAL_MAP typed to `Record<BuiltInModelId, BuiltInCredentialKey>`. 401/401 tests pass.
+- Atlas: closed #94 — `GenericOpenAIProvider` in `src/models/generic.ts`. Full `ModelProvider` impl with SSE streaming, all `ModelErrorCode` variants, keyless-endpoint support (Ollama/LM Studio), `createCustomProvider()` factory ready for #95.
+- Luma: closed #96 — Outrun theme final palette: dark purple-near-black surfaces (sidebar/card shifted to dark blue), hot pink `#FF2070` dominant chrome, electric blue `#3DC8FF` secondary text/shadows, teal `#2EE4B9` focus/strong borders/active states/shadow layers. Inspired by Night Drive VS Code theme. Full WCAG AA.
 
 ## Open issues
 
-- #93 [Gate] ProviderRoster storage + BuiltInModelId type alignment
-- #94 [Atlas] GenericOpenAIProvider for custom endpoints
 - #95 [Atlas] Wire custom provider dispatch into sendMessage.ts
-- #96 [Luma] Outrun theme revision — neon blues, cyans, teals
 - #97 [Luma] Settings panel + onboarding spec
 - #98 [Aria] Update model selector to load from ProviderRoster
 - #99 [Aria] Provider settings panel UI
@@ -22,15 +20,14 @@ Phase 4+ — Custom provider infrastructure in progress.
 
 ## Parallelization waves
 
-Wave 1 (all independent, can run in parallel): #93 Gate, #94 Atlas, #96 Luma
-Wave 2 (after Gate ships): #95 Atlas wiring, #97 Luma spec, #98 Aria model selector
+Wave 2 (now unblocked): #95 Atlas, #97 Luma, #98 Aria — all can run in parallel
 Wave 3 (after Luma spec + Gate): #99 Aria settings panel, #100 Aria onboarding
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
 - New agent SOP: fetch base from agency-agents repo first, then expand with Roundtable layers
-- VALID_MODEL_IDS in BOTH accentColors.ts AND modelVersion.ts — Gate must update both to ReadonlySet<BuiltInModelId>
+- VALID_MODEL_IDS in BOTH accentColors.ts AND modelVersion.ts — Gate updated both to ReadonlySet<BuiltInModelId>
 - applyUserAccentColors must be called after EVERY applyTheme() — wired at boot and in handleThemeChange
 - /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (documented, tested)
 - Single-PR rule on types/index.ts — no concurrent Arch PRs
@@ -39,6 +36,7 @@ Wave 3 (after Luma spec + Gate): #99 Aria settings panel, #100 Aria onboarding
 - MODEL_REGISTRY is an array — use .length, not Object.keys().length
 - Gate: getRequiredCredentialKeys iterates ModelConfig[] and calls MODEL_CREDENTIAL_MAP[model.modelId] — needs a guard for custom model IDs not in the map
 - Custom provider credential keys follow pattern "custom:<providerId>" — Gate generates them
+- addCustomProvider generates credentialKey = "custom:<id>" where id is already "custom:<slug>", yielding "custom:custom:<slug>" — this is per-spec
 
 ## Model providers (all on main)
 
