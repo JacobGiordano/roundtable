@@ -1,50 +1,55 @@
-Last updated: 2026-06-13 (Wave 1 ship — #93, #94, #96)
+Last updated: 2026-06-13 (Wave 2+3 ship — #95 #97 #98 #99 #100)
 
 ## Current phase
 
-Phase 4+ — Custom provider infrastructure in progress.
+Phase 4+ — Custom provider infrastructure complete. Provider settings panel and onboarding shipped.
 
 ## Session summary
 
-- Gate: closed #93 — ProviderRoster CRUD (`getProviderRoster`, `saveProviderRoster`, `addBuiltInProvider`, `addCustomProvider`, `removeProvider`, `getProviderById`). MODEL_CREDENTIAL_MAP typed to `Record<BuiltInModelId, BuiltInCredentialKey>`. 401/401 tests pass.
-- Atlas: closed #94 — `GenericOpenAIProvider` in `src/models/generic.ts`. Full `ModelProvider` impl with SSE streaming, all `ModelErrorCode` variants, keyless-endpoint support (Ollama/LM Studio), `createCustomProvider()` factory ready for #95.
-- Luma: closed #96 — Outrun theme final palette: dark purple-near-black surfaces (sidebar/card shifted to dark blue), hot pink `#FF2070` dominant chrome, electric blue `#3DC8FF` secondary text/shadows, teal `#2EE4B9` focus/strong borders/active states/shadow layers. Inspired by Night Drive VS Code theme. Full WCAG AA.
+- Atlas: closed #95 — `sendMessage.ts` now resolves active providers from `ProviderRoster`. Built-ins fall back to static `PROVIDERS`; custom providers instantiated via `createCustomProvider()` on each call. Missing roster entries emit `auth_failure` StreamChunk.
+- Luma: closed #97 — Full design spec at `/_design/specs/provider-settings.md` (759 lines) covering provider settings panel, onboarding empty state, and model selector roster-awareness.
+- Aria: closed #98 — `App.tsx` seeds `ModelConfig[]` from `getProviderRoster()` instead of `buildDefaultModelConfigs()`. Empty roster → `models = []` with no fallback.
+- Aria: closed #99 — `ProviderSettingsPanel` component: slide-in from right, configured list with key-status badges, add built-in chips, custom endpoint form with validation, remove confirmation with last-provider guard, row add/remove animations.
+- Aria: closed #100 — `OnboardingEmptyState` component: welcome screen when roster is empty, CTA opens ProviderSettingsPanel, dismisses on first provider add via `onRosterChange` callback.
+
+## Roster change flow (new, affects all agents)
+
+1. `App.tsx` owns `rosterVersion` counter + `isRosterEmpty` derived state
+2. `AppLayout.tsx` receives `isRosterEmpty` and `onRosterChange` props
+3. Panel close triggers `onRosterChange()` → `rosterVersion` bumps → `isRosterEmpty` recomputes
+4. `models` state in `App.tsx` is NOT automatically re-derived on roster change — only `isRosterEmpty` is. If a future issue needs `models` to live-update after a panel action, that wiring needs to be added to App.tsx.
 
 ## Open issues
 
-- #95 [Atlas] Wire custom provider dispatch into sendMessage.ts
-- #97 [Luma] Settings panel + onboarding spec
-- #98 [Aria] Update model selector to load from ProviderRoster
-- #99 [Aria] Provider settings panel UI
-- #100 [Aria] Onboarding empty state — first-run experience
+None from Wave 2+3. No new issues filed yet.
 
-## Parallelization waves
+## What's next
 
-Wave 2 (now unblocked): #95 Atlas, #97 Luma, #98 Aria — all can run in parallel
-Wave 3 (after Luma spec + Gate): #99 Aria settings panel, #100 Aria onboarding
+No issues are currently defined for the next wave. Likely candidates:
+- Model selector "Add providers" trigger chip for empty-roster state (from Luma spec section 3.4 — partially deferred from #98)
+- Zero-active state placeholder chip in model selector (from Luma spec section 3.3 — deferred from #98)
+- Per-provider credential management in ProviderSettingsPanel (currently shows key status but doesn't let user edit/clear existing key values — click-to-edit or inline key field)
+- Tests for ProviderSettingsPanel and OnboardingEmptyState (Aria noted these as good candidates; Ada noted axe-violations tests would be valuable)
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
-- New agent SOP: fetch base from agency-agents repo first, then expand with Roundtable layers
+- Worktrees can cause Vitest to discover test files twice — always `git worktree remove --force` before running the final test suite
+- `isRosterEmpty` recomputes on panel close only (not on open or mid-panel mutations) — sufficient for the current flow but brittle if roster mutations need to reflect in real time elsewhere
+- `addCustomProvider()` returns the config with generated `credentialKey` — Aria then calls `saveCredentials(newConfig.credentialKey, apiKeyValue)` separately. The credential is stored after the roster entry; they are not atomic.
+- Gate: `getRequiredCredentialKeys` iterates `ModelConfig[]` and calls `MODEL_CREDENTIAL_MAP[model.modelId]` — still needs a guard for custom model IDs (from Wave 1 gotcha — not yet fixed)
 - VALID_MODEL_IDS in BOTH accentColors.ts AND modelVersion.ts — Gate updated both to ReadonlySet<BuiltInModelId>
 - applyUserAccentColors must be called after EVERY applyTheme() — wired at boot and in handleThemeChange
-- /auth/refresh does NOT invalidate the previous token — both tokens valid until expiry (documented, tested)
-- Single-PR rule on types/index.ts — no concurrent Arch PRs
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
-- ModelRegistryEntry fields are top-level (modelId, name, color) — NOT nested under .config
-- MODEL_REGISTRY is an array — use .length, not Object.keys().length
-- Gate: getRequiredCredentialKeys iterates ModelConfig[] and calls MODEL_CREDENTIAL_MAP[model.modelId] — needs a guard for custom model IDs not in the map
-- Custom provider credential keys follow pattern "custom:<providerId>" — Gate generates them
-- addCustomProvider generates credentialKey = "custom:<id>" where id is already "custom:<slug>", yielding "custom:custom:<slug>" — this is per-spec
+- Single-PR rule on types/index.ts — no concurrent Arch PRs
 
 ## Model providers (all on main)
 
 | Model | Default active | Accent token | Default version |
 |-------|---------------|--------------|-----------------|
-| Claude | yes | accent-claude | claude-sonnet-4-6 |
-| GPT-5.5 | yes | accent-gpt | gpt-5.5 |
-| Gemini | no | accent-gemini | gemini-2.5-flash |
-| Grok | no | accent-grok | grok-3 |
-| DeepSeek | no | accent-deepseek | deepseek-chat |
-| Mistral | no | accent-mistral | mistral-large-latest |
+| Claude | roster-driven | accent-claude | claude-sonnet-4-6 |
+| GPT-5.5 | roster-driven | accent-gpt | gpt-5.5 |
+| Gemini | roster-driven | accent-gemini | gemini-2.5-flash |
+| Grok | roster-driven | accent-grok | grok-3 |
+| DeepSeek | roster-driven | accent-deepseek | deepseek-chat |
+| Mistral | roster-driven | accent-mistral | mistral-large-latest |
