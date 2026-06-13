@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
@@ -6,6 +6,7 @@ import { InteractionModeSwitcher } from './InteractionModeSwitcher';
 import { Sidebar } from './Sidebar';
 import { ModelSelectorPanel } from './ModelSelectorPanel';
 import { RoundtableLogo } from './RoundtableLogo';
+import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 
 interface AppLayoutProps {
   conversations: Conversation[];
@@ -141,6 +142,18 @@ export function AppLayout({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const handleToggleSettings = useCallback(() => setIsSettingsOpen((prev) => !prev), []);
 
+  // Provider settings panel open state (#99).
+  // ProviderSettingsPanel is rendered at the AppLayout level (fixed positioning,
+  // z-index:40 per spec) so it overlays the main content area without touching the sidebar.
+  const [isProviderPanelOpen, setIsProviderPanelOpen] = useState(false);
+  // Ref to the sidebar gear icon button — ProviderSettingsPanel uses this to
+  // return focus on close, per the accessibility spec.
+  // Typed as RefObject<HTMLButtonElement> (not |null) so it matches Sidebar's prop type.
+  const providerSettingsTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const handleOpenProviderSettings = useCallback(() => setIsProviderPanelOpen(true), []);
+  const handleCloseProviderSettings = useCallback(() => setIsProviderPanelOpen(false), []);
+
   const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);
   const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
@@ -174,6 +187,17 @@ export function AppLayout({
         onMobileClose={handleCloseMobileMenu}
         isSettingsOpen={isSettingsOpen}
         onToggleSettings={handleToggleSettings}
+        onOpenProviderSettings={handleOpenProviderSettings}
+        providerSettingsTriggerRef={providerSettingsTriggerRef}
+      />
+
+      {/* Provider settings panel (#99) — fixed overlay, z-index:40.
+          Rendered at AppLayout level so it overlays the main content area (not the sidebar).
+          Width: calc(100vw - 256px) per spec — sidebar stays visible and usable. */}
+      <ProviderSettingsPanel
+        isOpen={isProviderPanelOpen}
+        onClose={handleCloseProviderSettings}
+        triggerRef={providerSettingsTriggerRef}
       />
 
       {/* Main area — flex-1 */}
