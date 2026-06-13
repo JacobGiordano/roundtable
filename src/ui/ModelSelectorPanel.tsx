@@ -923,16 +923,7 @@ export function ModelSelectorPanel({
     pickerTriggerRef.current = null;
   }, []);
 
-  // ── Panel open/close ───────────────────────────────────────────────────────
-
-  const activeModels = models.filter((m) => m.isActive);
-  const inactiveModels = models.filter((m) => !m.isActive);
-  const activeCount = activeModels.length;
-
-  // Count how many active models have a system prompt set
-  const promptsSetCount = activeModels.filter(
-    (m) => m.systemPrompt && m.systemPrompt.trim().length > 0,
-  ).length;
+  // ── Panel open/close handlers (hooks — must be unconditional) ─────────────
 
   const handleTriggerClick = useCallback(() => {
     if (isOpen) {
@@ -955,6 +946,29 @@ export function ModelSelectorPanel({
       setIsClosing(false);
     }
   }, [isClosing]);
+
+  // ── Empty roster guard ─────────────────────────────────────────────────────
+  // All hooks are above this point. Safe to conditionally return here.
+  // When models is empty the user has no configured providers. Show an inline
+  // placeholder — #100 will replace this with the full onboarding experience.
+  if (models.length === 0) {
+    return (
+      <p className="text-[13px] text-text-muted pb-2">
+        No providers configured. Add a provider to get started.
+      </p>
+    );
+  }
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+
+  const activeModels = models.filter((m) => m.isActive);
+  const inactiveModels = models.filter((m) => !m.isActive);
+  const activeCount = activeModels.length;
+
+  // Count how many active models have a system prompt set
+  const promptsSetCount = activeModels.filter(
+    (m) => m.systemPrompt && m.systemPrompt.trim().length > 0,
+  ).length;
 
   // Determine panel class
   const panelClass = [
