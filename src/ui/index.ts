@@ -7,6 +7,7 @@ export { InteractionModeSwitcher } from './InteractionModeSwitcher';
 export { MessageBubble } from './MessageBubble';
 export { MessageThread } from './MessageThread';
 export { ModelSelectorPanel } from './ModelSelectorPanel';
+export { ProviderSettingsPanel } from './ProviderSettingsPanel';
 export { Sidebar } from './Sidebar';
 export { applyTheme, applyUserAccentColors } from './theme';
 export { RoundtableLogo } from './RoundtableLogo';

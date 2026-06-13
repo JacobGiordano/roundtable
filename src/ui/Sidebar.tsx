@@ -79,6 +79,17 @@ interface SidebarProps {
    * Paired with isSettingsOpen for external control of the settings panel.
    */
   onToggleSettings?: () => void;
+  /**
+   * Called when the user clicks the provider-settings gear icon in the sidebar
+   * header. AppLayout handles the panel open state and mounts ProviderSettingsPanel
+   * at the top level of the app. Optional — no gear icon is rendered if absent.
+   */
+  onOpenProviderSettings?: () => void;
+  /**
+   * Ref forwarded to the provider-settings gear icon button so that
+   * ProviderSettingsPanel can return focus to it on close.
+   */
+  providerSettingsTriggerRef?: React.RefObject<HTMLButtonElement>;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -820,6 +831,8 @@ export function Sidebar({
   onMobileClose,
   isSettingsOpen: isSettingsOpenProp,
   onToggleSettings: onToggleSettingsProp,
+  onOpenProviderSettings,
+  providerSettingsTriggerRef,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -1142,10 +1155,7 @@ export function Sidebar({
             <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-        {/* Desktop header right-side controls: new conversation only.
-            Settings gear removed — it sat next to the + button and read as a chat
-            action rather than app settings. Bottom settings toggle is the desktop
-            entry point for settings. (Issue #76) */}
+        {/* Desktop header right-side controls: new conversation + provider-settings gear */}
         <div className="hidden md:flex items-center gap-1">
           {/* New conversation button — desktop only (mobile top bar has its own) */}
           <button
@@ -1168,6 +1178,37 @@ export function Sidebar({
               />
             </svg>
           </button>
+          {/* Provider settings gear — opens ProviderSettingsPanel slide-in (#99).
+              Only rendered when AppLayout provides the onOpenProviderSettings prop. */}
+          {onOpenProviderSettings && (
+            <button
+              ref={providerSettingsTriggerRef}
+              type="button"
+              aria-label="Provider settings"
+              onClick={onOpenProviderSettings}
+              className={[
+                'w-8 h-8 rounded-md flex items-center justify-center',
+                'text-text-muted hover:text-text-secondary hover:bg-hover',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+              ].join(' ')}
+            >
+              {/* 20×20 gear icon */}
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="M17 10c0-.43-.04-.85-.11-1.25l1.98-1.54-1.88-3.24-2.36.95a7 7 0 0 0-2.16-1.25L12.12 2H7.88L7.53 3.67a7 7 0 0 0-2.16 1.25L3.01 3.97 1.13 7.21l1.98 1.54C3.04 9.15 3 9.57 3 10c0 .43.04.85.11 1.25L1.13 12.79l1.88 3.24 2.36-.95a7 7 0 0 0 2.16 1.25L7.88 18h4.24l.35-1.67a7 7 0 0 0 2.16-1.25l2.36.95 1.88-3.24-1.98-1.54C16.96 10.85 17 10.43 17 10Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 

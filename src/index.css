@@ -26,6 +26,17 @@ body {
 
 /* ─── Keyframe Animations ──────────────────────────────────────────────────── */
 
+@keyframes provider-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes chunkFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -252,5 +263,11 @@ body {
 
   .theme-transitioning * {
     transition: none !important;
+  }
+
+  /* Provider settings row animations — snap on reduced motion */
+  @keyframes provider-enter {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 1; transform: none; }
   }
 }
