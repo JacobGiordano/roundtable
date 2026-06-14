@@ -965,6 +965,8 @@ export function ModelSelectorPanel({
       <button
         type="button"
         onClick={onOpenProviderSettings}
+        aria-controls="model-selector-panel"
+        aria-expanded={false}
         className={[
           'inline-flex items-center gap-[6px]',
           'h-6 px-[10px]',
