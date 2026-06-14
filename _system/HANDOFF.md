@@ -1,4 +1,4 @@
-Last updated: 2026-06-14 (ship #104 #105)
+Last updated: 2026-06-14 (ship #106 #107)
 
 ## Current phase
 
@@ -6,18 +6,18 @@ Phase 4+ — Custom provider infrastructure complete. Test coverage for Phase 4 
 
 ## Session summary
 
-- Scout: closed #104 — `rosterToModelConfigs` unit tests (24 tests). Added `export` to the function in `App.tsx` for testability. Covers: empty roster, built-in/custom provider mapping, `prevModels` state preservation, output ordering.
-- Scout: closed #105 — Phase 4 E2E Playwright tests (11 tests). Covers: credential editor Set/Edit/Remove/Escape/save-disabled flows, keyless provider guard, roster reactivity (add+remove round-trip in model selector), layout overflow check.
+- Aria: closed #106 — Added `aria-controls`/`aria-expanded` to empty-roster "Add providers" button in `ModelSelectorPanel.tsx`. Smoke test selector `button[aria-controls="model-selector-panel"]` now resolves unconditionally.
+- Aria: closed #107 — Added `data-testid="sidebar-settings-toggle"` (Sidebar.tsx) and `data-testid="mobile-settings-toggle"` (AppLayout.tsx). Scout must update smoke test selector from `button[aria-controls="sidebar-settings-panel"]` to `[data-testid="sidebar-settings-toggle"]`.
 
 ## Open issues
 
-- #106 [Aria] — Model selector trigger hidden when roster is empty; smoke tests fail. Two fix options: always render trigger (Aria), or seed localStorage in smoke beforeEach (Scout).
-- #107 [Aria] — Settings button selector ambiguous; two elements match `aria-controls="sidebar-settings-panel"`. Three fix options documented in issue.
+- Scout follow-on for #107: update smoke test selector to `[data-testid="sidebar-settings-toggle"]` — this resolves the remaining smoke test failure.
+- User has additional UX/UI bugs to file — gathering now.
 
 ## What's next
 
-- #106 and #107 are Aria issues (or optionally Scout selector fixes). Aria should read both issues and decide fix approach before implementing.
-- Smoke test suite has 3 pre-existing failures tied to #106 and #107 — will resolve once those are closed.
+- Scout: update smoke test selector (follow-on from #107)
+- Aria: UX/UI bug fixes (issues TBD — user briefing in progress)
 
 ## Gotchas
 
@@ -28,3 +28,4 @@ Phase 4+ — Custom provider infrastructure complete. Test coverage for Phase 4 
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
 - E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel to remount the row
 - E2E: "Remove" confirmation dialog is guarded by `isLast` — removal tests need 2+ providers in the roster
+- #107 fix: smoke test must use `[data-testid="sidebar-settings-toggle"]` not `[aria-controls="sidebar-settings-panel"]` (ARIA selector is intentionally ambiguous — two buttons, one panel)
