@@ -621,7 +621,10 @@ export interface CustomThemeJSON {
   semantic: {
     success: string;
     warning: string;
+    /** Foreground text color for error states (bright red, reads on dark surfaces). */
     error: string;
+    /** Background color for destructive buttons (dark red, supports white text at 4.5:1+). */
+    'error-bg': string;
     info: string;
   };
   radius: {
