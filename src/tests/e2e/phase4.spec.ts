@@ -35,9 +35,16 @@ type Page = import('@playwright/test').Page;
 /**
  * Open the ProviderSettingsPanel by clicking the gear icon in the sidebar.
  * Waits for the "My Providers" heading to be visible inside the panel.
+ *
+ * Selector note: Aria's #110 added a second gear button inside ModelSelectorPanel
+ * with aria-label="Open provider settings". When that panel is mid-close-animation
+ * (isClosing=true → aria-hidden=false), both buttons may be in the accessibility tree
+ * simultaneously. Use { exact: true } to match only the sidebar header gear
+ * (aria-label="Provider settings") and exclude the in-panel shortcut
+ * (aria-label="Open provider settings").
  */
 async function openProviderPanel(page: Page) {
-  const gearBtn = page.getByRole('button', { name: 'Provider settings' });
+  const gearBtn = page.getByRole('button', { name: 'Provider settings', exact: true });
   await gearBtn.click();
   // The panel slides in with a CSS transition; wait for its heading.
   await expect(page.getByRole('heading', { name: 'My Providers' })).toBeVisible();

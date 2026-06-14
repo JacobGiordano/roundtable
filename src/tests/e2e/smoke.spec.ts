@@ -20,6 +20,30 @@
 
 import { test, expect } from '@playwright/test';
 
+// ─── Storage key constant (mirrors /src/auth/providerRoster.ts) ───────────────
+
+const ROSTER_KEY = 'roundtable:provider-roster';
+
+/**
+ * Minimal roster entry for smoke tests that need the real model selector trigger
+ * (not the empty-roster "Add providers" button). Seeded via addInitScript so it
+ * is in localStorage before React mounts — the roster is read on first render.
+ *
+ * Background: Aria's #106 fix added aria-controls="model-selector-panel" to the
+ * empty-roster "Add providers" button so the trigger always exists in the DOM.
+ * Tests that locate button[aria-controls="model-selector-panel"] and expect
+ * aria-expanded to toggle now require at least one provider in the roster so the
+ * real trigger chip renders instead of the empty-roster shortcut.
+ */
+async function seedMinimalRoster(page: import('@playwright/test').Page) {
+  await page.addInitScript(({ rosterKey }) => {
+    const roster = [
+      { kind: 'builtin', modelId: 'claude', credentialKey: 'anthropic', isVisible: true },
+    ];
+    localStorage.setItem(rosterKey, JSON.stringify(roster));
+  }, { rosterKey: ROSTER_KEY });
+}
+
 // ─── Desktop smoke tests (1280×800) ──────────────────────────────────────────
 
 test.describe('desktop layout (1280×800)', () => {
@@ -31,6 +55,11 @@ test.describe('desktop layout (1280×800)', () => {
     page.on('pageerror', (err) => jsErrors.push(err.message));
     // Attach to the test so assertions can access it.
     (page as unknown as Record<string, unknown>).__jsErrors = jsErrors;
+
+    // Seed a minimal provider roster before page load so the real model selector
+    // trigger chip renders (not the empty-roster "Add providers" shortcut).
+    // Must be called before page.goto — addInitScript runs at document creation.
+    await seedMinimalRoster(page);
 
     await page.goto('/');
     // Wait for React to hydrate — the logo mark is the earliest reliable signal.
@@ -74,9 +103,10 @@ test.describe('desktop layout (1280×800)', () => {
   });
 
   test('settings panel opens and closes', async ({ page }) => {
-    // The settings toggle button has aria-controls="sidebar-settings-panel"
-    // and renders "Settings" as its visible label text.
-    const settingsToggle = page.locator('button[aria-controls="sidebar-settings-panel"]');
+    // Two buttons legitimately share aria-controls="sidebar-settings-panel" (desktop
+    // sidebar + mobile top bar — Aria's #107 fix). Use data-testid to target the
+    // desktop sidebar toggle specifically. See Sidebar.tsx data-testid="sidebar-settings-toggle".
+    const settingsToggle = page.locator('[data-testid="sidebar-settings-toggle"]');
     await expect(settingsToggle).toBeVisible();
     await expect(settingsToggle).toContainText('Settings');
 
@@ -116,6 +146,11 @@ test.describe('mobile layout (375×812)', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test.beforeEach(async ({ page }) => {
+    // Seed a minimal provider roster before page load so the real model selector
+    // trigger chip renders (not the empty-roster "Add providers" shortcut).
+    // Must be called before page.goto — addInitScript runs at document creation.
+    await seedMinimalRoster(page);
+
     await page.goto('/');
     // On mobile the app renders a top bar with the logo and a hamburger.
     // The sidebar logo is off-screen (drawer closed), so we wait for either logo.
