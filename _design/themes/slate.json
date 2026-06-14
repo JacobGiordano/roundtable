@@ -35,7 +35,8 @@
   "semantic": {
     "success": "#22C55E",
     "warning": "#EAB308",
-    "error": "#F04A4A",
+    "error": "#FF5252",
+    "error-bg": "#C53030",
     "info": "#3B82F6"
   },
   "radius": {
@@ -95,13 +96,18 @@
       "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "semantic.error": {
-      "fix": "Brightened #EF4444 \u2192 #F04A4A. Prior 4.47:1 on card.",
+      "fix": "#119/#120 \u2014 split token. error brightened #F04A4A \u2192 #FF5252 for text-on-dark use; error-bg added #C53030 for bg-error button surfaces (white text on top).",
       "ratios": {
-        "on-card-#1A1D26": "4.64:1 PASS",
-        "on-background-#0F1117": "5.20:1 PASS",
-        "on-sidebar-#13151C": "5.02:1 PASS"
+        "error-on-hover-#242838": "4.58:1 PASS",
+        "error-on-card-#1A1D26": "5.27:1 PASS",
+        "error-on-background-#0F1117": "5.91:1 PASS",
+        "error-on-sidebar-#13151C": "5.71:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
+      "error-bg-ratios": {
+        "white-on-error-bg-#C53030": "5.47:1 PASS"
+      },
+      "wcag": "AA \u2014 semantic.error passes 4.5:1 as text on all surfaces including hover. semantic.error-bg passes 4.5:1 white text on top.",
+      "note": "semantic.error is the foreground text token. semantic.error-bg is the background token for destructive buttons. Aria must use bg-error-bg (not bg-error) for button backgrounds. Aria must use text-error (not text-white with bg-error) for error-colored text on dark hover states."
     }
   }
 }

@@ -35,7 +35,8 @@
   "semantic": {
     "success": "#4ACA7A",
     "warning": "#D4A82A",
-    "error": "#EA6060",
+    "error": "#FF6060",
+    "error-bg": "#C03030",
     "info": "#4A90D9"
   },
   "radius": {
@@ -104,13 +105,18 @@
       "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
     },
     "semantic.error": {
-      "fix": "Brightened #E05555 \u2192 #EA6060. Prior 4.10:1 on card.",
+      "fix": "#119/#120 \u2014 split token. error brightened #EA6060 \u2192 #FF6060 for text-on-dark use; error-bg added #C03030 for bg-error button surfaces (white text on top). Ash has the tightest hover constraint (lum=0.02685) \u2014 #FF6060 was chosen as the minimum-sufficient bright red (4.62:1 vs hover).",
       "ratios": {
-        "on-card-#22252A": "4.64:1 PASS",
-        "on-background-#191C20": "5.27:1 PASS",
-        "on-sidebar-#1B1E22": "5.10:1 PASS"
+        "error-on-hover-#2A2E33": "4.62:1 PASS",
+        "error-on-card-#22252A": "5.19:1 PASS",
+        "error-on-background-#181A1C": "5.90:1 PASS",
+        "error-on-sidebar-#1B1D20": "5.71:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
+      "error-bg-ratios": {
+        "white-on-error-bg-#C03030": "5.67:1 PASS"
+      },
+      "wcag": "AA \u2014 semantic.error passes 4.5:1 as text on all surfaces including hover. semantic.error-bg passes 4.5:1 white text on top.",
+      "note": "semantic.error is the foreground text token. semantic.error-bg is the background token for destructive buttons. Ash hover (#2A2E33) is the most constraining surface across all dark themes \u2014 #FF6060 is the shared bright red used here and for all other dark themes that needed brightening."
     }
   }
 }
