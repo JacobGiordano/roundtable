@@ -34,7 +34,8 @@ import { useConversationStore, downloadExportedConversation } from '@/storage';
  * prevModels is used to preserve runtime state (isActive, systemPrompt,
  * selectedVersionId) for models that already exist. New models start inactive.
  */
-function rosterToModelConfigs(
+// eslint-disable-next-line react-refresh/only-export-components
+export function rosterToModelConfigs(
   roster: ProviderRoster,
   prevModels: ModelConfig[],
 ): ModelConfig[] {
