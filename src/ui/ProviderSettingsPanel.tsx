@@ -108,6 +108,10 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
   const [confirmState, setConfirmState] = useState<RowConfirmState>('idle');
   const [isRemoving, setIsRemoving] = useState(false);
 
+  // Ref to the Cancel button in confirm states — focus moves here when the row
+  // enters either confirm-remove or confirm-remove-last (WCAG 2.4.3 fix, #115).
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
   // ── Inline key editor state ────────────────────────────────────────────────
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [keyInputValue, setKeyInputValue] = useState('');
@@ -178,6 +182,16 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
       onRemoved();
     }, 200);
   }, [id, onRemoved]);
+
+  // Move focus to the Cancel button when the row enters a confirm state so
+  // keyboard users land on a usable control rather than body (WCAG 2.4.3, #115).
+  useEffect(() => {
+    if (confirmState === 'confirm-remove' || confirmState === 'confirm-remove-last') {
+      requestAnimationFrame(() => {
+        cancelBtnRef.current?.focus();
+      });
+    }
+  }, [confirmState]);
 
   const rowStyle: React.CSSProperties = isRemoving
     ? { height: 0, opacity: 0, transition: 'height 200ms ease-in, opacity 100ms ease-in', overflow: 'hidden' }
@@ -362,6 +376,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
             {name} — Remove this provider?
           </span>
           <button
+            ref={cancelBtnRef}
             type="button"
             onClick={handleCancel}
             className={[
@@ -396,6 +411,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
             {name} — Last provider. Remove and start over?
           </span>
           <button
+            ref={cancelBtnRef}
             type="button"
             onClick={handleCancel}
             className={[
