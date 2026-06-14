@@ -857,6 +857,11 @@ export function ProviderSettingsPanel({
       ].join(' ')}
       style={{
         width: 'calc(100vw - 256px)',
+        // maxWidth caps the drawer shell to the content width on wide desktops.
+        // The content body inside is constrained to max-w-[640px] with px-8 (64px
+        // total horizontal padding), so 704px is the natural fit. On viewports
+        // where calc(100vw - 256px) < 704px the width property wins unchanged.
+        maxWidth: '704px',
         transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
         transition: isOpen
           ? 'transform 350ms cubic-bezier(0.22, 1, 0.36, 1)'
