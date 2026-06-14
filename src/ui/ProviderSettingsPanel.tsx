@@ -786,6 +786,8 @@ export function ProviderSettingsPanel({
   const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const newRowRef = useRef<HTMLDivElement | null>(null);
+  // Ref to the drawer container — used by the focus trap (WCAG 2.1.2, 2.4.3, #116).
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   // Re-read roster from Gate after any mutation.
   const refreshRoster = useCallback(() => {
@@ -823,6 +825,47 @@ export function ProviderSettingsPanel({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
+
+  // Focus trap — intercept Tab and Shift+Tab while the drawer is open so
+  // keyboard focus cycles within the drawer rather than escaping to content
+  // behind the backdrop (WCAG 2.1.2 / 2.4.3, #116).
+  useEffect(() => {
+    if (!isOpen) return;
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+
+    function handleFocusTrap(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        drawer!.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.closest('[aria-hidden="true"]'));
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        // Shift+Tab: if focus is on or before the first element, wrap to last.
+        if (active === first || !drawer!.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        // Tab: if focus is on the last element, wrap to first.
+        if (active === last || !drawer!.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleFocusTrap);
+    return () => document.removeEventListener('keydown', handleFocusTrap);
+  }, [isOpen]);
 
   // Add built-in chip clicked.
   const handleAddBuiltIn = useCallback((modelId: BuiltInModelId) => {
@@ -862,8 +905,9 @@ export function ProviderSettingsPanel({
 
   return (
     <div
+      ref={drawerRef}
       role="dialog"
-      aria-modal="false"
+      aria-modal="true"
       aria-labelledby="psp-heading"
       aria-hidden={!isOpen}
       className={[
