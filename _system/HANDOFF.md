@@ -1,4 +1,4 @@
-Last updated: 2026-06-14 (ship #108–#112 + #115 #116)
+Last updated: 2026-06-14 (ship #113 #114 #117 #118)
 
 ## Current phase
 
@@ -6,28 +6,24 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 
 ## Session summary
 
-- Aria: #108 — last-provider removal unblocked; "Last provider. Remove and start over?" confirm flow replaces dead-end "Got it"
-- Aria: #109 — settings drawer capped at 704px width on desktop
-- Aria: #110 — "Provider settings" shortcut added to bottom of model selector panel
-- Aria: #111 — backdrop added behind settings drawer; click-outside closes it
-- Aria: #112 — `mx-auto` on drawer content body equalizes left/right padding
-- Aria: #115 — focus moves to Cancel when ProviderRow enters any confirm state (WCAG 2.4.3)
-- Aria: #116 — focus trap + `aria-modal="true"` added to settings drawer (WCAG 2.1.2/2.4.3)
-- Scout: smoke selectors updated for #107 data-testid, #110 phase4 helper disambiguation, #106 empty-roster localStorage seeding
-- Arch: CLAUDE.md SOP updated — Ada audit, Scout smoke suite, and Flint gate are now required gates before every ship
-- Ada: advisory issues #117 (backdrop motion-reduce) and #118 (settings shortcut nav signal) filed for future work
+- Aria: #113 — context menu Delete contrast fixed (`text-semantic-error` → `text-error`, all 7 themes pass 4.5:1)
+- Aria: #114 — context menu z-index/hover bleed fixed (full-viewport z-30 backdrop, menu at z-40)
+- Aria: #113/#114 inline blocker — focus drops to Cancel on confirm-delete open (WCAG 2.4.3, matched #115 pattern)
+- Aria: #117 — backdrop opacity fade now suppresses under `prefers-reduced-motion`
+- Aria: #118 — settings shortcut aria-label updated to communicate cross-panel navigation side-effect
+- Ada: updated provider-settings-panel.test.tsx selectors after #118 aria-label change
+- Ada: committed provider-settings-panel.test.tsx and issues-108-112.md (were untracked since prior session)
 
 ## Open issues
 
-- #113 [Aria] — "Delete" option in session context menu fails WCAG AA contrast
-- #114 [Aria] — Session context menu z-index and hover bleed issues
-- #117 [Aria] — Backdrop missing `motion-reduce:transition-none` (advisory)
-- #118 [Aria] — Settings shortcut doesn't signal cross-panel navigation (advisory)
+- #119 [Aria/Luma] — `text-white bg-error` fails WCAG AA in 5 dark themes (advisory)
+- #120 [Aria/Luma] — `text-error on interactive.hover` fails WCAG AA in 4 dark themes (advisory)
+- #121 [Ada] — Stale outrun surface tokens in `contrast.test.ts` (advisory)
 
 ## What's next
 
-- Aria: #113 and #114 (session context menu bugs — contrast + z-index/hover)
-- Aria: #117 and #118 can be batched with the next Aria session (advisory, non-blocking)
+- #121 (Ada): quick token update in contrast.test.ts — good warm-up for the next session
+- #119 + #120 (Luma + Aria): semantic error token contrast in dark themes — will need Luma to audit/adjust token values, then Aria to consume; coordinate via Arch if types change
 
 ## Gotchas
 
@@ -37,6 +33,6 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic; if it fails, roster entry exists but has no key
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
 - E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel to remount the row
-- E2E: last-provider removal guard is gone (#108) — removal tests no longer need a 2-provider precondition
 - Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper — required so real model selector trigger renders (empty-roster button has same aria-controls but opens provider settings, not model selector)
 - Settings drawer has focus trap (#116) — keyboard tests that open the drawer must account for Tab being intercepted
+- Context menu confirm-delete state moves focus to Cancel on open — tests that interact with confirm-delete must account for this
