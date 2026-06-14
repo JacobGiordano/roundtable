@@ -183,6 +183,11 @@ function ThreadActionMenu({
   const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
   const menuRef = useRef<HTMLDivElement>(null);
   const groupInputRef = useRef<HTMLInputElement>(null);
+  // Ref for the Cancel button in the confirm-delete sub-state.
+  // Focus is moved here on transition so keyboard users land on the safe
+  // default action (Cancel) rather than losing focus to document.body.
+  // Same pattern as ProviderRow confirm state in #115 (WCAG 2.4.3).
+  const confirmCancelRef = useRef<HTMLButtonElement>(null);
 
   // Outside-click close is handled by the full-viewport backdrop rendered in
   // ThreadActionMenu's JSX (fixed inset-0 z-30). The document-level mousedown
@@ -194,6 +199,14 @@ function ThreadActionMenu({
     if (menuState.type === 'menu') {
       const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
       firstItem?.focus();
+    }
+  }, [menuState.type]);
+
+  // Focus Cancel button when confirm-delete sub-state opens (WCAG 2.4.3, #113).
+  // Cancel is the safe default for a destructive action.
+  useEffect(() => {
+    if (menuState.type === 'confirm-delete') {
+      confirmCancelRef.current?.focus();
     }
   }, [menuState.type]);
 
@@ -366,6 +379,7 @@ function ThreadActionMenu({
           <p className="text-text-secondary mb-2">Delete this conversation?</p>
           <div className="flex gap-2">
             <button
+              ref={confirmCancelRef}
               type="button"
               onClick={onClose}
               className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
