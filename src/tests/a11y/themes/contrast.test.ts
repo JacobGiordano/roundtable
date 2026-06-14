@@ -110,11 +110,11 @@ const THEMES: Record<string, ThemeTokens> = {
     accentMistral: '#A8285E', error: '#991B1B', focusRing: '#6D28D9',
   },
   outrun: {
-    bg: '#0D0D0D', card: '#130A1A', sidebar: '#0A070F', input: '#180E22',
-    textPrimary: '#F0E8FF', textSecondary: '#C880FF', textMuted: '#A468CC',
-    accentClaude: '#FFE600', accentGpt: '#00FFFF', accentGemini: '#C828FF' /* #60 fix */,
-    accentOther: '#FF00AA', accentGrok: '#00BFFF', accentDeepseek: '#6070FF' /* #60 fix */,
-    accentMistral: '#FF2D78', error: '#FF3366', focusRing: '#00FFFF',
+    bg: '#16141D', card: '#12203A', sidebar: '#0E1220', input: '#221E34',
+    textPrimary: '#EEEAF8', textSecondary: '#3DC8FF', textMuted: '#6BBFB8',
+    accentClaude: '#FFE600', accentGpt: '#2EE4B9', accentGemini: '#D060FF' /* #60 fix */,
+    accentOther: '#FF8D77', accentGrok: '#C0CFFF', accentDeepseek: '#7AA0FF' /* #60 fix */,
+    accentMistral: '#FF6090', error: '#FF4040', focusRing: '#2EE4B9',
   },
 };
 
