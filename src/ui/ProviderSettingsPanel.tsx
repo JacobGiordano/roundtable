@@ -892,8 +892,11 @@ export function ProviderSettingsPanel({
         </button>
       </header>
 
-      {/* Panel body */}
-      <div className="px-8 pt-6 pb-12 max-w-[640px]">
+      {/* Panel body — mx-auto centers the content block within the shell on wide viewports
+          where max-w-[640px] is active (shell is max 704px). Without mx-auto the 640px
+          content block left-aligns in the 704px shell, producing 64px more space on the
+          right than the left. mx-auto splits that gap evenly (32px each side). */}
+      <div className="px-8 pt-6 pb-12 max-w-[640px] mx-auto">
 
         {/* ── Section 1: Configured Providers ──────────────────────────── */}
         <section className="mb-8">
