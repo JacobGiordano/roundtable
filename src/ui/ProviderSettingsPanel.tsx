@@ -95,7 +95,7 @@ function ApiKeyBadge({ state }: { state: BadgeState }) {
 
 // ─── Provider row ─────────────────────────────────────────────────────────────
 
-type RowConfirmState = 'idle' | 'confirm-remove' | 'last-provider';
+type RowConfirmState = 'idle' | 'confirm-remove' | 'confirm-remove-last';
 
 interface ProviderRowProps {
   provider: ProviderConfig;
@@ -164,7 +164,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
   }, [credentialKey, provider]);
 
   const handleRemoveClick = useCallback(() => {
-    setConfirmState(isLast ? 'last-provider' : 'confirm-remove');
+    setConfirmState(isLast ? 'confirm-remove-last' : 'confirm-remove');
   }, [isLast]);
 
   const handleCancel = useCallback(() => {
@@ -387,13 +387,13 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
           </button>
         </div>
       ) : (
-        /* last-provider guard */
+        /* confirm-remove-last — warning + option to still remove */
         <div
           className="flex items-center gap-2 h-12 px-3 rounded-md bg-card border border-border"
           style={{ borderLeftWidth: '3px', borderLeftColor: 'var(--semantic-error)' }}
         >
           <span className="flex-1 text-[13px] text-text-primary truncate min-w-0">
-            {name} — This is your only provider.
+            {name} — Last provider. Remove and start over?
           </span>
           <button
             type="button"
@@ -405,7 +405,19 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            Got it
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmRemove}
+            className={[
+              'h-7 px-3 rounded-md flex-shrink-0',
+              'bg-error text-[12px] text-text-inverse',
+              'hover:brightness-90 transition-all duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            Remove
           </button>
         </div>
       )}
