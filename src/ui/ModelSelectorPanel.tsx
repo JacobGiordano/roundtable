@@ -1145,7 +1145,7 @@ export function ModelSelectorPanel({
           <div className="mt-4 pt-3 border-t border-border-subtle flex justify-end">
             <button
               type="button"
-              aria-label="Open provider settings"
+              aria-label="Open provider settings (closes this panel)"
               onClick={handleOpenSettingsFromPanel}
               className={[
                 'inline-flex items-center gap-[5px]',

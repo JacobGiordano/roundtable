@@ -221,7 +221,7 @@ export function AppLayout({
         aria-hidden="true"
         className={[
           'fixed inset-0 z-30 bg-black/20',
-          'transition-opacity duration-200',
+          'transition-opacity duration-200 motion-reduce:transition-none',
           isProviderPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
         ].join(' ')}
         onClick={handleCloseProviderSettings}
