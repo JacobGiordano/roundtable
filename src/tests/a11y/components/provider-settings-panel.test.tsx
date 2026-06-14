@@ -252,7 +252,7 @@ const SINGLE_CLAUDE_ROSTER = [
     kind: 'builtin' as const,
     modelId: 'claude' as const,
     credentialKey: 'anthropic',
-    isEnabled: true,
+    isVisible: true,
   },
 ];
 
@@ -262,13 +262,13 @@ const TWO_PROVIDER_ROSTER = [
     kind: 'builtin' as const,
     modelId: 'claude' as const,
     credentialKey: 'anthropic',
-    isEnabled: true,
+    isVisible: true,
   },
   {
     kind: 'builtin' as const,
     modelId: 'gpt-5.5' as const,
     credentialKey: 'openai',
-    isEnabled: true,
+    isVisible: true,
   },
 ];
 
@@ -277,7 +277,7 @@ describe('ProviderRow confirm states — WCAG 2.4.3 focus management (#115 fixed
 
   it('Cancel button receives focus when confirm-remove-last state is entered', async () => {
     // Override the roster mock to return a single provider (isLast=true).
-    const { getModelAccentColors: _gma, getProviderRoster, ...rest } = await import('@/auth');
+    const { getProviderRoster } = await import('@/auth');
     vi.mocked(getProviderRoster).mockReturnValue(SINGLE_CLAUDE_ROSTER as ReturnType<typeof getProviderRoster>);
 
     render(
