@@ -42,11 +42,11 @@ automatically — no installation required.
 | `CLAUDE.md` changes | `Arch` 🏛️ |
 | New phase kickoff | `Coda` |
 | Multi-agent coordination | `Coda` |
-| Pre-merge or pre-launch review | `Flint` |
+| Pre-"ship it" gate review (required before every ship) | `Flint` |
 | Backend (`/backend`) | `Atlas` |
 | Documentation (`README.md`, `CONTRIBUTING.md`, `/docs/`) | `Quill` 🪶 |
-| Integration & regression tests (`/src/tests/`) | `Scout` 🔭 |
-| Accessibility audits (`/src/tests/a11y/`) | `Ada` ♿ |
+| Integration & regression tests — smoke suite must be green at "done" time | `Scout` 🔭 |
+| Accessibility audits — required after every Aria session before merging to local main | `Ada` ♿ |
 | GitHub Actions workflows (`.github/workflows/`) | `Forge` ⚙️ |
 | Backend tests (`/backend/tests/`) | `Bastion` 🛡️ |
 
@@ -180,19 +180,36 @@ the user explicitly requests a plan.**
     Only run the full suite if asked or if the work warrants it.
 12. If bugs are found, recap them and ask if fixing is desired. Iterate until
     tests pass.
+13. **UI sessions only (any Aria session):** activate Ada to audit every changed
+    component against WCAG 2.1 AA before declaring done. Ada reads the changed
+    files and the live DOM (via dev server if needed). Her report must be reviewed
+    before merging the WIP branch to local main. Blocker-level findings must be
+    fixed in the same session. Advisory findings must be filed as issues before
+    moving on.
 
 ### Session close-out (required)
 
 #### Step 1 — "done"
 
-13. When the issue is complete: merge the WIP branch into local `main` so the
-    user can verify in the dev server. Report back — "merged to local main, ready
-    for dev-server review." Stop. Do not push to remote, do not close the GitHub
-    issue, do not touch `HANDOFF.md`. Wait for explicit authorization to ship.
+14. When the issue is complete: run Scout's smoke test suite (`npm run test:e2e`
+    or `npm run test:run` for the full Vitest suite, whichever applies) on the
+    WIP branch before merging. If smoke tests fail, diagnose and fix, or file a
+    blocking issue — do not merge with a red suite. Then merge the WIP branch
+    into local `main` so the user can verify in the dev server. Report back —
+    "merged to local main, ready for dev-server review." Stop. Do not push to
+    remote, do not close the GitHub issue, do not touch `HANDOFF.md`. Wait for
+    explicit authorization to ship.
+
+#### Step 1.5 — Flint gate (required before "ship it")
+
+15. Before proceeding to "ship it", activate Flint to verify the work against
+    the issue's acceptance criteria and the live app. Flint's sign-off is
+    required to proceed. If Flint finds blocker-level issues, fix them and
+    re-run Flint. Advisory findings may be filed as issues and deferred.
 
 #### Step 2 — "ship it" (requires explicit user authorization)
 
-14. **Rewrite `HANDOFF.md` first** — not append. Replace the entire contents
+16. **Rewrite `HANDOFF.md` first** — not append. Replace the entire contents
     with:
     - Last updated date
     - Current phase
@@ -205,10 +222,10 @@ the user explicitly requests a plan.**
     Stage `HANDOFF.md` and commit as `chore: update handoff` (or include it in
     the final fix commit if one is needed).
 
-15. Close the GitHub issue: `gh issue close <n> --comment "..."` — include the
+17. Close the GitHub issue: `gh issue close <n> --comment "..."` — include the
     merge commit hash, decisions made, and anything the next agent needs to know.
 
-16. Push `main` to remote and delete the WIP branch. No PRs needed for solo
+18. Push `main` to remote and delete the WIP branch. No PRs needed for solo
     work. Changes to `/src/types/index.ts` require a PR reviewed and approved by
     all active agents — agents handle this review with each other; the user does
     not need to be in the approval loop.
