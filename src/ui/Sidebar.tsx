@@ -389,7 +389,7 @@ function ThreadActionMenu({
             <button
               type="button"
               onClick={() => { onDelete(); onClose(); }}
-              className="flex-1 px-2 py-1 rounded text-white bg-error hover:opacity-90 transition-opacity duration-fast text-[11px]"
+              className="flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]"
             >
               Delete
             </button>
@@ -819,7 +819,7 @@ function BulkActionBar({
             <button
               type="button"
               onClick={handleBulkDeleteConfirm}
-              className="flex-1 py-1 rounded text-[11px] text-white bg-error hover:opacity-90 transition-opacity duration-fast"
+              className="flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast"
             >
               Delete
             </button>

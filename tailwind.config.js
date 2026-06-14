@@ -37,6 +37,7 @@ export default {
         'success':         'var(--semantic-success)',
         'warning':         'var(--semantic-warning)',
         'error':           'var(--semantic-error)',
+        'error-bg':        'var(--semantic-error-bg)',
         'info':            'var(--semantic-info)',
       },
       borderRadius: {

@@ -68,10 +68,11 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--interactive-focus',  theme.interactive.focusRing);
 
   // Semantic
-  root.style.setProperty('--semantic-success', theme.semantic.success);
-  root.style.setProperty('--semantic-warning', theme.semantic.warning);
-  root.style.setProperty('--semantic-error',   theme.semantic.error);
-  root.style.setProperty('--semantic-info',    theme.semantic.info);
+  root.style.setProperty('--semantic-success',  theme.semantic.success);
+  root.style.setProperty('--semantic-warning',  theme.semantic.warning);
+  root.style.setProperty('--semantic-error',    theme.semantic.error);
+  root.style.setProperty('--semantic-error-bg', theme.semantic['error-bg']);
+  root.style.setProperty('--semantic-info',     theme.semantic.info);
 
   // Radius
   root.style.setProperty('--radius-sm',   theme.radius.sm);
