@@ -954,6 +954,18 @@ export function ModelSelectorPanel({
     }
   }, [isClosing]);
 
+  // Handler for the in-panel settings shortcut. Closes the model selector
+  // panel (slide-out animation) then opens the ProviderSettingsPanel.
+  const handleOpenSettingsFromPanel = useCallback(() => {
+    if (isOpen) {
+      setIsClosing(true);
+      setIsOpen(false);
+      setOpenPickerModelId(null);
+      setPickerAnchorRect(null);
+    }
+    onOpenProviderSettings?.();
+  }, [isOpen, onOpenProviderSettings]);
+
   // ── Empty roster guard ─────────────────────────────────────────────────────
   // All hooks are above this point. Safe to conditionally return here.
   // §3.4: When roster is empty, render an "Add providers" chip instead of the
@@ -1126,6 +1138,40 @@ export function ModelSelectorPanel({
             activeModels={activeModels}
             tokenCountVisibility={tokenCountVisibility}
           />
+
+          {/* ── Settings shortcut ── */}
+          {/* Subtle link at the bottom of the panel for quick access to provider
+              settings without having to close the model selector first. */}
+          <div className="mt-4 pt-3 border-t border-border-subtle flex justify-end">
+            <button
+              type="button"
+              aria-label="Open provider settings"
+              onClick={handleOpenSettingsFromPanel}
+              className={[
+                'inline-flex items-center gap-[5px]',
+                'text-[11px] text-text-muted',
+                'hover:text-text-secondary transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+                'cursor-pointer',
+              ].join(' ')}
+            >
+              {/* 12×12 gear icon */}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path
+                  d="M6 7.875A1.875 1.875 0 1 0 6 4.125a1.875 1.875 0 0 0 0 3.75Z"
+                  stroke="currentColor"
+                  strokeWidth="1.05"
+                />
+                <path
+                  d="M10.125 6c0-.255-.023-.503-.068-.742l1.193-.93-1.125-1.95-1.425.57a4.125 4.125 0 0 0-1.283-.742L7.125.75h-2.25l-.293 1.456a4.125 4.125 0 0 0-1.283.742l-1.424-.57L.75 4.328l1.193.93A4.2 4.2 0 0 0 1.875 6c0 .255.023.503.068.742L.75 7.672l1.125 1.95 1.424-.57c.4.307.817.548 1.283.742L4.875 11.25h2.25l.293-1.456a4.125 4.125 0 0 0 1.283-.742l1.425.57 1.125-1.95-1.193-.93c.045-.239.067-.487.067-.742Z"
+                  stroke="currentColor"
+                  strokeWidth="1.05"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Provider settings
+            </button>
+          </div>
         </div>
       </div>
 
