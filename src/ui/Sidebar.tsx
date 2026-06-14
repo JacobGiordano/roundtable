@@ -1342,11 +1342,14 @@ export function Sidebar({
           Houses ApiKeyPanel (Gate) and TokenCountControl (Gate).
           Both components are self-contained and manage their own state. */}
       <div className="flex-shrink-0 border-t border-border">
-        {/* Settings toggle row */}
+        {/* Settings toggle row.
+            data-testid distinguishes this from the mobile header settings button;
+            both legitimately share aria-controls="sidebar-settings-panel" (same panel). */}
         <button
           type="button"
           aria-expanded={isSettingsOpen}
           aria-controls="sidebar-settings-panel"
+          data-testid="sidebar-settings-toggle"
           onClick={handleToggleSettings}
           className={[
             'w-full flex items-center gap-2 h-10 px-4',

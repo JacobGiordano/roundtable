@@ -255,13 +255,16 @@ export function AppLayout({
           {/* Right-side controls: settings gear + new conversation */}
           <div className="flex items-center">
             {/* Settings gear — opens the mobile drawer and the settings panel within it.
-                Must fire both: open the drawer (so the panel is visible) and open settings. */}
+                Must fire both: open the drawer (so the panel is visible) and open settings.
+                data-testid distinguishes this from the sidebar settings toggle; both
+                legitimately share aria-controls="sidebar-settings-panel" (same panel). */}
             <button
               type="button"
               onClick={() => { handleOpenMobileMenu(); if (!isSettingsOpen) handleToggleSettings(); }}
               aria-label="Settings"
               aria-expanded={isSettingsOpen}
               aria-controls="sidebar-settings-panel"
+              data-testid="mobile-settings-toggle"
               className={[
                 'flex items-center justify-center',
                 'min-w-[44px] min-h-[44px]',
