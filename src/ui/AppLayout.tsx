@@ -213,6 +213,20 @@ export function AppLayout({
         providerSettingsTriggerRef={providerSettingsTriggerRef}
       />
 
+      {/* Provider settings backdrop — covers main content area when the settings drawer is
+          open so clicks outside the drawer close it. Sits below the drawer (z-30 vs z-40)
+          and is lightly dimmed to indicate the drawer is modal-like without obscuring content.
+          Pointer events are suppressed when closed so it never intercepts clicks. */}
+      <div
+        aria-hidden="true"
+        className={[
+          'fixed inset-0 z-30 bg-black/20',
+          'transition-opacity duration-200',
+          isProviderPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        ].join(' ')}
+        onClick={handleCloseProviderSettings}
+      />
+
       {/* Provider settings panel (#99) — fixed overlay, z-index:40.
           Rendered at AppLayout level so it overlays the main content area (not the sidebar).
           Width: calc(100vw - 256px) per spec — sidebar stays visible and usable. */}
