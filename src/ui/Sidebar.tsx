@@ -184,16 +184,9 @@ function ThreadActionMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const groupInputRef = useRef<HTMLInputElement>(null);
 
-  // Close on outside click
-  useEffect(() => {
-    function handleDocClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleDocClick);
-    return () => document.removeEventListener('mousedown', handleDocClick);
-  }, [onClose]);
+  // Outside-click close is handled by the full-viewport backdrop rendered in
+  // ThreadActionMenu's JSX (fixed inset-0 z-30). The document-level mousedown
+  // listener is no longer needed.
 
   // Focus first menuitem when the menu state is 'menu' (on initial open and
   // if the user navigates back to the top-level menu from a sub-state).
@@ -301,19 +294,29 @@ function ThreadActionMenu({
   const isArchived = conversation.archivedAt !== undefined;
 
   return (
-    <div
-      ref={menuRef}
-      role="menu"
-      aria-label="Conversation actions"
-      onKeyDown={handleMenuKeyDown}
-      className={[
-        'absolute right-2 top-1 z-20',
-        'min-w-[160px] py-1 rounded-md',
-        'bg-card border border-border',
-        'shadow-md',
-        'text-[12px]',
-      ].join(' ')}
-    >
+    <>
+      {/* Full-viewport backdrop — sits behind the menu, above all sibling rows.
+          Intercepts pointer events so rows beneath the open menu cannot receive
+          hover or click events (fixes #114 hover bleed). onMouseDown closes the
+          menu and replaces the document-level mousedown listener for outside clicks. */}
+      <div
+        className="fixed inset-0 z-30"
+        aria-hidden="true"
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+      />
+      <div
+        ref={menuRef}
+        role="menu"
+        aria-label="Conversation actions"
+        onKeyDown={handleMenuKeyDown}
+        className={[
+          'absolute right-2 top-1 z-40',
+          'min-w-[160px] py-1 rounded-md',
+          'bg-card border border-border',
+          'shadow-md',
+          'text-[12px]',
+        ].join(' ')}
+      >
       {menuState.type === 'menu' && (
         <>
           {isArchived ? (
@@ -351,7 +354,7 @@ function ThreadActionMenu({
             role="menuitem"
             tabIndex={-1}
             onClick={() => setMenuState({ type: 'confirm-delete' })}
-            className="w-full text-left px-3 py-1.5 text-semantic-error hover:bg-hover transition-colors duration-fast"
+            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast"
           >
             Delete
           </button>
@@ -372,7 +375,7 @@ function ThreadActionMenu({
             <button
               type="button"
               onClick={() => { onDelete(); onClose(); }}
-              className="flex-1 px-2 py-1 rounded text-white bg-semantic-error hover:opacity-90 transition-opacity duration-fast text-[11px]"
+              className="flex-1 px-2 py-1 rounded text-white bg-error hover:opacity-90 transition-opacity duration-fast text-[11px]"
             >
               Delete
             </button>
@@ -432,6 +435,7 @@ function ThreadActionMenu({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -777,7 +781,7 @@ function BulkActionBar({
             onClick={() => setBarState('confirm-delete')}
             className={[
               'flex-1 py-1 rounded text-[11px] text-center',
-              'text-semantic-error bg-hover hover:bg-hover/80',
+              'text-error bg-hover hover:bg-hover/80',
               'transition-colors duration-fast',
             ].join(' ')}
           >
@@ -801,7 +805,7 @@ function BulkActionBar({
             <button
               type="button"
               onClick={handleBulkDeleteConfirm}
-              className="flex-1 py-1 rounded text-[11px] text-white bg-semantic-error hover:opacity-90 transition-opacity duration-fast"
+              className="flex-1 py-1 rounded text-[11px] text-white bg-error hover:opacity-90 transition-opacity duration-fast"
             >
               Delete
             </button>
@@ -1332,7 +1336,7 @@ export function Sidebar({
       {storageError && (
         <div
           role="alert"
-          className="flex-shrink-0 px-4 py-2 text-[11px] text-semantic-error border-t border-border"
+          className="flex-shrink-0 px-4 py-2 text-[11px] text-error border-t border-border"
         >
           Storage error: {storageError.message}
         </div>
