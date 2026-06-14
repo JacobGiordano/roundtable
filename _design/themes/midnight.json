@@ -36,6 +36,7 @@
     "success": "#34D399",
     "warning": "#FBBF24",
     "error": "#F87171",
+    "error-bg": "#B82828",
     "info": "#60A5FA"
   },
   "radius": {
@@ -65,5 +66,21 @@
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "_a11y": {
+    "semantic.error": {
+      "fix": "#119 — error-bg added #B82828 for bg-error button surfaces (white text on top). semantic.error #F87171 unchanged — already passes 6.10:1 vs hover #121D30.",
+      "ratios": {
+        "error-on-hover-#121D30": "6.10:1 PASS",
+        "error-on-card-#0D1525": "6.60:1 PASS",
+        "error-on-background-#060B18": "7.10:1 PASS",
+        "error-on-sidebar-#080D1E": "6.99:1 PASS"
+      },
+      "error-bg-ratios": {
+        "white-on-error-bg-#B82828": "6.23:1 PASS"
+      },
+      "wcag": "AA — semantic.error passes hover (6.10:1). semantic.error-bg passes white text. Midnight not in #120 failing list; documented for completeness.",
+      "note": "Midnight's salmon-red #F87171 is bright enough to pass its deep-navy hover and surfaces. error-bg #B82828 is a dark crimson that reads as a saturated destructive red against the navy background — coherent with the high-contrast midnight character."
+    }
   }
 }

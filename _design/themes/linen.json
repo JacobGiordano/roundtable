@@ -36,6 +36,7 @@
     "success": "#15803D",
     "warning": "#A16207",
     "error": "#B91C1C",
+    "error-bg": "#B91C1C",
     "info": "#1D4ED8"
   },
   "radius": {

@@ -35,7 +35,8 @@
   "semantic": {
     "success": "#5ABE6A",
     "warning": "#DBA830",
-    "error": "#E05050",
+    "error": "#FF5555",
+    "error-bg": "#C83428",
     "info": "#5090D0"
   },
   "radius": {
@@ -75,6 +76,20 @@
         "on-sidebar-#140F0A": "4.92:1 PASS"
       },
       "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    },
+    "semantic.error": {
+      "fix": "#119/#120 — split token. error brightened #E05050 → #FF5555 for text-on-dark use; error-bg added #C83428 for bg-error button surfaces (white text on top). error-bg carries a slight orange-red tint (#34 in the G channel) to harmonize with Ember's amber accent palette.",
+      "ratios": {
+        "error-on-hover-#26201A": "5.12:1 PASS",
+        "error-on-card-#1D1712": "5.65:1 PASS",
+        "error-on-background-#110D09": "6.16:1 PASS",
+        "error-on-sidebar-#140F0A": "6.06:1 PASS"
+      },
+      "error-bg-ratios": {
+        "white-on-error-bg-#C83428": "5.28:1 PASS"
+      },
+      "wcag": "AA — semantic.error passes 4.5:1 as text on all surfaces including hover. semantic.error-bg passes 4.5:1 white text on top.",
+      "note": "Ember's hover (#26201A) is a warm dark brown, darker than slate/ash/outrun hover — so error text passes with comfortable margin (5.12:1). error-bg #C83428 is a warm crimson-brown rather than pure red — the slight orange cast is intentional and matches Ember's character."
     }
   }
 }

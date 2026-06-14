@@ -91,8 +91,15 @@ Full mapping below.
 |-------|---------------------|-------------|------------------------|
 | `semantic.success` | `--semantic-success` | `colors.success` | `text-success`, `bg-success` |
 | `semantic.warning` | `--semantic-warning` | `colors.warning` | `text-warning`, `bg-warning` |
-| `semantic.error` | `--semantic-error` | `colors.error` | `text-error`, `bg-error` |
+| `semantic.error` | `--semantic-error` | `colors.error` | `text-error` — for error-colored text on dark surfaces and hover states |
+| `semantic.error-bg` | `--semantic-error-bg` | `colors.error-bg` | `bg-error-bg text-white` — for destructive button backgrounds |
 | `semantic.info` | `--semantic-info` | `colors.info` | `text-info`, `bg-info` |
+
+**Usage rule for error tokens**:
+- `text-error` — error text or icons on a dark surface. This token is bright enough to read on dark backgrounds. Do NOT use with `bg-white`.
+- `bg-error-bg text-white` — destructive button background with white label. This token is dark enough for white text on top. Do NOT substitute `bg-error` here — `semantic.error` is too bright to pass white contrast in dark themes.
+
+In light themes (chalk, linen), `semantic.error` and `semantic.error-bg` are the same value — the dark crimson already satisfies both constraints.
 
 ---
 
@@ -216,7 +223,8 @@ module.exports = {
         // Semantic
         'success':         'var(--semantic-success)',
         'warning':         'var(--semantic-warning)',
-        'error':           'var(--semantic-error)',
+        'error':           'var(--semantic-error)',      // text use: bright, reads on dark surfaces
+        'error-bg':        'var(--semantic-error-bg)',  // bg use: dark, white text on top
         'info':            'var(--semantic-info)',
       },
       borderRadius: {
@@ -282,10 +290,11 @@ function applyTheme(theme: ThemeTokens): void {
   root.style.setProperty('--interactive-focus',  theme.interactive.focusRing);
 
   // Semantic
-  root.style.setProperty('--semantic-success', theme.semantic.success);
-  root.style.setProperty('--semantic-warning', theme.semantic.warning);
-  root.style.setProperty('--semantic-error',   theme.semantic.error);
-  root.style.setProperty('--semantic-info',    theme.semantic.info);
+  root.style.setProperty('--semantic-success',   theme.semantic.success);
+  root.style.setProperty('--semantic-warning',   theme.semantic.warning);
+  root.style.setProperty('--semantic-error',     theme.semantic.error);
+  root.style.setProperty('--semantic-error-bg',  theme.semantic['error-bg']);
+  root.style.setProperty('--semantic-info',      theme.semantic.info);
 
   // Radius (fixed — same in all themes, but set from token for consistency)
   root.style.setProperty('--radius-sm',   theme.radius.sm);

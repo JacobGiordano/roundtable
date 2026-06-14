@@ -44,7 +44,8 @@ Every field listed here is **required** in every theme file. No optional fields.
   "semantic": {
     "success": "hex — success states (API key valid, connection established)",
     "warning": "hex — warning states (rate limit, degraded)",
-    "error": "hex — error states (API failure, invalid key)",
+    "error": "hex — error foreground color: error text and icons on dark surfaces",
+    "error-bg": "hex — error background color: destructive button backgrounds with white text on top",
     "info": "hex — informational states (streaming, loading)"
   },
   "radius": {
@@ -136,8 +137,14 @@ These colors are **load-bearing** — they are the primary mechanism by which us
 |-------|---------|
 | `semantic.success` | Positive confirmation — key valid, model connected. |
 | `semantic.warning` | Degraded but functional — rate limited, slow response. |
-| `semantic.error` | Failure — API error, invalid key, model unavailable. |
+| `semantic.error` | Failure foreground — error text and icons displayed on dark surfaces and hover backgrounds. Must pass 4.5:1 against `interactive.hover` and all theme surfaces. |
+| `semantic.error-bg` | Destructive button background — used for button and control backgrounds where white text appears on top. Must pass 4.5:1 against white (`#FFFFFF`). In dark themes, this is a darker red than `semantic.error`. In light themes, `error-bg` equals `error` (the same dark red already passes white). |
 | `semantic.info` | Neutral informational — streaming in progress, loading. |
+
+**Critical usage rule**: These two tokens have incompatible luminance requirements and MUST NOT be used interchangeably:
+- `bg-error-bg text-white` — destructive button pattern (error-bg is dark enough for white text)
+- `text-error` — error text on a dark surface or hover state (error is bright enough to read on dark)
+- `bg-error text-white` — INVALID. semantic.error is not dark enough for white text in dark themes. Use `bg-error-bg text-white` instead.
 
 ### radius
 
@@ -193,6 +200,7 @@ Fixed values — do not vary per theme. All animations reference these tokens by
 
 A theme file is valid if:
 1. All top-level keys are present: `name`, `mode`, `surfaces`, `text`, `borders`, `accents`, `interactive`, `semantic`, `radius`, `spacing`, `shadow`, `timing`
+   - `semantic` must contain: `success`, `warning`, `error`, `error-bg`, `info`
 2. All nested keys within each category are present (no missing fields)
 3. `mode` is exactly `"dark"` or `"light"`
 4. All color values are valid 6-digit hex strings beginning with `#`

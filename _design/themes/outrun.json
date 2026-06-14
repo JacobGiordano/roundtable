@@ -35,7 +35,8 @@
   "semantic": {
     "success": "#3DDB96",
     "warning": "#FFE259",
-    "error": "#FF4040",
+    "error": "#FF5050",
+    "error-bg": "#CC2C2C",
     "info": "#CD44FF"
   },
   "radius": {
@@ -255,14 +256,19 @@
       "wcag": "AA — all surfaces pass."
     },
     "semantic.error": {
-      "color": "#FF4040",
+      "color": "#FF5050",
+      "fix": "#119/#120 — split token. error brightened #FF4040 → #FF5050 for text-on-dark use; error-bg added #CC2C2C for bg-error button surfaces (white text on top). Pure neon red family — vivid, maximalist, coherent with Outrun's palette.",
       "ratios": {
-        "on-sidebar-#0E1220": "5.38:1 PASS",
-        "on-background-#16141D": "5.26:1 PASS",
-        "on-card-#12203A": "4.68:1 PASS",
-        "on-input-#221E34": "4.65:1 PASS"
+        "error-on-hover-#1C2840": "4.57:1 PASS",
+        "error-on-card-#12203A": "5.04:1 PASS",
+        "error-on-background-#16141D": "5.66:1 PASS",
+        "error-on-sidebar-#0E1220": "5.79:1 PASS"
       },
-      "wcag": "AA — all surfaces pass."
+      "error-bg-ratios": {
+        "white-on-error-bg-#CC2C2C": "5.30:1 PASS"
+      },
+      "wcag": "AA — semantic.error passes 4.5:1 as text on all surfaces including hover. semantic.error-bg passes 4.5:1 white text on top.",
+      "note": "error-bg #CC2C2C is a dark vivid red — retains the pure-red Outrun character without orange or warm tones, just darkened to pass white text. Consistent with Outrun's pure-hue neon approach."
     },
     "semantic.info": {
       "color": "#CD44FF",
