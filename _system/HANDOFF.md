@@ -1,30 +1,30 @@
-Last updated: 2026-06-13 (ship #102 #103)
+Last updated: 2026-06-14 (ship #104 #105)
 
 ## Current phase
 
-Phase 4+ — Custom provider infrastructure complete. Roster live-sync and per-provider credential management shipped.
+Phase 4+ — Custom provider infrastructure complete. Test coverage for Phase 4 complete.
 
 ## Session summary
 
-- Aria: closed #102 — `rosterToModelConfigs` extracted as module-level pure function in `App.tsx`. `handleRosterChange` now calls `setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev))` alongside `setRosterVersion`. Adding or removing a provider from the panel immediately updates the model selector pills without a reload. Existing providers retain their runtime state (`isActive`, `systemPrompt`, `selectedVersionId`).
-- Aria: closed #103 — Per-provider credential management in `ProviderSettingsPanel`. Each provider row now shows "Edit" (when key is set) or "Set key" (when no key) affordances. Clicking expands an inline editor below the row: password input with show/hide toggle, Save, Remove key (only shown when a key is currently stored), Cancel. Badge refreshes immediately after save/clear via local `setBadgeState`. Enter submits, Escape cancels. Keyless endpoints ("No key required") show no affordance.
+- Scout: closed #104 — `rosterToModelConfigs` unit tests (24 tests). Added `export` to the function in `App.tsx` for testability. Covers: empty roster, built-in/custom provider mapping, `prevModels` state preservation, output ordering.
+- Scout: closed #105 — Phase 4 E2E Playwright tests (11 tests). Covers: credential editor Set/Edit/Remove/Escape/save-disabled flows, keyless provider guard, roster reactivity (add+remove round-trip in model selector), layout overflow check.
 
 ## Open issues
 
-None. All Phase 4 work is complete.
+- #106 [Aria] — Model selector trigger hidden when roster is empty; smoke tests fail. Two fix options: always render trigger (Aria), or seed localStorage in smoke beforeEach (Scout).
+- #107 [Aria] — Settings button selector ambiguous; two elements match `aria-controls="sidebar-settings-panel"`. Three fix options documented in issue.
 
 ## What's next
 
-Candidates for the next session:
-- Tests — `rosterToModelConfigs` is a pure function worth unit-testing (Scout); credential editor state transitions are good candidates for component tests (Scout or Ada)
-- Roster reactivity gap: `models` now re-derives on panel close, but NOT in real time while the panel is open. If the user adds a provider and immediately closes without the pill appearing, the pill appears on the next close. This is acceptable for now — the close trigger is the designed sync point.
-- Verify/manual testing pass — none of the Phase 4 UI has been manually verified in the browser. Worth a dev-server review session.
+- #106 and #107 are Aria issues (or optionally Scout selector fixes). Aria should read both issues and decide fix approach before implementing.
+- Smoke test suite has 3 pre-existing failures tied to #106 and #107 — will resolve once those are closed.
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
 - Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run
-- `models` re-derives on panel CLOSE only (the `onRosterChange` callback fires in `handleCloseProviderSettings` in AppLayout). Mid-panel mutations are not reflected until close — by design.
-- `addCustomProvider()` returns config with generated `credentialKey` — `saveCredentials(newConfig.credentialKey, apiKeyValue)` is called separately (non-atomic). If the credential save fails, the roster entry exists but has no stored key.
+- `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
+- `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic; if it fails, roster entry exists but has no key
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
-- Single-PR rule on types/index.ts — no concurrent Arch PRs
+- E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel to remount the row
+- E2E: "Remove" confirmation dialog is guarded by `isLast` — removal tests need 2+ providers in the roster
