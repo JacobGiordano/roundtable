@@ -63,6 +63,8 @@ interface ThemeTokens {
   accentDeepseek: string;
   accentMistral: string;
   error: string;
+  errorBg: string;
+  hover: string;
   focusRing: string;
 }
 
@@ -72,49 +74,56 @@ const THEMES: Record<string, ThemeTokens> = {
     textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#7C84A2' /* #58 fix */,
     accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#AF5FF8' /* #60 fix */,
     accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#5A82E1' /* #60 fix */,
-    accentMistral: '#E0568A', error: '#F04A4A' /* #59 fix */, focusRing: '#F59E0B',
+    accentMistral: '#E0568A', error: '#FF5252' /* #119/#120 fix */, errorBg: '#C53030' /* #119 fix */,
+    hover: '#242838', focusRing: '#F59E0B',
   },
   linen: {
     bg: '#F5F0E8', card: '#FDFAF5', sidebar: '#EDE8DF', input: '#F9F5EE',
     textPrimary: '#1C1A16', textSecondary: '#4A4640', textMuted: '#6D6863' /* #58 fix */,
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#7E22CE',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
-    accentMistral: '#A8285E', error: '#B91C1C', focusRing: '#B45309',
+    accentMistral: '#A8285E', error: '#B91C1C', errorBg: '#B91C1C' /* same value, light theme */,
+    hover: '#EDE6DA', focusRing: '#B45309',
   },
   midnight: {
     bg: '#060B18', card: '#0D1525', sidebar: '#080D1E', input: '#111A2E',
     textPrimary: '#F0F4FF', textSecondary: '#94A3C8', textMuted: '#6B82A5',
     accentClaude: '#FBB034', accentGpt: '#00CDB8', accentGemini: '#B06EFF',
     accentOther: '#FF7A52', accentGrok: '#38B6F0', accentDeepseek: '#4A7FE8',
-    accentMistral: '#F05090', error: '#F87171', focusRing: '#00CDB8',
+    accentMistral: '#F05090', error: '#F87171', errorBg: '#B82828' /* #119 fix */,
+    hover: '#121D30', focusRing: '#00CDB8',
   },
   ash: {
     bg: '#181A1C', card: '#22252A', sidebar: '#1B1D20', input: '#272B31',
     textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#838D96' /* #58 fix */,
     accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#A278E1' /* #60 fix */,
     accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#648ADC' /* #60 fix */,
-    accentMistral: '#DC6294' /* #60 fix */, error: '#EA6060' /* #59 fix */, focusRing: '#3DB8A8',
+    accentMistral: '#DC6294' /* #60 fix */, error: '#FF6060' /* #119/#120 fix */, errorBg: '#C03030' /* #119 fix */,
+    hover: '#2A2E33', focusRing: '#3DB8A8',
   },
   ember: {
     bg: '#110D09', card: '#1D1712', sidebar: '#140F0A', input: '#231B14',
     textPrimary: '#EDE5D8', textSecondary: '#B09070', textMuted: '#987C6A' /* #58 fix */,
     accentClaude: '#F5A623', accentGpt: '#2DB8A8', accentGemini: '#C080F0',
     accentOther: '#E06840', accentGrok: '#56AEE0', accentDeepseek: '#5080D0',
-    accentMistral: '#D85C90', error: '#E05050', focusRing: '#F5A623',
+    accentMistral: '#D85C90', error: '#FF5555' /* #119/#120 fix */, errorBg: '#C83428' /* #119 fix */,
+    hover: '#26201A', focusRing: '#F5A623',
   },
   chalk: {
     bg: '#F8F8F8', card: '#FFFFFF', sidebar: '#F0F0F0', input: '#FFFFFF',
     textPrimary: '#111111', textSecondary: '#404040', textMuted: '#6D6D6D' /* #58 fix */,
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#6D28D9',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
-    accentMistral: '#A8285E', error: '#991B1B', focusRing: '#6D28D9',
+    accentMistral: '#A8285E', error: '#991B1B', errorBg: '#991B1B' /* same value, light theme */,
+    hover: '#F0F0F0', focusRing: '#6D28D9',
   },
   outrun: {
     bg: '#16141D', card: '#12203A', sidebar: '#0E1220', input: '#221E34',
     textPrimary: '#EEEAF8', textSecondary: '#3DC8FF', textMuted: '#6BBFB8',
     accentClaude: '#FFE600', accentGpt: '#2EE4B9', accentGemini: '#D060FF' /* #60 fix */,
     accentOther: '#FF8D77', accentGrok: '#C0CFFF', accentDeepseek: '#7AA0FF' /* #60 fix */,
-    accentMistral: '#FF6090', error: '#FF4040', focusRing: '#2EE4B9',
+    accentMistral: '#FF6090', error: '#FF5050' /* #119/#120 fix */, errorBg: '#CC2C2C' /* #119 fix */,
+    hover: '#1C2840', focusRing: '#2EE4B9',
   },
 };
 
@@ -230,13 +239,18 @@ describe('theme contrast — text-muted on sidebar surface (4.5:1)', () => {
   });
 });
 
-// ─── Error text — all pass after #59 fixes ────────────────────────────────────
+// ─── Error text — all pass after #59 and #119/#120 fixes ─────────────────────
 // Pre-#59 failures (against card surface):
 //   slate: FAIL (4.47:1) — #EF4444 → #F04A4A fixed in #59
 //   ash:   FAIL (4.10:1) — #E05555 → #EA6060 fixed in #59
+//
+// Pre-#120 failures (error text on interactive.hover):
+//   slate, ash, ember, outrun: FAIL — error brightened in #119/#120:
+//     slate: #F04A4A → #FF5252; ash: #EA6060 → #FF6060
+//     ember: #E05050 → #FF5555; outrun: #FF4040 → #FF5050
 
 describe('theme contrast — error text on card (WCAG 2.1 AA, 4.5:1)', () => {
-  it('slate: PASS (fixed #59)', () => {
+  it('slate: PASS (fixed #59, #119/#120)', () => {
     expect(contrastRatio(THEMES.slate.error, THEMES.slate.card)).toBeGreaterThanOrEqual(4.5);
   });
   it('linen: PASS', () => {
@@ -379,4 +393,39 @@ describe('theme contrast — accent colors as text on card (4.5:1)', () => {
   it('outrun: accent-mistral PASS', () => {
     expect(contrastRatio(THEMES.outrun.accentMistral, THEMES.outrun.card)).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+// ─── Delete button: white text on error-bg (#119 fix) ────────────────────────
+// The confirm-delete button in ThreadActionMenu and BulkActionBar uses
+// `bg-error-bg text-white`. semantic.error-bg is the darker, AA-safe variant
+// of the error color — sufficient contrast for white foreground text (4.5:1).
+//
+// All 7 themes verified at audit time (#119/#120):
+//   slate: 5.47:1 | midnight: 6.23:1 | ash: 5.67:1 | chalk: 8.31:1
+//   linen: 6.47:1 | ember: 5.28:1 | outrun: 5.30:1
+
+describe('theme contrast — white text on error-bg delete button (WCAG 2.1 AA, 4.5:1)', () => {
+  const WHITE = '#FFFFFF';
+  for (const [name, t] of Object.entries(THEMES)) {
+    it(`${name}: PASS (fixed #119)`, () => {
+      expect(contrastRatio(WHITE, t.errorBg)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});
+
+// ─── Error text on interactive.hover (#120 fix) ───────────────────────────────
+// `text-error` appears on hover rows in the context menu confirm-delete state.
+// interactive.hover is the hovered sidebar row background. The #120 fix
+// brightened semantic.error in the 4 dark themes where it previously failed.
+//
+// All 7 themes verified at audit time (#119/#120):
+//   slate: 4.58:1 | midnight: 6.10:1 | ash: 4.62:1 | chalk: 7.29:1
+//   linen: 5.22:1 | ember: 5.12:1 | outrun: 4.57:1
+
+describe('theme contrast — error text on interactive.hover (WCAG 2.1 AA, 4.5:1)', () => {
+  for (const [name, t] of Object.entries(THEMES)) {
+    it(`${name}: PASS (fixed #120)`, () => {
+      expect(contrastRatio(t.error, t.hover)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 });
