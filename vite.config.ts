@@ -20,6 +20,8 @@ export default defineConfig({
     setupFiles: [],
     // Exclude Playwright e2e specs and backend tests — backend has its own
     // vitest config and node_modules; running them here fails module resolution.
-    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/backend/**'],
+    // Also exclude agent worktrees — stale path references in the transform cache
+    // cause loadAndTransform noise after `git worktree remove` (#123).
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/backend/**', '**/.claude/worktrees/**'],
   },
 });
