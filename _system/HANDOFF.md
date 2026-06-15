@@ -1,4 +1,4 @@
-Last updated: 2026-06-15 (ship #119 #120 #121 #122)
+Last updated: 2026-06-15 (ship #124)
 
 ## Current phase
 
@@ -6,20 +6,15 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 
 ## Session summary
 
-- Ada: #121 — contrast.test.ts outrun tokens corrected (15/16 were stale, not just `card`)
-- Luma: #119/#120 — semantic.error split into error (foreground) + error-bg (button bg)
-- Arch: added `'error-bg': string` to `CustomThemeJSON.semantic` in types/index.ts
-- Aria: #119/#120 — wired --semantic-error-bg in theme.ts + tailwind.config.js; bg-error → bg-error-bg on both delete buttons
-- Ada: audited Aria's changes; 14 new contrast tests added (7 per issue, all 7 themes)
-- Ada: fixed pre-existing isEnabled → isVisible breakage in provider-settings-panel.test.tsx
-- #122 — Luma tailwind-mapping.md doc gap; already complete, closed immediately
-- #123 — Scout: exclude .claude/worktrees/ from Vitest glob (filed, not started)
+- #124 (Vault): auto-select most recent non-archived conversation on boot
+  - Root cause: `activeConversationId` started as `null` and was never auto-set after `listConversations()` resolved; mode switcher silently no-opped on all clicks
+  - Fix: functional-updater `setActiveConversationId` in the initial load effect; skips archived, no-ops on empty list, preserves any pre-set value
+  - 7 new tests in `useConversationStore.test.ts`; 778 passing, lint + build clean
 
-## Key decision
+## Key decisions
 
-`semantic.error` and `semantic.error-bg` are intentionally split. `semantic.error` is a bright
-foreground text color. `semantic.error-bg` is the dark-red variant for button backgrounds with
-white text. NEVER use `bg-error text-white` — use `bg-error-bg text-white` for destructive buttons.
+- `semantic.error` and `semantic.error-bg` are intentionally split. `semantic.error` is a bright foreground text color; `semantic.error-bg` is the dark-red variant for button backgrounds with white text. NEVER use `bg-error text-white` — use `bg-error-bg text-white` for destructive buttons.
+- Co-located unit tests in domain directories (`/src/storage/*.test.ts`) are established practice and consistent with the existing `LocalStorageProvider.test.ts` / `ServerStorageProvider.test.ts` pattern.
 
 ## Open issues
 
