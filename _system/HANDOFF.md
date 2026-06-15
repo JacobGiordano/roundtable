@@ -1,4 +1,4 @@
-Last updated: 2026-06-15 (ship #124)
+Last updated: 2026-06-15 (ship #123)
 
 ## Current phase
 
@@ -6,10 +6,10 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 
 ## Session summary
 
-- #124 (Vault): auto-select most recent non-archived conversation on boot
-  - Root cause: `activeConversationId` started as `null` and was never auto-set after `listConversations()` resolved; mode switcher silently no-opped on all clicks
-  - Fix: functional-updater `setActiveConversationId` in the initial load effect; skips archived, no-ops on empty list, preserves any pre-set value
-  - 7 new tests in `useConversationStore.test.ts`; 778 passing, lint + build clean
+- #123 (Scout): exclude `.claude/worktrees/` from Vitest glob
+  - Added `'**/.claude/worktrees/**'` to the `exclude` array in `vite.config.ts`
+  - Eliminates `loadAndTransform` noise from stale worktree transform cache entries
+  - 778 tests passing, lint + build clean
 
 ## Key decisions
 
@@ -18,16 +18,16 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 
 ## Open issues
 
-- #123 [Scout] — Exclude .claude/worktrees/ from Vitest glob (advisory, no correctness impact)
+None.
 
 ## What's next
 
-- #123 (Scout): add exclude pattern to vitest config — small, self-contained
+No open issues — queue is clear. Await new issue from user.
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
-- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run; also clears stale path references that cause loadAndTransform noise
+- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run; also clears stale path references that cause loadAndTransform noise (fixed by #123)
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic; if it fails, roster entry exists but has no key
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
