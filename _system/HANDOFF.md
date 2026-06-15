@@ -1,4 +1,4 @@
-Last updated: 2026-06-14 (ship #113 #114 #117 #118)
+Last updated: 2026-06-15 (ship #119 #120 #121 #122)
 
 ## Current phase
 
@@ -6,29 +6,33 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process now acti
 
 ## Session summary
 
-- Aria: #113 — context menu Delete contrast fixed (`text-semantic-error` → `text-error`, all 7 themes pass 4.5:1)
-- Aria: #114 — context menu z-index/hover bleed fixed (full-viewport z-30 backdrop, menu at z-40)
-- Aria: #113/#114 inline blocker — focus drops to Cancel on confirm-delete open (WCAG 2.4.3, matched #115 pattern)
-- Aria: #117 — backdrop opacity fade now suppresses under `prefers-reduced-motion`
-- Aria: #118 — settings shortcut aria-label updated to communicate cross-panel navigation side-effect
-- Ada: updated provider-settings-panel.test.tsx selectors after #118 aria-label change
-- Ada: committed provider-settings-panel.test.tsx and issues-108-112.md (were untracked since prior session)
+- Ada: #121 — contrast.test.ts outrun tokens corrected (15/16 were stale, not just `card`)
+- Luma: #119/#120 — semantic.error split into error (foreground) + error-bg (button bg)
+- Arch: added `'error-bg': string` to `CustomThemeJSON.semantic` in types/index.ts
+- Aria: #119/#120 — wired --semantic-error-bg in theme.ts + tailwind.config.js; bg-error → bg-error-bg on both delete buttons
+- Ada: audited Aria's changes; 14 new contrast tests added (7 per issue, all 7 themes)
+- Ada: fixed pre-existing isEnabled → isVisible breakage in provider-settings-panel.test.tsx
+- #122 — Luma tailwind-mapping.md doc gap; already complete, closed immediately
+- #123 — Scout: exclude .claude/worktrees/ from Vitest glob (filed, not started)
+
+## Key decision
+
+`semantic.error` and `semantic.error-bg` are intentionally split. `semantic.error` is a bright
+foreground text color. `semantic.error-bg` is the dark-red variant for button backgrounds with
+white text. NEVER use `bg-error text-white` — use `bg-error-bg text-white` for destructive buttons.
 
 ## Open issues
 
-- #119 [Aria/Luma] — `text-white bg-error` fails WCAG AA in 5 dark themes (advisory)
-- #120 [Aria/Luma] — `text-error on interactive.hover` fails WCAG AA in 4 dark themes (advisory)
-- #121 [Ada] — Stale outrun surface tokens in `contrast.test.ts` (advisory)
+- #123 [Scout] — Exclude .claude/worktrees/ from Vitest glob (advisory, no correctness impact)
 
 ## What's next
 
-- #121 (Ada): quick token update in contrast.test.ts — good warm-up for the next session
-- #119 + #120 (Luma + Aria): semantic error token contrast in dark themes — will need Luma to audit/adjust token values, then Aria to consume; coordinate via Arch if types change
+- #123 (Scout): add exclude pattern to vitest config — small, self-contained
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
-- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run
+- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run; also clears stale path references that cause loadAndTransform noise
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic; if it fails, roster entry exists but has no key
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
