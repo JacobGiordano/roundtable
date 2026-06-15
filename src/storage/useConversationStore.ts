@@ -177,6 +177,22 @@ export function useConversationStore(injectedProvider?: StorageProvider): UseCon
       .then((loaded) => {
         if (!cancelled) {
           setConversations(loaded);
+
+          // Auto-select the most recent non-archived conversation on initial
+          // load — but only if no conversation is already active (i.e.
+          // activeConversationId is still null). This unblocks the mode
+          // switcher and any other UI that depends on getActiveConversation()
+          // returning a value on boot.
+          //
+          // listConversations() is sorted newest-first by updatedAt, so
+          // loaded[0] is already the best candidate.
+          setActiveConversationId((currentId) => {
+            if (currentId !== null) return currentId; // already set — don't override
+            if (loaded.length === 0) return null;     // nothing to select
+            const first = loaded.find((c) => !c.archivedAt);
+            return first ? first.id : null;
+          });
+
           setIsLoading(false);
         }
       })
