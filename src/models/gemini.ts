@@ -22,6 +22,7 @@ import type {
   ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { MAX_TOKENS_GEMINI } from './constants';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ function buildGeminiRequest(
   const request: Record<string, unknown> = {
     contents,
     generationConfig: {
-      maxOutputTokens: 8192,
+      maxOutputTokens: MAX_TOKENS_GEMINI,
     },
   };
 

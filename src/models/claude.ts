@@ -22,6 +22,7 @@ import type {
   ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { MAX_TOKENS_CLAUDE } from './constants';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -41,7 +42,6 @@ const ANTHROPIC_API_VERSION = '2023-06-01';
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Claude.
  */
 const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 8096;
 
 // ─── SSE event types emitted by the Anthropic streaming API ──────────────────
 
@@ -119,7 +119,7 @@ export class ClaudeModelProvider implements ModelProvider {
 
     const requestBody: Record<string, unknown> = {
       model: modelString,
-      max_tokens: MAX_TOKENS,
+      max_tokens: MAX_TOKENS_CLAUDE,
       stream: true,
       messages: anthropicMessages,
     };

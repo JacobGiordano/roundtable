@@ -26,6 +26,7 @@ import type {
   ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { MAX_TOKENS_MISTRAL } from './constants';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -44,7 +45,6 @@ const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Mistral.
  */
 const MISTRAL_DEFAULT_MODEL = 'mistral-large-latest';
-const MAX_TOKENS = 8096;
 
 // ─── SSE event types — Mistral uses the same format as OpenAI ─────────────────
 
@@ -132,7 +132,7 @@ export class MistralModelProvider implements ModelProvider {
 
     const requestBody = {
       model: modelString,
-      max_tokens: MAX_TOKENS,
+      max_tokens: MAX_TOKENS_MISTRAL,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)
       stream_options: { include_usage: true },

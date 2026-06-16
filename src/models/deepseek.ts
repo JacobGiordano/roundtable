@@ -26,6 +26,7 @@ import type {
   ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { MAX_TOKENS_DEEPSEEK } from './constants';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -44,7 +45,6 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for DeepSeek.
  */
 const DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat';
-const MAX_TOKENS = 8096;
 
 // ─── SSE event types — DeepSeek uses the same format as OpenAI ────────────────
 
@@ -132,7 +132,7 @@ export class DeepSeekModelProvider implements ModelProvider {
 
     const requestBody = {
       model: modelString,
-      max_tokens: MAX_TOKENS,
+      max_tokens: MAX_TOKENS_DEEPSEEK,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)
       stream_options: { include_usage: true },

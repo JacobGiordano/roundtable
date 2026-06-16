@@ -26,6 +26,7 @@ import type {
   ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { MAX_TOKENS_GROK } from './constants';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -44,7 +45,6 @@ const XAI_API_URL = 'https://api.x.ai/v1/chat/completions';
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Grok.
  */
 const XAI_DEFAULT_MODEL = 'grok-3';
-const MAX_TOKENS = 8096;
 
 // ─── SSE event types — xAI uses the same format as OpenAI ─────────────────────
 
@@ -132,7 +132,7 @@ export class GrokModelProvider implements ModelProvider {
 
     const requestBody = {
       model: modelString,
-      max_tokens: MAX_TOKENS,
+      max_tokens: MAX_TOKENS_GROK,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)
       stream_options: { include_usage: true },

@@ -15,8 +15,8 @@
  *   - The API key is only transmitted to the endpoint URL supplied by the user's config
  *
  * Phase extension note: per-model token limits could be made configurable
- * via CustomProviderConfig in a future phase. For now MAX_TOKENS matches the
- * built-in providers.
+ * via CustomProviderConfig in a future phase. For now MAX_TOKENS_GENERIC is used
+ * as a conservative default (see /src/models/constants.ts).
  */
 
 import type {
@@ -31,10 +31,7 @@ import type {
   CustomProviderConfig,
 } from '@/types';
 import { getCredentials } from '@/auth';
-
-// ─── OpenAI-compatible API constants ─────────────────────────────────────────
-
-const MAX_TOKENS = 8096;
+import { MAX_TOKENS_GENERIC } from './constants';
 
 // ─── SSE event types emitted by the OpenAI-compatible streaming API ───────────
 
@@ -148,7 +145,7 @@ export class GenericOpenAIProvider implements ModelProvider {
 
     const requestBody = {
       model: resolvedModelString,
-      max_tokens: MAX_TOKENS,
+      max_tokens: MAX_TOKENS_GENERIC,
       stream: true,
       // Request token usage in the final stream chunk.
       // Not all OpenAI-compatible endpoints honour this option — if the field is
