@@ -1,14 +1,24 @@
 # .github/workflows/ci.yml
 #
 # Runs on every push to main and every pull request targeting main.
-# Jobs: lint → build + test + backend-lint-build (parallel after lint passes).
-# All four jobs must pass — lint is the gate; the rest run in parallel.
+# Jobs: lint → build + test + backend-lint-build (parallel after lint passes)
+#               → e2e (after build and test both pass).
 #
 # Note: uses `npm run test:run` (vitest run) rather than `npm test` (vitest watch)
 # because the watch-mode process does not exit and would hang the runner.
 #
+# E2E notes:
+#   - playwright.config.ts intentionally does NOT configure webServer; CI must
+#     start the preview server before running tests.
+#   - `npx vite preview --port 5173` is used (not `npm run preview`) so the
+#     server binds to port 5173 to match playwright.config.ts's hardcoded
+#     baseURL (http://localhost:5173). The default preview port is 4173.
+#   - Only Chromium is installed (matches playwright.config.ts projects array).
+#   - Artifacts (screenshots, traces, HTML report) are uploaded on failure only
+#     to keep successful run storage lean.
+#
 # Secrets required: none — all steps use public actions and project scripts.
-# Expected runtime: ~2–3 min on a warm npm cache.
+# Expected runtime: ~4–5 min on a warm npm cache.
 
 name: CI
 
@@ -71,3 +81,58 @@ jobs:
       - run: cd backend && npm ci
       - run: cd backend && npm run lint
       - run: cd backend && npm run build
+
+  e2e:
+    name: E2E smoke tests
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      # Start vite preview on port 5173 to match playwright.config.ts baseURL.
+      # The default preview port is 4173; --port overrides it without touching
+      # any project files.
+      - name: Start preview server
+        run: npx vite preview --port 5173 &
+
+      # Poll until the server is accepting connections (up to 30 s).
+      - name: Wait for preview server
+        run: |
+          echo "Waiting for http://localhost:5173 ..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173 > /dev/null 2>&1; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not start within 30 seconds" >&2
+          exit 1
+
+      - name: Run Playwright E2E smoke tests
+        run: npm run test:e2e
+
+      # Upload artifacts on failure so failures are diagnosable without a local repro.
+      - name: Upload Playwright report and artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
