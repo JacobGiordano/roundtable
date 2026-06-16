@@ -2,7 +2,7 @@
 
 **Owner:** Luma  
 **Status:** Complete — no TBDs  
-**Last updated:** 2026-06-08
+**Last updated:** 2026-06-16
 
 This document captures the finalized design decisions for Roundtable. It is the north-star reference for any agent doing visual work. Every value here is a decision, not a suggestion.
 
@@ -28,20 +28,32 @@ Each model has a fixed color family. The exact hex shifts slightly per theme to 
 | GPT (OpenAI) | Teal / cyan-green | Cool, technical |
 | Gemini (Google) | Purple / violet | Rich, distinctive |
 | Other / unknown | Coral / salmon | Warm-neutral fallback |
+| Grok (xAI) | Sky / electric blue (~210°) | Cold, precise, technical |
+| DeepSeek | Cobalt / royal blue (~230–235°) | Dense, authoritative, deeper than Grok |
+| Mistral | Rose / hot pink (~340–350°) | Strong, saturated, French-lab resonance |
+
+Hue selection: all three wave-2 accents occupy hue ranges unoccupied by the original four families, with minimum 25° separation from every neighboring family. Grok and DeepSeek are perceptually distinct despite both being blue — Grok is sky/cyan-leaning, DeepSeek is cobalt/indigo-leaning, with clear lightness and saturation differentiation. Full rationale in `/_design/specs/model-accent-colors-wave2.md`.
 
 ### Accent values per theme
 
-| Theme | Mode | Claude (amber) | GPT (teal) | Gemini (purple) | Other (coral) |
-|-------|------|----------------|------------|-----------------|---------------|
-| Slate | dark | `#F59E0B` | `#14B8A6` | `#A855F7` | `#F97316` |
-| Midnight | dark | `#FBB034` | `#00CDB8` | `#B06EFF` | `#FF7A52` |
-| Ash | dark | `#E8943A` | `#3DB8A8` | `#9B72DB` | `#E07060` |
-| Ember | dark | `#F5A623` | `#2DB8A8` | `#C080F0` | `#E06840` |
-| Outrun | dark | `#FFE600` | `#00FFFF` | `#BF00FF` | `#FF00AA` |
-| Linen | light | `#B45309` | `#0F766E` | `#7E22CE` | `#C2410C` |
-| Chalk | light | `#B45309` | `#0F766E` | `#6D28D9` | `#C2410C` |
+The table below reflects WCAG-audited values as committed in the theme files. Some values differ from the initial wave-2 spec (`model-accent-colors-wave2.md`) due to contrast adjustments made during accessibility audits.
 
-Dark themes use brighter, more saturated hues that read against dark surfaces. Light themes use deeper, more saturated hues for contrast against light surfaces. The perceptual family — amber, teal, purple, coral — is preserved in all cases.
+| Theme | Mode | Claude (amber) | GPT (teal) | Gemini (purple) | Other (coral) | Grok (sky blue) | DeepSeek (cobalt) | Mistral (rose) |
+|-------|------|----------------|------------|-----------------|---------------|-----------------|-------------------|----------------|
+| Slate | dark | `#F59E0B` | `#14B8A6` | `#AF5FF8` | `#F97316` | `#38B2D8` | `#5A82E1` | `#E0568A` |
+| Midnight | dark | `#FBB034` | `#00CDB8` | `#B06EFF` | `#FF7A52` | `#38B6F0` | `#4A7FE8` | `#F05090` |
+| Ash | dark | `#E8943A` | `#3DB8A8` | `#A278E1` | `#E07060` | `#4DA8D8` | `#648ADC` | `#DC6294` |
+| Ember | dark | `#F5A623` | `#2DB8A8` | `#C080F0` | `#E06840` | `#56AEE0` | `#5080D0` | `#D85C90` |
+| Outrun | dark | `#FFE600` | `#2EE4B9` | `#D060FF` | `#FF8D77` | `#C0CFFF` | `#7AA0FF` | `#FF6090` |
+| Linen | light | `#B45309` | `#0F766E` | `#7E22CE` | `#C2410C` | `#1A6FA8` | `#1E4FA0` | `#A8285E` |
+| Chalk | light | `#B45309` | `#0F766E` | `#6D28D9` | `#C2410C` | `#1A6FA8` | `#1E4FA0` | `#A8285E` |
+
+Dark themes use brighter, more saturated hues that read against dark surfaces. Light themes use deeper, more saturated hues for contrast against light surfaces. The perceptual family is preserved in all cases.
+
+**Contrast notes** (see `/_design/specs/model-accent-colors-wave2.md` for full audit):
+- DeepSeek in Slate (`#5A82E1`) and Ash (`#648ADC`) were lightened from initial spec values to clear WCAG AA 4.5:1 on card surfaces.
+- Outrun uses unique values for all wave-2 accents: Grok is pale electric lavender-blue (`#C0CFFF`), DeepSeek is periwinkle-blue (`#7AA0FF`), Mistral is neon pink (`#FF6090`) — consistent with Outrun's maximalist palette and all pass WCAG AA for UI components (3:1).
+- DeepSeek on Outrun (`#7AA0FF`) passes 3:1 (UI component) but not 4.5:1 for normal text — documented trade-off per Outrun's design brief. Pill labels should be bold at minimum 14px in this theme.
 
 ---
 

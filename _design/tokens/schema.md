@@ -34,7 +34,10 @@ Every field listed here is **required** in every theme file. No optional fields.
     "model-claude": "hex — Claude identity color (amber family)",
     "model-gpt": "hex — GPT identity color (teal family)",
     "model-gemini": "hex — Gemini identity color (purple family)",
-    "model-other": "hex — any other/unknown model identity color (coral family)"
+    "model-other": "hex — any other/unknown model identity color (coral family)",
+    "model-grok": "hex — Grok (xAI) identity color (sky/electric blue family, ~210°)",
+    "model-deepseek": "hex — DeepSeek identity color (cobalt/royal blue family, ~230–235°)",
+    "model-mistral": "hex — Mistral identity color (rose/hot pink family, ~340–350°)"
   },
   "interactive": {
     "hover": "hex — background tint on hover states (buttons, list items)",
@@ -122,6 +125,9 @@ These colors are **load-bearing** — they are the primary mechanism by which us
 | `accents.model-gpt` | GPT (OpenAI) | Teal/cyan-green | Cool, techy. |
 | `accents.model-gemini` | Gemini (Google) | Purple/violet | Rich, distinctive. |
 | `accents.model-other` | Any other model | Coral/salmon | Warm-neutral fallback. |
+| `accents.model-grok` | Grok (xAI) | Sky/electric blue (~210°) | Cold, precise, machine-like. Hue ~30° from teal (model-gpt) — distinctly bluer, less green. |
+| `accents.model-deepseek` | DeepSeek | Cobalt/royal blue (~230–235°) | Deeper and more indigo-leaning than Grok. Perceptually distinct: Grok reads "electric cyan-blue," DeepSeek reads "deep cobalt." |
+| `accents.model-mistral` | Mistral | Rose/hot pink (~340–350°) | Strong, saturated. ~75° from orange-red (model-other), ~55° from purple (model-gemini). Culturally resonant with Mistral as a French AI lab. |
 
 ### interactive
 
@@ -201,6 +207,7 @@ Fixed values — do not vary per theme. All animations reference these tokens by
 A theme file is valid if:
 1. All top-level keys are present: `name`, `mode`, `surfaces`, `text`, `borders`, `accents`, `interactive`, `semantic`, `radius`, `spacing`, `shadow`, `timing`
    - `semantic` must contain: `success`, `warning`, `error`, `error-bg`, `info`
+   - `accents` must contain: `model-claude`, `model-gpt`, `model-gemini`, `model-other`, `model-grok`, `model-deepseek`, `model-mistral`
 2. All nested keys within each category are present (no missing fields)
 3. `mode` is exactly `"dark"` or `"light"`
 4. All color values are valid 6-digit hex strings beginning with `#`
