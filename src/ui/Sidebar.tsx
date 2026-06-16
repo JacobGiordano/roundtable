@@ -1232,7 +1232,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onToggleGhostMode}
-              aria-label={isGhostMode ? 'Ghost mode on — click to disable' : 'Ghost mode off — click to enable'}
+              aria-label="Ghost mode"
               aria-pressed={isGhostMode}
               className={[
                 'w-8 h-8 rounded-md flex items-center justify-center',

@@ -264,6 +264,7 @@ export function AppLayout({
           id="main-content" is the skip-link target (WCAG 2.4.1).
           tabIndex={-1} allows programmatic focus without inserting a tab stop. */}
       <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col overflow-hidden min-w-0 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-focus">
+        <h1 className="sr-only">Roundtable Conversation</h1>
         {/* Mobile top header bar — visible only on small screens (below md breakpoint).
             Contains: hamburger (opens sidebar) | logo | new-conversation button.
             Hidden on desktop where the sidebar is always visible. */}

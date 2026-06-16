@@ -76,6 +76,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         : 'left-1/2 -translate-x-1/2';
 
   const isDisabled = config.comingSoon === true;
+  const tooltipId = `interaction-mode-tooltip-${config.mode}`;
 
   // Tooltip copy: "coming soon" modes show a different description
   const tooltipContent = isDisabled
@@ -93,6 +94,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         <span
           aria-hidden="false"
           aria-label={`${config.label} — coming soon`}
+          aria-describedby={tooltipId}
           className={[
             'relative h-7 px-3 rounded-full',
             'text-[12px] font-medium whitespace-nowrap',
@@ -108,6 +110,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
 
         {/* Tooltip — shown on hover via group */}
         <div
+          id={tooltipId}
           role="tooltip"
           className={[
             `absolute bottom-full ${tooltipPositionClass} mb-2`,
@@ -139,6 +142,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         role="radio"
         aria-checked={isSelected}
         aria-label={`${config.label} — ${config.description}`}
+        aria-describedby={tooltipId}
         onClick={() => onSelect(config.mode)}
         className={[
           'relative h-7 px-3 rounded-full',
@@ -157,6 +161,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
 
       {/* Tooltip — shown on hover via group */}
       <div
+        id={tooltipId}
         role="tooltip"
         className={[
           `absolute bottom-full ${tooltipPositionClass} mb-2`,
