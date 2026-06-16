@@ -180,7 +180,10 @@ export default function App() {
 
     // Persist the updated conversation to storage. updateConversation handles
     // auto-titling (first user message → title) and optimistic in-memory update.
-    void store.updateConversation(updatedConversation);
+    // Ghost-mode guard: skip all storage writes for ghost conversations.
+    if (!updatedConversation.isGhost) {
+      void store.updateConversation(updatedConversation);
+    }
 
     // Clear the pending target after send — returns to broadcast mode.
     setPendingTargetModelId(null);
@@ -223,8 +226,9 @@ export default function App() {
             // Persist the completed message to the conversation store.
             // We read the current store conversation (not the snapshot) to get
             // any other messages that may have finalized while this one streamed.
+            // Ghost-mode guard: skip all storage writes for ghost conversations.
             const currentConv = store.getActiveConversation();
-            if (currentConv && currentConv.id === sendingConversationId) {
+            if (currentConv && currentConv.id === sendingConversationId && !currentConv.isGhost) {
               const updated: Conversation = {
                 ...currentConv,
                 messages: [...currentConv.messages, finalMsg],
@@ -300,7 +304,8 @@ export default function App() {
   /** Persists the chosen interaction mode on the active conversation. */
   const handleModeChange = (mode: InteractionMode) => {
     const conv = store.getActiveConversation();
-    if (!conv) return;
+    // Ghost-mode guard: skip storage writes for ghost conversations.
+    if (!conv || conv.isGhost) return;
     void store.updateConversation({ ...conv, interactionMode: mode, updatedAt: Date.now() });
   };
 
@@ -316,8 +321,9 @@ export default function App() {
 
     // Also sync into the active conversation's models so the prompt survives
     // persistence and is available to sendMessage when it reads conversation.models.
+    // Ghost-mode guard: skip storage writes for ghost conversations.
     const conv = store.getActiveConversation();
-    if (conv) {
+    if (conv && !conv.isGhost) {
       void store.updateConversation({
         ...conv,
         models: conv.models.map((m) =>
