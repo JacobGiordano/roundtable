@@ -420,6 +420,30 @@ export interface SendMessageOptions {
   targetModelId?: ModelId;
   /** Phase 2 — omit for parallel/manual modes. Atlas uses this to sequence auto-chain calls. */
   chainConfig?: AutoChainConfig;
+  /**
+   * The full conversation object. When provided, Atlas resolves active providers
+   * from the ProviderRoster scoped to this conversation and reads per-model
+   * `systemPrompt` and `selectedVersionId` values from `conversation.models`.
+   *
+   * When absent, Atlas falls back to the static PROVIDERS registry with no
+   * per-model config resolution — a legacy/test path that remains valid.
+   *
+   * Aria should always pass the active conversation here. Absence is permitted
+   * only for callers (e.g. tests) that intentionally bypass roster resolution.
+   */
+  conversation?: Conversation;
+  /**
+   * Shared system prompt applied to all models in parallel/directed/auto-chain mode.
+   *
+   * When a model also has a `systemPrompt` set on its `ModelConfig` entry in
+   * `conversation.models`, the per-model value takes precedence over this shared
+   * value. Use this field when a single prompt should apply across all active
+   * models and no per-model override is configured.
+   *
+   * Omit (or pass `undefined`) to use each model's own configured system prompt,
+   * or no system prompt at all when no per-model value is set.
+   */
+  systemPrompt?: string;
 }
 
 /**
