@@ -68,6 +68,16 @@ jobs:
       - run: npm ci
       - run: npm run test:run -- --coverage
 
+      # Upload the lcov coverage report so coverage history is preserved across
+      # runs. `if: always()` ensures the artifact uploads even when tests fail,
+      # allowing inspection of partial coverage on a red run.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
   backend-lint-build-test:
     name: Backend lint + build + test
     needs: lint
