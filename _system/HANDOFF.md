@@ -1,4 +1,4 @@
-Last updated: 2026-06-16 (ship #127 #141 #139 #135)
+Last updated: 2026-06-16 (ship #138 #137 #143)
 
 ## Current phase
 
@@ -6,53 +6,52 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
 
-Coda coordinated Waves 1–4 of the audit backlog — all shipped:
+Coda coordinated a 3-issue parallel wave — all shipped:
 
-**Wave 4 (bugs):**
-- #141 (Aria): `formatRelativeTime` in Sidebar.tsx — added `if (diffMs < 60_000) return '< 1m'`
-  before the `diffMinutes` branch. One line fix.
-- #139 (Scout): 7 ThreadActionMenu/BulkActionBar tests were skipped on a false premise
-  (@testing-library/react IS in devDeps). Scout created
-  `/src/tests/integration/sidebar-state-machines.test.tsx` with all 7 behaviors implemented
-  via public `<Sidebar>` rendering + fireEvent. 785 tests now pass.
-  Note: `test.skip` stubs in `/src/ui/Sidebar.management.test.ts` still have false comment
-  — Aria should clean them up in a future session (cosmetic only).
-- #135 (Gate): `useCredentials` and `ApiKeyPanel` hardcoded `['anthropic', 'openai']`.
-  Both now derive from `Object.keys(CREDENTIAL_LABELS)` — single source of truth in
-  credentials.ts. Adding a 7th provider requires only one entry there.
+- #138 (Aria): `ProviderSettingsPanel` width was hardcoded to `calc(100vw - 256px)`, which was
+  wrong in two ways: (1) the actual `SIDEBAR_WIDTH_DEFAULT` is 280px, not 256px; (2) it broke
+  on drag-resized sidebars. Fix: Sidebar.tsx now writes `--sidebar-width` to `:root` on mount
+  and every resize; ProviderSettingsPanel consumes `calc(100vw - var(--sidebar-width, 280px))`.
 
-**Also shipped this session (Waves 1–3 + bonus):**
-#127, #168, #153, #185, #163, #157, #194, #155, #161, #173 — see git log.
+- #137 (Luma): Token schema (`schema.md`), tailwind-mapping spec, and `BRIEF.md` were missing
+  `model-grok`, `model-deepseek`, and `model-mistral` accent entries. Theme files already had
+  correct values — only the specs were stale. All three spec files updated.
+
+- #143 (Arch): `SendMessageOptions` in `/src/types/index.ts` was narrower than Atlas's
+  implementation (`conversation` and `systemPrompt` were missing from the public type). Both
+  added as optional fields. All existing call sites remain valid.
 
 ## Key decisions
 
+- `--sidebar-width` CSS variable on `:root` is set by Sidebar.tsx (single source of truth).
+  Any component that needs to know the sidebar width should read this variable, not hardcode.
 - Ghost guard at UI boundary (App.tsx) + storage layer = defense in depth.
 - MAX_TOKENS named per-provider in constants.ts — prevents copy-paste drift.
 - `BaseOpenAIProvider` abstract class — GPT/Grok/DeepSeek/Mistral extend it.
 - Export serializers extracted to `/src/storage/exporters.ts` — any StorageProvider can use them.
 - `pinnedToBottom` is a ref in MessageThread (no re-renders on scroll).
 - `CREDENTIAL_LABELS` in credentials.ts is canonical for all built-in provider keys.
-- Scout uses fireEvent not userEvent — avoids vi.useFakeTimers deadlock (HANDOFF gotcha).
+- Scout uses fireEvent not userEvent — avoids vi.useFakeTimers deadlock.
 
 ## Open issues
 
-~56 remaining in audit backlog (#126–#194, minus the 13 closed this session).
+~52 remaining in audit backlog.
 
 ## What's next
 
-Remaining bugs (highest priority):
+Advisory filed this session:
+- #TBD (Luma): `/_design/BRIEF.md` Layout Constants still says "Sidebar width: 256px fixed.
+  Not resizable." — wrong on both counts after #138.
+
+Next highest-priority bugs:
 - #126 (Aria/Vault) — Ghost mode toggle wired but unreachable in UI
 - #128 (Ada/Aria) — Skip-to-main-content link absent (WCAG 2.4.1 failure)
 - #129 (Ada/Aria) — BulkActionBar confirm-delete has no focus management (WCAG 2.4.3)
 - #130 (Forge/Bastion) — 63 backend tests never run in CI
 - #131 (Atlas/Aria) — Auto-chain and Manual interaction modes are silent no-ops
-- #133 (Atlas) — SSE parser still duplicated in claude.ts + gemini.ts (post-#173)
-- #134 (Spark) — Streaming shimmer wrong color for 4 providers
-- #137 (Luma) — Token schema missing grok/deepseek/mistral accent entries
-- #138 (Aria) — ProviderSettingsPanel width hardcoded, overlaps narrow sidebar
-- #143 (Arch) — SendMessageFn public contract narrower than implementation
+- #133 (Atlas) — SSE parser still duplicated in claude.ts + gemini.ts
 
-Good next wave: Aria #138 + Luma #137 + Arch #143 (no shared type changes, different owners).
+Good next wave: #126 (Aria/Vault) + #133 (Atlas) — different owners, no shared type changes.
 
 ## Gotchas
 
@@ -65,8 +64,7 @@ Good next wave: Aria #138 + Luma #137 + Arch #143 (no shared type changes, diffe
 - Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper
 - Settings drawer has focus trap (#116) — keyboard tests must account for Tab interception
 - Context menu confirm-delete state moves focus to Cancel on open
-- GPU compositing layers: remove `animation` class entirely to eliminate GPU layers (fixed #125)
-- E2E CI: playwright.config.ts uses `reporter: 'list'` — HTML report artifact won't exist on failure
-- git am drops binary files silently in worktrees — use cherry-pick from /workspace for Wave ships
 - `semantic.error` = foreground text color; `semantic.error-bg` = destructive button background. Never `bg-error text-white`.
 - Sidebar.management.test.ts has 7 test.skip stubs with false comment — real coverage in sidebar-state-machines.test.tsx (#139)
+- `--sidebar-width` CSS var on `:root` is the sidebar width source of truth — set by Sidebar.tsx useEffect
+- Parallel agent worktrees share the git object store; branch checkouts in a worktree can affect main workspace reflog — always verify HEAD after merging worktree branches
