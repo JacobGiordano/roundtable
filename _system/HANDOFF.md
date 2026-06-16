@@ -1,4 +1,4 @@
-Last updated: 2026-06-16 (ship #138 #137 #143)
+Last updated: 2026-06-16 (ship #126 #133 #195)
 
 ## Current phase
 
@@ -8,50 +8,53 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 Coda coordinated a 3-issue parallel wave — all shipped:
 
-- #138 (Aria): `ProviderSettingsPanel` width was hardcoded to `calc(100vw - 256px)`, which was
-  wrong in two ways: (1) the actual `SIDEBAR_WIDTH_DEFAULT` is 280px, not 256px; (2) it broke
-  on drag-resized sidebars. Fix: Sidebar.tsx now writes `--sidebar-width` to `:root` on mount
-  and every resize; ProviderSettingsPanel consumes `calc(100vw - var(--sidebar-width, 280px))`.
+- #195 (Luma): `_design/BRIEF.md` Layout Constants updated — sidebar is 280px default
+  (`SIDEBAR_WIDTH_DEFAULT`), drag-resizable, and `--sidebar-width` on `:root` is the
+  runtime source of truth (set by `Sidebar.tsx` on mount and resize).
 
-- #137 (Luma): Token schema (`schema.md`), tailwind-mapping spec, and `BRIEF.md` were missing
-  `model-grok`, `model-deepseek`, and `model-mistral` accent entries. Theme files already had
-  correct values — only the specs were stale. All three spec files updated.
+- #133 (Atlas): SSE loop logic extracted from `claude.ts`, `gemini.ts`, `generic.ts`,
+  and `BaseOpenAIProvider.ts` into `/src/models/openai-sse.ts`. Exports:
+  `parseSSEStream`, `mapHttpStatusToErrorCode`, `buildModelError`. Pure extract —
+  no behaviour change. ~800 lines → ~114 lines of shared code.
 
-- #143 (Arch): `SendMessageOptions` in `/src/types/index.ts` was narrower than Atlas's
-  implementation (`conversation` and `systemPrompt` were missing from the public type). Both
-  added as optional fields. All existing call sites remain valid.
+- #126 (Aria): Ghost mode fully wired. `App.tsx` now calls `useGhostMode()` and
+  reads `isGlobalGhostMode` for the toggle's visual state. Ghost toggle button added
+  to sidebar header (mobile and desktop). `handleNewConversation` skips
+  `createConversation` when ghost mode is on. `handleSend` and stream completion path
+  route to `saveGhostConversation` instead of `store.updateConversation` for ghost
+  convs. Post-merge Coda fix: button was wired to `isGhost` (per-conversation) instead
+  of `isGlobalGhostMode` (global); corrected before ship.
 
 ## Key decisions
 
-- `--sidebar-width` CSS variable on `:root` is set by Sidebar.tsx (single source of truth).
-  Any component that needs to know the sidebar width should read this variable, not hardcode.
-- Ghost guard at UI boundary (App.tsx) + storage layer = defense in depth.
-- MAX_TOKENS named per-provider in constants.ts — prevents copy-paste drift.
-- `BaseOpenAIProvider` abstract class — GPT/Grok/DeepSeek/Mistral extend it.
-- Export serializers extracted to `/src/storage/exporters.ts` — any StorageProvider can use them.
-- `pinnedToBottom` is a ref in MessageThread (no re-renders on scroll).
-- `CREDENTIAL_LABELS` in credentials.ts is canonical for all built-in provider keys.
-- Scout uses fireEvent not userEvent — avoids vi.useFakeTimers deadlock.
+- Ghost mode toggle reflects `isGlobalGhostMode`, not per-conversation `isGhost`.
+  The toggle controls whether *new* conversations are ghost — it does not report the
+  current conversation's status.
+- Ghost toggle is in the outer sidebar header `<div>` (no responsive-hide class) —
+  visible on mobile and desktop alike.
+- `--sidebar-width` CSS var on `:root` is the sidebar width source of truth (set by
+  Sidebar.tsx useEffect). Any component needing sidebar width reads
+  `var(--sidebar-width, 280px)` — never hardcode.
+- `openai-sse.ts` in `/src/models/` is the canonical SSE helper for all OpenAI-
+  compatible providers. New providers must import from it, not reimplement.
+- Advisory #196 filed: ghost toggle `aria-label` embeds state text alongside
+  `aria-pressed` — double announcement. Deferred.
 
 ## Open issues
 
-~52 remaining in audit backlog.
+~49 remaining in audit backlog.
 
 ## What's next
 
-Advisory filed this session:
-- #TBD (Luma): `/_design/BRIEF.md` Layout Constants still says "Sidebar width: 256px fixed.
-  Not resizable." — wrong on both counts after #138.
-
 Next highest-priority bugs:
-- #126 (Aria/Vault) — Ghost mode toggle wired but unreachable in UI
 - #128 (Ada/Aria) — Skip-to-main-content link absent (WCAG 2.4.1 failure)
 - #129 (Ada/Aria) — BulkActionBar confirm-delete has no focus management (WCAG 2.4.3)
 - #130 (Forge/Bastion) — 63 backend tests never run in CI
 - #131 (Atlas/Aria) — Auto-chain and Manual interaction modes are silent no-ops
-- #133 (Atlas) — SSE parser still duplicated in claude.ts + gemini.ts
+- #132 (Aria) — Markdown rendering absent in message bubbles
 
-Good next wave: #126 (Aria/Vault) + #133 (Atlas) — different owners, no shared type changes.
+Good next wave: #128 + #129 (Ada/Aria a11y pair) + #130 (Forge/Bastion CI) —
+three owners, no shared type changes, no file conflicts.
 
 ## Gotchas
 
@@ -68,3 +71,4 @@ Good next wave: #126 (Aria/Vault) + #133 (Atlas) — different owners, no shared
 - Sidebar.management.test.ts has 7 test.skip stubs with false comment — real coverage in sidebar-state-machines.test.tsx (#139)
 - `--sidebar-width` CSS var on `:root` is the sidebar width source of truth — set by Sidebar.tsx useEffect
 - Parallel agent worktrees share the git object store; branch checkouts in a worktree can affect main workspace reflog — always verify HEAD after merging worktree branches
+- Ghost mode toggle visual state = `isGlobalGhostMode` (global), not `isGhost` (per-conversation) — don't confuse the two
