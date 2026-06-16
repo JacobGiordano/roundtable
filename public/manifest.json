@@ -1,0 +1,21 @@
+{
+  "name": "Roundtable",
+  "short_name": "Roundtable",
+  "description": "Multi-model AI conversation interface",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2D2B55",
+  "theme_color": "#2D2B55",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
