@@ -1,4 +1,4 @@
-Last updated: 2026-06-16 (ship #201 #200 #186)
+Last updated: 2026-06-16 (ship #202 #196 #198 #203 #193 #190)
 
 ## Current phase
 
@@ -6,43 +6,54 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
 
-Coda coordinated two parallel tracks — both shipped:
+Coda coordinated three parallel tracks — all shipped:
 
-- #201 (Aria): Markdown heading downshift in `MessageBubble.tsx`. h1→h3, h2→h4, h3→h5, h4+→h6 via custom `components` prop on `ReactMarkdown`. Visual output unchanged; semantic HTML corrected. WCAG 1.3.1 resolved.
+- #202 (Aria): `AppLayout.tsx` — unconditional `<h1 className="sr-only">Roundtable Conversation</h1>` as first child of `<main>`. Resolves WCAG 1.3.1 landmark heading gap.
 
-- #200 (Aria): External links in `MessageBubble.tsx` now inject `<span className="sr-only"> (opens in new tab)</span>` via `isExternal` guard. Internal links unaffected.
+- #196 (Aria): `Sidebar.tsx` — ghost toggle `aria-label` simplified to static `"Ghost mode"`; `aria-pressed` carries state. Resolves double announcement (WCAG 4.1.2 advisory).
 
-- #186 (Scout/Forge): Coverage thresholds added to `vite.config.ts` (lines: 80, functions: 80, branches: 70, provider: v8, reporters: text + lcov). CI step updated to `npm run test:run -- --coverage`. `@vitest/coverage-v8@1.6.1` added to devDependencies.
+- #198 (Aria): `InteractionModeSwitcher.tsx` — `tooltipId` per mode; `id`/`aria-describedby` wired on both disabled spans and active buttons. Tooltip no longer orphaned.
 
-Housekeeping: stale test artifacts and agent profile updates from #131/#132 wave committed.
+- #203 (Forge): `ci.yml` — `actions/upload-artifact@v4` after Vitest coverage step; `if: always()`, `path: coverage/`, `retention-days: 30`.
+
+- #193 (Luma): New `/_design/specs/markdown.md` — 7 prose tokens (`code-bg`, `code-border`, `code-text`, `block-bg`, `link`, `link-hover`, `blockquote-border`) with per-theme values in all 7 theme files and schema.md updated. Unblocks Aria from removing hardcoded markdown link color.
+
+- #190 (Luma): `BRIEF.md` — Outrun prose section annotated with live values vs. original creative intent (Option B). No silent divergences remain.
+
+Housekeeping: filed #204 (OnboardingEmptyState h1→h2 — pre-existing advisory found by Ada).
+Scout activated 9 ghost toggle tests (sidebar-ghost-toggle.test.tsx). Full suite: 809/0.
 
 ## Key decisions
 
-- #186 does not upload lcov as a CI artifact — text reporter satisfies the summary-step criteria. Forge can add `actions/upload-artifact` later for badge/PR comment integration (#203 filed).
-- New advisory filed: #202 — AppLayout missing persistent `<h1>` in `<main>` (pre-existing, found by Ada).
+- Luma chose Option B for #190 (annotate, not erase) — preserves original creative intent alongside live values.
+- Slate Gemini divergence in the #190 issue was a non-issue; live value already matched BRIEF.
+- #199 (radiogroup ownership) remains deferred — future-state fix for when Manual/Auto-chain modes ship.
 
 ## Open advisories (not yet addressed)
 
-- #202 (Aria) — AppLayout missing h1 in main (quick)
-- #198 (Aria) — InteractionModeSwitcher tooltip not wired via aria-describedby
-- #199 (Aria) — Coming-soon spans break radiogroup ownership
-- #196 (Aria) — Ghost toggle aria-label double announcement
-- #197 (Aria) — BulkActionBar confirms-delete focuses destructive action
+- #204 (Aria) — OnboardingEmptyState h1 should downshift to h2 (quick)
+- #197 (Aria) — BulkActionBar confirm-delete focuses destructive action instead of Cancel
+- #199 (Aria, deferred) — Coming-soon spans break radiogroup ownership (future-state, defer until #131 Option 1)
+- #189 (Scout/Flint) — App.tsx chunk handler untested
+- #192 (Luma) — No standalone tooltip spec
+- #191 (Luma) — Z-index scale undocumented
+- #134 (Spark) — Streaming shimmer wrong color for 4 models
 
 ## What's next
 
-- #202 + #196 (Aria) — batch into one Aria session (both small, one Ada audit)
-- #134 (Spark) — Streaming shimmer wrong color for 4 models
-- #193 (Luma) — Markdown token layer (text-link, code-bg, prose colors)
-- #203 (Forge) — Upload lcov artifact in CI for badge/PR integration
+- #204 + #197 (Aria) — batch into one session, one Ada audit
+- #193 follow-on (Aria) — swap hardcoded `text-text-primary underline` link color in `MessageBubble.tsx` to `text-prose-link` now that token exists
+- #192 + #191 (Luma) — tooltip spec + z-index scale
+- #134 (Spark) — shimmer color fix
 
-Good next wave: batch #202 + #196 into one Aria session.
+Good next wave: Aria #204 + #197 (+ optional: MessageBubble link token swap).
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
 - `bg-bg` = surface background token; `bg-bg-surface` is NOT a registered token
 - Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before final test run
+- Worktree agents sometimes commit to main workspace instead of isolated worktree — verify branch stats before merging
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
@@ -56,5 +67,6 @@ Good next wave: batch #202 + #196 into one Aria session.
 - Parallel agent worktrees share the git object store — always verify HEAD after merging worktree branches
 - Ghost mode toggle visual state = `isGlobalGhostMode` (global), not `isGhost` (per-conversation)
 - react-markdown re-parses on every render chunk — no debounce applied; fast enough in practice
-- Markdown link color = `text-text-primary underline` (interim); swap to `text-link` token when Luma #193 ships
-- Coverage lcov report written to `coverage/` dir locally but not uploaded as CI artifact yet (#203)
+- Markdown link color = `text-text-primary underline` (interim); swap to `text-prose-link` token now that Luma #193 shipped
+- Coverage lcov report uploaded as CI artifact (`coverage-report`) since #203 — retention 30 days
+- OnboardingEmptyState still has `<h1>` — should be `<h2>` (#204); pre-existing, not introduced this wave
