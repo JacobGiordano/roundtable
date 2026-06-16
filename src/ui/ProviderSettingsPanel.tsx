@@ -393,7 +393,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
             onClick={handleConfirmRemove}
             className={[
               'h-7 px-3 rounded-md flex-shrink-0',
-              'bg-error text-[12px] text-text-inverse',
+              'bg-error-bg text-[12px] text-text-inverse',
               'hover:brightness-90 transition-all duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
@@ -428,7 +428,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
             onClick={handleConfirmRemove}
             className={[
               'h-7 px-3 rounded-md flex-shrink-0',
-              'bg-error text-[12px] text-text-inverse',
+              'bg-error-bg text-[12px] text-text-inverse',
               'hover:brightness-90 transition-all duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
