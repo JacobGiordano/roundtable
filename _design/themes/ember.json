@@ -67,6 +67,15 @@
     "medium": "200ms",
     "slow": "350ms"
   },
+  "prose": {
+    "code-bg": "#272018",
+    "code-border": "#2E2218",
+    "code-text": "#B09070",
+    "block-bg": "#17120D",
+    "link": "#5090D0",
+    "link-hover": "#6AAAE0",
+    "blockquote-border": "#5A4030"
+  },
   "_a11y": {
     "text.muted": {
       "fix": "Lightened #8C7260 → #987C6A (+12/+10/+10 channels). Ember's card is the most constraining surface (near-black #1D1712). Value preserves warm terracotta character.",
