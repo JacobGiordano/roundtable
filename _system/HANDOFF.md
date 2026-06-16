@@ -1,4 +1,4 @@
-Last updated: 2026-06-16 (ship #127)
+Last updated: 2026-06-16 (ship #127 #141 #139 #135)
 
 ## Current phase
 
@@ -6,49 +6,53 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
 
-- #127 (Aria): Replaced `bg-error` with `bg-error-bg` on 2 destructive "Remove" buttons in
-  ProviderSettingsPanel.tsx (`ConfirmDeleteRow`, both normal and last-provider paths).
-  `hover:bg-error/10` on the ghost button left unchanged — that's a tint, not a solid background.
+Coda coordinated Waves 1–4 of the audit backlog — all shipped:
 
-Also shipped this session (Waves 1–3):
+**Wave 4 (bugs):**
+- #141 (Aria): `formatRelativeTime` in Sidebar.tsx — added `if (diffMs < 60_000) return '< 1m'`
+  before the `diffMinutes` branch. One line fix.
+- #139 (Scout): 7 ThreadActionMenu/BulkActionBar tests were skipped on a false premise
+  (@testing-library/react IS in devDeps). Scout created
+  `/src/tests/integration/sidebar-state-machines.test.tsx` with all 7 behaviors implemented
+  via public `<Sidebar>` rendering + fireEvent. 785 tests now pass.
+  Note: `test.skip` stubs in `/src/ui/Sidebar.management.test.ts` still have false comment
+  — Aria should clean them up in a future session (cosmetic only).
+- #135 (Gate): `useCredentials` and `ApiKeyPanel` hardcoded `['anthropic', 'openai']`.
+  Both now derive from `Object.keys(CREDENTIAL_LABELS)` — single source of truth in
+  credentials.ts. Adding a 7th provider requires only one entry there.
 
-Coda coordinated Wave 3 of the audit backlog — 3-way parallel, all shipped:
-
-- #155 (Vault): Removed redundant `_ghostIds: Set<string>` from GhostModeManager.
-  7 paired operations eliminated; `isGhost()` now delegates to `this._store.has(id)`.
-  Net: 10 deletions, 1 substitution, zero behavior change. 778 tests pass.
-- #161 (Aria): Smart scroll in MessageThread.tsx. `pinnedToBottom` ref (no re-renders),
-  passive scroll listener with 100px threshold, user-message force-pin via
-  `lastUserMessageIdRef`. Sticky ↓ FAB when unpinned. Structural fix: outer wrapper
-  changed from `overflow-y-auto` to `overflow-hidden` — inner div is now sole scroll surface.
-- #173 (Atlas): Extracted `BaseOpenAIProvider` abstract class. GPT, Grok, DeepSeek, Mistral
-  now extend it with 4 abstract getters each (apiUrl, defaultModel, maxTokens, authErrorMessage).
-  1,043 lines → 438 lines (58% reduction). generic.ts untouched — different concerns.
+**Also shipped this session (Waves 1–3 + bonus):**
+#127, #168, #153, #185, #163, #157, #194, #155, #161, #173 — see git log.
 
 ## Key decisions
 
-- `pinnedToBottom` is a ref, not state — prevents re-renders on every scroll event.
-  Only `showScrollButton` (the FAB visibility) is state.
-- BaseOpenAIProvider uses `abstract readonly config` (interface requirement) + 4 abstract
-  protected getters for per-provider config. `sendMessage()` is fully concrete on the base.
-- generic.ts was deliberately left out of the BaseOpenAIProvider refactor — it takes a
-  dynamic `CustomProviderConfig` at construction time, which is a different concern.
+- Ghost guard at UI boundary (App.tsx) + storage layer = defense in depth.
+- MAX_TOKENS named per-provider in constants.ts — prevents copy-paste drift.
+- `BaseOpenAIProvider` abstract class — GPT/Grok/DeepSeek/Mistral extend it.
+- Export serializers extracted to `/src/storage/exporters.ts` — any StorageProvider can use them.
+- `pinnedToBottom` is a ref in MessageThread (no re-renders on scroll).
+- `CREDENTIAL_LABELS` in credentials.ts is canonical for all built-in provider keys.
+- Scout uses fireEvent not userEvent — avoids vi.useFakeTimers deadlock (HANDOFF gotcha).
 
 ## Open issues
 
-43 remaining in audit backlog (original #145–#194, minus 9 closed this session).
+~56 remaining in audit backlog (#126–#194, minus the 13 closed this session).
 
 ## What's next
 
-Wave 4 candidates:
-- #166 (Aria) — Cmd+N keyboard shortcut for new conversation
-- #164 (Aria) — Conversation rename
-- #145 (Scout) — providerRoster.ts unit tests (Gate's most complex file, zero coverage)
-- #189 (Scout) — App.tsx chunk handler integration tests
-- #148 (Aria) — Extract shared getModelDotStyle (defined 3 times)
+Remaining bugs (highest priority):
+- #126 (Aria/Vault) — Ghost mode toggle wired but unreachable in UI
+- #128 (Ada/Aria) — Skip-to-main-content link absent (WCAG 2.4.1 failure)
+- #129 (Ada/Aria) — BulkActionBar confirm-delete has no focus management (WCAG 2.4.3)
+- #130 (Forge/Bastion) — 63 backend tests never run in CI
+- #131 (Atlas/Aria) — Auto-chain and Manual interaction modes are silent no-ops
+- #133 (Atlas) — SSE parser still duplicated in claude.ts + gemini.ts (post-#173)
+- #134 (Spark) — Streaming shimmer wrong color for 4 providers
+- #137 (Luma) — Token schema missing grok/deepseek/mistral accent entries
+- #138 (Aria) — ProviderSettingsPanel width hardcoded, overlaps narrow sidebar
+- #143 (Arch) — SendMessageFn public contract narrower than implementation
 
-Good 3-way parallel: Aria #166 + Scout #145 + one more (Aria can only do one, pick Scout #189
-or another single-agent issue for third slot).
+Good next wave: Aria #138 + Luma #137 + Arch #143 (no shared type changes, different owners).
 
 ## Gotchas
 
@@ -57,10 +61,12 @@ or another single-agent issue for third slot).
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
-- E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel
+- E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials must close+reopen panel
 - Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper
-- Settings drawer has focus trap (#116) — keyboard tests must account for Tab being intercepted
+- Settings drawer has focus trap (#116) — keyboard tests must account for Tab interception
 - Context menu confirm-delete state moves focus to Cancel on open
 - GPU compositing layers: remove `animation` class entirely to eliminate GPU layers (fixed #125)
 - E2E CI: playwright.config.ts uses `reporter: 'list'` — HTML report artifact won't exist on failure
 - git am drops binary files silently in worktrees — use cherry-pick from /workspace for Wave ships
+- `semantic.error` = foreground text color; `semantic.error-bg` = destructive button background. Never `bg-error text-white`.
+- Sidebar.management.test.ts has 7 test.skip stubs with false comment — real coverage in sidebar-state-machines.test.tsx (#139)
