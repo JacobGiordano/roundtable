@@ -66,7 +66,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:run
+      - run: npm run test:run -- --coverage
 
   backend-lint-build-test:
     name: Backend lint + build + test
