@@ -23,5 +23,10 @@ export default defineConfig({
     // Also exclude agent worktrees — stale path references in the transform cache
     // cause loadAndTransform noise after `git worktree remove` (#123).
     exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/backend/**', '**/.claude/worktrees/**'],
+    coverage: {
+      provider: 'v8',
+      thresholds: { lines: 80, functions: 80, branches: 70 },
+      reporter: ['text', 'lcov'],
+    },
   },
 });
