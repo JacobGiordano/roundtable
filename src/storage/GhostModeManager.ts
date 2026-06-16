@@ -26,9 +26,6 @@ export class GhostModeManager {
   /** In-memory store: conversationId → Conversation */
   private readonly _store = new Map<string, Conversation>();
 
-  /** Set of ghost conversation IDs for O(1) membership checks. */
-  private readonly _ghostIds = new Set<string>();
-
   /** Subscribers notified on any state change. */
   private readonly _listeners = new Set<GhostModeListener>();
 
@@ -60,7 +57,6 @@ export class GhostModeManager {
   saveGhostConversation(conversation: Conversation): void {
     const ghost: Conversation = { ...conversation, isGhost: true };
     this._store.set(ghost.id, ghost);
-    this._ghostIds.add(ghost.id);
     this._notify();
   }
 
@@ -78,7 +74,6 @@ export class GhostModeManager {
    */
   deleteGhostConversation(id: string): void {
     this._store.delete(id);
-    this._ghostIds.delete(id);
     this._notify();
   }
 
@@ -88,7 +83,7 @@ export class GhostModeManager {
    * Check whether a given conversation ID is currently tracked as a ghost.
    */
   isGhost(id: string): boolean {
-    return this._ghostIds.has(id);
+    return this._store.has(id);
   }
 
   /**
@@ -102,7 +97,6 @@ export class GhostModeManager {
     if (!conv) return undefined;
 
     this._store.delete(id);
-    this._ghostIds.delete(id);
     this._notify();
 
     return { ...conv, isGhost: false };
@@ -116,7 +110,6 @@ export class GhostModeManager {
   demoteToGhost(conversation: Conversation): Conversation {
     const ghost: Conversation = { ...conversation, isGhost: true };
     this._store.set(ghost.id, ghost);
-    this._ghostIds.add(ghost.id);
     this._notify();
     return ghost;
   }
@@ -126,7 +119,6 @@ export class GhostModeManager {
   /** Clear all ghost conversations from memory (called on unload). */
   private _handleUnload = (): void => {
     this._store.clear();
-    this._ghostIds.clear();
     // No need to notify — the page is closing.
   };
 
@@ -136,7 +128,6 @@ export class GhostModeManager {
       window.removeEventListener('beforeunload', this._handleUnload);
     }
     this._store.clear();
-    this._ghostIds.clear();
     this._listeners.clear();
   }
 }
