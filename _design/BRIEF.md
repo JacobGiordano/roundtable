@@ -150,8 +150,9 @@ Warm off-white light theme. Cream undertone. More comfortable for long reading s
 The creative showcase theme. Neon-on-black. Explicitly not neutral — designed to be expressive and electric. Every other design rule about restraint is suspended for Outrun. Borders glow. Model accents saturate to maximum. Entering Outrun has a unique flash transition.
 
 - Background: `#0D0D0D` (near-pure black)
-- Accent colors at maximum saturation: Claude `#FFE600`, GPT `#00FFFF`, Gemini `#BF00FF`, Other `#FF00AA`
-- Outrun's decorative neon border values (`borders.default: #FF00AA`, `borders.strong: #00FFFF`) are exempt from WCAG text contrast requirements — they are structural/decorative, never used as text color
+- Accent colors at maximum saturation (original creative intent): Claude `#FFE600`, GPT `#00FFFF`, Gemini `#BF00FF`, Other `#FF00AA`
+  **Live values (post WCAG audit and palette revision):** Claude `#FFE600` (unchanged). GPT `#2EE4B9` (Outrun teal — `#00FFFF` pure cyan was redistributed; teal is the GPT identity anchor in this palette). Gemini `#D060FF` (desaturated from `#BF00FF`; passes 5.22:1 on card). Other `#FF8D77` (coral salmon — `#FF00AA` hot pink was claimed by `borders.default` as the structural neon anchor; coral fills the warm-neutral fallback slot). See the accent table above for all WCAG-audited values.
+- Outrun's decorative neon border values (`borders.default: #FF2070`, `borders.strong: #2EE4B9`) are exempt from WCAG text contrast requirements — they are structural/decorative, never used as text color
 - Shadow values are neon glow (`box-shadow` with rgba neon color) — Aria must not flatten these to standard drop shadows
 
 ### Mode summary

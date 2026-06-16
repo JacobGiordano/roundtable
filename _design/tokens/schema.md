@@ -78,6 +78,15 @@ Every field listed here is **required** in every theme file. No optional fields.
     "fast": "100ms",
     "medium": "200ms",
     "slow": "350ms"
+  },
+  "prose": {
+    "code-bg": "hex — inline code background (inside message bubbles)",
+    "code-border": "hex — inline code 1px border",
+    "code-text": "hex — inline code text color",
+    "block-bg": "hex — fenced code block background",
+    "link": "hex — hyperlink color in markdown-rendered prose",
+    "link-hover": "hex — hyperlink hover color",
+    "blockquote-border": "hex — blockquote left border (3px)"
   }
 }
 ```
@@ -200,14 +209,29 @@ Fixed values — do not vary per theme. All animations reference these tokens by
 | `timing.medium` | `200ms` | Standard transitions — panel open, tab switch |
 | `timing.slow` | `350ms` | Deliberate transitions — theme switch, bubble entrance |
 
+### prose
+
+Markdown rendering tokens. Applied to markdown-rendered content inside message bubbles. Full spec in `specs/markdown.md`. All values vary per theme.
+
+| Token | Purpose | WCAG requirement |
+|-------|---------|-----------------|
+| `prose.code-bg` | Inline code background — a tint applied to `` `code spans` `` | No direct text-on-bg requirement (code text uses `prose.code-text` which is verified separately); value should be perceptibly distinct from `surfaces.card`. |
+| `prose.code-border` | Inline code 1px border — defines the code span edge | UI component: 3:1 against `surfaces.card`. |
+| `prose.code-text` | Inline code text color | 4.5:1 against `surfaces.card` (all themes use `text.secondary` which is already verified per-theme). |
+| `prose.block-bg` | Fenced code block background | Text on block-bg: `text.primary` on `prose.block-bg` must pass 4.5:1. Verified per-theme in `specs/markdown.md`. |
+| `prose.link` | Hyperlink color in markdown prose | 4.5:1 against `surfaces.card`. |
+| `prose.link-hover` | Hyperlink hover color | 4.5:1 against `surfaces.card`. |
+| `prose.blockquote-border` | Blockquote left border (3px) | UI component: 3:1 against `surfaces.card`. All themes use `borders.strong` which passes this threshold. |
+
 ---
 
 ## Validation Rules
 
 A theme file is valid if:
-1. All top-level keys are present: `name`, `mode`, `surfaces`, `text`, `borders`, `accents`, `interactive`, `semantic`, `radius`, `spacing`, `shadow`, `timing`
+1. All top-level keys are present: `name`, `mode`, `surfaces`, `text`, `borders`, `accents`, `interactive`, `semantic`, `radius`, `spacing`, `shadow`, `timing`, `prose`
    - `semantic` must contain: `success`, `warning`, `error`, `error-bg`, `info`
    - `accents` must contain: `model-claude`, `model-gpt`, `model-gemini`, `model-other`, `model-grok`, `model-deepseek`, `model-mistral`
+   - `prose` must contain: `code-bg`, `code-border`, `code-text`, `block-bg`, `link`, `link-hover`, `blockquote-border`
 2. All nested keys within each category are present (no missing fields)
 3. `mode` is exactly `"dark"` or `"light"`
 4. All color values are valid 6-digit hex strings beginning with `#`

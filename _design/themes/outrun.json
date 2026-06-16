@@ -67,6 +67,15 @@
     "medium": "200ms",
     "slow": "350ms"
   },
+  "prose": {
+    "code-bg": "#162840",
+    "code-border": "#FF2070",
+    "code-text": "#3DC8FF",
+    "block-bg": "#0E1830",
+    "link": "#D868FF",
+    "link-hover": "#E898FF",
+    "blockquote-border": "#2EE4B9"
+  },
   "_a11y": {
     "surfaces": {
       "sidebar_luminance": "0.00630",

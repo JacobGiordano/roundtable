@@ -67,6 +67,15 @@
     "medium": "200ms",
     "slow": "350ms"
   },
+  "prose": {
+    "code-bg": "#252837",
+    "code-border": "#2A2E3D",
+    "code-text": "#A0A8BC",
+    "block-bg": "#141720",
+    "link": "#3B82F6",
+    "link-hover": "#60A5FA",
+    "blockquote-border": "#4A5068"
+  },
   "_a11y": {
     "text.muted": {
       "fix": "Lightened #7A82A0 \u2192 #7C84A2 (+2 per channel).",
