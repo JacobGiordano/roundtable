@@ -142,6 +142,14 @@ checkout of the same commit, suspect working-tree cross-contamination from a
 parallel agent. Fix: identify which files the other agent left uncommitted,
 commit or discard them, then rebase the downstream branch.
 
+### Wave cost optimization
+
+1. **Ada is per-Aria-session, not per-wave.** Ada only runs when Aria ships UI changes. Atlas, Vault, Gate, Luma, Marque, Arch, Quill, Forge, and Bastion sessions never require Ada. A wave with no Aria work skips Ada entirely.
+
+2. **Batch Aria issues.** Aria + Ada is a fixed-cost pair — one Aria session always triggers one Ada audit. Running two small Aria issues in separate waves pays Ada overhead twice. Batch Aria issues into a single wave session where possible (exception: if the issues conflict on the same files).
+
+3. **Scope Ada prompts tightly.** For a new component using existing design token classes (same Tailwind utility classes as already-audited components), Ada should audit keyboard operability, ARIA attributes, and focus visibility only — and explicitly skip the full 7-theme contrast audit. Full contrast audits are warranted only when novel color choices or new token values are introduced.
+
 ---
 
 ## SOP
