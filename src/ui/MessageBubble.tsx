@@ -104,21 +104,23 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
       </p>
     );
   },
-  // Headings: scale down from default browser sizes to fit conversational context
+  // Headings: downshifted by 2 levels so model-generated # never produces <h1>/<h2>
+  // inside <main> — preserves the page heading outline for screen readers (WCAG 1.3.1).
+  // Visual sizing is preserved from the original scale; only the semantic element changes.
   h1({ children }) {
-    return <h1 className="text-[18px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h1>;
+    return <h3 className="text-[18px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h3>;
   },
   h2({ children }) {
-    return <h2 className="text-[16px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h2>;
+    return <h4 className="text-[16px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h4>;
   },
   h3({ children }) {
-    return <h3 className="text-[15px] font-semibold leading-[1.4] text-text-primary mb-1.5 mt-2 first:mt-0">{children}</h3>;
+    return <h5 className="text-[15px] font-semibold leading-[1.4] text-text-primary mb-1.5 mt-2 first:mt-0">{children}</h5>;
   },
   h4({ children }) {
-    return <h4 className="text-[14px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-2 first:mt-0">{children}</h4>;
+    return <h6 className="text-[14px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-2 first:mt-0">{children}</h6>;
   },
   h5({ children }) {
-    return <h5 className="text-[13px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-1.5 first:mt-0">{children}</h5>;
+    return <h6 className="text-[13px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-1.5 first:mt-0">{children}</h6>;
   },
   h6({ children }) {
     return <h6 className="text-[12px] font-semibold leading-[1.4] text-text-muted mb-1 mt-1.5 first:mt-0">{children}</h6>;
@@ -159,6 +161,7 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
         className="text-text-primary underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
       >
         {children}
+        {isExternal && <span className="sr-only"> (opens in new tab)</span>}
       </a>
     );
   },
