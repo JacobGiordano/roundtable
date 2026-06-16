@@ -90,6 +90,16 @@ interface SidebarProps {
    * ProviderSettingsPanel can return focus to it on close.
    */
   providerSettingsTriggerRef?: React.RefObject<HTMLButtonElement>;
+  /**
+   * True when the active conversation is in ghost mode (not persisted).
+   * Drives the visual state of the ghost mode toggle button.
+   */
+  isGhostMode?: boolean;
+  /**
+   * Called when the user clicks the ghost mode toggle button.
+   * App handles the toggle logic via useGhostMode.
+   */
+  onToggleGhostMode?: () => void;
 }
 
 /** Format a timestamp into a relative label per the spec. */
@@ -870,6 +880,8 @@ export function Sidebar({
   onToggleSettings: onToggleSettingsProp,
   onOpenProviderSettings,
   providerSettingsTriggerRef,
+  isGhostMode = false,
+  onToggleGhostMode,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -1199,7 +1211,7 @@ export function Sidebar({
             <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-        {/* Desktop header right-side controls: new conversation + provider-settings gear */}
+        {/* Desktop header right-side controls: new conversation + ghost mode toggle + provider-settings gear */}
         <div className="hidden md:flex items-center gap-1">
           {/* New conversation button — desktop only (mobile top bar has its own) */}
           <button
@@ -1222,6 +1234,40 @@ export function Sidebar({
               />
             </svg>
           </button>
+          {/* Ghost mode toggle — activates/deactivates ghost mode for the current
+              conversation. When active the button is highlighted and the conversation
+              is stored in-memory only (GhostModeManager); messages do not persist.
+              Only rendered when AppLayout provides the onToggleGhostMode prop. */}
+          {onToggleGhostMode && (
+            <button
+              type="button"
+              onClick={onToggleGhostMode}
+              aria-label={isGhostMode ? 'Ghost mode on — click to disable' : 'Ghost mode off — click to enable'}
+              aria-pressed={isGhostMode}
+              className={[
+                'w-8 h-8 rounded-md flex items-center justify-center',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                isGhostMode
+                  ? 'text-text-primary bg-hover'
+                  : 'text-text-muted hover:text-text-secondary hover:bg-hover',
+              ].join(' ')}
+            >
+              {/* Ghost icon: a simple rounded ghost silhouette */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M8 2a5 5 0 0 0-5 5v6l1.5-1.5L6 13l2-1.5L10 13l1.5-1.5L13 13V7a5 5 0 0 0-5-5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                  fill={isGhostMode ? 'currentColor' : 'none'}
+                  fillOpacity={isGhostMode ? '0.15' : '0'}
+                />
+                <circle cx="6" cy="7.5" r="0.8" fill="currentColor" />
+                <circle cx="10" cy="7.5" r="0.8" fill="currentColor" />
+              </svg>
+            </button>
+          )}
           {/* Provider settings gear — opens ProviderSettingsPanel slide-in (#99).
               Only rendered when AppLayout provides the onOpenProviderSettings prop. */}
           {onOpenProviderSettings && (

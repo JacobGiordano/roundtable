@@ -15,14 +15,21 @@ import { sendMessage, getSessionTokenUsage, MODEL_REGISTRY } from '@/models';
 // getProviderRoster is Gate's public API for the user's configured provider list.
 // Aria reads it at app boot to seed model selector state from the real roster
 // instead of the static buildDefaultModelConfigs() fallback.
-import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion, getProviderRoster } from '@/auth';
+// getActiveStorageProvider is Gate's StorageProvider factory — used here to
+// supply useGhostMode with the active provider without App needing to know
+// which concrete implementation (Local vs Server) is in use.
+import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion, getProviderRoster, getActiveStorageProvider } from '@/auth';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
 // downloadExportedConversation triggers a Blob download — also imported from
 // @/storage per the documented exception. Called by handleExportConversation
 // after exportConversation returns the serialized content.
-import { useConversationStore, downloadExportedConversation } from '@/storage';
+// useGhostMode is the ghost-mode React hook from @/storage. Aria calls it at
+// the App root (alongside useConversationStore) to read and toggle ghost status
+// for the active conversation, and to save ghost-mode message updates to the
+// in-memory GhostModeManager instead of localStorage.
+import { useConversationStore, downloadExportedConversation, useGhostMode } from '@/storage';
 
 // ─── Roster → ModelConfig mapping ─────────────────────────────────────────────
 
@@ -79,6 +86,25 @@ export default function App() {
   // former MOCK_CONVERSATIONS + useState<Conversation[]> approach.
   const store = useConversationStore();
 
+  // ── Ghost mode (Vault) ────────────────────────────────────────────────────
+  // storageProviderRef holds the active StorageProvider instance for the
+  // lifetime of this component — used by useGhostMode to promote/demote
+  // conversations between localStorage and the in-memory GhostModeManager.
+  // Initialized once via getActiveStorageProvider() (Gate utility).
+  const storageProviderRef = useRef(getActiveStorageProvider());
+
+  const {
+    isGhost,
+    toggleGhostMode,
+    saveGhostConversation,
+    getGhostConversation,
+  } = useGhostMode(store.activeConversationId, storageProviderRef.current);
+
+  // isGlobalGhostMode: when true, new conversations are created as ghost
+  // conversations (not persisted to localStorage). Toggling via
+  // handleToggleGhostMode also demotes/promotes the current active conversation.
+  const [isGlobalGhostMode, setIsGlobalGhostMode] = useState(false);
+
   // Model state seeded from the user's ProviderRoster (Gate) rather than the
   // static buildDefaultModelConfigs(). On app boot we read the roster and map
   // each entry to a ModelConfig:
@@ -130,7 +156,13 @@ export default function App() {
   // write to both ref + state on every chunk.
   const accumulatorRef = useRef<Record<string, Message>>({});
 
-  const activeConversation = store.getActiveConversation();
+  // Derive the active conversation from either the persisted store (normal
+  // conversations) or the in-memory GhostModeManager (ghost conversations).
+  // Ghost conversations are not in store.conversations, so getActiveConversation()
+  // returns undefined for them — fall back to getGhostConversation().
+  const activeConversation =
+    store.getActiveConversation() ??
+    (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
   const messages = activeConversation?.messages ?? [];
 
   // Derive active models from the shared models array
@@ -180,8 +212,11 @@ export default function App() {
 
     // Persist the updated conversation to storage. updateConversation handles
     // auto-titling (first user message → title) and optimistic in-memory update.
-    // Ghost-mode guard: skip all storage writes for ghost conversations.
-    if (!updatedConversation.isGhost) {
+    // Ghost-mode guard: ghost conversations go to GhostModeManager (in-memory),
+    // normal conversations go to the LocalStorageProvider via the store.
+    if (updatedConversation.isGhost) {
+      saveGhostConversation(updatedConversation);
+    } else {
       void store.updateConversation(updatedConversation);
     }
 
@@ -224,17 +259,23 @@ export default function App() {
             setStreamingMessages(next);
 
             // Persist the completed message to the conversation store.
-            // We read the current store conversation (not the snapshot) to get
-            // any other messages that may have finalized while this one streamed.
-            // Ghost-mode guard: skip all storage writes for ghost conversations.
-            const currentConv = store.getActiveConversation();
-            if (currentConv && currentConv.id === sendingConversationId && !currentConv.isGhost) {
+            // We read the current conversation from either the persisted store
+            // (normal) or the in-memory GhostModeManager (ghost) to get any
+            // other messages that may have finalized while this one streamed.
+            const currentConv =
+              store.getActiveConversation() ??
+              getGhostConversation(sendingConversationId);
+            if (currentConv && currentConv.id === sendingConversationId) {
               const updated: Conversation = {
                 ...currentConv,
                 messages: [...currentConv.messages, finalMsg],
                 updatedAt: Date.now(),
               };
-              void store.updateConversation(updated);
+              if (updated.isGhost) {
+                saveGhostConversation(updated);
+              } else {
+                void store.updateConversation(updated);
+              }
             }
           }
         } else {
@@ -265,14 +306,21 @@ export default function App() {
       messages: [],
       models: models,
       interactionMode: 'parallel',
-      isGhost: false,
+      isGhost: isGlobalGhostMode,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    // Persist the new conversation and set it as active.
-    void store.createConversation(newConv).then(() => {
+    // Ghost-mode path: register with GhostModeManager (in-memory only) and
+    // set as active — no localStorage write occurs.
+    // Normal path: persist via the conversation store.
+    if (isGlobalGhostMode) {
+      saveGhostConversation(newConv);
       store.setActiveConversation(newConv.id);
-    });
+    } else {
+      void store.createConversation(newConv).then(() => {
+        store.setActiveConversation(newConv.id);
+      });
+    }
     // Clear directed-reply target when switching conversations.
     setPendingTargetModelId(null);
   };
@@ -364,6 +412,28 @@ export default function App() {
     setPendingTargetModelId(null);
   }, []);
 
+  // ── Ghost mode toggle ─────────────────────────────────────────────────────
+  // Toggles the active conversation's ghost status via useGhostMode, and
+  // flips isGlobalGhostMode so subsequent new conversations follow suit.
+  const handleToggleGhostMode = useCallback(async () => {
+    if (!activeConversation) {
+      // No active conversation — just flip the global flag so the next new
+      // conversation is created in the correct mode.
+      setIsGlobalGhostMode((prev) => !prev);
+      return;
+    }
+    const updated = await toggleGhostMode(activeConversation);
+    // After toggle, the conversation has moved (ghost ↔ normal). If it was
+    // promoted to normal, it is now in localStorage and we need to register
+    // it with the store. If demoted to ghost, useGhostMode already handled
+    // removal from localStorage and registration with GhostModeManager.
+    if (!updated.isGhost) {
+      // Promoted: register in the conversation store so it appears in the sidebar.
+      void store.updateConversation(updated);
+    }
+    setIsGlobalGhostMode((prev) => !prev);
+  }, [activeConversation, toggleGhostMode, store]);
+
   // ── Conversation management mutations ──────────────────────────────────────
   // These are thin pass-throughs — App only threads UI props, no business logic.
 
@@ -421,7 +491,8 @@ export default function App() {
       messages={messages}
       streamingMessages={activeStreamingMessages}
       isStreaming={anyStreaming}
-      isGhostMode={false}
+      isGhostMode={isGhost}
+      onToggleGhostMode={handleToggleGhostMode}
       onSend={handleSend}
       onSelectConversation={handleSelectConversation}
       onNewConversation={handleNewConversation}
