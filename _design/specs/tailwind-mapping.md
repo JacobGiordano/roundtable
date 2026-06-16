@@ -108,6 +108,50 @@ In light themes (chalk, linen), `semantic.error` and `semantic.error-bg` are the
 
 ---
 
+## Prose (Markdown Rendering)
+
+Used by Aria's `ReactMarkdown` component overrides inside `MessageBubble.tsx`. Full spec in `specs/markdown.md`.
+
+| Token | CSS Custom Property | Tailwind Key | Tailwind Class Examples |
+|-------|---------------------|-------------|------------------------|
+| `prose.code-bg` | `--prose-code-bg` | `colors.code` | `bg-code` |
+| `prose.code-border` | `--prose-code-border` | `colors.code-border` | `border-code` |
+| `prose.code-text` | `--prose-code-text` | `colors.code-text` | `text-code` |
+| `prose.block-bg` | `--prose-block-bg` | `colors.code-block` | `bg-code-block` |
+| `prose.link` | `--prose-link` | `colors.link` | `text-link` |
+| `prose.link-hover` | `--prose-link-hover` | `colors.link-hover` | `hover:text-link-hover` |
+| `prose.blockquote-border` | `--prose-blockquote-border` | `colors.blockquote` | `border-blockquote` |
+
+**Note**: `text-link` replaces the current interim `text-text-primary` hardcoded in `MessageBubble.tsx`. When Aria swaps the link class, the correct token resolves per-theme automatically. See `specs/markdown.md` for verified contrast ratios per theme.
+
+Add to the `tailwind.config.js` extension block (in the `colors` section):
+
+```js
+// Prose / markdown rendering tokens
+'code':           'var(--prose-code-bg)',
+'code-border':    'var(--prose-code-border)',
+'code-text':      'var(--prose-code-text)',
+'code-block':     'var(--prose-block-bg)',
+'link':           'var(--prose-link)',
+'link-hover':     'var(--prose-link-hover)',
+'blockquote':     'var(--prose-blockquote-border)',
+```
+
+Add to the `applyTheme()` function:
+
+```ts
+// Prose (markdown rendering)
+root.style.setProperty('--prose-code-bg',           theme.prose['code-bg']);
+root.style.setProperty('--prose-code-border',       theme.prose['code-border']);
+root.style.setProperty('--prose-code-text',         theme.prose['code-text']);
+root.style.setProperty('--prose-block-bg',          theme.prose['block-bg']);
+root.style.setProperty('--prose-link',              theme.prose.link);
+root.style.setProperty('--prose-link-hover',        theme.prose['link-hover']);
+root.style.setProperty('--prose-blockquote-border', theme.prose['blockquote-border']);
+```
+
+---
+
 ## Radius
 
 These map to Tailwind's `borderRadius` extension. Values are fixed and do not change per theme.
@@ -234,6 +278,14 @@ module.exports = {
         'error':           'var(--semantic-error)',      // text use: bright, reads on dark surfaces
         'error-bg':        'var(--semantic-error-bg)',  // bg use: dark, white text on top
         'info':            'var(--semantic-info)',
+        // Prose (markdown rendering in MessageBubble)
+        'code':            'var(--prose-code-bg)',
+        'code-border':     'var(--prose-code-border)',
+        'code-text':       'var(--prose-code-text)',
+        'code-block':      'var(--prose-block-bg)',
+        'link':            'var(--prose-link)',
+        'link-hover':      'var(--prose-link-hover)',
+        'blockquote':      'var(--prose-blockquote-border)',
       },
       borderRadius: {
         'sm':   'var(--radius-sm)',    // 4px

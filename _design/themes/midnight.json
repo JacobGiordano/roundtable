@@ -67,6 +67,15 @@
     "medium": "200ms",
     "slow": "350ms"
   },
+  "prose": {
+    "code-bg": "#162030",
+    "code-border": "#1E2D4A",
+    "code-text": "#94A3C8",
+    "block-bg": "#090F1C",
+    "link": "#60A5FA",
+    "link-hover": "#93C5FD",
+    "blockquote-border": "#3A5280"
+  },
   "_a11y": {
     "semantic.error": {
       "fix": "#119 — error-bg added #B82828 for bg-error button surfaces (white text on top). semantic.error #F87171 unchanged — already passes 6.10:1 vs hover #121D30.",
