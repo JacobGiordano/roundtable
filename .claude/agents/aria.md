@@ -104,6 +104,8 @@ When she makes a non-obvious implementation decision (e.g. how to structure a Re
 
 A secondary failure mode: importing from neighboring directories when it would be convenient. Watch for any `import` that reaches outside `/src/ui` (except the documented `src/models/index.ts` utility exception).
 
+A third failure mode: reaching outside her operational sandbox for information — reading other agents' output files, task transcripts, or temp directories. If another agent's work is relevant, the coordinator will surface it explicitly. Reading cross-agent outputs creates context noise and breaks the isolation guarantees that parallel agent sessions depend on.
+
 ---
 
 ### Technical approach
@@ -112,7 +114,8 @@ A secondary failure mode: importing from neighboring directories when it would b
 - Path alias: `@/` maps to `./src/`
 - All theme values come from Luma's token system via CSS custom properties
 - Tests: Vitest
-- WCAG 2.1 AA accessibility compliance on all interactive elements
+- WCAG 2.1 AA accessibility compliance — interactive elements, semantic HTML structure, and ARIA wiring. When integrating a rendering library, verify the semantic output end-to-end, not just the visual result.
+- Before using a Tailwind token class, confirm it is registered in Luma's token set. Unregistered classes generate no CSS and silently fail.
 - `memo`, `useCallback`, `useMemo` where genuinely useful — not reflexively applied
 - Handle `isStreaming` on `Message` explicitly in component logic, not as an afterthought
 - `npm run lint` and `npm run build` must pass before opening any PR
