@@ -18,11 +18,10 @@ import type {
   StreamHandler,
   StreamChunk,
   TokenUsage,
-  ModelError,
-  ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
 import { MAX_TOKENS_CLAUDE } from './constants';
+import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -69,19 +68,6 @@ type AnthropicStreamEvent =
   | AnthropicContentBlockDelta
   | AnthropicMessageDelta
   | { type: string };
-
-// ─── Error mapping ────────────────────────────────────────────────────────────
-
-function mapHttpStatusToErrorCode(status: number): ModelErrorCode {
-  if (status === 401 || status === 403) return 'auth_failure';
-  if (status === 429) return 'rate_limit';
-  if (status === 400) return 'context_length_exceeded';
-  return 'unknown';
-}
-
-function buildModelError(code: ModelErrorCode, message: string): ModelError {
-  return { code, message };
-}
 
 // ─── ClaudeModelProvider ──────────────────────────────────────────────────────
 
@@ -164,57 +150,40 @@ export class ClaudeModelProvider implements ModelProvider {
 
     // ─── Parse SSE stream ──────────────────────────────────────────────────────
 
-    const reader = response.body?.getReader();
-    if (!reader) {
+    if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
     }
 
-    const decoder = new TextDecoder();
-    let buffer = '';
     let inputTokens = 0;
     let outputTokens = 0;
 
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      for await (const data of parseSSEStream(response)) {
+        let event: AnthropicStreamEvent;
+        try {
+          event = JSON.parse(data) as AnthropicStreamEvent;
+        } catch {
+          continue;
+        }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        // Keep the last (potentially incomplete) line in the buffer
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-
-          let event: AnthropicStreamEvent;
-          try {
-            event = JSON.parse(data) as AnthropicStreamEvent;
-          } catch {
-            continue;
+        if (event.type === 'message_start') {
+          const start = event as AnthropicMessageStart;
+          inputTokens = start.message.usage.input_tokens;
+          outputTokens = start.message.usage.output_tokens;
+        } else if (event.type === 'content_block_delta') {
+          const delta = event as AnthropicContentBlockDelta;
+          if (delta.delta.type === 'text_delta') {
+            onChunk({
+              modelId: this.config.modelId,
+              content: delta.delta.text,
+              isDone: false,
+            });
           }
-
-          if (event.type === 'message_start') {
-            const start = event as AnthropicMessageStart;
-            inputTokens = start.message.usage.input_tokens;
-            outputTokens = start.message.usage.output_tokens;
-          } else if (event.type === 'content_block_delta') {
-            const delta = event as AnthropicContentBlockDelta;
-            if (delta.delta.type === 'text_delta') {
-              onChunk({
-                modelId: this.config.modelId,
-                content: delta.delta.text,
-                isDone: false,
-              });
-            }
-          } else if (event.type === 'message_delta') {
-            const msgDelta = event as AnthropicMessageDelta;
-            outputTokens += msgDelta.usage.output_tokens;
-          }
+        } else if (event.type === 'message_delta') {
+          const msgDelta = event as AnthropicMessageDelta;
+          outputTokens += msgDelta.usage.output_tokens;
         }
       }
     } catch (streamErr) {
@@ -224,8 +193,6 @@ export class ClaudeModelProvider implements ModelProvider {
       );
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
-    } finally {
-      reader.releaseLock();
     }
 
     // Emit final done chunk with token usage
