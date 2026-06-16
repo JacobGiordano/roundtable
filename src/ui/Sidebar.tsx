@@ -468,6 +468,24 @@ interface ThreadRowProps {
   onSetGroup: (groupId: string | undefined) => void;
 }
 
+// AnimatedListItem — applies thread-entering CSS animation on mount, then removes
+// the class once the animation completes. This prevents the <li> from retaining
+// an active `animation` property that creates a GPU compositing layer, which would
+// make it the containing block for `position: fixed` descendants (like the context
+// menu backdrop) and restrict the backdrop to only the 64px row height instead of
+// the full sidebar/viewport. See issue #125.
+function AnimatedListItem({ children }: { children: React.ReactNode }) {
+  const [entered, setEntered] = useState(false);
+  return (
+    <li
+      className={entered ? undefined : 'thread-entering'}
+      onAnimationEnd={() => setEntered(true)}
+    >
+      {children}
+    </li>
+  );
+}
+
 function ThreadRow({
   conversation,
   isActive,
@@ -1284,7 +1302,7 @@ export function Sidebar({
                   {isOpen && (
                     <ul>
                       {groupConvs.map((conv) => (
-                        <li key={conv.id} className="thread-entering">
+                        <AnimatedListItem key={conv.id}>
                           <ThreadRow
                             conversation={conv}
                             isActive={conv.id === activeConversationId}
@@ -1297,7 +1315,7 @@ export function Sidebar({
                             onDelete={() => onDeleteConversation?.(conv.id)}
                             onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                           />
-                        </li>
+                        </AnimatedListItem>
                       ))}
                     </ul>
                   )}
@@ -1307,7 +1325,7 @@ export function Sidebar({
 
             {/* Ungrouped conversations — no header, listed after all named groups */}
             {ungrouped.map((conv) => (
-              <li key={conv.id} className="thread-entering">
+              <AnimatedListItem key={conv.id}>
                 <ThreadRow
                   conversation={conv}
                   isActive={conv.id === activeConversationId}
@@ -1320,14 +1338,14 @@ export function Sidebar({
                   onDelete={() => onDeleteConversation?.(conv.id)}
                   onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                 />
-              </li>
+              </AnimatedListItem>
             ))}
           </ul>
         ) : (
           // ── Flat view (no groups present) ───────────────────────────────
           <ul className="py-1">
             {filteredConversations.map((conv) => (
-              <li key={conv.id} className="thread-entering">
+              <AnimatedListItem key={conv.id}>
                 <ThreadRow
                   conversation={conv}
                   isActive={conv.id === activeConversationId}
@@ -1340,7 +1358,7 @@ export function Sidebar({
                   onDelete={() => onDeleteConversation?.(conv.id)}
                   onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
                 />
-              </li>
+              </AnimatedListItem>
             ))}
           </ul>
         )}
