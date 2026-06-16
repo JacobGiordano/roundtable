@@ -777,9 +777,35 @@ function BulkActionBar({
   const [barState, setBarState] = useState<BulkBarState>('idle');
   const allSelected = selectedCount === totalCount && totalCount > 0;
 
+  // Refs for focus management (WCAG 2.4.3 — focus order on state transition).
+  // confirmDeleteRef: the "Delete" confirm button — receives focus when the
+  // confirm-delete state opens so keyboard users land on the destructive action.
+  // deleteSelectedRef: the "Delete selected" trigger — receives focus when the
+  // confirm state is dismissed (cancel or confirmed) to restore focus position.
+  const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+  const deleteSelectedRef = useRef<HTMLButtonElement>(null);
+
+  // Move focus to the confirm button when entering confirm-delete state.
+  useEffect(() => {
+    if (barState === 'confirm-delete') {
+      confirmDeleteRef.current?.focus();
+    }
+  }, [barState]);
+
+  const handleCancelConfirm = useCallback(() => {
+    setBarState('idle');
+    // Return focus to the "Delete selected" trigger on cancel (WCAG 2.4.3).
+    // Deferred to next tick so the button is visible before focus is applied.
+    setTimeout(() => deleteSelectedRef.current?.focus(), 0);
+  }, []);
+
   const handleBulkDeleteConfirm = useCallback(() => {
     onBulkDelete();
     setBarState('idle');
+    // Return focus to "Delete selected" trigger after confirmation.
+    // The button re-renders when barState returns to idle; next tick ensures
+    // the DOM has updated before focus is applied.
+    setTimeout(() => deleteSelectedRef.current?.focus(), 0);
   }, [onBulkDelete]);
 
   return (
@@ -820,6 +846,7 @@ function BulkActionBar({
             Archive selected
           </button>
           <button
+            ref={deleteSelectedRef}
             type="button"
             onClick={() => setBarState('confirm-delete')}
             className={[
@@ -840,12 +867,13 @@ function BulkActionBar({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setBarState('idle')}
+              onClick={handleCancelConfirm}
               className="flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast"
             >
               Cancel
             </button>
             <button
+              ref={confirmDeleteRef}
               type="button"
               onClick={handleBulkDeleteConfirm}
               className="flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast"
