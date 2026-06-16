@@ -68,8 +68,13 @@ Full mapping below.
 | `accents.model-gpt` | `--accent-gpt` | `colors.accent-gpt` | `bg-accent-gpt`, `border-accent-gpt`, `text-accent-gpt` |
 | `accents.model-gemini` | `--accent-gemini` | `colors.accent-gemini` | `bg-accent-gemini`, `border-accent-gemini`, `text-accent-gemini` |
 | `accents.model-other` | `--accent-other` | `colors.accent-other` | `bg-accent-other`, `border-accent-other`, `text-accent-other` |
+| `accents.model-grok` | `--accent-grok` | `colors.accent-grok` | `bg-accent-grok`, `border-accent-grok`, `text-accent-grok` |
+| `accents.model-deepseek` | `--accent-deepseek` | `colors.accent-deepseek` | `bg-accent-deepseek`, `border-accent-deepseek`, `text-accent-deepseek` |
+| `accents.model-mistral` | `--accent-mistral` | `colors.accent-mistral` | `bg-accent-mistral`, `border-accent-mistral`, `text-accent-mistral` |
 
 **Note**: These are the most heavily used tokens in the UI. The left border accent on message bubbles, the dot in pills, and the streaming indicator all use these. Because model identity is load-bearing, these values should never be hardcoded — always reference the token.
+
+**Wave-2 note**: `accent-grok`, `accent-deepseek`, and `accent-mistral` follow the same pattern as the original four. CSS var name: `--accent-{model}`. Tailwind key: `accent-{model}`. All three are already applied by `applyTheme()` in `src/ui/theme.ts` and consumed by the model registry (`src/models/registry.ts`). See `/_design/specs/model-accent-colors-wave2.md` for hue rationale and WCAG contrast audit.
 
 ---
 
@@ -212,10 +217,13 @@ module.exports = {
         'border-subtle':   'var(--border-subtle)',
         'border-strong':   'var(--border-strong)',
         // Accents
-        'accent-claude':   'var(--accent-claude)',
-        'accent-gpt':      'var(--accent-gpt)',
-        'accent-gemini':   'var(--accent-gemini)',
-        'accent-other':    'var(--accent-other)',
+        'accent-claude':    'var(--accent-claude)',
+        'accent-gpt':       'var(--accent-gpt)',
+        'accent-gemini':    'var(--accent-gemini)',
+        'accent-other':     'var(--accent-other)',
+        'accent-grok':      'var(--accent-grok)',
+        'accent-deepseek':  'var(--accent-deepseek)',
+        'accent-mistral':   'var(--accent-mistral)',
         // Interactive
         'hover':           'var(--interactive-hover)',
         'active':          'var(--interactive-active)',
@@ -279,10 +287,14 @@ function applyTheme(theme: ThemeTokens): void {
   root.style.setProperty('--border-strong',  theme.borders.strong);
 
   // Accents
-  root.style.setProperty('--accent-claude',  theme.accents['model-claude']);
-  root.style.setProperty('--accent-gpt',     theme.accents['model-gpt']);
-  root.style.setProperty('--accent-gemini',  theme.accents['model-gemini']);
-  root.style.setProperty('--accent-other',   theme.accents['model-other']);
+  root.style.setProperty('--accent-claude',    theme.accents['model-claude']);
+  root.style.setProperty('--accent-gpt',       theme.accents['model-gpt']);
+  root.style.setProperty('--accent-gemini',    theme.accents['model-gemini']);
+  root.style.setProperty('--accent-other',     theme.accents['model-other']);
+  // Wave-2 model accents
+  root.style.setProperty('--accent-grok',      theme.accents['model-grok']);
+  root.style.setProperty('--accent-deepseek',  theme.accents['model-deepseek']);
+  root.style.setProperty('--accent-mistral',   theme.accents['model-mistral']);
 
   // Interactive
   root.style.setProperty('--interactive-hover',  theme.interactive.hover);
