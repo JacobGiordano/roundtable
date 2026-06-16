@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
@@ -69,6 +69,42 @@ export function MessageThread({
   onExport,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  /** Ref for the scrollable message list container. */
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // ─── Smart scroll (#161) ───────────────────────────────────────────────────
+  // pinnedToBottom: true when the user is at (or near) the bottom of the
+  // scroll container. Auto-scroll fires only when pinned. Stored in a ref
+  // (not state) so toggling it never triggers a re-render by itself.
+  const pinnedToBottom = useRef(true);
+  // showScrollButton drives the ↓ FAB that appears when the user scrolls up.
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  /** Scroll threshold in pixels — within this distance = "at bottom". */
+  const SCROLL_THRESHOLD = 100;
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    bottomRef.current?.scrollIntoView({ behavior });
+    pinnedToBottom.current = true;
+    setShowScrollButton(false);
+  }, []);
+
+  // Attach scroll listener to the container to track whether user is pinned.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
+      pinnedToBottom.current = isNearBottom;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ─── Live region 1: streaming completion (#48) ─────────────────────────────
   // When a model finishes streaming (its message leaves streamingMessages),
@@ -175,10 +211,28 @@ export function MessageThread({
   // ordering is: all committed messages → all in-flight streaming messages.
   const allMessages = [...messages, ...streamingMessages];
 
-  // Auto-scroll to bottom when either list changes
+  // ─── Auto-scroll logic (#161) ──────────────────────────────────────────────
+  // Track the last user message ID so we can detect when the user sends a new
+  // message and force-pin back to bottom regardless of current scroll position.
+  const lastUserMessageIdRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingMessages]);
+    const allMsgs = [...messages, ...streamingMessages];
+    // Find the most recent user message.
+    const lastUserMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
+
+    if (lastUserMsg && lastUserMsg.id !== lastUserMessageIdRef.current) {
+      // The user just sent a new message — always scroll to bottom and re-pin.
+      lastUserMessageIdRef.current = lastUserMsg.id;
+      scrollToBottom('smooth');
+      return;
+    }
+
+    // For streaming chunks / assistant messages: only scroll if pinned.
+    if (pinnedToBottom.current) {
+      scrollToBottom('smooth');
+    }
+  }, [messages, streamingMessages, scrollToBottom]);
 
   if (allMessages.length === 0) {
     return (
@@ -189,7 +243,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col">
+    <div className="flex-1 overflow-hidden flex flex-col">
       {/* Live region 1 — streaming completion (#48).
           Fires "[Model] responded" when a stream transitions from
           streamingMessages to messages. aria-live="assertive" so the
@@ -226,7 +280,8 @@ export function MessageThread({
           />
         </div>
       )}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* Scroll container — ref used by the smart-scroll listener (#161) */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative">
         <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
           {allMessages.map((message, index) => {
             const modelConfig = findModelConfig(message.modelId, models);
@@ -265,6 +320,35 @@ export function MessageThread({
           {/* Scroll anchor */}
           <div ref={bottomRef} />
         </div>
+
+        {/* Scroll-to-bottom FAB (#161) — appears when the user scrolls up.
+            Sticky at the bottom of the visible scroll viewport, right-aligned.
+            Clicking re-pins and scrolls to the latest message. */}
+        {showScrollButton && (
+          <div className="sticky bottom-4 flex justify-end pr-2 pointer-events-none">
+            <button
+              type="button"
+              aria-label="Scroll to bottom"
+              onClick={() => scrollToBottom('smooth')}
+              className={[
+                'pointer-events-auto',
+                'flex items-center justify-center',
+                'w-8 h-8',
+                'rounded-full',
+                'bg-bg-elevated border border-border',
+                'text-text-secondary hover:text-text-primary',
+                'shadow-md',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              {/* Down-chevron icon */}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 4.5l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
