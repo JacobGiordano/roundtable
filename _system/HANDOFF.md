@@ -1,10 +1,16 @@
-Last updated: 2026-06-16 (ship #155 #161 #173)
+Last updated: 2026-06-16 (ship #127)
 
 ## Current phase
 
 Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
+
+- #127 (Aria): Replaced `bg-error` with `bg-error-bg` on 2 destructive "Remove" buttons in
+  ProviderSettingsPanel.tsx (`ConfirmDeleteRow`, both normal and last-provider paths).
+  `hover:bg-error/10` on the ghost button left unchanged — that's a tint, not a solid background.
+
+Also shipped this session (Waves 1–3):
 
 Coda coordinated Wave 3 of the audit backlog — 3-way parallel, all shipped:
 
