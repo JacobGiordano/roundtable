@@ -25,6 +25,8 @@ interface AppLayoutProps {
   streamingMessages?: Message[];
   isStreaming?: boolean;
   isGhostMode?: boolean;
+  /** Called when the user clicks the ghost mode toggle button. */
+  onToggleGhostMode?: () => void;
   onSend: (content: string) => void;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
@@ -121,6 +123,7 @@ export function AppLayout({
   streamingMessages,
   isStreaming = false,
   isGhostMode = false,
+  onToggleGhostMode,
   onSend,
   onSelectConversation,
   onNewConversation,
@@ -211,6 +214,8 @@ export function AppLayout({
         onToggleSettings={handleToggleSettings}
         onOpenProviderSettings={handleOpenProviderSettings}
         providerSettingsTriggerRef={providerSettingsTriggerRef}
+        isGhostMode={isGhostMode}
+        onToggleGhostMode={onToggleGhostMode}
       />
 
       {/* Provider settings backdrop — covers main content area when the settings drawer is
