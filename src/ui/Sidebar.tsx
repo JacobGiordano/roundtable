@@ -100,6 +100,7 @@ function formatRelativeTime(timestamp: number): string {
   const diffHours = Math.floor(diffMs / 3_600_000);
   const diffDays = Math.floor(diffMs / 86_400_000);
 
+  if (diffMs < 60_000) return '< 1m';
   if (diffMinutes < 60) return `${diffMinutes}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}d`;
