@@ -1,4 +1,4 @@
-Last updated: 2026-06-16 (ship #128 #129 #130)
+Last updated: 2026-06-16 (ship #131 #132)
 
 ## Current phase
 
@@ -6,48 +6,51 @@ Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
 
-Coda coordinated a 3-issue parallel wave — all shipped:
+Coda coordinated a batched Aria wave — both shipped:
 
-- #128 (Aria): Skip-to-main-content link added to `AppLayout.tsx` as the first focusable
-  element in DOM. `sr-only` at rest, visible with `focus:bg-bg focus:ring-focus` on focus.
-  `<main id="main-content" tabIndex={-1}>` is the target with `focus:ring-2 focus:ring-inset
-  focus:ring-focus` so the user can see where focus lands after activation.
+- #131 (Aria): Manual and Auto-chain interaction modes disabled with "coming soon"
+  tooltip. Rendered as non-interactive `<span>` elements (no tabIndex, no click handler).
+  Users can no longer reach a state where their selected mode is silently ignored by
+  `App.tsx:handleSend`. Parallel mode unchanged.
 
-- #129 (Aria): BulkActionBar confirm-delete focus management added to `Sidebar.tsx`.
-  `confirmDeleteRef` moves focus to the "Delete" confirm button on state transition.
-  `deleteSelectedRef` restores focus to the trigger on cancel or confirm (both via
-  `setTimeout(..., 0)` deferral to wait for DOM re-render).
+- #132 (Aria): Markdown rendering added to `MessageBubble.tsx` via `react-markdown` +
+  `rehype-sanitize`. Assistant messages render bold, italic, headings, lists, code blocks,
+  inline code, and links. XSS sanitized. User messages unchanged (plain text). Link color
+  uses `text-text-primary underline` (schema-guaranteed contrast in all 7 themes) pending
+  Luma `text-link` token from #193.
 
-- #130 (Forge + Bastion): Backend test suite wired into CI. `.github/workflows/ci.yml`
-  job `backend-lint-build-test` now runs `cd backend && npm test` (maps to `vitest run`).
-  `backend/package.json` gained a `test:run` alias for developer consistency.
-  63/63 backend tests pass.
+New dependencies: `react-markdown@10.1.0`, `rehype-sanitize@6.0.0`
 
 ## Key decisions
 
-- Skip link focus ring on `<main>` uses `focus:ring-2 focus:ring-inset focus:ring-focus`
-  (not `focus:outline-none` alone) — user confirmed the outline-only approach gave no
-  visible feedback on where focus landed.
-- BulkActionBar focuses "Delete" confirm button (not "Cancel") — diverges from
-  ThreadActionMenu convention. Filed advisory #197; not blocking.
-- Advisory #196 still open: ghost toggle `aria-label` double announcement.
-- `bg-bg` (not `bg-bg-surface`) is the correct Tailwind surface background token —
-  Ada caught `bg-bg-surface` as unregistered during this wave's audit.
+- #131 went with Option 2 (disable) not Option 1 (implement). Full Auto-chain/Manual
+  dispatch deferred — that's a future Atlas + Aria wave.
+- Link color: `text-accent-claude` failed 4.5:1 in Linen (4.12:1 on bg-sidebar).
+  Replaced with `text-text-primary underline`. TODO comment in code points to #193.
+- Luma #193 (markdown token layer) deferred — Aria used existing semantic tokens with
+  `/* TODO: Luma token #193 */` callouts on novel choices.
+- Syntax highlighting deferred — code blocks render as `<pre><code>` only.
+- Agent profiles updated: Aria (cross-agent file isolation, a11y scope, token discipline)
+  and Flint (issue gate vs. phase gate distinction, scope discipline).
 
-## Open issues
+## Open advisories (filed this session)
 
-~48 remaining in audit backlog.
+- #198 (Aria): InteractionModeSwitcher tooltip not wired via `aria-describedby`
+- #199 (Aria): Coming-soon spans break radiogroup ownership — fix when #131 Option 1 ships
+- #200 (Aria): External links missing "(opens in new tab)" sr-only announcement
+- #201 (Aria): Markdown headings unconstrained — h1 in message content (WCAG 1.3.1, serious)
+- #196 still open: ghost toggle aria-label double announcement
+- #197 still open: BulkActionBar focuses destructive action instead of Cancel
 
 ## What's next
 
-Next highest-priority:
-- #131 (Atlas/Aria) — Auto-chain and Manual interaction modes are silent no-ops
-- #132 (Aria) — Markdown rendering absent in message bubbles
+- #201 (Aria) — heading hierarchy fix, serious a11y, quick Aria session
 - #134 (Spark) — Streaming shimmer wrong color for 4 models
 - #186 (Scout/Forge) — Coverage report absent in CI
+- #193 (Luma) — Markdown token layer (text-link, code-bg, prose colors)
+- #200 (Aria) — New-tab sr-only announcement (quick, batch with next Aria session)
 
-Good next wave: #132 (Aria alone, significant) or #131 (Atlas + Aria, cross-agent).
-#131 requires Atlas + Aria coordination — separate worktrees required.
+Good next wave: batch #201 + #200 into one Aria session (both small, one Ada audit).
 
 ## Gotchas
 
@@ -67,3 +70,5 @@ Good next wave: #132 (Aria alone, significant) or #131 (Atlas + Aria, cross-agen
 - `--sidebar-width` CSS var on `:root` is the sidebar width source of truth — set by Sidebar.tsx useEffect
 - Parallel agent worktrees share the git object store; branch checkouts in a worktree can affect main workspace reflog — always verify HEAD after merging worktree branches
 - Ghost mode toggle visual state = `isGlobalGhostMode` (global), not `isGhost` (per-conversation) — don't confuse the two
+- react-markdown re-parses on every render chunk — no debounce applied; fast enough in practice
+- Markdown link color = `text-text-primary underline` (interim); swap to `text-link` token when Luma #193 ships
