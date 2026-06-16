@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
@@ -76,6 +78,185 @@ interface MessageBubbleProps {
 function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
 }
+
+// ─── Markdown component renderers ─────────────────────────────────────────────
+
+/**
+ * Custom renderers for react-markdown. All styles use registered Tailwind tokens.
+ * Code syntax highlighting is deferred to a future issue — blocks are rendered in
+ * <pre><code> with bg-sidebar (sidebar surface) as the background. The sidebar
+ * token is the most semantically neutral "slightly offset from card" surface in
+ * the token system.
+ *
+ * Links: external links open in a new tab with rel="noopener noreferrer" for
+ * security. Color uses text-accent-claude as a general "interactive link" color
+ * since there is no standalone `text-accent` or `text-link` token.
+ * TODO: Luma token #193 — define a `text-link` semantic token so link color is
+ * not tied to a model accent.
+ */
+const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  // Paragraphs: preserve existing body text sizing and line-height
+  p({ children }) {
+    return (
+      <p className="text-[15px] font-normal leading-[1.6] text-text-primary mb-3 last:mb-0 break-words">
+        {children}
+      </p>
+    );
+  },
+  // Headings: scale down from default browser sizes to fit conversational context
+  h1({ children }) {
+    return <h1 className="text-[18px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h1>;
+  },
+  h2({ children }) {
+    return <h2 className="text-[16px] font-semibold leading-[1.4] text-text-primary mb-2 mt-3 first:mt-0">{children}</h2>;
+  },
+  h3({ children }) {
+    return <h3 className="text-[15px] font-semibold leading-[1.4] text-text-primary mb-1.5 mt-2 first:mt-0">{children}</h3>;
+  },
+  h4({ children }) {
+    return <h4 className="text-[14px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-2 first:mt-0">{children}</h4>;
+  },
+  h5({ children }) {
+    return <h5 className="text-[13px] font-semibold leading-[1.4] text-text-secondary mb-1 mt-1.5 first:mt-0">{children}</h5>;
+  },
+  h6({ children }) {
+    return <h6 className="text-[12px] font-semibold leading-[1.4] text-text-muted mb-1 mt-1.5 first:mt-0">{children}</h6>;
+  },
+  // Emphasis
+  strong({ children }) {
+    return <strong className="font-semibold text-text-primary">{children}</strong>;
+  },
+  em({ children }) {
+    return <em className="italic">{children}</em>;
+  },
+  // Lists
+  ul({ children }) {
+    return <ul className="list-disc list-outside pl-5 mb-3 last:mb-0 space-y-1 text-[15px] leading-[1.6] text-text-primary">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="list-decimal list-outside pl-5 mb-3 last:mb-0 space-y-1 text-[15px] leading-[1.6] text-text-primary">{children}</ol>;
+  },
+  li({ children }) {
+    return <li className="text-text-primary break-words">{children}</li>;
+  },
+  // Links: external links open in new tab.
+  // Color: text-accent-claude is used as a link color stand-in.
+  // TODO: Luma token #193 — define a `text-link` semantic token.
+  a({ href, children }) {
+    const isExternal = href?.startsWith('http') || href?.startsWith('//');
+    return (
+      <a
+        href={href}
+        {...(isExternal
+          ? { target: '_blank', rel: 'noopener noreferrer' }
+          : {})}
+        className="text-accent-claude underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
+      >
+        {children}
+      </a>
+    );
+  },
+  // Inline code
+  code({ children, className }) {
+    // react-markdown passes className="language-*" for fenced code blocks.
+    // When no className, this is an inline code span.
+    const isBlock = !!className;
+    if (isBlock) {
+      // Fenced code blocks are handled by the `pre` renderer below.
+      // This branch renders the inner <code> inside <pre>.
+      return (
+        <code className="text-[13px] font-mono leading-[1.6] text-text-primary block overflow-x-auto">
+          {children}
+        </code>
+      );
+    }
+    // Inline code
+    return (
+      <code className="bg-sidebar text-text-primary text-[13px] font-mono px-1 py-0.5 rounded-sm border border-border-subtle">
+        {children}
+      </code>
+    );
+  },
+  // Code blocks: rendered as <pre><code> with sidebar surface background.
+  // Syntax highlighting is explicitly deferred — no highlighter library added here.
+  pre({ children }) {
+    return (
+      <pre className="bg-sidebar border border-border-subtle rounded-md px-4 py-3 mb-3 last:mb-0 overflow-x-auto">
+        {children}
+      </pre>
+    );
+  },
+  // Blockquote
+  blockquote({ children }) {
+    return (
+      <blockquote className="border-l-2 border-border pl-3 my-2 text-text-secondary italic">
+        {children}
+      </blockquote>
+    );
+  },
+  // Horizontal rule
+  hr() {
+    return <hr className="border-border-subtle my-3" />;
+  },
+};
+
+// ─── MessageContent ────────────────────────────────────────────────────────────
+
+/**
+ * Renders message content with markdown support for assistant messages.
+ * User messages render as plain whitespace-preserving text — markdown in
+ * user input is intentionally not parsed (user sees what they typed).
+ *
+ * XSS: rehypeSanitize removes all <script> tags, event handlers (onclick etc.),
+ * and other unsafe HTML from model output. Model output is untrusted by default.
+ *
+ * Streaming: react-markdown re-parses on every render. This is fast enough for
+ * streaming if we don't add debouncing complexity. No debounce is applied here;
+ * revisit only if layout thrash is observed in practice.
+ */
+interface MessageContentProps {
+  message: Message;
+  isStreaming: boolean;
+  hasError: boolean;
+}
+
+function MessageContent({ message, isStreaming, hasError }: MessageContentProps) {
+  if (message.role === 'user') {
+    // User messages: plain text, preserve whitespace (no markdown rendering)
+    return (
+      <div
+        className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words"
+        aria-live="off"
+      >
+        {message.content}
+        {isStreaming && !hasError && (
+          <span className="cursor-blink select-none" aria-hidden="true">|</span>
+        )}
+      </div>
+    );
+  }
+
+  // Assistant messages: render with react-markdown + rehype-sanitize
+  return (
+    <div
+      className="text-[15px] font-normal leading-[1.6] text-text-primary break-words"
+      aria-live={isStreaming ? 'polite' : 'off'}
+      aria-atomic={isStreaming ? 'false' : undefined}
+    >
+      <ReactMarkdown
+        rehypePlugins={[rehypeSanitize]}
+        components={markdownComponents}
+      >
+        {message.content ?? ''}
+      </ReactMarkdown>
+      {isStreaming && !hasError && (
+        <span className="cursor-blink select-none" aria-hidden="true">|</span>
+      )}
+    </div>
+  );
+}
+
+// ─── MessageBubble ─────────────────────────────────────────────────────────────
 
 export function MessageBubble({
   message,
@@ -190,23 +371,14 @@ export function MessageBubble({
       )}
 
       {/* Message body
-          aria-live="polite": notifies screen readers as streaming content arrives.
-          aria-atomic="false": the region updates incrementally — only newly appended
-          text is announced, not the full accumulated content on every chunk.
-          aria-live is only set during streaming on assistant bubbles; once streaming
-          completes the attribute switches to "off" so finalized content is not
-          re-announced on subsequent re-renders.
-          User messages are never streaming, so they always get aria-live="off". */}
-      <div
-        className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words"
-        aria-live={isStreaming && message.role === 'assistant' ? 'polite' : 'off'}
-        aria-atomic={isStreaming && message.role === 'assistant' ? 'false' : undefined}
-      >
-        {message.content}
-        {isStreaming && !hasError && (
-          <span className="cursor-blink select-none" aria-hidden="true">|</span>
-        )}
-      </div>
+          User messages: plain whitespace-preserving text.
+          Assistant messages: rendered via react-markdown with rehype-sanitize XSS protection.
+          aria-live/aria-atomic handling is encapsulated in MessageContent. */}
+      <MessageContent
+        message={message}
+        isStreaming={isStreaming}
+        hasError={hasError}
+      />
 
       {/* Directed-to label — shown on user messages that have a targetModelId.
           Subtle indicator so the thread stays readable after the fact.

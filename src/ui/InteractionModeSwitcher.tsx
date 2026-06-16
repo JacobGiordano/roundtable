@@ -5,8 +5,22 @@ import type { InteractionMode, InteractionModeConfig } from '@/types';
 /**
  * Typed registry of all supported interaction modes.
  * Drives the switcher UI and tooltip copy.
+ *
+ * `comingSoon: true` marks modes that are not yet implemented. These modes are
+ * rendered as non-interactive — visually present, never selectable. A "coming
+ * soon" tooltip communicates why. This prevents users from reaching a state
+ * where their selected mode is silently ignored by App.tsx:handleSend, which
+ * always broadcasts in parallel.
+ *
+ * Issue #131: Auto-chain and Manual are disabled (Option 2). Do not enable
+ * them until the respective dispatch logic lands in Atlas (handleSend must
+ * actually respect the selected mode before the UI unlocks).
  */
-const INTERACTION_MODES: InteractionModeConfig[] = [
+interface InteractionModeEntry extends InteractionModeConfig {
+  comingSoon?: boolean;
+}
+
+const INTERACTION_MODES: InteractionModeEntry[] = [
   {
     mode: 'parallel',
     label: 'Parallel',
@@ -16,11 +30,13 @@ const INTERACTION_MODES: InteractionModeConfig[] = [
     mode: 'manual',
     label: 'Manual',
     description: 'You choose which model to send each message to.',
+    comingSoon: true,
   },
   {
     mode: 'auto-chain',
     label: 'Auto-chain',
     description: 'Models respond in sequence, each building on the previous reply.',
+    comingSoon: true,
   },
 ];
 
@@ -35,7 +51,7 @@ const INTERACTION_MODES: InteractionModeConfig[] = [
 type TooltipAlign = 'left' | 'center' | 'right';
 
 interface ModeButtonProps {
-  config: InteractionModeConfig;
+  config: InteractionModeEntry;
   isSelected: boolean;
   onSelect: (mode: InteractionMode) => void;
   /** Controls which edge the tooltip anchors to avoid viewport clipping. */
@@ -58,6 +74,63 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
       : tooltipAlign === 'left'
         ? 'left-3'
         : 'left-1/2 -translate-x-1/2';
+
+  const isDisabled = config.comingSoon === true;
+
+  // Tooltip copy: "coming soon" modes show a different description
+  const tooltipContent = isDisabled
+    ? 'Coming soon — not yet available'
+    : config.description;
+
+  if (isDisabled) {
+    // Render as a non-interactive span so it cannot be focused or activated.
+    // aria-disabled is not used on a span (it only applies to interactive roles).
+    // Screen readers will read the label from the tooltip via aria-describedby
+    // is not needed here — the span is non-interactive and carries no role.
+    // The "coming soon" text is conveyed visually via the tooltip on hover.
+    return (
+      <div className="relative group">
+        <span
+          aria-hidden="false"
+          aria-label={`${config.label} — coming soon`}
+          className={[
+            'relative h-7 px-3 rounded-full',
+            'text-[12px] font-medium whitespace-nowrap',
+            'border border-transparent',
+            // Muted appearance makes non-interactivity visually clear
+            'text-text-muted opacity-50',
+            'cursor-not-allowed select-none',
+            'inline-flex items-center',
+          ].join(' ')}
+        >
+          {config.label}
+        </span>
+
+        {/* Tooltip — shown on hover via group */}
+        <div
+          role="tooltip"
+          className={[
+            `absolute bottom-full ${tooltipPositionClass} mb-2`,
+            'w-max max-w-[200px]',
+            'bg-sidebar border border-border rounded-sm shadow-md',
+            'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
+            'pointer-events-none',
+            'opacity-0 group-hover:opacity-100',
+            // Respect prefers-reduced-motion — see global CSS
+            'transition-opacity duration-fast',
+            'z-20',
+          ].join(' ')}
+        >
+          {tooltipContent}
+          {/* Caret — anchored to match tooltip alignment */}
+          <span
+            className={`absolute top-full ${caretPositionClass} -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border`}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative group">
@@ -128,6 +201,11 @@ export interface InteractionModeSwitcherProps {
  * never compressed — the ModelSelectorPanel side yields space instead.
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
  * middle item centers — preventing right-edge clipping for Auto-chain.
+ *
+ * Non-interactive modes: Manual and Auto-chain are rendered as non-interactive
+ * spans with a "coming soon" tooltip. They cannot be selected. Only Parallel
+ * is selectable. This reflects that App.tsx:handleSend always broadcasts in
+ * parallel — the UI must not imply otherwise. (#131)
  */
 export function InteractionModeSwitcher({
   activeMode,
