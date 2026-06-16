@@ -1,5 +1,6 @@
 // Vault owns this directory — /src/storage
 export { LocalStorageProvider, downloadExportedConversation } from './LocalStorageProvider';
+export { conversationToMarkdown, conversationToHtml } from './exporters';
 export { ServerStorageProvider } from './ServerStorageProvider';
 export type { ServerStorageConfig } from './ServerStorageProvider';
 export { StorageError } from './StorageError';
