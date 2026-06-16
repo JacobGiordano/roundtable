@@ -1,5 +1,46 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+
+/** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
+function CopyIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+      className="flex-shrink-0"
+    >
+      {/* Page being copied (back) */}
+      <rect x="4" y="1" width="8" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+      {/* Page in front */}
+      <rect x="1" y="3.5" width="8" height="10" rx="1.2" fill="var(--surface-card, #fff)" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+/** Checkmark icon — 14×14 SVG, shown briefly after a successful copy. */
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+      className="flex-shrink-0"
+    >
+      <path
+        d="M2.5 7L5.5 10L11.5 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -50,6 +91,18 @@ export function MessageBubble({
   const hasError    = !!error;
   // Token count and directed-reply affordance are hidden by default; revealed on hover.
   const [isHovered, setIsHovered] = useState(false);
+  // Copy-to-clipboard state: 'idle' | 'copied'. Reverts to 'idle' after 1.5s.
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+
+  const handleCopy = useCallback(() => {
+    if (!message.content || copyState === 'copied') return;
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 1500);
+    }).catch(() => {
+      // Clipboard write failed (e.g. insecure context) — fail silently.
+    });
+  }, [message.content, copyState]);
 
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
@@ -100,6 +153,33 @@ export function MessageBubble({
       onMouseLeave={() => setIsHovered(false)}
       aria-busy={isStreaming && message.role === 'assistant' ? true : undefined}
     >
+      {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus.
+          Available on all messages (user and assistant) as long as there is content to copy.
+          aria-label switches between "Copy message" and "Copied!" to announce the state
+          change to screen readers without requiring a live region. The button stays in the
+          accessibility tree at all times so keyboard users can reach it via Tab — only its
+          visual opacity is toggled, never its DOM presence. */}
+      {message.content && (
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
+          className={[
+            'absolute top-2 right-2',
+            'w-6 h-6 rounded flex items-center justify-center',
+            'text-text-secondary',
+            copyState === 'copied'
+              ? 'opacity-100 text-semantic-success'
+              : 'hover:bg-hover hover:text-text-primary',
+            'transition-opacity transition-colors duration-fast',
+            isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+          ].join(' ')}
+        >
+          {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      )}
+
       {/* Model name header — assistant messages only */}
       {showHeader && (
         <div
