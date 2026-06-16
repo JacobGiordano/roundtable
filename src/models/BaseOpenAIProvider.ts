@@ -30,10 +30,9 @@ import type {
   StreamHandler,
   StreamChunk,
   TokenUsage,
-  ModelError,
-  ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
+import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
 
 // ─── SSE event types for the OpenAI Chat Completions streaming format ─────────
 // All four built-in OpenAI-compatible providers share this exact wire format.
@@ -61,19 +60,6 @@ interface OpenAIStreamChunk {
     completion_tokens: number;
     total_tokens: number;
   };
-}
-
-// ─── Error helpers ────────────────────────────────────────────────────────────
-
-function mapHttpStatusToErrorCode(status: number): ModelErrorCode {
-  if (status === 401 || status === 403) return 'auth_failure';
-  if (status === 429) return 'rate_limit';
-  if (status === 400) return 'context_length_exceeded';
-  return 'unknown';
-}
-
-function buildModelError(code: ModelErrorCode, message: string): ModelError {
-  return { code, message };
 }
 
 // ─── BaseOpenAIProvider ───────────────────────────────────────────────────────
@@ -179,56 +165,39 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
 
     // ─── Parse SSE stream ──────────────────────────────────────────────────────
 
-    const reader = response.body?.getReader();
-    if (!reader) {
+    if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
     }
 
-    const decoder = new TextDecoder();
-    let buffer = '';
     let inputTokens = 0;
     let outputTokens = 0;
 
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      for await (const data of parseSSEStream(response)) {
+        let event: OpenAIStreamChunk;
+        try {
+          event = JSON.parse(data) as OpenAIStreamChunk;
+        } catch {
+          continue;
+        }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        // Keep the last (potentially incomplete) line in the buffer
-        buffer = lines.pop() ?? '';
+        // Capture token usage from the final usage chunk (stream_options.include_usage)
+        if (event.usage) {
+          inputTokens = event.usage.prompt_tokens;
+          outputTokens = event.usage.completion_tokens;
+        }
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-
-          let event: OpenAIStreamChunk;
-          try {
-            event = JSON.parse(data) as OpenAIStreamChunk;
-          } catch {
-            continue;
-          }
-
-          // Capture token usage from the final usage chunk (stream_options.include_usage)
-          if (event.usage) {
-            inputTokens = event.usage.prompt_tokens;
-            outputTokens = event.usage.completion_tokens;
-          }
-
-          // Emit content deltas
-          for (const choice of event.choices) {
-            const text = choice.delta.content;
-            if (text) {
-              onChunk({
-                modelId: this.config.modelId,
-                content: text,
-                isDone: false,
-              });
-            }
+        // Emit content deltas
+        for (const choice of event.choices) {
+          const text = choice.delta.content;
+          if (text) {
+            onChunk({
+              modelId: this.config.modelId,
+              content: text,
+              isDone: false,
+            });
           }
         }
       }
@@ -239,8 +208,6 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       );
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
-    } finally {
-      reader.releaseLock();
     }
 
     // Emit final done chunk with token usage

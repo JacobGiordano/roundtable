@@ -18,11 +18,10 @@ import type {
   StreamHandler,
   StreamChunk,
   TokenUsage,
-  ModelError,
-  ModelErrorCode,
 } from '@/types';
 import { getCredentials } from '@/auth';
 import { MAX_TOKENS_GEMINI } from './constants';
+import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -76,19 +75,6 @@ interface GeminiUsageMetadata {
 interface GeminiStreamChunk {
   candidates?: GeminiCandidate[];
   usageMetadata?: GeminiUsageMetadata;
-}
-
-// ─── Error mapping ────────────────────────────────────────────────────────────
-
-function mapHttpStatusToErrorCode(status: number): ModelErrorCode {
-  if (status === 401 || status === 403) return 'auth_failure';
-  if (status === 429) return 'rate_limit';
-  if (status === 400) return 'context_length_exceeded';
-  return 'unknown';
-}
-
-function buildModelError(code: ModelErrorCode, message: string): ModelError {
-  return { code, message };
 }
 
 // ─── Message format conversion ────────────────────────────────────────────────
@@ -201,57 +187,40 @@ export class GeminiModelProvider implements ModelProvider {
     // The Google streaming API returns SSE with `data:` lines containing JSON
     // GeminiStreamChunk objects. The final chunk includes usageMetadata.
 
-    const reader = response.body?.getReader();
-    if (!reader) {
+    if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
     }
 
-    const decoder = new TextDecoder();
-    let buffer = '';
     let inputTokens = 0;
     let outputTokens = 0;
 
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      for await (const data of parseSSEStream(response)) {
+        let event: GeminiStreamChunk;
+        try {
+          event = JSON.parse(data) as GeminiStreamChunk;
+        } catch {
+          continue;
+        }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        // Keep the last (potentially incomplete) line in the buffer
-        buffer = lines.pop() ?? '';
+        // Capture usage metadata (present on the final chunk)
+        if (event.usageMetadata) {
+          inputTokens = event.usageMetadata.promptTokenCount;
+          outputTokens = event.usageMetadata.candidatesTokenCount;
+        }
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (!data || data === '[DONE]') continue;
-
-          let event: GeminiStreamChunk;
-          try {
-            event = JSON.parse(data) as GeminiStreamChunk;
-          } catch {
-            continue;
-          }
-
-          // Capture usage metadata (present on the final chunk)
-          if (event.usageMetadata) {
-            inputTokens = event.usageMetadata.promptTokenCount;
-            outputTokens = event.usageMetadata.candidatesTokenCount;
-          }
-
-          // Emit content deltas from candidates
-          if (event.candidates) {
-            for (const candidate of event.candidates) {
-              for (const part of candidate.content.parts) {
-                if (part.text) {
-                  onChunk({
-                    modelId: this.config.modelId,
-                    content: part.text,
-                    isDone: false,
-                  });
-                }
+        // Emit content deltas from candidates
+        if (event.candidates) {
+          for (const candidate of event.candidates) {
+            for (const part of candidate.content.parts) {
+              if (part.text) {
+                onChunk({
+                  modelId: this.config.modelId,
+                  content: part.text,
+                  isDone: false,
+                });
               }
             }
           }
@@ -264,8 +233,6 @@ export class GeminiModelProvider implements ModelProvider {
       );
       onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
       return {};
-    } finally {
-      reader.releaseLock();
     }
 
     // Emit final done chunk with token usage
