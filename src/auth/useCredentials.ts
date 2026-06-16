@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import type { CredentialKey } from '@/types';
-import { getCredentials, saveCredentials, clearCredentials, hasCredential } from './credentials';
+import { getCredentials, saveCredentials, clearCredentials, hasCredential, CREDENTIAL_LABELS } from './credentials';
 
 export interface CredentialState {
   /** Whether a key is currently stored for this provider. */
@@ -34,7 +34,12 @@ export interface UseCredentialsReturn {
   getRawKey: (key: CredentialKey) => string | undefined;
 }
 
-const ALL_KEYS: CredentialKey[] = ['anthropic', 'openai'];
+/**
+ * All known built-in provider credential keys, derived from CREDENTIAL_LABELS
+ * in credentials.ts. Extending the set of built-in providers only requires
+ * adding an entry to CREDENTIAL_LABELS — no changes needed here.
+ */
+const ALL_KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
 
 function buildStatus(): Record<CredentialKey, CredentialState> {
   return Object.fromEntries(

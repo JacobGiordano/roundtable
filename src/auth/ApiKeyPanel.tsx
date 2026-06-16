@@ -293,7 +293,11 @@ export interface ApiKeyPanelProps {
 export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
   const { status, save, clear } = useCredentials();
 
-  const KEYS: CredentialKey[] = ['anthropic', 'openai'];
+  /**
+   * Derived from CREDENTIAL_LABELS so adding a 7th built-in provider only
+   * requires a new entry in credentials.ts — no changes needed here.
+   */
+  const KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
 
   return (
     <section aria-labelledby="api-keys-heading" className="w-full">
