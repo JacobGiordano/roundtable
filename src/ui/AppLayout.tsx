@@ -184,6 +184,24 @@ export function AppLayout({
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
+      {/* Skip-to-main-content link — WCAG 2.4.1 bypass block requirement.
+          Visually hidden at rest (sr-only); becomes visible on keyboard focus
+          so keyboard users can jump past the sidebar nav directly to the main
+          content area. Must be the very first focusable element in the DOM. */}
+      <a
+        href="#main-content"
+        className={[
+          'sr-only',
+          'focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999]',
+          'focus:px-4 focus:py-2',
+          'focus:bg-bg focus:text-text-primary',
+          'focus:rounded focus:shadow-lg',
+          'focus:outline-none focus:ring-2 focus:ring-focus',
+        ].join(' ')}
+      >
+        Skip to main content
+      </a>
+
       {/* Mobile backdrop — covers main content while the sidebar drawer is open.
           Tapping it closes the drawer. Hidden on desktop via md:hidden. */}
       {isMobileMenuOpen && (
@@ -242,8 +260,10 @@ export function AppLayout({
         triggerRef={providerSettingsTriggerRef}
       />
 
-      {/* Main area — flex-1 */}
-      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+      {/* Main area — flex-1.
+          id="main-content" is the skip-link target (WCAG 2.4.1).
+          tabIndex={-1} allows programmatic focus without inserting a tab stop. */}
+      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col overflow-hidden min-w-0 focus:outline-none">
         {/* Mobile top header bar — visible only on small screens (below md breakpoint).
             Contains: hamburger (opens sidebar) | logo | new-conversation button.
             Hidden on desktop where the sidebar is always visible. */}
