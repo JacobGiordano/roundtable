@@ -261,7 +261,7 @@ No custom fonts. System font stack. Sizes and weights are component-specific —
 
 ## Layout Constants
 
-- **Sidebar width:** 256px fixed. Not resizable in Phase 1.
+- **Sidebar width:** 280px default (`SIDEBAR_WIDTH_DEFAULT`). Drag-resizable — the user can drag the sidebar edge to resize. The CSS custom property `--sidebar-width` on `:root` is the runtime source of truth; it is written by `Sidebar.tsx` on mount and on every resize. Any component that needs to know the current sidebar width must read `var(--sidebar-width, 280px)` — never hardcode 280px in component logic.
 - **Conversation column max-width:** 720px, centered. (Recommendation — Aria owns this decision.)
 - **Input bar:** Fixed to bottom of conversation column. `min-height: 64px`, grows to `200px` max.
 - **Thread title default:** First 40 characters of the first user message, newlines stripped.
