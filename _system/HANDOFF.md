@@ -1,39 +1,54 @@
-Last updated: 2026-06-16 (ship #125)
+Last updated: 2026-06-16 (ship #168 #153 #185)
 
 ## Current phase
 
-Phase 4+ — Custom provider infrastructure complete. Full gate process now active.
+Phase 4+ — Custom provider infrastructure complete. Full gate process active.
 
 ## Session summary
 
-- #125 (Aria): Fix context menu backdrop z-index bug on mobile sidebar
-  - Root cause: `<li class="thread-entering">` retains a GPU compositing layer while the `animation` property is present, even after the keyframe animation ends at `transform: none`. This layer becomes a containing block for `position: fixed` descendants, clipping the backdrop to the row height instead of the full sidebar.
-  - Fix: `AnimatedListItem` React component wraps every thread row `<li>`. Applies `thread-entering` on mount, removes it via `onAnimationEnd`. Without the `animation` property, no GPU layer is retained.
-  - Also created GitHub issues #126–#194 from the 2026-06-15 all-hands audit.
+Coda coordinated Wave 1 of the audit backlog (#126–#194) — 3-way parallel, all shipped:
+
+- #168 (Aria): Guard `updateConversation()` against ghost conversations — 4 call sites in App.tsx
+  now check `isGhost` before writing to storage. Downstream guard in the store already existed;
+  this adds the UI-boundary short-circuit.
+- #153 (Atlas): Centralize MAX_TOKENS — removed 6 local `const MAX_TOKENS = 8096` definitions,
+  created `/src/models/constants.ts` with correct per-provider output token limits
+  (Claude 16000, GPT 16384, Grok 16384, Gemini/DeepSeek/Mistral/Generic 8192).
+- #185 (Forge): Wire Playwright E2E smoke tests into CI — new `e2e` job in `ci.yml`, runs after
+  build+test, installs Chromium, starts vite preview on port 5173, uploads artifacts on failure.
 
 ## Key decisions
 
-- `semantic.error` and `semantic.error-bg` are intentionally split. `semantic.error` is a bright foreground text color; `semantic.error-bg` is the dark-red variant for button backgrounds with white text. NEVER use `bg-error text-white` — use `bg-error-bg text-white` for destructive buttons.
-- Co-located unit tests in domain directories (`/src/storage/*.test.ts`) are established practice and consistent with the existing `LocalStorageProvider.test.ts` / `ServerStorageProvider.test.ts` pattern.
-- `position: fixed` backdrop for ThreadActionMenu must stay INSIDE the sidebar's stacking context (not portaled to document.body) — the mobile sidebar is `position: fixed; z-index: 50` and forms an opaque stacking context; a portaled backdrop at z-30 in page context sits below it.
+- `semantic.error` and `semantic.error-bg` are intentionally split — see prior session notes.
+- Ghost guard lives at the UI boundary (App.tsx), not only in the storage layer — defense in depth.
+- MAX_TOKENS constants are named per-provider (`MAX_TOKENS_CLAUDE` etc.) to prevent future copy-paste collisions.
+- Vite preview runs on port 5173 in CI (not the default 4173) to match `playwright.config.ts` hardcoded baseURL — done via CLI flag, no config file changes needed.
+- Flint advisory: `playwright.config.ts` uses `reporter: 'list'` — HTML report artifact won't exist on failure. Filed as a non-blocker; worth a follow-up ticket.
 
 ## Open issues
 
-None. Queue is clear — see #126–#194 for the full audit backlog.
+49 remaining in audit backlog (#145–#194, minus #153 #168 #185 now closed).
 
 ## What's next
 
-No open issues — queue is clear. Await new issue from user.
+Wave 2 candidates (ready to parallelize):
+- #163 (Aria) — Copy message button
+- #161 (Aria) — Smart scroll fix
+- #194 (Marque) — favicon.ico missing
+- #155 or #157 (Vault) — GhostModeManager cleanup / export serializer extraction
+
+Aria can only run one issue at a time — pick one Aria issue plus Marque + one Vault for the next wave.
 
 ## Gotchas
 
 - CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
-- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run; also clears stale path references that cause loadAndTransform noise (fixed by #123)
+- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before the final test run
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
-- `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic; if it fails, roster entry exists but has no key
+- `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
-- E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel to remount the row
-- Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper — required so real model selector trigger renders (empty-roster button has same aria-controls but opens provider settings, not model selector)
-- Settings drawer has focus trap (#116) — keyboard tests that open the drawer must account for Tab being intercepted
-- Context menu confirm-delete state moves focus to Cancel on open — tests that interact with confirm-delete must account for this
-- GPU compositing layers: browsers may keep a compositing layer alive on any element with an active `animation` property. This layer acts as a containing block for `position: fixed` descendants — even if the final keyframe value is `transform: none`. Remove the `animation` class entirely (not just override the transform) to eliminate the layer. Fixed via `AnimatedListItem` in #125.
+- E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials via localStorage must close+reopen the panel
+- Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper
+- Settings drawer has focus trap (#116) — keyboard tests must account for Tab being intercepted
+- Context menu confirm-delete state moves focus to Cancel on open
+- GPU compositing layers: remove the `animation` class entirely (not just override transform) to eliminate GPU layers. Fixed via `AnimatedListItem` in #125.
+- E2E CI: `playwright.config.ts` uses `reporter: 'list'` — HTML report artifact won't exist on failure (Flint advisory from #185 review)
