@@ -886,6 +886,13 @@ export function Sidebar({
   const currentWidthRef = useRef<number>(sidebarWidth);
   currentWidthRef.current = sidebarWidth;
 
+  // Sync --sidebar-width CSS custom property on :root so sibling components
+  // (e.g. ProviderSettingsPanel) can derive their width from the actual sidebar
+  // width rather than a hardcoded pixel value. Runs on mount and on every resize.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+  }, [sidebarWidth]);
+
   // Ref holds drag origin data so mousemove can compute deltas without closure capture.
   const dragOriginRef = useRef<{ startX: number; startWidth: number } | null>(null);
 

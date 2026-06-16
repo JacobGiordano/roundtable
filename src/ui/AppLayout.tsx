@@ -229,7 +229,8 @@ export function AppLayout({
 
       {/* Provider settings panel (#99) — fixed overlay, z-index:40.
           Rendered at AppLayout level so it overlays the main content area (not the sidebar).
-          Width: calc(100vw - 256px) per spec — sidebar stays visible and usable. */}
+          Width is derived from --sidebar-width CSS var (set by Sidebar.tsx) so it
+          respects the actual sidebar width rather than assuming a fixed pixel value. */}
       <ProviderSettingsPanel
         isOpen={isProviderPanelOpen}
         onClose={handleCloseProviderSettings}

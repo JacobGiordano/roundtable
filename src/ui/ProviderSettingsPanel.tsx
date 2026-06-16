@@ -916,11 +916,14 @@ export function ProviderSettingsPanel({
         !isOpen ? 'pointer-events-none' : '',
       ].join(' ')}
       style={{
-        width: 'calc(100vw - 256px)',
+        // --sidebar-width is set on :root by Sidebar.tsx and updated on every
+        // drag-resize. The 280px fallback matches SIDEBAR_WIDTH_DEFAULT from Gate
+        // and handles the brief window before Sidebar mounts.
+        width: 'calc(100vw - var(--sidebar-width, 280px))',
         // maxWidth caps the drawer shell to the content width on wide desktops.
         // The content body inside is constrained to max-w-[640px] with px-8 (64px
         // total horizontal padding), so 704px is the natural fit. On viewports
-        // where calc(100vw - 256px) < 704px the width property wins unchanged.
+        // where calc(100vw - var(--sidebar-width, 280px)) < 704px the width property wins unchanged.
         maxWidth: '704px',
         transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
         transition: isOpen
