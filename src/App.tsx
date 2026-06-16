@@ -94,7 +94,6 @@ export default function App() {
   const storageProviderRef = useRef(getActiveStorageProvider());
 
   const {
-    isGhost,
     toggleGhostMode,
     saveGhostConversation,
     getGhostConversation,
@@ -491,7 +490,7 @@ export default function App() {
       messages={messages}
       streamingMessages={activeStreamingMessages}
       isStreaming={anyStreaming}
-      isGhostMode={isGhost}
+      isGhostMode={isGlobalGhostMode}
       onToggleGhostMode={handleToggleGhostMode}
       onSend={handleSend}
       onSelectConversation={handleSelectConversation}

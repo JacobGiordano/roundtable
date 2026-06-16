@@ -1195,48 +1195,10 @@ export function Sidebar({
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
         <RoundtableLogo />
-        {/* Close button — mobile drawer only (desktop uses backdrop or hamburger toggle) */}
-        <button
-          type="button"
-          onClick={onMobileClose}
-          aria-label="Close navigation"
-          className={[
-            'md:hidden w-8 h-8 rounded-md flex items-center justify-center',
-            'text-text-secondary hover:bg-hover',
-            'transition-colors duration-fast',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          ].join(' ')}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
-        {/* Desktop header right-side controls: new conversation + ghost mode toggle + provider-settings gear */}
-        <div className="hidden md:flex items-center gap-1">
-          {/* New conversation button — desktop only (mobile top bar has its own) */}
-          <button
-            type="button"
-            onClick={onNewConversation}
-            aria-label="New conversation"
-            className={[
-              'w-8 h-8 rounded-md flex items-center justify-center',
-              'text-text-secondary hover:bg-hover',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M8 2v12M2 8h12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          {/* Ghost mode toggle — activates/deactivates ghost mode for the current
-              conversation. When active the button is highlighted and the conversation
-              is stored in-memory only (GhostModeManager); messages do not persist.
+        {/* Header right-side controls */}
+        <div className="flex items-center gap-1">
+          {/* Ghost mode toggle — visible on mobile and desktop. Activates/deactivates
+              ghost mode so new conversations are stored in-memory only (not persisted).
               Only rendered when AppLayout provides the onToggleGhostMode prop. */}
           {onToggleGhostMode && (
             <button
@@ -1268,6 +1230,29 @@ export function Sidebar({
               </svg>
             </button>
           )}
+          {/* Desktop-only controls: new conversation + provider-settings gear */}
+          <div className="hidden md:flex items-center gap-1">
+            {/* New conversation button */}
+            <button
+              type="button"
+              onClick={onNewConversation}
+              aria-label="New conversation"
+              className={[
+                'w-8 h-8 rounded-md flex items-center justify-center',
+                'text-text-secondary hover:bg-hover',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+              ].join(' ')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M8 2v12M2 8h12"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           {/* Provider settings gear — opens ProviderSettingsPanel slide-in (#99).
               Only rendered when AppLayout provides the onOpenProviderSettings prop. */}
           {onOpenProviderSettings && (
@@ -1299,6 +1284,23 @@ export function Sidebar({
               </svg>
             </button>
           )}
+          </div>
+          {/* Close button — mobile drawer only */}
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="Close navigation"
+            className={[
+              'md:hidden w-8 h-8 rounded-md flex items-center justify-center',
+              'text-text-secondary hover:bg-hover',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
       </header>
 
