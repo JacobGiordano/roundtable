@@ -1,11 +1,12 @@
 # .github/workflows/ci.yml
 #
 # Runs on every push to main and every pull request targeting main.
-# Jobs: lint → build + test + backend-lint-build (parallel after lint passes)
+# Jobs: lint → build + test + backend-lint-build-test (parallel after lint passes)
 #               → e2e (after build and test both pass).
 #
-# Note: uses `npm run test:run` (vitest run) rather than `npm test` (vitest watch)
+# Note: frontend uses `npm run test:run` (vitest run) rather than `npm test` (vitest watch)
 # because the watch-mode process does not exit and would hang the runner.
+# Backend uses `npm test` which maps to `vitest run` in backend/package.json — safe for CI.
 #
 # E2E notes:
 #   - playwright.config.ts intentionally does NOT configure webServer; CI must
@@ -67,8 +68,8 @@ jobs:
       - run: npm ci
       - run: npm run test:run
 
-  backend-lint-build:
-    name: Backend lint + build
+  backend-lint-build-test:
+    name: Backend lint + build + test
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -81,6 +82,8 @@ jobs:
       - run: cd backend && npm ci
       - run: cd backend && npm run lint
       - run: cd backend && npm run build
+      # backend/package.json maps `npm test` to `vitest run` (not watch mode — safe for CI)
+      - run: cd backend && npm test
 
   e2e:
     name: E2E smoke tests
