@@ -281,7 +281,7 @@ export function MessageThread({
         </div>
       )}
       {/* Scroll container — ref used by the smart-scroll listener (#161) */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset">
         <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
           {allMessages.map((message, index) => {
             const modelConfig = findModelConfig(message.modelId, models);
