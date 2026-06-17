@@ -127,11 +127,13 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
   );
 
   if (isDisabled) {
-    // Render as a non-interactive span so it cannot be focused or activated.
-    // aria-disabled is not used on a span (it only applies to interactive roles).
-    // Screen readers will read the label from the tooltip via aria-describedby
-    // is not needed here — the span is non-interactive and carries no role.
-    // The "coming soon" text is conveyed visually via the tooltip on hover.
+    // Render as a non-interactive span inside the radiogroup.
+    // No role is applied — the span is transparent to AT's radiogroup role model
+    // (only Parallel is announced as the selectable radio). In browse/reading mode,
+    // AT reads the span's aria-label ("Manual — coming soon") because aria-hidden
+    // is unset. The tooltip (role="tooltip", aria-describedby) carries the full
+    // "Coming soon" description for users who encounter this element in reading mode.
+    // tabIndex is deliberately absent — the span must not be keyboard-reachable.
     return (
       <div
         className="relative"
@@ -139,7 +141,6 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         onMouseLeave={handleMouseLeave}
       >
         <span
-          aria-hidden="false"
           aria-label={`${config.label} — coming soon`}
           aria-describedby={tooltipId}
           className={[
@@ -281,8 +282,18 @@ export function InteractionModeSwitcher({
     <div
       role="radiogroup"
       aria-label="Interaction mode"
+      aria-describedby="interaction-mode-coming-soon-note"
       className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
     >
+      {/* Visually-hidden note describing unavailable modes — #220.
+          Screen readers announce this when entering the radiogroup (via aria-describedby).
+          It supplements the per-span aria-label="[Mode] — coming soon" labels. */}
+      <span
+        id="interaction-mode-coming-soon-note"
+        className="sr-only"
+      >
+        Manual and Auto-chain modes are coming soon and are not yet available.
+      </span>
       {INTERACTION_MODES.map((config, index) => {
         const tooltipAlign: TooltipAlign =
           index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';

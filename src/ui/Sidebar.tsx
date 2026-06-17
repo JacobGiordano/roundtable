@@ -459,7 +459,7 @@ function ThreadActionMenu({
               'w-full px-2 py-1 rounded text-[12px]',
               'bg-input border border-border',
               'text-text-primary placeholder:text-text-muted',
-              'focus:outline-none focus-visible:ring-1 focus-visible:ring-focus',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
             ].join(' ')}
           />
           {/* Existing group suggestions */}
