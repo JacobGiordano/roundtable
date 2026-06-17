@@ -397,6 +397,33 @@ export interface ConversationStore {
   getSessionTokenUsage(conversationId: string): SessionTokenUsage[];
 }
 
+// ─── ConversationContext — Atlas's narrowed view of a conversation ────────────
+
+/**
+ * The slice of `Conversation` that Atlas is authorized to read when handling
+ * a `sendMessage` call. It excludes Vault-internal and display-only fields
+ * (`isGhost`, `archivedAt`, `groupId`, `title`, `createdAt`, `updatedAt`,
+ * `interactionMode`) that Atlas has no business inspecting.
+ *
+ * Atlas reads: `id` (for telemetry/logging), `messages` (conversation history),
+ * and `models` (for `systemPrompt` and `selectedVersionId` per model).
+ *
+ * Structural note: `Conversation` is a strict superset of `ConversationContext`,
+ * so existing callers that pass a full `Conversation` to `sendMessage` continue
+ * to compile without changes — TypeScript structural typing satisfies the
+ * narrower type automatically. The restriction is enforced at the type level
+ * only; no runtime transformation is needed.
+ *
+ * Aria passes the full active `Conversation`; tests may pass a minimal object
+ * that satisfies only the three required fields.
+ */
+export interface ConversationContext {
+  id: string;
+  messages: Message[];
+  /** Atlas reads `systemPrompt` and `selectedVersionId` per model entry. */
+  models: ModelConfig[];
+}
+
 // ─── Streaming — sendMessage plumbing ─────────────────────────────────────────
 
 export interface StreamChunk {
@@ -421,17 +448,23 @@ export interface SendMessageOptions {
   /** Phase 2 — omit for parallel/manual modes. Atlas uses this to sequence auto-chain calls. */
   chainConfig?: AutoChainConfig;
   /**
-   * The full conversation object. When provided, Atlas resolves active providers
-   * from the ProviderRoster scoped to this conversation and reads per-model
-   * `systemPrompt` and `selectedVersionId` values from `conversation.models`.
+   * A narrowed view of the active conversation. Atlas reads `id`, `messages`,
+   * and `models` (for `systemPrompt` and `selectedVersionId` per model). Vault-
+   * internal and display-only fields (`isGhost`, `archivedAt`, `groupId`,
+   * `title`, `createdAt`, `updatedAt`, `interactionMode`) are excluded from
+   * this type — Atlas must not depend on them.
    *
    * When absent, Atlas falls back to the static PROVIDERS registry with no
    * per-model config resolution — a legacy/test path that remains valid.
    *
    * Aria should always pass the active conversation here. Absence is permitted
    * only for callers (e.g. tests) that intentionally bypass roster resolution.
+   *
+   * Structural compat: `Conversation` satisfies `ConversationContext`, so
+   * existing callers passing a full `Conversation` continue to compile without
+   * changes.
    */
-  conversation?: Conversation;
+  conversation?: ConversationContext;
   /**
    * Shared system prompt applied to all models in parallel/directed/auto-chain mode.
    *
@@ -464,9 +497,80 @@ export type ModelErrorCode =
   | 'context_length_exceeded'
   | 'unknown';
 
-export interface ModelError {
+/**
+ * Common base for all Roundtable error types. Aria uses this to write a
+ * unified error boundary that catches `ModelError`, `StorageError`, and
+ * `BackendAuthError` without separate catch branches.
+ *
+ * `source` is the discriminant — narrow to a concrete subtype using it:
+ *   `if (err.source === 'model') { ... ModelError fields ... }`
+ *
+ * `code` is typed as `string` here to accommodate the different `code` unions
+ * on each subtype. Concrete subtypes narrow `code` to their specific union.
+ * `message` is the human-readable description of the error.
+ */
+export interface AppError {
+  code: string;
+  message: string;
+  /**
+   * Discriminant identifying which layer produced the error. Optional on the
+   * base to remain backward-compatible with existing `ModelError` object
+   * literals in Atlas that predate this unified type — those omit `source`
+   * and are still valid `ModelError` values. New error construction sites
+   * must always set `source`. Aria narrows on this field when present:
+   * `if (err.source === 'model') { ... }`
+   */
+  source?: 'model' | 'storage' | 'auth';
+}
+
+/**
+ * Error emitted by Atlas when a model call fails. The `modelId` field
+ * identifies which model failed — relevant in parallel-broadcast mode where
+ * one model's failure must not prevent others from continuing.
+ *
+ * Extends `AppError` with `source: 'model'` as the discriminant.
+ */
+export interface ModelError extends AppError {
+  /**
+   * Optional for backward compatibility with existing Atlas construction sites
+   * that omit `source`. New code must always set `source: 'model'`. Aria
+   * discriminates on this field when present.
+   */
+  source?: 'model';
   code: ModelErrorCode;
   message: string;
+  /** Present when the error is attributable to a specific model. */
+  modelId?: ModelId;
+}
+
+/**
+ * Error emitted by Vault when a storage operation fails.
+ *
+ * Extends `AppError` with `source: 'storage'` as the discriminant.
+ *
+ *   - `quota_exceeded` — localStorage quota exhausted (QuotaExceededError)
+ *   - `parse_failure`  — stored data present but corrupt (JSON.parse failure)
+ *   - `not_found`      — requested conversation ID does not exist
+ *   - `unknown`        — any other storage-layer error
+ */
+export interface StorageError extends AppError {
+  source: 'storage';
+  code: 'quota_exceeded' | 'parse_failure' | 'not_found' | 'unknown';
+}
+
+/**
+ * Error emitted by Gate when an API key operation fails.
+ *
+ * Extends `AppError` with `source: 'auth'` as the discriminant.
+ *
+ *   - `invalid_key`  — key present in localStorage but rejected by the provider
+ *   - `missing_key`  — no key stored for the requested credential
+ *   - `expired_key`  — key was valid but has since expired (provider-reported)
+ *   - `unknown`      — any other auth-layer error
+ */
+export interface BackendAuthError extends AppError {
+  source: 'auth';
+  code: 'invalid_key' | 'missing_key' | 'expired_key' | 'unknown';
 }
 
 export interface ModelProviderConfig {
@@ -678,6 +782,18 @@ export interface CustomThemeJSON {
     fast: string;
     medium: string;
     slow: string;
+  };
+  /**
+   * Prose link colors. Applied as `--prose-link` and `--prose-link-hover` CSS
+   * variables by `applyTheme()` in `/src/ui/theme.ts`. All built-in themes
+   * supply these values; custom themes must also supply both.
+   *
+   * Aria reads: `theme.prose.link` and `theme.prose['link-hover']`.
+   * Gate validates: both fields required when accepting a custom theme JSON upload.
+   */
+  prose: {
+    link: string;
+    'link-hover': string;
   };
 }
 
