@@ -271,10 +271,24 @@ function ThreadActionMenu({
    */
   const handleMenuKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      // Tab (or Shift+Tab) exits the menu — menus must not be Tab-navigable.
+      // Tab (or Shift+Tab): in confirm-delete state, cycle between the two
+      // confirm buttons (dialog-like behaviour). In all other states, exit the
+      // menu — menus must not be Tab-navigable.
       if (e.key === 'Tab') {
         e.preventDefault();
-        closeAndReturnFocus();
+        if (menuState.type === 'confirm-delete') {
+          const buttons = Array.from(
+            menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-confirm="true"]') ?? [],
+          );
+          const focused = document.activeElement as HTMLButtonElement;
+          const idx = buttons.indexOf(focused);
+          const next = e.shiftKey
+            ? idx > 0 ? idx - 1 : buttons.length - 1
+            : idx < buttons.length - 1 ? idx + 1 : 0;
+          buttons[next]?.focus();
+        } else {
+          closeAndReturnFocus();
+        }
         return;
       }
 
@@ -282,6 +296,21 @@ function ThreadActionMenu({
       if (e.key === 'Escape') {
         e.preventDefault();
         closeAndReturnFocus();
+        return;
+      }
+
+      // Left/Right arrow cycles between buttons in confirm-delete state.
+      if (menuState.type === 'confirm-delete' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        const buttons = Array.from(
+          menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-confirm="true"]') ?? [],
+        );
+        const focused = document.activeElement as HTMLButtonElement;
+        const idx = buttons.indexOf(focused);
+        const next = e.key === 'ArrowRight'
+          ? idx < buttons.length - 1 ? idx + 1 : 0
+          : idx > 0 ? idx - 1 : buttons.length - 1;
+        buttons[next]?.focus();
         return;
       }
 
@@ -392,6 +421,7 @@ function ThreadActionMenu({
             <button
               ref={confirmCancelRef}
               type="button"
+              data-confirm="true"
               onClick={onClose}
               className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
             >
@@ -399,6 +429,7 @@ function ThreadActionMenu({
             </button>
             <button
               type="button"
+              data-confirm="true"
               onClick={() => { onDelete(); onClose(); }}
               className="flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]"
             >
