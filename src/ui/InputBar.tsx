@@ -223,14 +223,23 @@ export function InputBar({
           'transition-[border-color] duration-fast',
         ].join(' ')}
       >
-        {/* Ghost mode indicator — left side, shown only when active */}
+        {/* Ghost mode indicator — left side, shown only when active.
+            tabIndex={0} makes this keyboard-reachable so screen reader users can
+            access the tooltip via focus. onFocus shows immediately (0ms per
+            tooltip.md §1); onBlur hides immediately. The title attribute is
+            omitted to prevent double-announcement alongside aria-describedby
+            (NVDA/Firefox double-reads both). */}
         {isGhostMode && (
           <div
-            className="flex-shrink-0 text-text-muted self-center relative"
-            title="Ghost mode — this conversation won't be saved"
+            className="flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded"
+            tabIndex={0}
+            aria-label="Ghost mode — this conversation won't be saved"
             aria-describedby={ghostTooltipId}
             onMouseEnter={handleGhostMouseEnter}
             onMouseLeave={handleGhostMouseLeave}
+            onFocus={() => setIsGhostTooltipVisible(true)}
+            onBlur={() => setIsGhostTooltipVisible(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); }}
           >
             <GhostIcon />
             {/* Tooltip — shown after 600ms hover delay per tooltip.md §1 (#210).

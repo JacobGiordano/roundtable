@@ -378,7 +378,7 @@ function ThreadActionMenu({
               role="menuitem"
               tabIndex={-1}
               onClick={() => { onUnarchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
               Unarchive
             </button>
@@ -388,7 +388,7 @@ function ThreadActionMenu({
               role="menuitem"
               tabIndex={-1}
               onClick={() => { onArchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
               Archive
             </button>
@@ -398,7 +398,7 @@ function ThreadActionMenu({
             role="menuitem"
             tabIndex={-1}
             onClick={() => setMenuState({ type: 'group-input' })}
-            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
           >
             Move to group&hellip;
           </button>
@@ -407,7 +407,7 @@ function ThreadActionMenu({
             role="menuitem"
             tabIndex={-1}
             onClick={() => setMenuState({ type: 'confirm-delete' })}
-            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast"
+            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
           >
             Delete
           </button>
@@ -1276,7 +1276,7 @@ export function Sidebar({
           'absolute right-0 top-0 h-full w-1 z-30',
           'cursor-col-resize',
           'hover:bg-border-strong focus-visible:bg-border-strong',
-          'focus-visible:outline-none',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           // Hide drag handle on mobile — fixed-width drawer, no resize affordance
           'hidden md:block',
           isDragging ? 'bg-border-strong' : 'bg-transparent',
