@@ -549,7 +549,7 @@ function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
                 'px-3 py-2',
                 'min-h-[72px] max-h-[160px]',
                 'transition-[border-color] duration-fast',
-                'focus:outline-none focus:border-border-strong',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 hasPrompt ? 'pr-10' : '',
               ].join(' ')}
               style={{ overflowY: 'auto' }}
@@ -667,7 +667,7 @@ function ModelVersionRow({ model, availableVersions, onSelect, onClear }: ModelV
           'bg-input border border-border',
           'text-[12px] text-text-primary',
           'px-2',
-          'focus:outline-none focus:border-border-strong',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           'transition-[border-color] duration-fast',
           'cursor-pointer',
         ].join(' ')}
