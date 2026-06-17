@@ -778,17 +778,20 @@ function BulkActionBar({
   const allSelected = selectedCount === totalCount && totalCount > 0;
 
   // Refs for focus management (WCAG 2.4.3 — focus order on state transition).
-  // confirmDeleteRef: the "Delete" confirm button — receives focus when the
-  // confirm-delete state opens so keyboard users land on the destructive action.
+  // confirmCancelRef: the "Cancel" button in the confirm-delete state — receives
+  // focus when the confirm UI opens so keyboard users land on the safe default
+  // action (Cancel) rather than the destructive Delete button.
   // deleteSelectedRef: the "Delete selected" trigger — receives focus when the
   // confirm state is dismissed (cancel or confirmed) to restore focus position.
-  const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+  const confirmCancelRef = useRef<HTMLButtonElement>(null);
   const deleteSelectedRef = useRef<HTMLButtonElement>(null);
 
-  // Move focus to the confirm button when entering confirm-delete state.
+  // Move focus to the Cancel button when entering confirm-delete state (WCAG 2.4.3).
+  // Cancel is the safe default for a destructive action — initial focus must not
+  // land on the Delete button.
   useEffect(() => {
     if (barState === 'confirm-delete') {
-      confirmDeleteRef.current?.focus();
+      confirmCancelRef.current?.focus();
     }
   }, [barState]);
 
@@ -866,6 +869,7 @@ function BulkActionBar({
           </p>
           <div className="flex gap-2">
             <button
+              ref={confirmCancelRef}
               type="button"
               onClick={handleCancelConfirm}
               className="flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast"
@@ -873,7 +877,6 @@ function BulkActionBar({
               Cancel
             </button>
             <button
-              ref={confirmDeleteRef}
               type="button"
               onClick={handleBulkDeleteConfirm}
               className="flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast"

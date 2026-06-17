@@ -153,6 +153,50 @@ body {
   animation: streamingShimmer 1.4s linear infinite;
 }
 
+.streaming-shimmer[data-model="gemini"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-gemini) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-gemini) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
+.streaming-shimmer[data-model="grok"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-grok) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-grok) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
+.streaming-shimmer[data-model="deepseek"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-deepseek) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-deepseek) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
+.streaming-shimmer[data-model="mistral"]::after {
+  background: linear-gradient(
+    90deg,
+    var(--accent-mistral) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    var(--accent-mistral) 100%
+  );
+  background-size: 200% 100%;
+  animation: streamingShimmer 1.4s linear infinite;
+}
+
 /* ─── Model Selector Panel ──────────────────────────────────────────────────── */
 
 .model-selector-panel {

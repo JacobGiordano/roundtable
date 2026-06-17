@@ -39,6 +39,9 @@ export default {
         'error':           'var(--semantic-error)',
         'error-bg':        'var(--semantic-error-bg)',
         'info':            'var(--semantic-info)',
+        // Prose (markdown rendering tokens — Luma spec: markdown.md)
+        'link':            'var(--prose-link)',
+        'link-hover':      'var(--prose-link-hover)',
       },
       borderRadius: {
         'sm':   'var(--radius-sm)',    // 4px
