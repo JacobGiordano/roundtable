@@ -378,7 +378,7 @@ function ThreadActionMenu({
               role="menuitem"
               tabIndex={-1}
               onClick={() => { onUnarchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
               Unarchive
             </button>
@@ -388,7 +388,7 @@ function ThreadActionMenu({
               role="menuitem"
               tabIndex={-1}
               onClick={() => { onArchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
               Archive
             </button>
@@ -398,7 +398,7 @@ function ThreadActionMenu({
             role="menuitem"
             tabIndex={-1}
             onClick={() => setMenuState({ type: 'group-input' })}
-            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast"
+            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
           >
             Move to group&hellip;
           </button>
@@ -407,7 +407,7 @@ function ThreadActionMenu({
             role="menuitem"
             tabIndex={-1}
             onClick={() => setMenuState({ type: 'confirm-delete' })}
-            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast"
+            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
           >
             Delete
           </button>
@@ -423,7 +423,10 @@ function ThreadActionMenu({
               type="button"
               data-confirm="true"
               onClick={onClose}
-              className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
+              className={[
+                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Cancel
             </button>
@@ -431,7 +434,10 @@ function ThreadActionMenu({
               type="button"
               data-confirm="true"
               onClick={() => { onDelete(); onClose(); }}
-              className="flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]"
+              className={[
+                'flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Delete
             </button>
@@ -453,7 +459,7 @@ function ThreadActionMenu({
               'w-full px-2 py-1 rounded text-[12px]',
               'bg-input border border-border',
               'text-text-primary placeholder:text-text-muted',
-              'focus:outline-none focus:ring-1 focus:ring-focus',
+              'focus:outline-none focus-visible:ring-1 focus-visible:ring-focus',
             ].join(' ')}
           />
           {/* Existing group suggestions */}
@@ -464,7 +470,10 @@ function ThreadActionMenu({
                   <button
                     type="button"
                     onClick={() => { onSetGroup(g); onClose(); }}
-                    className="w-full text-left px-2 py-1 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast text-[11px] rounded"
+                    className={[
+                      'w-full text-left px-2 py-1 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast text-[11px] rounded',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    ].join(' ')}
                   >
                     {g}
                   </button>
@@ -476,14 +485,20 @@ function ThreadActionMenu({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]"
+              className={[
+                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleGroupConfirm}
-              className="flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]"
+              className={[
+                'flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Confirm
             </button>
@@ -608,6 +623,7 @@ function ThreadRow({
           isChecked ? 'pl-8' : 'pl-[14px] group-hover:pl-8',
           'pr-8',
           'transition-all duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
         ].join(' ')}
       >
         {/* Row 1: title + timestamp */}
@@ -759,6 +775,7 @@ function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
         onClick={() => onChange('active')}
         className={[
           'flex-1 py-1 text-center transition-colors duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
           value === 'active'
             ? 'bg-hover text-text-primary'
             : 'text-text-muted hover:text-text-secondary hover:bg-hover/40',
@@ -772,6 +789,7 @@ function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
         onClick={() => onChange('archived')}
         className={[
           'flex-1 py-1 text-center transition-colors duration-fast',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
           value === 'archived'
             ? 'bg-hover text-text-primary'
             : 'text-text-muted hover:text-text-secondary hover:bg-hover/40',
@@ -859,7 +877,10 @@ function BulkActionBar({
         <button
           type="button"
           onClick={onDeselectAll}
-          className="text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-fast"
+          className={[
+            'text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+          ].join(' ')}
         >
           Clear
         </button>
@@ -875,6 +896,7 @@ function BulkActionBar({
               'flex-1 py-1 rounded text-[11px] text-center',
               'text-text-secondary bg-hover hover:bg-hover/80',
               'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
           >
             Archive selected
@@ -887,6 +909,7 @@ function BulkActionBar({
               'flex-1 py-1 rounded text-[11px] text-center',
               'text-error bg-hover hover:bg-hover/80',
               'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
           >
             Delete selected
@@ -903,14 +926,20 @@ function BulkActionBar({
               ref={confirmCancelRef}
               type="button"
               onClick={handleCancelConfirm}
-              className="flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast"
+              className={[
+                'flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleBulkDeleteConfirm}
-              className="flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast"
+              className={[
+                'flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
             >
               Delete
             </button>
@@ -1247,7 +1276,7 @@ export function Sidebar({
           'absolute right-0 top-0 h-full w-1 z-30',
           'cursor-col-resize',
           'hover:bg-border-strong focus-visible:bg-border-strong',
-          'focus-visible:outline-none',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           // Hide drag handle on mobile — fixed-width drawer, no resize affordance
           'hidden md:block',
           isDragging ? 'bg-border-strong' : 'bg-transparent',

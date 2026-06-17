@@ -359,7 +359,7 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
                 'text-left cursor-pointer',
                 'hover:bg-hover',
                 'transition-colors duration-fast',
-                'focus-visible:outline-none focus-visible:bg-hover',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset focus-visible:bg-hover',
               ].join(' ')}
             >
               <span

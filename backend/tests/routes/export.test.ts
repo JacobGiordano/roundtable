@@ -17,60 +17,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import bcrypt from 'bcryptjs';
 import { createTestApp, clearDatabase } from '../helpers/createTestApp';
+import { insertUser, loginAs, makeConversationWithMessages } from '../helpers/fixtures';
 import type { Conversation, ExportedConversation } from '../../src/types';
-
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-function insertUser(
-  db: ReturnType<typeof createTestApp>['db'],
-  username: string,
-  password: string,
-): void {
-  const hash = bcrypt.hashSync(password, 4);
-  db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(
-    username,
-    hash,
-  );
-}
-
-async function loginAs(
-  request: ReturnType<typeof createTestApp>['request'],
-  username: string,
-  password: string,
-): Promise<string> {
-  const res = await request.post('/auth/login').send({ username, password });
-  return res.body.token as string;
-}
-
-function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
-  return {
-    id: 'export-conv-1',
-    title: 'My Test Conversation',
-    messages: [
-      {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Hello world',
-        timestamp: 1700000000000,
-      },
-      {
-        id: 'msg-2',
-        role: 'assistant',
-        content: 'Hi there!',
-        modelId: 'claude',
-        timestamp: 1700000001000,
-      },
-    ],
-    models: [],
-    interactionMode: 'parallel',
-    isGhost: false,
-    createdAt: 1700000000000,
-    updatedAt: 1700000001000,
-    ...overrides,
-  };
-}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +56,7 @@ describe('GET /conversations/:id/export — format validation', () => {
     token = await loginAs(app.request, 'alice', 'pw123');
 
     // Seed a conversation to export.
-    const conv = makeConversation();
+    const conv = makeConversationWithMessages();
     await app.request
       .put(`/conversations/${conv.id}`)
       .set('Authorization', `Bearer ${token}`)
@@ -169,7 +118,7 @@ describe('GET /conversations/:id/export?format=json', () => {
     insertUser(app.db, 'alice', 'pw123');
     token = await loginAs(app.request, 'alice', 'pw123');
 
-    const conv = makeConversation();
+    const conv = makeConversationWithMessages();
     await app.request
       .put(`/conversations/${conv.id}`)
       .set('Authorization', `Bearer ${token}`)
@@ -224,7 +173,7 @@ describe('GET /conversations/:id/export?format=markdown', () => {
     insertUser(app.db, 'alice', 'pw123');
     token = await loginAs(app.request, 'alice', 'pw123');
 
-    const conv = makeConversation();
+    const conv = makeConversationWithMessages();
     await app.request
       .put(`/conversations/${conv.id}`)
       .set('Authorization', `Bearer ${token}`)
@@ -284,7 +233,7 @@ describe('GET /conversations/:id/export?format=html', () => {
     insertUser(app.db, 'alice', 'pw123');
     token = await loginAs(app.request, 'alice', 'pw123');
 
-    const conv = makeConversation();
+    const conv = makeConversationWithMessages();
     await app.request
       .put(`/conversations/${conv.id}`)
       .set('Authorization', `Bearer ${token}`)
@@ -340,7 +289,7 @@ describe('GET /conversations/:id/export?format=html', () => {
     insertUser(app2.db, 'bob', 'pw-bob');
     const tok2 = await loginAs(app2.request, 'bob', 'pw-bob');
 
-    const xssConv = makeConversation({
+    const xssConv = makeConversationWithMessages({
       id: 'xss-conv',
       title: '<script>alert("xss")</script>',
     });

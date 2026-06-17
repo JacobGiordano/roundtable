@@ -19,31 +19,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestApp, clearDatabase } from '../helpers/createTestApp';
-
-// ─── Fixture ──────────────────────────────────────────────────────────────────
-
-/**
- * Insert a user into the database with a real bcrypt hash.
- *
- * The backend has no /auth/register endpoint — users are seeded at startup via
- * seedAdminUser() or inserted directly. In tests we insert directly so we can
- * control the username and password without the startup side effects.
- *
- * bcrypt cost factor 4 is used for speed in tests — production uses 12.
- */
-import bcrypt from 'bcryptjs';
-
-function insertUser(
-  db: ReturnType<typeof createTestApp>['db'],
-  username: string,
-  password: string,
-): void {
-  const hash = bcrypt.hashSync(password, 4); // cost 4 for speed in tests (not production)
-  db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(
-    username,
-    hash,
-  );
-}
+import { insertUser } from '../helpers/fixtures';
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
