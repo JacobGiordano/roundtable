@@ -231,10 +231,13 @@ function ThreadActionMenu({
   /** Close the menu and return focus to the trigger button. */
   const closeAndReturnFocus = useCallback(() => {
     onClose();
-    // Schedule focus restoration via rAF so the DOM settles (menu unmounts)
-    // before the trigger receives focus.
+    // Double-rAF: first frame lets React unmount the menu; second frame
+    // guarantees the browser has fully painted before restoring focus,
+    // preventing React from moving focus to <body> between the two steps.
     requestAnimationFrame(() => {
-      triggerRef.current?.focus();
+      requestAnimationFrame(() => {
+        triggerRef.current?.focus();
+      });
     });
   }, [onClose, triggerRef]);
 
@@ -600,7 +603,7 @@ function ThreadRow({
       <div
         className={[
           'absolute left-2 top-1/2 -translate-y-1/2 z-10',
-          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100',
           'transition-opacity duration-fast',
         ].join(' ')}
       >
