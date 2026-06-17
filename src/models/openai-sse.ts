@@ -48,7 +48,7 @@ export function mapHttpStatusToErrorCode(status: number): ModelErrorCode {
  * rather than `{ code, message }` literals, keeping the shape in one place.
  */
 export function buildModelError(code: ModelErrorCode, message: string): ModelError {
-  return { code, message };
+  return { code, message, source: 'model' };
 }
 
 // ─── SSE stream parser ─────────────────────────────────────────────────────────

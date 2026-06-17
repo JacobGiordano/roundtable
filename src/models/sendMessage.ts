@@ -143,6 +143,7 @@ function emitMissingProviderErrors(missing: ModelId[], onChunk: StreamHandler): 
       error: {
         code: 'auth_failure',
         message: `Provider not found in roster: ${modelId}`,
+        source: 'model' as const,
       },
     };
     onChunk(chunk);
@@ -185,6 +186,7 @@ async function runProviderIsolated(
           err instanceof Error
             ? err.message
             : `Unexpected error from ${provider.config.name}`,
+        source: 'model' as const,
       },
     };
     onChunk(errorChunk);
@@ -264,6 +266,7 @@ async function runDirected(
       error: {
         code: 'unknown',
         message: `Model "${targetModelId}" is not active in this conversation.`,
+        source: 'model' as const,
       },
     };
     onChunk(errorChunk);
@@ -332,6 +335,7 @@ async function runAutoChain(
           error: {
             code: 'unknown',
             message: `Chain step ${step.stepIndex}: model "${step.modelId}" is not active.`,
+            source: 'model' as const,
           },
         };
         onChunk(errorChunk);
