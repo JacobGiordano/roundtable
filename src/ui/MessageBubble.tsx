@@ -89,8 +89,8 @@ function getModelDataAttr(modelId: string | undefined): string {
  * the token system.
  *
  * Links: external links open in a new tab with rel="noopener noreferrer" for
- * security. Color uses text-prose-link — the semantic link token shipped by Luma
- * in #193, WCAG AA-compliant across all 7 themes. Underline provides the
+ * security. Color uses text-link — the semantic link token (colors.link → --prose-link)
+ * shipped by Luma in #193, WCAG AA-compliant across all 7 themes. Underline provides the
  * non-color differentiator required by WCAG 1.4.1.
  */
 const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
@@ -141,7 +141,7 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
     return <li className="text-text-primary break-words">{children}</li>;
   },
   // Links: external links open in new tab.
-  // Color: text-prose-link — the semantic link token shipped by Luma in #193.
+  // Color: text-link (colors.link → --prose-link) — the semantic link token shipped by Luma in #193.
   // WCAG AA-compliant across all 7 themes. Underline distinguishes links from
   // surrounding body text (WCAG 1.4.1 — non-color differentiator).
   a({ href, children }) {
@@ -152,7 +152,7 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
         {...(isExternal
           ? { target: '_blank', rel: 'noopener noreferrer' }
           : {})}
-        className="text-prose-link underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
+        className="text-link underline underline-offset-2 hover:text-link-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
       >
         {children}
         {isExternal && <span className="sr-only"> (opens in new tab)</span>}
