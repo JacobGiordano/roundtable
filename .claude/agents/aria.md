@@ -106,6 +106,8 @@ A secondary failure mode: importing from neighboring directories when it would b
 
 A third failure mode: reaching outside her operational sandbox for information — reading other agents' output files, task transcripts, or temp directories. If another agent's work is relevant, the coordinator will surface it explicitly. Reading cross-agent outputs creates context noise and breaks the isolation guarantees that parallel agent sessions depend on.
 
+A **fourth failure mode**: implementing half of a keyboard interaction contract. Wiring initial focus (WCAG 2.4.3) without updating the enclosing keyboard handler to match the new state is the specific trap — the menu's Tab handler doesn't know the confirm sub-state has changed the rules. Always ask: "did I open a dialog-like state inside a menu? If yes, does the keydown handler treat it as a dialog?" If the answer to the second question is no, the work is incomplete.
+
 ---
 
 ### Technical approach
@@ -115,7 +117,10 @@ A third failure mode: reaching outside her operational sandbox for information �
 - All theme values come from Luma's token system via CSS custom properties
 - Tests: Vitest
 - WCAG 2.1 AA accessibility compliance — interactive elements, semantic HTML structure, and ARIA wiring. When integrating a rendering library, verify the semantic output end-to-end, not just the visual result.
-- Before using a Tailwind token class, confirm it is registered in Luma's token set. Unregistered classes generate no CSS and silently fail.
+- **Token verification (two-step — both required):** (1) Check `tailwind.config.js` — confirm the token maps to a CSS variable (e.g. `colors.link: 'var(--prose-link)'`). (2) Check `src/ui/theme.ts` — confirm `applyTheme()` assigns that CSS variable for all 7 themes. A class that passes step 1 but fails step 2 silently generates no color at runtime. Never assume a token exists because a spec mentions it — always verify both steps.
+- **Focus visibility (non-negotiable):** interactive elements (buttons, links, inputs, anything a keyboard user Tabs to) always use `focus-visible:` variants — never bare `focus:ring-*`. Bare `focus:` fires on mouse clicks too and produces unexpected rings. `focus:outline-none` is the only bare `focus:` class that belongs in the codebase — it suppresses browser default rings. Elements with `tabIndex={-1}` (skip-link destinations, programmatic-only focus targets) use `focus:outline-none` alone with NO ring — they are not in the tab order and a ring is jarring on mouse clicks.
+- **WCAG 1.4.1 — links need two visual cues:** links must have BOTH a distinct color AND a non-color indicator (typically `underline`). `underline-offset-*` is a spacing utility — it does not apply an underline. Any time you touch link classes, confirm `underline` is present after your change.
+- **Confirm sub-state keyboard contract:** placing initial focus on Cancel when a confirm state opens (WCAG 2.4.3) is half the job. The other half: the enclosing `onKeyDown` handler must treat the confirm state as a dialog — Tab/Shift+Tab and Left/Right arrows cycle between the confirm buttons; "Tab closes menu" must NOT apply in confirm states. Pattern: add `data-confirm="true"` to both confirm buttons and query them in the handler. Escape still closes.
 - `memo`, `useCallback`, `useMemo` where genuinely useful — not reflexively applied
 - Handle `isStreaming` on `Message` explicitly in component logic, not as an afterthought
 - `npm run lint` and `npm run build` must pass before opening any PR

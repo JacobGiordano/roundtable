@@ -1,52 +1,56 @@
-Last updated: 2026-06-16 (ship #202 #196 #198 #203 #193 #190)
+Last updated: 2026-06-17 (ship #204 #197 #134 #192 #191 #189 + #193-fo)
 
 ## Current phase
 
-Phase 4+ — Custom provider infrastructure complete. Full gate process active.
+Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Coda coordinated three parallel tracks — all shipped:
+Coda coordinated three parallel tracks — all shipped (Flint PASS, 837 tests green):
 
-- #202 (Aria): `AppLayout.tsx` — unconditional `<h1 className="sr-only">Roundtable Conversation</h1>` as first child of `<main>`. Resolves WCAG 1.3.1 landmark heading gap.
+- #204 (Aria): `OnboardingEmptyState.tsx` — heading downshifted `<h1>` → `<h2>`. Page now has exactly one `<h1>` (sr-only in AppLayout).
 
-- #196 (Aria): `Sidebar.tsx` — ghost toggle `aria-label` simplified to static `"Ghost mode"`; `aria-pressed` carries state. Resolves double announcement (WCAG 4.1.2 advisory).
+- #197 (Aria): `Sidebar.tsx` `BulkActionBar` — Cancel button receives focus when confirm-delete state opens; Tab/arrows cycle between Cancel and Delete in the confirm sub-state.
 
-- #198 (Aria): `InteractionModeSwitcher.tsx` — `tooltipId` per mode; `id`/`aria-describedby` wired on both disabled spans and active buttons. Tooltip no longer orphaned.
+- #134 (Aria): `src/index.css` — shimmer variants for Gemini, Grok, DeepSeek, Mistral; all 6 models covered; prefers-reduced-motion guards on all.
 
-- #203 (Forge): `ci.yml` — `actions/upload-artifact@v4` after Vitest coverage step; `if: always()`, `path: coverage/`, `retention-days: 30`.
+- #193-fo (Aria): `MessageBubble.tsx` — link class updated to `text-link underline underline-offset-2`; `text-link` token registered in `tailwind.config.js`, CSS variable wired in `theme.ts`.
 
-- #193 (Luma): New `/_design/specs/markdown.md` — 7 prose tokens (`code-bg`, `code-border`, `code-text`, `block-bg`, `link`, `link-hover`, `blockquote-border`) with per-theme values in all 7 theme files and schema.md updated. Unblocks Aria from removing hardcoded markdown link color.
+- #192 (Luma): `/_design/specs/tooltip.md` — standalone tooltip spec (trigger delay, positioning, tokens, z-index, ARIA).
 
-- #190 (Luma): `BRIEF.md` — Outrun prose section annotated with live values vs. original creative intent (Option B). No silent divergences remain.
+- #191 (Luma): `/_design/specs/z-index.md` — canonical 8-layer z-index scale; all existing values mapped.
 
-Housekeeping: filed #204 (OnboardingEmptyState h1→h2 — pre-existing advisory found by Ada).
-Scout activated 9 ghost toggle tests (sidebar-ghost-toggle.test.tsx). Full suite: 809/0.
+- #189 (Scout): `src/tests/integration/app-chunk-handler.test.tsx` — 22 integration tests for App.tsx streaming chunk handler.
+
+Post-ship fixes (committed to main before push):
+- `<main tabIndex={-1}>` no longer shows focus ring on mouse click (`focus:ring-*` removed).
+- ThreadActionMenu confirm-delete: Tab/Left/Right arrows cycle between Cancel and Delete (was closing menu).
+
+Aria's profile updated with 3 new explicit rules: `focus-visible:` vs `focus:`, two-step token verification, confirm sub-state keyboard contracts.
 
 ## Key decisions
 
-- Luma chose Option B for #190 (annotate, not erase) — preserves original creative intent alongside live values.
-- Slate Gemini divergence in the #190 issue was a non-issue; live value already matched BRIEF.
-- #199 (radiogroup ownership) remains deferred — future-state fix for when Manual/Auto-chain modes ship.
+- #193 follow-on used `text-link` (Luma's `colors.link` token, already in tailwind.config) rather than `text-prose-link` (unregistered). Token is live; `CustomThemeJSON` still needs a `prose` field for type safety (Arch #206).
+- Broad keyboard focus gap found during dev-server review → filed as #212 rather than patching inline; ships in next Aria+Ada wave.
 
 ## Open advisories (not yet addressed)
 
-- #204 (Aria) — OnboardingEmptyState h1 should downshift to h2 (quick)
-- #197 (Aria) — BulkActionBar confirm-delete focuses destructive action instead of Cancel
-- #199 (Aria, deferred) — Coming-soon spans break radiogroup ownership (future-state, defer until #131 Option 1)
-- #189 (Scout/Flint) — App.tsx chunk handler untested
-- #192 (Luma) — No standalone tooltip spec
-- #191 (Luma) — Z-index scale undocumented
-- #134 (Spark) — Streaming shimmer wrong color for 4 models
+- #212 (Ada/Aria) — Full keyboard focus indicator audit — PRIORITY; `<main>` skip-link focus also covered
+- #205 (Aria) — BulkActionBar confirm buttons missing `focus-visible:ring-*`
+- #206 (Arch) — `CustomThemeJSON` missing `prose` field (type cast workaround in theme.ts)
+- #210 (Aria) — InputBar tooltip missing 600ms hover delay
+- #211 (Aria) — InteractionModeSwitcher tooltip missing 600ms hover delay
+- #207/#208/#209 (Scout) — App.tsx untested handler paths (handleRosterChange, handleToggleGhostMode, directed-reply send)
+- #199 (Aria, deferred) — Coming-soon spans break radiogroup ownership (defer until #131 Option 1)
+- #189 (Scout/Flint) — App.tsx chunk handler untested ← CLOSED this session
 
 ## What's next
 
-- #204 + #197 (Aria) — batch into one session, one Ada audit
-- #193 follow-on (Aria) — swap hardcoded `text-text-primary underline` link color in `MessageBubble.tsx` to `text-prose-link` now that token exists
-- #192 + #191 (Luma) — tooltip spec + z-index scale
-- #134 (Spark) — shimmer color fix
+- #212 + #205 (Ada + Aria) — batch: focus indicator audit + BulkActionBar confirm rings
+- #206 (Arch) — CustomThemeJSON prose field (quick types-only change)
+- #210 + #211 (Aria) — tooltip hover delay fixes (can batch with #205 if small enough)
 
-Good next wave: Aria #204 + #197 (+ optional: MessageBubble link token swap).
+Good next wave: Aria #212 + #205 (+ #210 + #211 if capacity allows), Ada audit after.
 
 ## Gotchas
 
@@ -54,19 +58,20 @@ Good next wave: Aria #204 + #197 (+ optional: MessageBubble link token swap).
 - `bg-bg` = surface background token; `bg-bg-surface` is NOT a registered token
 - Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before final test run
 - Worktree agents sometimes commit to main workspace instead of isolated worktree — verify branch stats before merging
+- Bash tool CWD can drift into a worktree — always check `pwd` before running git commands; use `git -C /workspace` if needed
 - `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
 - `addCustomProvider()` returns config with generated `credentialKey` — credential save is non-atomic
 - userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
 - E2E: ProviderRow badgeState initializes once on mount — tests pre-seeding credentials must close+reopen panel
 - Smoke tests seed a minimal Claude roster via `seedMinimalRoster()` helper
 - Settings drawer has focus trap (#116) — keyboard tests must account for Tab interception
-- Context menu confirm-delete state moves focus to Cancel on open
 - `semantic.error` = foreground text color; `semantic.error-bg` = destructive button background
 - Sidebar.management.test.ts has 7 test.skip stubs with false comment — real coverage in sidebar-state-machines.test.tsx (#139)
 - `--sidebar-width` CSS var on `:root` is the sidebar width source of truth — set by Sidebar.tsx useEffect
 - Parallel agent worktrees share the git object store — always verify HEAD after merging worktree branches
 - Ghost mode toggle visual state = `isGlobalGhostMode` (global), not `isGhost` (per-conversation)
 - react-markdown re-parses on every render chunk — no debounce applied; fast enough in practice
-- Markdown link color = `text-text-primary underline` (interim); swap to `text-prose-link` token now that Luma #193 shipped
+- `text-link` token = `var(--prose-link)` registered in tailwind.config; CSS var set in theme.ts applyTheme()
+- `CustomThemeJSON` has no `prose` field yet — applyTheme() uses a cast (safe at runtime, type gap only) until Arch ships #206
 - Coverage lcov report uploaded as CI artifact (`coverage-report`) since #203 — retention 30 days
-- OnboardingEmptyState still has `<h1>` — should be `<h2>` (#204); pre-existing, not introduced this wave
+- App.tsx handleSend calls store.updateConversation() TWICE per send+done cycle (user msg + finalized assistant msg) — correct, documented in chunk handler tests
