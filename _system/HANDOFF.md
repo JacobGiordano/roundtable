@@ -1,4 +1,4 @@
-Last updated: 2026-06-17 (ship #222 #223 + agent cascade fix)
+Last updated: 2026-06-17 (ship #224 #225)
 
 ## Current phase
 
@@ -6,20 +6,22 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Keyboard navigation QA during #216–#220 visual review surfaced two pre-existing bugs:
+Continued keyboard navigation QA pass. Two more focus bugs found and fixed:
 
-- #222 (Aria): MessageThread scroll container missing focus-visible ring. Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset`. `ring-inset` required — parent has `overflow-hidden`, outset ring is clipped.
+- #224 (Aria): ThreadRow checkbox invisible on keyboard focus. Wrapper div had `opacity-0 group-hover:opacity-100` with no focus-within rule. Fixed: added `focus-within:opacity-100` to wrapper div (not `focus-visible:` — opacity is on the containing div, not the input).
 
-- #223 (Aria): ProviderSettingsPanel missing `inert` when closed. Panel uses `translateX(100%)` off-screen but all form fields remained in tab order — keyboard users hit 15+ invisible elements between sidebar and main area. Fixed via `{...({ inert: !isOpen ? '' : undefined } as React.HTMLAttributes<HTMLDivElement>)}` spread cast on root drawer div (React 18 types don't expose `inert` natively).
+- #225 (Aria): ThreadActionMenu `closeAndReturnFocus()` raced React's menu unmount. Single rAF fired before browser painted, leaving focus on `<body>` briefly. Fixed: double-rAF (~33ms total, under human perception threshold).
 
-Also shipped:
-- Agent cascade fix (b84a661): Added "When spawned by Coda" sections to `aria.md` and `ada.md` profiles. Aria no longer runs Ada; Ada no longer runs Flint. Coda orchestrates all gate agents. Global fix — no per-prompt patching needed.
+Also fixed earlier this session (shipped separately):
+- #222: MessageThread scroll container ring (ring-inset)
+- #223: ProviderSettingsPanel inert when closed (killed 15-element hidden tab maze)
+- Agent cascade: aria.md + ada.md profiles updated to skip downstream gate agents when spawned by Coda
 
 ## Key decisions
 
-- `ring-inset` is the correct pattern for focus rings on full-height containers inside `overflow-hidden` parents.
-- `inert` attribute (not `aria-hidden` + `pointer-events-none`) is the correct tool for off-screen panels — it covers tab order, AT tree, and pointer events in one attribute.
-- TypeScript cast `as React.HTMLAttributes<HTMLDivElement>` used for `inert` since `@types/react` 18.3.3 only exposes it in `experimental.d.ts`.
+- `focus-within:` (not `focus-visible:`) on wrapper divs whose inner input is the focusable element
+- Double-rAF is the correct pattern for focus restoration after React unmount — single rAF races the paint cycle
+- Profile-level "skip Ada/Flint" rule is not reliable alone — always include explicit "Do not run Ada" in Aria spawn prompts too
 
 ## Open advisories (not yet addressed)
 
@@ -44,26 +46,21 @@ Also shipped:
 
 ## What's next
 
-Good next wave options:
-- Aria: #221 (sr-only sibling move — trivial, batch with any other Aria work)
-- Aria: #166 (Cmd+N) or #167 (theme picker swatches) — user-visible features
+- Keep the keyboard QA pass going — Tab through the full app and file any remaining focus issues
+- Aria: #221 (sr-only sibling move) or #166 (Cmd+N) or #167 (theme swatches)
 - Gate: #171 (test connection) or #172 (credentialKey status)
 - Atlas: #177 (remote model catalog)
 
 ## Gotchas
 
-- CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs the runner
+- CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs
 - `ring-focus` = focus ring token; `ring-ring` does NOT exist in this codebase
-- `ring-inset` required on full-height containers inside `overflow-hidden` parents — outset rings are clipped
-- `inert` attribute: use `!isOpen ? '' : undefined` (not boolean true/false) — React omits `undefined` from DOM; `inert="false"` is treated as truthy by some browsers
-- `bg-bg` = surface background token; `bg-bg-surface` is NOT a registered token
-- Worktrees cause Vitest to discover test files twice — always `git worktree remove --force` before final test run
-- Bash tool CWD can drift into a worktree — always use `git -C /workspace` for git commands
-- `models` re-derives on panel CLOSE only — mid-panel mutations not reflected until close, by design
-- userEvent v14 deadlocks with vi.useFakeTimers() — use fireEvent + vi.advanceTimersByTime() instead
-- Settings drawer has focus trap (#116) — keyboard tests must account for Tab interception
-- Ghost mode tooltip anchor pattern: `tabIndex={0}` wrapper div + `aria-label` + `aria-describedby` + immediate onFocus show + 600ms hover setTimeout — see InputBar.tsx
-- App.tsx handleSend calls store.updateConversation() TWICE per send+done cycle — correct, documented
-- Release workflow requires one-time repo setting: Settings → Actions → General → "Read and write permissions"
-- `StoredConversation` envelope in localStorage: `{ schemaVersion: 1, data: Conversation }` — bare legacy records auto-migrate on read
-- Agent cascade fix shipped b84a661: Aria skips Ada, Ada skips Flint, when spawned by Coda
+- `ring-inset` required on full-height containers inside `overflow-hidden` parents
+- `inert` attribute: use `!isOpen ? '' : undefined` — React omits `undefined` from DOM
+- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements
+- Double-rAF for focus restoration after React unmount (single rAF races paint cycle)
+- Aria agent cascade fix: profile rule alone is not reliable — always include explicit "Do not run Ada — Coda will handle Ada after your session" in every Aria spawn prompt
+- Bash tool CWD can drift into a worktree — always use `git -C /workspace`
+- Ghost mode tooltip: `tabIndex={0}` wrapper + `aria-label` + immediate onFocus show + 600ms hover setTimeout — InputBar.tsx canonical
+- Release workflow: one-time repo setting → Settings → Actions → General → "Read and write permissions"
+- `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate on read
