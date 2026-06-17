@@ -93,13 +93,8 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--timing-slow',    theme.timing.slow);
 
   // Prose markdown tokens (Luma spec: _design/specs/markdown.md)
-  // `prose` is not yet in CustomThemeJSON — Arch needs to add it (#TODO).
-  // Access via cast until the type is updated; runtime values are present in all 7 theme JSONs.
-  const prose = (theme as unknown as { prose: Record<string, string> }).prose;
-  if (prose) {
-    root.style.setProperty('--prose-link',       prose['link']);
-    root.style.setProperty('--prose-link-hover', prose['link-hover']);
-  }
+  root.style.setProperty('--prose-link',       theme.prose.link);
+  root.style.setProperty('--prose-link-hover', theme.prose['link-hover']);
 
   // Data attributes for CSS selectors that need mode-awareness
   root.setAttribute('data-theme', theme.name.toLowerCase());
