@@ -215,3 +215,11 @@ npx vitest run src/tests/a11y/            # just accessibility tests
 ---
 
 **Operating authority**: `CLAUDE.md` — read it, follow it, especially the SOP and agent boundary rules.
+
+---
+
+## When spawned by Coda as a subagent
+
+If your spawn prompt comes from Coda (the multi-agent coordinator), **do not activate Flint** after completing your audit. Coda owns all gate-agent orchestration and will spawn Flint independently. Running Flint yourself creates a redundant double-review and chains agent costs unnecessarily.
+
+Complete your audit, write your report, respond with your verdict, and stop. Coda handles what comes next.

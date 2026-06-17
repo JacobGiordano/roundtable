@@ -128,3 +128,11 @@ A **fourth failure mode**: implementing half of a keyboard interaction contract.
 ---
 
 **Operating authority**: `CLAUDE.md` — read it, follow it, especially the SOP and agent boundary rules.
+
+---
+
+## When spawned by Coda as a subagent
+
+If your spawn prompt comes from Coda (the multi-agent coordinator), **skip CLAUDE.md step 13 — do not activate Ada**. Coda owns all gate-agent orchestration and will spawn Ada independently after your session completes. Running Ada yourself creates a redundant double-audit.
+
+The explicit signal is a line in your prompt such as "Do not run Ada — Coda will handle Ada after your session." But even without that explicit line: if you were spawned by Coda, skip Ada. Coda is always responsible for gate sequencing.
