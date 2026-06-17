@@ -910,6 +910,10 @@ export function ProviderSettingsPanel({
       aria-modal="true"
       aria-labelledby="psp-heading"
       aria-hidden={!isOpen}
+      // inert removes all descendants from the tab order + AT tree when the panel is
+      // off-screen. @types/react 18.3 only exposes this in experimental.d.ts, so we
+      // cast rather than import the experimental types globally.
+      {...({ inert: !isOpen ? '' : undefined } as React.HTMLAttributes<HTMLDivElement>)}
       className={[
         'fixed top-0 right-0 h-screen bg-bg overflow-y-auto z-40',
         'motion-reduce:transition-none',
