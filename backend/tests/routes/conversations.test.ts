@@ -21,50 +21,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import bcrypt from 'bcryptjs';
 import { createTestApp, clearDatabase } from '../helpers/createTestApp';
-import type { Conversation } from '../../src/types';
-
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-
-function insertUser(
-  db: ReturnType<typeof createTestApp>['db'],
-  username: string,
-  password: string,
-): void {
-  const hash = bcrypt.hashSync(password, 4);
-  db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(
-    username,
-    hash,
-  );
-}
-
-/** A minimal valid Conversation object for upsert tests. */
-function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
-  return {
-    id: 'conv-test-1',
-    title: 'Test Conversation',
-    messages: [],
-    models: [],
-    interactionMode: 'parallel',
-    isGhost: false,
-    createdAt: 1700000000000,
-    updatedAt: 1700000000000,
-    ...overrides,
-  };
-}
-
-/** Log in and return the Bearer token. */
-async function loginAs(
-  request: ReturnType<typeof createTestApp>['request'],
-  username: string,
-  password: string,
-): Promise<string> {
-  const res = await request
-    .post('/auth/login')
-    .send({ username, password });
-  return res.body.token as string;
-}
+import { insertUser, loginAs, makeConversation } from '../helpers/fixtures';
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
