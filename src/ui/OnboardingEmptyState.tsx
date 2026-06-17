@@ -89,9 +89,9 @@ export function OnboardingEmptyState({ onOpenProviderSettings }: OnboardingEmpty
 
         {/* Heading — "Welcome to Roundtable"
             24px, font-weight: 700, text.primary, centered, margin-bottom: 12px */}
-        <h1 className="text-[24px] font-bold text-text-primary mb-3">
+        <h2 className="text-[24px] font-bold text-text-primary mb-3">
           Welcome to Roundtable
-        </h1>
+        </h2>
 
         {/* Description — explains the product to first-time users
             15px, font-weight: 400, line-height: 1.6, text.secondary, centered, margin-bottom: 32px */}

@@ -89,11 +89,9 @@ function getModelDataAttr(modelId: string | undefined): string {
  * the token system.
  *
  * Links: external links open in a new tab with rel="noopener noreferrer" for
- * security. Color uses text-text-primary + underline as a WCAG-safe interim
- * (text-accent-claude failed 4.5:1 in Linen — Ada blocker). Underline provides
- * the non-color differentiator required by WCAG 1.4.1.
- * TODO: Luma token #193 — define a `text-link` semantic token so link color is
- * not tied to a model accent (and can be a purpose-built color that passes in all themes).
+ * security. Color uses text-prose-link — the semantic link token shipped by Luma
+ * in #193, WCAG AA-compliant across all 7 themes. Underline provides the
+ * non-color differentiator required by WCAG 1.4.1.
  */
 const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
   // Paragraphs: preserve existing body text sizing and line-height
@@ -143,13 +141,9 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
     return <li className="text-text-primary break-words">{children}</li>;
   },
   // Links: external links open in new tab.
-  // Color: text-text-primary with underline — interim fix for WCAG 4.5:1 compliance.
-  // text-accent-claude failed 4.5:1 in Linen (#B45309 on bg-sidebar: 4.12:1, on
-  // bg-background: 4.43:1). text-text-primary is schema-guaranteed to pass 4.5:1
-  // on surfaces.background and surfaces.card in all 7 themes. Underline distinguishes
-  // links from surrounding body text (WCAG 1.4.1 — non-color differentiator).
-  // TODO: Luma token #193 — define a `text-link` semantic token to restore intentional
-  // link color once a WCAG-passing value is specced for all themes.
+  // Color: text-prose-link — the semantic link token shipped by Luma in #193.
+  // WCAG AA-compliant across all 7 themes. Underline distinguishes links from
+  // surrounding body text (WCAG 1.4.1 — non-color differentiator).
   a({ href, children }) {
     const isExternal = href?.startsWith('http') || href?.startsWith('//');
     return (
@@ -158,7 +152,7 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
         {...(isExternal
           ? { target: '_blank', rel: 'noopener noreferrer' }
           : {})}
-        className="text-text-primary underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
+        className="text-prose-link underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm"
       >
         {children}
         {isExternal && <span className="sr-only"> (opens in new tab)</span>}
