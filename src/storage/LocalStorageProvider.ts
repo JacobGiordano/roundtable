@@ -2,11 +2,18 @@
  * LocalStorageProvider — Vault implementation of StorageProvider.
  *
  * Storage layout:
- *   roundtable:conv:{id}   → JSON-serialised Conversation
+ *   roundtable:conv:{id}   → JSON-serialised StoredConversation envelope
+ *                            (or bare Conversation for legacy version 0 records)
  *   roundtable:index       → JSON-serialised string[] of conversation IDs
  *
- * Ghost-mode conversations must never reach this layer — the caller is
- * responsible for checking `conversation.isGhost` before calling save.
+ * Ghost-mode conversations must never reach this layer — isGhost is the first
+ * guard on every write path, before any index or data key is touched.
+ *
+ * Schema versioning:
+ *   All writes go through the StoredConversation envelope defined in migration.ts.
+ *   All reads go through parseStoredConversation(), which detects the envelope,
+ *   identifies bare (version 0) records, and runs migrations as needed.
+ *   See migration.ts for how to add a new schema version.
  */
 
 import type {
@@ -17,6 +24,7 @@ import type {
 } from '@/types/index';
 
 import { conversationToMarkdown, conversationToHtml } from './exporters';
+import { wrapForStorage, parseStoredConversation } from './migration';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,13 +76,13 @@ function writeIndex(ids: string[]): void {
   safeSet(INDEX_KEY, JSON.stringify(ids));
 }
 
+/**
+ * Parse a raw localStorage value into a Conversation, running schema
+ * migrations as needed. Delegates to migration.ts — see parseStoredConversation()
+ * for the full behaviour (envelope detection, version 0 legacy path, error handling).
+ */
 function parseConversation(raw: string | null): Conversation | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as Conversation;
-  } catch {
-    return null;
-  }
+  return parseStoredConversation(raw);
 }
 
 function triggerDownload(filename: string, content: string, mimeType: string): void {
@@ -95,9 +103,14 @@ function triggerDownload(filename: string, content: string, mimeType: string): v
 export class LocalStorageProvider implements StorageProvider {
   /**
    * Persist a conversation. Ghost-mode conversations are silently skipped —
-   * isGhost is a hard barrier; nothing is ever written to storage for them.
+   * isGhost is the first guard on this write path; nothing is ever written to
+   * storage for ghost conversations.
+   *
+   * Writes a StoredConversation envelope (schemaVersion + data) so the read
+   * path can detect the schema version and run migrations if needed.
    */
   async saveConversation(conversation: Conversation): Promise<void> {
+    // Ghost-mode guard — first line, before any index or data key is touched.
     if (conversation.isGhost) return;
 
     const ids = readIndex();
@@ -106,7 +119,11 @@ export class LocalStorageProvider implements StorageProvider {
       writeIndex(ids);
     }
 
-    safeSet(convKey(conversation.id), JSON.stringify(conversation));
+    // Wrap in the StoredConversation envelope before writing.
+    // This records the current schemaVersion so the read path can migrate
+    // stale records written by older builds.
+    const envelope = wrapForStorage(conversation);
+    safeSet(convKey(conversation.id), JSON.stringify(envelope));
   }
 
   /** Returns null if the conversation does not exist or the stored data is corrupt. */
