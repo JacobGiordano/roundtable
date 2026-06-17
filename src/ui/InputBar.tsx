@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useId } from 'react';
 import type { ModelConfig } from '@/types';
 
 interface InputBarProps {
@@ -98,6 +98,26 @@ export function InputBar({
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Ghost mode tooltip — 600ms hover delay per tooltip.md §1 (#210).
+  // Hover shows after intentionality delay; focus shows immediately.
+  const [isGhostTooltipVisible, setIsGhostTooltipVisible] = useState(false);
+  const ghostHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ghostTooltipId = useId();
+
+  const handleGhostMouseEnter = useCallback(() => {
+    ghostHoverTimerRef.current = setTimeout(() => {
+      setIsGhostTooltipVisible(true);
+    }, 600);
+  }, []);
+
+  const handleGhostMouseLeave = useCallback(() => {
+    if (ghostHoverTimerRef.current !== null) {
+      clearTimeout(ghostHoverTimerRef.current);
+      ghostHoverTimerRef.current = null;
+    }
+    setIsGhostTooltipVisible(false);
+  }, []);
 
   const isEmpty = value.trim().length === 0;
   // §3.3: gate on zero active models in addition to the streaming/empty checks.
@@ -206,22 +226,36 @@ export function InputBar({
         {/* Ghost mode indicator — left side, shown only when active */}
         {isGhostMode && (
           <div
-            className="flex-shrink-0 text-text-muted self-center relative group"
+            className="flex-shrink-0 text-text-muted self-center relative"
             title="Ghost mode — this conversation won't be saved"
+            aria-describedby={ghostTooltipId}
+            onMouseEnter={handleGhostMouseEnter}
+            onMouseLeave={handleGhostMouseLeave}
           >
             <GhostIcon />
-            {/* Tooltip */}
+            {/* Tooltip — shown after 600ms hover delay per tooltip.md §1 (#210).
+                Always in DOM so aria-describedby reference is never broken.
+                Opacity controlled by JS state rather than CSS group-hover to
+                enable the intentionality delay. */}
             <div
+              id={ghostTooltipId}
+              role="tooltip"
               className={[
                 'absolute bottom-full left-0 mb-2',
                 'bg-sidebar border border-border rounded-sm',
-                'px-3 py-2 text-[10px] text-text-primary whitespace-nowrap',
-                'pointer-events-none opacity-0 group-hover:opacity-100',
+                'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
+                'pointer-events-none',
                 'transition-opacity duration-fast',
+                'z-20',
+                isGhostTooltipVisible ? 'opacity-100' : 'opacity-0',
               ].join(' ')}
-              role="tooltip"
             >
               Ghost mode — this conversation won't be saved
+              {/* Caret */}
+              <span
+                className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                aria-hidden="true"
+              />
             </div>
           </div>
         )}

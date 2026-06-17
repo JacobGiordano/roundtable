@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback } from 'react';
 import type { InteractionMode, InteractionModeConfig } from '@/types';
 
 // ─── Mode registry ────────────────────────────────────────────────────────────
@@ -83,6 +84,48 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
     ? 'Coming soon — not yet available'
     : config.description;
 
+  // ── Tooltip show/hide state with 600ms hover delay (#211) ────────────────
+  // Per tooltip.md §1: hover shows after 600ms (intentionality filter).
+  // Focus shows immediately (0ms delay). Both hide immediately on leave/blur.
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    hoverTimerRef.current = setTimeout(() => {
+      setIsTooltipVisible(true);
+    }, 600);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current !== null) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsTooltipVisible(false);
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    // Cancel any pending hover timer — focus wins with immediate show.
+    if (hoverTimerRef.current !== null) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsTooltipVisible(true);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setIsTooltipVisible(false);
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsTooltipVisible(false);
+      }
+    },
+    [],
+  );
+
   if (isDisabled) {
     // Render as a non-interactive span so it cannot be focused or activated.
     // aria-disabled is not used on a span (it only applies to interactive roles).
@@ -90,7 +133,11 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
     // is not needed here — the span is non-interactive and carries no role.
     // The "coming soon" text is conveyed visually via the tooltip on hover.
     return (
-      <div className="relative group">
+      <div
+        className="relative"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <span
           aria-hidden="false"
           aria-label={`${config.label} — coming soon`}
@@ -108,7 +155,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
           {config.label}
         </span>
 
-        {/* Tooltip — shown on hover via group */}
+        {/* Tooltip — shown after 600ms hover delay (tooltip.md §1) */}
         <div
           id={tooltipId}
           role="tooltip"
@@ -118,10 +165,11 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
             'bg-sidebar border border-border rounded-sm shadow-md',
             'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
             'pointer-events-none',
-            'opacity-0 group-hover:opacity-100',
-            // Respect prefers-reduced-motion — see global CSS
+            // Opacity controlled by JS state (not CSS group-hover) to allow
+            // the 600ms intentionality delay. Exit is instant per spec.
             'transition-opacity duration-fast',
             'z-20',
+            isTooltipVisible ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
         >
           {tooltipContent}
@@ -136,7 +184,11 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
   }
 
   return (
-    <div className="relative group">
+    <div
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
         type="button"
         role="radio"
@@ -144,6 +196,9 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         aria-label={`${config.label} — ${config.description}`}
         aria-describedby={tooltipId}
         onClick={() => onSelect(config.mode)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         className={[
           'relative h-7 px-3 rounded-full',
           'text-[12px] font-medium whitespace-nowrap',
@@ -159,7 +214,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         {config.label}
       </button>
 
-      {/* Tooltip — shown on hover via group */}
+      {/* Tooltip — shown after 600ms hover delay or immediately on focus (tooltip.md §1) */}
       <div
         id={tooltipId}
         role="tooltip"
@@ -169,10 +224,11 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
           'bg-sidebar border border-border rounded-sm shadow-md',
           'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
           'pointer-events-none',
-          'opacity-0 group-hover:opacity-100',
-          // Respect prefers-reduced-motion — see global CSS
+          // Opacity controlled by JS state (not CSS group-hover) to allow
+          // the 600ms intentionality delay. Exit is instant per spec.
           'transition-opacity duration-fast',
           'z-20',
+          isTooltipVisible ? 'opacity-100' : 'opacity-0',
         ].join(' ')}
       >
         {config.description}
@@ -211,6 +267,9 @@ export interface InteractionModeSwitcherProps {
  * spans with a "coming soon" tooltip. They cannot be selected. Only Parallel
  * is selectable. This reflects that App.tsx:handleSend always broadcasts in
  * parallel — the UI must not imply otherwise. (#131)
+ *
+ * Tooltip delay: all tooltips in this component use the 600ms hover
+ * intentionality filter per tooltip.md §1 (#211).
  */
 export function InteractionModeSwitcher({
   activeMode,
