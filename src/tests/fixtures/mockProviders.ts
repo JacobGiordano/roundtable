@@ -114,6 +114,7 @@ export class FakeErrorProvider implements ModelProvider {
       error: {
         code: this._errorCode,
         message: this._errorMessage,
+        source: 'model' as const,
       },
     });
     return {};

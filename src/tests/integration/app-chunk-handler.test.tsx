@@ -368,13 +368,13 @@ describe('chunk handler — error propagation', () => {
       modelId: 'claude',
       content: '',
       isDone: true,
-      error: { code: 'rate_limit', message: 'Too many requests' },
+      error: { code: 'rate_limit', message: 'Too many requests', source: 'model' as const },
     });
 
     // call[1] is the assistant finalization; call[0] is the user message persist.
     const [savedConv] = mockUpdateConversation.mock.calls[1] as [Conversation];
     const assistantMsg = savedConv.messages[savedConv.messages.length - 1]!;
-    expect(assistantMsg.error).toEqual({ code: 'rate_limit', message: 'Too many requests' });
+    expect(assistantMsg.error).toEqual({ code: 'rate_limit', message: 'Too many requests', source: 'model' });
   });
 
   it('error on done chunk still clears the streaming message from state', () => {
@@ -386,7 +386,7 @@ describe('chunk handler — error propagation', () => {
       modelId: 'claude',
       content: '',
       isDone: true,
-      error: { code: 'network_error', message: 'Connection lost' },
+      error: { code: 'network_error', message: 'Connection lost', source: 'model' as const },
     });
 
     expect(getStreamingMessages()).toHaveLength(0);
@@ -402,7 +402,7 @@ describe('chunk handler — error propagation', () => {
       modelId: 'claude',
       content: '',
       isDone: true,
-      error: { code: 'auth_failure', message: 'Invalid API key' },
+      error: { code: 'auth_failure', message: 'Invalid API key', source: 'model' as const },
     });
 
     // call[1] is the assistant finalization.
