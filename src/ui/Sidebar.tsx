@@ -38,6 +38,10 @@ import { applyUserAccentColors, applyTheme, THEME_MAP, THEME_IDS } from './theme
 import type { ThemeId } from '@/types';
 import { RoundtableLogo } from './RoundtableLogo';
 
+// #166: Platform detection for keyboard shortcut hint in button aria-labels.
+// Module-level constant — navigator may be undefined in SSR/test environments.
+const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+
 interface SidebarProps {
   conversations: Conversation[];
   activeConversationId: string | null;
@@ -1326,11 +1330,11 @@ export function Sidebar({
           )}
           {/* Desktop-only controls: new conversation + provider-settings gear */}
           <div className="hidden md:flex items-center gap-1">
-            {/* New conversation button */}
+            {/* New conversation button (#166: aria-label includes keyboard shortcut hint) */}
             <button
               type="button"
               onClick={onNewConversation}
-              aria-label="New conversation"
+              aria-label={`New conversation (${isMac ? '⌘N' : 'Ctrl+N'})`}
               className={[
                 'w-8 h-8 rounded-md flex items-center justify-center',
                 'text-text-secondary hover:bg-hover',
@@ -1625,16 +1629,24 @@ export function Sidebar({
                           : 'border-transparent text-text-secondary hover:bg-hover/60 hover:text-text-primary',
                       ].join(' ')}
                     >
-                      {/* Mode swatch dot: filled for dark themes, ring for light */}
+                      {/* Two-color swatch — background + Claude accent (#167).
+                          Colors are runtime values from THEME_MAP JSON, so inline
+                          style is unavoidable here (Tailwind JIT cannot resolve
+                          dynamic values). aria-hidden: the button label is the
+                          accessible name; the swatch is purely decorative. */}
                       <span
-                        className={[
-                          'w-2 h-2 rounded-full flex-shrink-0 border',
-                          THEME_MAP[themeId].mode === 'dark'
-                            ? 'bg-text-primary border-transparent'
-                            : 'bg-transparent border-text-muted',
-                        ].join(' ')}
+                        className="flex items-center gap-[2px] flex-shrink-0"
                         aria-hidden="true"
-                      />
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-black/10"
+                          style={{ backgroundColor: THEME_MAP[themeId].surfaces.background }}
+                        />
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-black/10"
+                          style={{ backgroundColor: THEME_MAP[themeId].accents['model-claude'] }}
+                        />
+                      </span>
                       {label}
                     </button>
                   );

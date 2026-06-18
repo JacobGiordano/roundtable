@@ -278,35 +278,41 @@ export function InteractionModeSwitcher({
 }: InteractionModeSwitcherProps) {
   const lastIndex = INTERACTION_MODES.length - 1;
 
+  // #221: sr-only span is a sibling of the radiogroup (not inside it) to prevent
+  // double-read on older AT (JAWS ≤ 2022, some NVDA browse modes). The
+  // aria-describedby reference on the radiogroup remains valid regardless of
+  // DOM position — ids are document-scoped.
   return (
-    <div
-      role="radiogroup"
-      aria-label="Interaction mode"
-      aria-describedby="interaction-mode-coming-soon-note"
-      className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
-    >
-      {/* Visually-hidden note describing unavailable modes — #220.
+    <>
+      <div
+        role="radiogroup"
+        aria-label="Interaction mode"
+        aria-describedby="interaction-mode-coming-soon-note"
+        className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
+      >
+        {INTERACTION_MODES.map((config, index) => {
+          const tooltipAlign: TooltipAlign =
+            index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
+          return (
+            <ModeButton
+              key={config.mode}
+              config={config}
+              isSelected={activeMode === config.mode}
+              onSelect={onModeChange}
+              tooltipAlign={tooltipAlign}
+            />
+          );
+        })}
+      </div>
+      {/* Visually-hidden note describing unavailable modes — #220/#221.
           Screen readers announce this when entering the radiogroup (via aria-describedby).
-          It supplements the per-span aria-label="[Mode] — coming soon" labels. */}
+          Sits outside the radiogroup so AT does not read it twice in browse mode. */}
       <span
         id="interaction-mode-coming-soon-note"
         className="sr-only"
       >
         Manual and Auto-chain modes are coming soon and are not yet available.
       </span>
-      {INTERACTION_MODES.map((config, index) => {
-        const tooltipAlign: TooltipAlign =
-          index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
-        return (
-          <ModeButton
-            key={config.mode}
-            config={config}
-            isSelected={activeMode === config.mode}
-            onSelect={onModeChange}
-            tooltipAlign={tooltipAlign}
-          />
-        );
-      })}
-    </div>
+    </>
   );
 }
