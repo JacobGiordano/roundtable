@@ -96,4 +96,36 @@ describe('OnboardingEmptyState — accessibility (#204)', () => {
     expect(svg).toBeTruthy();
     expect(svg?.getAttribute('aria-hidden')).toBe('true');
   });
+
+  // ── Skip-link target tests (#226) ──────────────────────────────────────────
+
+  it('CTA button receives id when ctaId prop is provided (WCAG 2.4.1 skip-link target)', () => {
+    render(
+      <OnboardingEmptyState onOpenProviderSettings={vi.fn()} ctaId="skip-target" />,
+    );
+    // The skip link in AppLayout targets #skip-target. When isRosterEmpty is true,
+    // OnboardingEmptyState holds this id on its primary CTA button so focus lands
+    // on a naturally focusable element — not the non-interactive <main> container.
+    const cta = screen.getByRole('button', { name: /add your first provider/i });
+    expect(cta.id).toBe('skip-target');
+  });
+
+  it('has no axe violations when ctaId is applied (WCAG 2.4.1)', async () => {
+    const { container } = render(
+      <OnboardingEmptyState onOpenProviderSettings={vi.fn()} ctaId="skip-target" />,
+    );
+    // Axe must not flag the id assignment itself (e.g. duplicate-id-active).
+    // In the AppLayout conditional, only one element ever holds id="skip-target"
+    // at a time — this test confirms the isolated component is clean.
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('CTA button id is absent when ctaId prop is omitted (no orphan id)', () => {
+    render(<OnboardingEmptyState onOpenProviderSettings={vi.fn()} />);
+    const cta = screen.getByRole('button', { name: /add your first provider/i });
+    // Without ctaId, the button must not have an id at all (or must be empty-string).
+    // An unexpected id on this element could collide with future skip-target placement.
+    expect(cta.id).toBe('');
+  });
 });
