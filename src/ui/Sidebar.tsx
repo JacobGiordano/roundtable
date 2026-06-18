@@ -1104,6 +1104,22 @@ export function Sidebar({
   // Bulk selection: set of selected conversation IDs.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // New conversation button tooltip state (#166).
+  const [isNewConvTooltipVisible, setIsNewConvTooltipVisible] = useState(false);
+  const newConvTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNewConvMouseEnter = useCallback(() => {
+    newConvTooltipTimerRef.current = setTimeout(() => setIsNewConvTooltipVisible(true), 600);
+  }, []);
+  const handleNewConvMouseLeave = useCallback(() => {
+    if (newConvTooltipTimerRef.current) clearTimeout(newConvTooltipTimerRef.current);
+    setIsNewConvTooltipVisible(false);
+  }, []);
+  const handleNewConvFocus = useCallback(() => {
+    if (newConvTooltipTimerRef.current) clearTimeout(newConvTooltipTimerRef.current);
+    setIsNewConvTooltipVisible(true);
+  }, []);
+  const handleNewConvBlur = useCallback(() => setIsNewConvTooltipVisible(false), []);
+
   const handleToggleSettingsInternal = useCallback(() => {
     setIsSettingsOpenInternal((prev) => {
       const next = !prev;
@@ -1330,27 +1346,57 @@ export function Sidebar({
           )}
           {/* Desktop-only controls: new conversation + provider-settings gear */}
           <div className="hidden md:flex items-center gap-1">
-            {/* New conversation button (#166: aria-label includes keyboard shortcut hint) */}
-            <button
-              type="button"
-              onClick={onNewConversation}
-              aria-label={`New conversation (${isMac ? '⌘N' : 'Ctrl+N'})`}
-              className={[
-                'w-8 h-8 rounded-md flex items-center justify-center',
-                'text-text-secondary hover:bg-hover',
-                'transition-colors duration-fast',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-              ].join(' ')}
+            {/* New conversation button (#166: tooltip + keyboard shortcut hint) */}
+            <div
+              className="relative"
+              onMouseEnter={handleNewConvMouseEnter}
+              onMouseLeave={handleNewConvMouseLeave}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M8 2v12M2 8h12"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
+              <button
+                type="button"
+                onClick={onNewConversation}
+                aria-label={`New conversation (${isMac ? '⌘N' : 'Ctrl+N'})`}
+                aria-describedby="sidebar-new-conv-tooltip"
+                onFocus={handleNewConvFocus}
+                onBlur={handleNewConvBlur}
+                className={[
+                  'w-8 h-8 rounded-md flex items-center justify-center',
+                  'text-text-secondary hover:bg-hover',
+                  'transition-colors duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M8 2v12M2 8h12"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <div
+                id="sidebar-new-conv-tooltip"
+                role="tooltip"
+                className={[
+                  'absolute bottom-full right-0 mb-2',
+                  'w-max',
+                  'bg-sidebar border border-border rounded-sm shadow-md',
+                  'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
+                  'pointer-events-none',
+                  'transition-opacity duration-fast',
+                  'z-20',
+                  isNewConvTooltipVisible ? 'opacity-100' : 'opacity-0',
+                ].join(' ')}
+              >
+                New conversation
+                <span className="ml-1.5 font-mono text-text-muted">{isMac ? '⌘N' : 'Ctrl+N'}</span>
+                <span
+                  className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                  aria-hidden="true"
                 />
-              </svg>
-            </button>
+              </div>
+            </div>
           {/* Provider settings gear — opens ProviderSettingsPanel slide-in (#99).
               Only rendered when AppLayout provides the onOpenProviderSettings prop. */}
           {onOpenProviderSettings && (
