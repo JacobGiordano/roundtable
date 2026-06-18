@@ -1,4 +1,4 @@
-Last updated: 2026-06-18 (ship #226 #227 + Ada cascade fix)
+Last updated: 2026-06-18 (ship #166 #167 #221 #171)
 
 ## Current phase
 
@@ -6,25 +6,28 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Continued keyboard navigation QA pass. Three more fixes shipped:
+Parallel wave — Aria + Gate:
 
-- #226 (Aria): Skip-to-main link now targets the first meaningful interactive element. `href="#skip-target"` — when empty state: OnboardingEmptyState CTA button; when active: InputBar textarea. Mutual exclusion guaranteed (only one element holds the id at a time). 7 new Ada a11y tests.
+- #221 (Aria): InteractionModeSwitcher sr-only span moved to radiogroup sibling via React fragment. Fixes double-read on JAWS ≤ 2022.
 
-- #227 (Aria): InputBar textarea missing direct focus ring. Added `focus:outline-none focus:ring-2 focus:ring-focus focus:ring-inset` using bare `focus:` (not `focus-visible:`) — programmatic focus from skip-link fragment nav doesn't fire `focus-visible:`.
+- #167 (Aria): Theme picker now shows two color swatches per button (surfaces.background + accents['model-claude']) from THEME_MAP. aria-hidden on swatch wrapper; label is accessible name.
 
-- Ada cascade fix: CLAUDE.md step 13 updated (Arch, 84b7373) + aria.md "stop after reporting" rule moved to top. Coda now goes Aria → Flint directly when Aria's session already includes Ada verdict. One Ada run per Aria session (not two).
+- #166 (Aria): Cmd+N / Ctrl+N keyboard shortcut registered at document level in AppLayout. Suppressed in input/textarea/contenteditable. Tooltip on both mobile header and desktop Sidebar new-conversation buttons (below the button, 600ms hover / immediate focus). 17 new Ada a11y tests.
+
+- #171 (Gate): Test Connection button added to ApiKeyPanel masked-display state. New credentialTest.ts hits list-models endpoints (no tokens). Shows Valid / Invalid / rate-limited / error with auto-clear after 5s. aria-live region for screen readers.
 
 ## Key decisions
 
-- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements; bare `focus:` on skip-link destinations (programmatic focus)
+- New-conversation tooltip: `top-full` (below button) — header position makes `bottom-full` clip off screen
+- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements; bare `focus:` on skip-link destinations
 - Double-rAF is canonical pattern for focus restoration after React unmount
-- `inert` attribute: `!isOpen ? '' : undefined` (not boolean)
-- `ring-inset` required on full-height containers and borderless elements inside styled wrappers
-- Ada cascade: Aria will always run Ada once per session — Coda trusts that result and goes straight to Flint, no duplicate Ada spawn
+- `inert` attribute: `!isOpen ? '' : undefined`
+- Aria always runs Ada once per session — Coda goes straight to Flint after Aria's Ada verdict
+- Test connection fetch: browser-side only (native fetch). In-container, Google/xAI/DeepSeek/Mistral endpoints hit firewall — graceful "Network error" shown.
 
 ## Open advisories (not yet addressed)
 
-- #221 (Aria/Ada) — sr-only IMS description span is inside radiogroup; should be a sibling (cosmetic)
+- #228 (Gate) — ApiKeyPanel test-connection setTimeout not cancelled on unmount (React 18 no-op, advisory)
 - #199 (Aria, deferred) — coming-soon spans: radiogroup ownership + keyboard discoverability
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
@@ -32,11 +35,9 @@ Continued keyboard navigation QA pass. Three more fixes shipped:
 - #175 (Vault) — StorageProvider pagination
 - #174 (Aria) — React Context or Zustand (AppLayoutProps has 30 props)
 - #172 (Gate) — credentialKey status not exposed for custom providers
-- #171 (Gate) — 'Test connection' for API keys
+- #171 done; #172 still open
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
-- #167 (Aria) — Theme picker visual preview swatches
-- #166 (Aria) — Keyboard shortcut Cmd+N for new conversation
 - #165 (Aria) — Per-model visibility toggle
 - #164 (Aria) — Conversation rename
 - #162 (Aria) — Message editing
@@ -45,11 +46,11 @@ Continued keyboard navigation QA pass. Three more fixes shipped:
 
 ## What's next
 
-Keyboard QA pass is winding down — most critical focus issues addressed. Good next options:
-- Aria: #221 (sr-only sibling — trivial) or #166 (Cmd+N) or #167 (theme swatches)
-- Gate: #171 (test connection) or #172 (credentialKey status)
+Good next wave options:
+- Aria: #162 (message editing) — high user value, solo session
+- Aria: #164 (conversation rename) + #165 (per-model visibility) — batch
+- Gate: #172 (credentialKey status) + #228 (unmount cleanup) — batch
 - Atlas: #177 (remote model catalog)
-- Feature wave: batch #166 + #167 + #221 as one Aria session
 
 ## Gotchas
 
@@ -57,10 +58,12 @@ Keyboard QA pass is winding down — most critical focus issues addressed. Good 
 - `ring-focus` = focus ring token; `ring-ring` does NOT exist
 - `ring-inset` for full-height containers / borderless elements in styled wrappers
 - `focus-within:` on wrapper divs; bare `focus:` on skip-link destinations
-- Double-rAF for focus restoration after React unmount (single rAF races paint cycle)
+- Double-rAF for focus restoration after React unmount
 - `inert` attribute: `!isOpen ? '' : undefined`
+- New-conversation tooltip: `top-full mt-2` (below), not `bottom-full` — header context
 - Aria always runs Ada once per session — Coda goes straight to Flint after Aria's Ada verdict
 - Bash tool CWD can drift into a worktree — always use `git -C /workspace`
 - Ghost mode tooltip: `tabIndex={0}` + `aria-label` + immediate onFocus + 600ms hover — InputBar.tsx canonical
 - Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
+- Test connection fetch: browser-side native fetch; container firewall blocks Google/xAI/DeepSeek/Mistral
