@@ -11,6 +11,9 @@ import {
   saveCredentials,
   clearCredentials,
 } from '@/auth';
+// #148: getModelAccentCssValue is the shared utility for model identity dot colors.
+// Replaces the inline getProviderDotColor function in this file.
+import { getModelAccentCssValue } from './utils/modelColor';
 
 // ─── Built-in model metadata ───────────────────────────────────────────────────
 
@@ -39,13 +42,6 @@ const ALL_BUILTIN_IDS: BuiltInModelId[] = [
 ];
 
 // ─── Provider helpers ─────────────────────────────────────────────────────────
-
-function getProviderDotColor(provider: ProviderConfig): string {
-  if (provider.kind === 'builtin') {
-    return `var(--${BUILTIN_META[provider.modelId].color})`;
-  }
-  return provider.color ? provider.color : 'var(--accent-other)';
-}
 
 function getProviderName(provider: ProviderConfig): string {
   if (provider.kind === 'builtin') {
@@ -120,7 +116,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
 
   const name = getProviderName(provider);
   const id = getProviderId(provider);
-  const dotColor = getProviderDotColor(provider);
+  const dotColor = getModelAccentCssValue(getProviderId(provider));
 
   // The credential key for this provider (undefined means keyless).
   const credentialKey: string | undefined =

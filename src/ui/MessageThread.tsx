@@ -82,7 +82,6 @@ function ModelVisibilityBar({ models, hiddenModelIds, onToggleVisibility }: Mode
             aria-pressed={isVisible}
             aria-label={`${isVisible ? 'Hide' : 'Show'} ${model.name}`}
             aria-disabled={isLastVisible ? true : undefined}
-            disabled={isLastVisible}
             onClick={() => { if (!isLastVisible) onToggleVisibility(model.modelId); }}
             className={[
               'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium',

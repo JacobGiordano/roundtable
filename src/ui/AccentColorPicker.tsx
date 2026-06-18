@@ -21,6 +21,9 @@ import {
 } from '@/auth';
 import { applyUserAccentColors } from './theme';
 import { contrastRatio } from './colorUtils';
+// #152: MODEL_ACCENT_CSS_VARS is the single source of truth for modelId → CSS var name.
+// Previously defined inline here and in theme.ts; both files now import from utils/modelColor.
+import { MODEL_ACCENT_CSS_VARS } from './utils/modelColor';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,20 +48,6 @@ const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 function isValidHex(value: string): boolean {
   return HEX_PATTERN.test(value);
 }
-
-/**
- * Maps each ModelId to its CSS custom property name on :root.
- * Mirrors the mapping in theme.ts applyUserAccentColors — kept in sync manually.
- * GPT's CSS var is --accent-gpt (not --accent-gpt-5.5), hence the explicit map.
- */
-const MODEL_ACCENT_CSS_VARS: Record<ModelId, string> = {
-  'claude':    '--accent-claude',
-  'gpt-5.5':  '--accent-gpt',
-  'gemini':   '--accent-gemini',
-  'grok':     '--accent-grok',
-  'deepseek': '--accent-deepseek',
-  'mistral':  '--accent-mistral',
-};
 
 /**
  * Reads the model's current effective accent color directly from the live
