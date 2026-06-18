@@ -16,9 +16,16 @@
 interface OnboardingEmptyStateProps {
   /** Opens the ProviderSettingsPanel. Same handler used by CTA button and secondary link. */
   onOpenProviderSettings: () => void;
+  /**
+   * When provided, applied as the `id` attribute on the primary CTA button.
+   * Used by AppLayout to place `id="skip-target"` on the most meaningful
+   * interactive element when the roster is empty, so the skip-to-main-content
+   * link lands on a focusable element. See WCAG 2.4.1.
+   */
+  ctaId?: string;
 }
 
-export function OnboardingEmptyState({ onOpenProviderSettings }: OnboardingEmptyStateProps) {
+export function OnboardingEmptyState({ onOpenProviderSettings, ctaId }: OnboardingEmptyStateProps) {
   return (
     <div
       className="w-full h-full flex flex-col items-center justify-center px-6"
@@ -109,6 +116,7 @@ export function OnboardingEmptyState({ onOpenProviderSettings }: OnboardingEmpty
             margin-bottom: 24px */}
         <button
           type="button"
+          id={ctaId}
           onClick={onOpenProviderSettings}
           className={[
             'h-12 px-7',

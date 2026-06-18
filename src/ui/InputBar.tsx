@@ -21,6 +21,13 @@ interface InputBarProps {
    * Spec: provider-settings.md §3.3. Omitting (undefined) disables this gate.
    */
   activeModelCount?: number;
+  /**
+   * When provided, applied as the `id` attribute on the textarea element.
+   * Used by AppLayout to place `id="skip-target"` on the primary interactive
+   * element so the skip-to-main-content link lands on a focusable element
+   * rather than the non-interactive <main> container. See WCAG 2.4.1.
+   */
+  textareaId?: string;
 }
 
 /** Ghost icon: SVG outline, 16×16. Used when ghost mode is active. */
@@ -94,6 +101,7 @@ export function InputBar({
   directedReplyTarget,
   onClearDirectedReply,
   activeModelCount,
+  textareaId,
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -284,6 +292,7 @@ export function InputBar({
         {/* Textarea */}
         <textarea
           ref={textareaRef}
+          id={textareaId}
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}

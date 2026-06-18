@@ -187,9 +187,13 @@ export function AppLayout({
       {/* Skip-to-main-content link — WCAG 2.4.1 bypass block requirement.
           Visually hidden at rest (sr-only); becomes visible on keyboard focus
           so keyboard users can jump past the sidebar nav directly to the main
-          content area. Must be the very first focusable element in the DOM. */}
+          content area. Must be the very first focusable element in the DOM.
+          Targets #skip-target, which is placed on the primary interactive element
+          in the active state (textarea) or onboarding state (CTA button), so
+          focus lands on a naturally focusable element with a visible ring rather
+          than the non-interactive <main> container. */}
       <a
-        href="#main-content"
+        href="#skip-target"
         className={[
           'sr-only',
           'focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999]',
@@ -358,9 +362,11 @@ export function AppLayout({
 
         {/* Conversation column body — either onboarding (empty roster) or message thread.
             OnboardingEmptyState unmounts automatically when isRosterEmpty becomes false
-            (first provider added), revealing the normal MessageThread. */}
+            (first provider added), revealing the normal MessageThread.
+            ctaId="skip-target" places the skip-link anchor on the primary CTA button
+            in onboarding state so keyboard users land on a meaningful interactive element. */}
         {isRosterEmpty ? (
-          <OnboardingEmptyState onOpenProviderSettings={handleOpenProviderSettings} />
+          <OnboardingEmptyState onOpenProviderSettings={handleOpenProviderSettings} ctaId="skip-target" />
         ) : (
           <MessageThread
             messages={messages}
@@ -401,7 +407,12 @@ export function AppLayout({
           </div>
         </div>
 
-        {/* Input bar — fixed at bottom of main area */}
+        {/* Input bar — fixed at bottom of main area.
+            textareaId="skip-target" places the skip-link anchor on the textarea when
+            the roster is populated (active conversation state). When isRosterEmpty is
+            true, the OnboardingEmptyState CTA holds the id instead; InputBar still
+            renders but its textarea gets no id in that state, preventing a duplicate-id
+            collision in the DOM. */}
         <div className="flex-shrink-0">
           <InputBar
             onSend={onSend}
@@ -410,6 +421,7 @@ export function AppLayout({
             directedReplyTarget={directedReplyTarget}
             onClearDirectedReply={onClearDirectedReply}
             activeModelCount={allModels.filter((m) => m.isActive).length}
+            textareaId={isRosterEmpty ? undefined : 'skip-target'}
           />
         </div>
       </main>
