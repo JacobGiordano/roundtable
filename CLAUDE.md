@@ -195,6 +195,13 @@ the user explicitly requests a plan.**
     fixed in the same session. Advisory findings must be filed as issues before
     moving on.
 
+    **Coda-coordinated wave exception:** If Aria was spawned by Coda as a
+    subagent (not activated directly by the user), Aria must skip this step
+    entirely. Do not activate Ada. Stop after reporting completion back to Coda.
+    Coda owns Ada orchestration in wave sessions — it queues Ada after all Aria
+    work in the wave is done. Spawning Ada from inside an Aria subagent causes
+    Ada to run twice and burns double the usage budget.
+
 ### Session close-out (required)
 
 #### Step 1 — "done"
