@@ -24,11 +24,11 @@ import {
   setActiveTheme,
   getThemePreference,
 } from '@/auth';
-// Atlas cross-agent exception: MODEL_REGISTRY is a pure data constant exported from
-// @/models — permitted per CLAUDE.md. Used to build a modelId→color lookup so that
-// getModelDotStyle is data-driven and requires no changes when new models are added.
-import { MODEL_REGISTRY } from '@/models';
 import { groupConversations } from './groupConversations';
+// #148: getModelDotStyle is the shared utility for model identity dot colors.
+// Extracted from inline implementations in Sidebar, ModelSelectorPanel, and
+// ProviderSettingsPanel into utils/modelColor.ts — single source of truth.
+import { getModelDotStyle } from './utils/modelColor';
 // applyUserAccentColors: re-runs the CSS override pass after clearing all stored colors.
 // Called with {} so every model reverts to its theme default (no overrides applied).
 // applyTheme: applies the selected theme's token set to :root CSS custom properties.
@@ -144,25 +144,6 @@ function getThreadTitle(conversation: Conversation): string {
     return firstUserMsg.content.replace(/\n/g, ' ').slice(0, 40);
   }
   return 'New conversation';
-}
-
-/**
- * Lookup table from modelId → CSS variable string, built from MODEL_REGISTRY.
- * Adding a new model to MODEL_REGISTRY automatically makes it available here —
- * no manual switch/case update required.
- */
-const MODEL_DOT_CSS_VAR: Record<string, string> = Object.fromEntries(
-  MODEL_REGISTRY.map((entry) => [entry.modelId, `var(--${entry.color})`]),
-);
-
-/**
- * Returns the inline style for a model identity dot using the CSS variable
- * derived from MODEL_REGISTRY. Falls back to --accent-other for unknown modelIds.
- * ThreadRow only has modelId strings from message history (no full ModelConfig),
- * so this lookup is driven by MODEL_REGISTRY rather than a switch statement.
- */
-function getModelDotStyle(modelId: string): React.CSSProperties {
-  return { backgroundColor: MODEL_DOT_CSS_VAR[modelId] ?? 'var(--accent-other)' };
 }
 
 // ─── Three-dot menu ───────────────────────────────────────────────────────────

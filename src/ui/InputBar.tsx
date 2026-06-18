@@ -306,9 +306,9 @@ export function InputBar({
             'placeholder:text-text-muted',
             'min-h-[36px] max-h-[200px]',
             'self-end',
-            // Bare focus: (not focus-visible:) so the ring fires on programmatic focus
-            // from skip-link fragment navigation (WCAG 2.4.3 / Ada advisory #227).
-            'focus:outline-none focus:ring-2 focus:ring-focus focus:ring-inset',
+            // focus-visible: prevents the ring from showing on mouse clicks while
+            // still rendering it for keyboard navigation. (#234)
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
             // Disable new-message submit while streaming, but still allow typing
             isStreaming ? 'cursor-text' : '',
           ].join(' ')}

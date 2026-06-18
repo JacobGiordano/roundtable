@@ -6,6 +6,9 @@ import midnightTheme from '../../_design/themes/midnight.json';
 import outrunTheme from '../../_design/themes/outrun.json';
 import slateTheme from '../../_design/themes/slate.json';
 import type { CustomThemeJSON, ModelAccentColors, ModelId, ThemeId } from '@/types';
+// #152: MODEL_ACCENT_CSS_VARS is the single source of truth for modelId → CSS var name.
+// Extracted from this file into utils/modelColor.ts so AccentColorPicker can share it.
+import { MODEL_ACCENT_CSS_VARS } from './utils/modelColor';
 
 /**
  * Static lookup map from ThemeId to the corresponding theme JSON.
@@ -118,16 +121,7 @@ export function applyTheme(theme: CustomThemeJSON): void {
 export function applyUserAccentColors(userColors: ModelAccentColors): void {
   const root = document.documentElement;
 
-  const mapping: Record<ModelId, string> = {
-    'claude':    '--accent-claude',
-    'gpt-5.5':  '--accent-gpt',
-    'gemini':   '--accent-gemini',
-    'grok':     '--accent-grok',
-    'deepseek': '--accent-deepseek',
-    'mistral':  '--accent-mistral',
-  };
-
-  for (const [modelId, cssVar] of Object.entries(mapping) as [ModelId, string][]) {
+  for (const [modelId, cssVar] of Object.entries(MODEL_ACCENT_CSS_VARS) as [ModelId, string][]) {
     if (userColors[modelId]) {
       root.style.setProperty(cssVar, userColors[modelId]!);
     }
