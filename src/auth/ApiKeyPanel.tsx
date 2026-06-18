@@ -10,8 +10,10 @@
 
 import { useState, useRef } from 'react';
 import type { CredentialKey } from '@/types';
-import { CREDENTIAL_LABELS } from './credentials';
+import { CREDENTIAL_LABELS, getCredentials } from './credentials';
 import { useCredentials } from './useCredentials';
+import { testCredential } from './credentialTest';
+import type { TestResult } from './credentialTest';
 
 // ─── Missing-key warning ──────────────────────────────────────────────────────
 
@@ -95,6 +97,21 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear 
       setDraft('');
       if (isSet) setEditing(false);
     }
+  };
+
+  type TestState = 'idle' | 'testing' | TestResult['status'];
+  const [testState, setTestState] = useState<TestState>('idle');
+  const [testMessage, setTestMessage] = useState('');
+
+  const handleTest = async () => {
+    setTestState('testing');
+    setTestMessage('');
+    const savedValue = getCredentials(credentialKey) ?? '';
+    const result = await testCredential(credentialKey, savedValue);
+    setTestState(result.status);
+    setTestMessage(result.message);
+    // Auto-clear after 5 seconds
+    setTimeout(() => { setTestState('idle'); setTestMessage(''); }, 5000);
   };
 
   const rowId = `api-key-${credentialKey}`;
@@ -221,6 +238,43 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear 
           >
             ••••••••••••••••
           </div>
+
+          {/* Test button — only shown in masked state */}
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testState === 'testing'}
+            aria-label={`Test ${meta.provider} API key`}
+            className={[
+              'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+              'border border-border',
+              testState === 'idle'
+                ? 'text-text-secondary hover:text-text-primary hover:border-border-strong'
+                : testState === 'testing'
+                  ? 'text-text-secondary opacity-50 cursor-not-allowed'
+                  : testState === 'valid' || testState === 'rate-limited'
+                    ? 'text-success'
+                    : 'text-error',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            {testState === 'idle' && 'Test'}
+            {testState === 'testing' && 'Testing…'}
+            {testState === 'valid' && '✓ Valid'}
+            {testState === 'rate-limited' && '✓ Valid (rate limited)'}
+            {testState === 'invalid' && '✗ Invalid key'}
+            {testState === 'error' && `✗ ${testMessage}`}
+          </button>
+
+          {/* Visually-hidden live region for screen reader announcements */}
+          <span
+            role="status"
+            aria-live="polite"
+            className="sr-only"
+          >
+            {testMessage}
+          </span>
 
           <button
             type="button"
