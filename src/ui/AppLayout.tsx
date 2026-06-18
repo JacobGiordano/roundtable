@@ -422,7 +422,7 @@ export function AppLayout({
                 id="new-conv-tooltip"
                 role="tooltip"
                 className={[
-                  'absolute bottom-full right-0 mb-2',
+                  'absolute top-full right-0 mt-2',
                   'w-max',
                   'bg-sidebar border border-border rounded-sm shadow-md',
                   'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
@@ -435,7 +435,7 @@ export function AppLayout({
                 New conversation
                 <span className="ml-1.5 font-mono text-text-muted">{newConvShortcut}</span>
                 <span
-                  className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                  className="absolute bottom-full right-3 -mb-px block border-l-[5px] border-r-[5px] border-b-[5px] border-l-transparent border-r-transparent border-b-border"
                   aria-hidden="true"
                 />
               </div>
