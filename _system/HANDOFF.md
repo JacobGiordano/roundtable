@@ -1,4 +1,4 @@
-Last updated: 2026-06-17 (ship #224 #225)
+Last updated: 2026-06-18 (ship #226 #227 + Ada cascade fix)
 
 ## Current phase
 
@@ -6,22 +6,21 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Continued keyboard navigation QA pass. Two more focus bugs found and fixed:
+Continued keyboard navigation QA pass. Three more fixes shipped:
 
-- #224 (Aria): ThreadRow checkbox invisible on keyboard focus. Wrapper div had `opacity-0 group-hover:opacity-100` with no focus-within rule. Fixed: added `focus-within:opacity-100` to wrapper div (not `focus-visible:` — opacity is on the containing div, not the input).
+- #226 (Aria): Skip-to-main link now targets the first meaningful interactive element. `href="#skip-target"` — when empty state: OnboardingEmptyState CTA button; when active: InputBar textarea. Mutual exclusion guaranteed (only one element holds the id at a time). 7 new Ada a11y tests.
 
-- #225 (Aria): ThreadActionMenu `closeAndReturnFocus()` raced React's menu unmount. Single rAF fired before browser painted, leaving focus on `<body>` briefly. Fixed: double-rAF (~33ms total, under human perception threshold).
+- #227 (Aria): InputBar textarea missing direct focus ring. Added `focus:outline-none focus:ring-2 focus:ring-focus focus:ring-inset` using bare `focus:` (not `focus-visible:`) — programmatic focus from skip-link fragment nav doesn't fire `focus-visible:`.
 
-Also fixed earlier this session (shipped separately):
-- #222: MessageThread scroll container ring (ring-inset)
-- #223: ProviderSettingsPanel inert when closed (killed 15-element hidden tab maze)
-- Agent cascade: aria.md + ada.md profiles updated to skip downstream gate agents when spawned by Coda
+- Ada cascade fix: CLAUDE.md step 13 updated (Arch, 84b7373) + aria.md "stop after reporting" rule moved to top. Coda now goes Aria → Flint directly when Aria's session already includes Ada verdict. One Ada run per Aria session (not two).
 
 ## Key decisions
 
-- `focus-within:` (not `focus-visible:`) on wrapper divs whose inner input is the focusable element
-- Double-rAF is the correct pattern for focus restoration after React unmount — single rAF races the paint cycle
-- Profile-level "skip Ada/Flint" rule is not reliable alone — always include explicit "Do not run Ada" in Aria spawn prompts too
+- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements; bare `focus:` on skip-link destinations (programmatic focus)
+- Double-rAF is canonical pattern for focus restoration after React unmount
+- `inert` attribute: `!isOpen ? '' : undefined` (not boolean)
+- `ring-inset` required on full-height containers and borderless elements inside styled wrappers
+- Ada cascade: Aria will always run Ada once per session — Coda trusts that result and goes straight to Flint, no duplicate Ada spawn
 
 ## Open advisories (not yet addressed)
 
@@ -46,21 +45,22 @@ Also fixed earlier this session (shipped separately):
 
 ## What's next
 
-- Keep the keyboard QA pass going — Tab through the full app and file any remaining focus issues
-- Aria: #221 (sr-only sibling move) or #166 (Cmd+N) or #167 (theme swatches)
+Keyboard QA pass is winding down — most critical focus issues addressed. Good next options:
+- Aria: #221 (sr-only sibling — trivial) or #166 (Cmd+N) or #167 (theme swatches)
 - Gate: #171 (test connection) or #172 (credentialKey status)
 - Atlas: #177 (remote model catalog)
+- Feature wave: batch #166 + #167 + #221 as one Aria session
 
 ## Gotchas
 
-- CI uses `npm run test:run` (vitest run) — `npm test` is watch mode and hangs
-- `ring-focus` = focus ring token; `ring-ring` does NOT exist in this codebase
-- `ring-inset` required on full-height containers inside `overflow-hidden` parents
-- `inert` attribute: use `!isOpen ? '' : undefined` — React omits `undefined` from DOM
-- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements
+- CI uses `npm run test:run` — `npm test` is watch mode and hangs
+- `ring-focus` = focus ring token; `ring-ring` does NOT exist
+- `ring-inset` for full-height containers / borderless elements in styled wrappers
+- `focus-within:` on wrapper divs; bare `focus:` on skip-link destinations
 - Double-rAF for focus restoration after React unmount (single rAF races paint cycle)
-- Aria agent cascade fix: profile rule alone is not reliable — always include explicit "Do not run Ada — Coda will handle Ada after your session" in every Aria spawn prompt
+- `inert` attribute: `!isOpen ? '' : undefined`
+- Aria always runs Ada once per session — Coda goes straight to Flint after Aria's Ada verdict
 - Bash tool CWD can drift into a worktree — always use `git -C /workspace`
-- Ghost mode tooltip: `tabIndex={0}` wrapper + `aria-label` + immediate onFocus show + 600ms hover setTimeout — InputBar.tsx canonical
-- Release workflow: one-time repo setting → Settings → Actions → General → "Read and write permissions"
-- `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate on read
+- Ghost mode tooltip: `tabIndex={0}` + `aria-label` + immediate onFocus + 600ms hover — InputBar.tsx canonical
+- Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
+- `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
