@@ -1,4 +1,4 @@
-Last updated: 2026-06-18 (ship #166 #167 #221 #171)
+Last updated: 2026-06-18 (ship #164 #165 #172 #228)
 
 ## Current phase
 
@@ -8,62 +8,61 @@ Phase 4+ — Full gate process active.
 
 Parallel wave — Aria + Gate:
 
-- #221 (Aria): InteractionModeSwitcher sr-only span moved to radiogroup sibling via React fragment. Fixes double-read on JAWS ≤ 2022.
+- #164 (Aria): Conversation rename via three-dot menu → inline input sub-state. Enter confirms, Escape cancels, empty reverts to auto-title. Focus returns to trigger via double-rAF. Persists via `ConversationStore.updateConversation`.
 
-- #167 (Aria): Theme picker now shows two color swatches per button (surfaces.background + accents['model-claude']) from THEME_MAP. aria-hidden on swatch wrapper; label is accessible name.
+- #165 (Aria): `ModelVisibilityBar` above message thread (2+ models only). Per-model eye-toggle pill buttons, `aria-pressed`, at-least-one-visible guard. State is ephemeral local React state.
 
-- #166 (Aria): Cmd+N / Ctrl+N keyboard shortcut registered at document level in AppLayout. Suppressed in input/textarea/contenteditable. Tooltip on both mobile header and desktop Sidebar new-conversation buttons (below the button, 600ms hover / immediate focus). 17 new Ada a11y tests.
+- #172 (Gate): `useCredentials` extended to cover custom provider `credentialKey` values from roster. `ApiKeyPanel` now renders credential rows for custom providers below the six built-ins.
 
-- #171 (Gate): Test Connection button added to ApiKeyPanel masked-display state. New credentialTest.ts hits list-models endpoints (no tokens). Shows Valid / Invalid / rate-limited / error with auto-clear after 5s. aria-live region for screen readers.
+- #228 (Gate): `ApiKeyPanel` `clearTimerRef` pattern — timer cancelled on unmount and on re-test.
 
 ## Key decisions
 
-- New-conversation tooltip: `top-full` (below button) — header position makes `bottom-full` clip off screen
-- `focus-within:` on wrapper divs; `focus-visible:` directly on interactive elements; bare `focus:` on skip-link destinations
-- Double-rAF is canonical pattern for focus restoration after React unmount
-- `inert` attribute: `!isOpen ? '' : undefined`
-- Aria always runs Ada once per session — Coda goes straight to Flint after Aria's Ada verdict
-- Test connection fetch: browser-side only (native fetch). In-container, Google/xAI/DeepSeek/Mistral endpoints hit firewall — graceful "Network error" shown.
+- Rename trigger: three-dot menu only (not double-click) — avoids dblclick WCAG 2.1.1 concern, cleaner integration
+- Visibility bar: ephemeral state only (no persistence) — per spec
+- Custom provider credential rows: no "Get your API key" link (no docsUrl); display name from roster
+- `disabled={isLastVisible}` advisory (#229): filed, not fixed — Ada PASS verdict still stands
 
-## Open advisories (not yet addressed)
+## Open advisories (filed, not yet addressed)
 
-- #228 (Gate) — ApiKeyPanel test-connection setTimeout not cancelled on unmount (React 18 no-op, advisory)
-- #199 (Aria, deferred) — coming-soon spans: radiogroup ownership + keyboard discoverability
+- #229 (Aria) — ModelVisibilityBar last-visible guard: drop `disabled`, keep `aria-disabled` only
+- #230 (Aria) — Sidebar group-input sub-state Cancel doesn't return focus to trigger (pre-existing)
+- #234 (Aria) — InputBar `focus:ring` → `focus-visible:ring` (pre-existing, shows ring on mouse click)
+- #232 (Gate/Aria) — Custom provider endpoints not editable; must delete/recreate to change any field
+- #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
 - #177 (Atlas) — Remote/live-API model catalog
 - #175 (Vault) — StorageProvider pagination
-- #174 (Aria) — React Context or Zustand (AppLayoutProps has 30 props)
-- #172 (Gate) — credentialKey status not exposed for custom providers
-- #171 done; #172 still open
+- #174 (Aria) — React Context or Zustand (AppLayoutProps 30 props)
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
-- #165 (Aria) — Per-model visibility toggle
-- #164 (Aria) — Conversation rename
-- #162 (Aria) — Message editing
+- #165 done; #159 (Atlas/Aria) — Cancel streaming still open
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
 
 ## What's next
 
-Good next wave options:
-- Aria: #162 (message editing) — high user value, solo session
-- Aria: #164 (conversation rename) + #165 (per-model visibility) — batch
-- Gate: #172 (credentialKey status) + #228 (unmount cleanup) — batch
+Top priority wave:
+- Aria: **#148 + #152** — consolidate `getModelDotStyle` (3 independent copies) into a shared utility with custom provider roster fallback; consolidate `modelId → CSS-var` map. Fixes custom accent color display everywhere. Batch these — same system, conflict risk if split.
+
+Also strong candidates:
+- Aria: #234 (InputBar focus-visible fix) — tiny, could batch with #148 wave
+- Aria: #229 (ModelVisibilityBar disabled→aria-disabled) — tiny, same
+- Gate/Aria: #232 (custom provider editing) — medium, cross-domain
 - Atlas: #177 (remote model catalog)
+- Aria: #162 (message editing) — high user value
 
 ## Gotchas
 
 - CI uses `npm run test:run` — `npm test` is watch mode and hangs
 - `ring-focus` = focus ring token; `ring-ring` does NOT exist
-- `ring-inset` for full-height containers / borderless elements in styled wrappers
-- `focus-within:` on wrapper divs; bare `focus:` on skip-link destinations
+- `focus-visible:` directly on interactive elements; `focus-within:` on wrapper divs
 - Double-rAF for focus restoration after React unmount
 - `inert` attribute: `!isOpen ? '' : undefined`
-- New-conversation tooltip: `top-full mt-2` (below), not `bottom-full` — header context
-- Aria always runs Ada once per session — Coda goes straight to Flint after Aria's Ada verdict
 - Bash tool CWD can drift into a worktree — always use `git -C /workspace`
-- Ghost mode tooltip: `tabIndex={0}` + `aria-label` + immediate onFocus + 600ms hover — InputBar.tsx canonical
-- Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
+- InteractionModeSwitcher: Manual + Auto-chain intentionally disabled (#131) until Atlas implements dispatch
+- Custom provider accent colors broken everywhere until #148 + #152 land
+- OpenRouter custom provider: requires investigation (Llama 3.3 not responding — may need extra headers)
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
-- Test connection fetch: browser-side native fetch; container firewall blocks Google/xAI/DeepSeek/Mistral
+- Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
