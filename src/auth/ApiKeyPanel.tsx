@@ -8,10 +8,11 @@
  * Styling: Tailwind utility classes only — no inline styles, no CSS modules.
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { CredentialKey } from '@/types';
 import { CREDENTIAL_LABELS, getCredentials } from './credentials';
 import { useCredentials } from './useCredentials';
+import { getProviderRoster } from './providerRoster';
 import { testCredential } from './credentialTest';
 import type { TestResult } from './credentialTest';
 
@@ -59,14 +60,36 @@ interface ApiKeyRowProps {
   showWarning?: boolean;
   onSave: (key: CredentialKey, value: string) => void;
   onClear: (key: CredentialKey) => void;
+  /**
+   * Label overrides for custom providers that have no entry in CREDENTIAL_LABELS.
+   * Built-in providers derive all three from CREDENTIAL_LABELS automatically.
+   */
+  customLabel?: {
+    provider: string;
+    placeholder?: string;
+    docsUrl?: string;
+  };
 }
 
-function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear }: ApiKeyRowProps) {
-  const meta = CREDENTIAL_LABELS[credentialKey];
+function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear, customLabel }: ApiKeyRowProps) {
+  const builtInMeta = CREDENTIAL_LABELS[credentialKey as keyof typeof CREDENTIAL_LABELS];
+  const meta = builtInMeta ?? {
+    provider: customLabel?.provider ?? credentialKey,
+    placeholder: customLabel?.placeholder ?? 'API key…',
+    docsUrl: customLabel?.docsUrl ?? '',
+  };
   const [draft, setDraft] = useState('');
   const [revealed, setRevealed] = useState(false);
   const [editing, setEditing] = useState(!isSet);
   const inputRef = useRef<HTMLInputElement>(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel the auto-clear timer when the row unmounts to prevent stale setState.
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    };
+  }, []);
 
   const handleSave = () => {
     const trimmed = draft.trim();
@@ -104,14 +127,16 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear 
   const [testMessage, setTestMessage] = useState('');
 
   const handleTest = async () => {
+    // Cancel any pending auto-clear before starting a new test.
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     setTestState('testing');
     setTestMessage('');
     const savedValue = getCredentials(credentialKey) ?? '';
     const result = await testCredential(credentialKey, savedValue);
     setTestState(result.status);
     setTestMessage(result.message);
-    // Auto-clear after 5 seconds
-    setTimeout(() => { setTestState('idle'); setTestMessage(''); }, 5000);
+    // Auto-clear after 5 seconds; store the handle so it can be cancelled on unmount.
+    clearTimerRef.current = setTimeout(() => { setTestState('idle'); setTestMessage(''); }, 5000);
   };
 
   const rowId = `api-key-${credentialKey}`;
@@ -307,17 +332,19 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear 
         </div>
       )}
 
-      {/* Get key link */}
-      <p className="mt-1.5 text-[11px] text-text-muted">
-        <a
-          href={meta.docsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-text-secondary transition-colors duration-fast"
-        >
-          Get your {meta.provider} API key
-        </a>
-      </p>
+      {/* Get key link — omitted for custom providers with no docs URL */}
+      {meta.docsUrl && (
+        <p className="mt-1.5 text-[11px] text-text-muted">
+          <a
+            href={meta.docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-text-secondary transition-colors duration-fast"
+          >
+            Get your {meta.provider} API key
+          </a>
+        </p>
+      )}
 
       {/* Missing-key warning — only shown when the caller signals a required key is absent */}
       {showWarning && !isSet && <MissingKeyWarning providerName={meta.provider} />}
@@ -351,7 +378,16 @@ export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
    * Derived from CREDENTIAL_LABELS so adding a 7th built-in provider only
    * requires a new entry in credentials.ts — no changes needed here.
    */
-  const KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
+  const BUILTIN_KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
+
+  /**
+   * Custom providers that have a credentialKey set (no-auth providers are excluded).
+   * Roster is read at render time; re-renders on save/clear will pick up changes.
+   */
+  const customProviders = getProviderRoster().filter(
+    (p): p is (typeof p & { kind: 'custom'; credentialKey: string }) =>
+      p.kind === 'custom' && p.credentialKey !== undefined,
+  );
 
   return (
     <section aria-labelledby="api-keys-heading" className="w-full">
@@ -367,14 +403,25 @@ export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
       </p>
 
       <div className="rounded-lg border border-border bg-card px-4">
-        {KEYS.map((key) => (
+        {BUILTIN_KEYS.map((key) => (
           <ApiKeyRow
             key={key}
             credentialKey={key}
-            isSet={status[key].isSet}
+            isSet={status[key]?.isSet ?? false}
             showWarning={requiredKeys.includes(key)}
             onSave={save}
             onClear={clear}
+          />
+        ))}
+        {customProviders.map((provider) => (
+          <ApiKeyRow
+            key={provider.credentialKey}
+            credentialKey={provider.credentialKey}
+            isSet={status[provider.credentialKey]?.isSet ?? false}
+            showWarning={requiredKeys.includes(provider.credentialKey)}
+            onSave={save}
+            onClear={clear}
+            customLabel={{ provider: provider.displayName }}
           />
         ))}
       </div>

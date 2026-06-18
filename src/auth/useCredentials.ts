@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import type { CredentialKey } from '@/types';
 import { getCredentials, saveCredentials, clearCredentials, hasCredential, CREDENTIAL_LABELS } from './credentials';
+import { getProviderRoster } from './providerRoster';
 
 export interface CredentialState {
   /** Whether a key is currently stored for this provider. */
@@ -17,7 +18,7 @@ export interface CredentialState {
 }
 
 export interface UseCredentialsReturn {
-  /** Per-provider credential status. */
+  /** Per-provider credential status. Includes both built-in and custom provider keys. */
   status: Record<CredentialKey, CredentialState>;
   /**
    * Save a new API key. The raw value is passed directly to saveCredentials
@@ -39,11 +40,33 @@ export interface UseCredentialsReturn {
  * in credentials.ts. Extending the set of built-in providers only requires
  * adding an entry to CREDENTIAL_LABELS — no changes needed here.
  */
-const ALL_KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
+const BUILTIN_KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
 
+/**
+ * Collect credential keys for custom providers from the roster.
+ * Only entries with a defined credentialKey are included — providers that
+ * explicitly opted out of authentication (credentialKey absent) are skipped.
+ */
+function getCustomProviderKeys(): CredentialKey[] {
+  const roster = getProviderRoster();
+  const keys: CredentialKey[] = [];
+  for (const entry of roster) {
+    if (entry.kind === 'custom' && entry.credentialKey !== undefined) {
+      keys.push(entry.credentialKey);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Build the full status record covering both built-in and custom provider keys.
+ * Custom provider keys are discovered from the roster at call time so newly
+ * added providers are visible on the next save/clear cycle.
+ */
 function buildStatus(): Record<CredentialKey, CredentialState> {
+  const allKeys = [...BUILTIN_KEYS, ...getCustomProviderKeys()];
   return Object.fromEntries(
-    ALL_KEYS.map((k) => [k, { isSet: hasCredential(k) }]),
+    allKeys.map((k) => [k, { isSet: hasCredential(k) }]),
   ) as Record<CredentialKey, CredentialState>;
 }
 
@@ -52,12 +75,14 @@ export function useCredentials(): UseCredentialsReturn {
 
   const save = useCallback((key: CredentialKey, value: string) => {
     saveCredentials(key, value);
-    setStatus((prev) => ({ ...prev, [key]: { isSet: true } }));
+    // Rebuild the full status on each write so that custom provider keys
+    // added after mount are automatically included in the returned record.
+    setStatus(() => ({ ...buildStatus(), [key]: { isSet: true } }));
   }, []);
 
   const clear = useCallback((key: CredentialKey) => {
     clearCredentials(key);
-    setStatus((prev) => ({ ...prev, [key]: { isSet: false } }));
+    setStatus(() => ({ ...buildStatus(), [key]: { isSet: false } }));
   }, []);
 
   const getRawKey = useCallback((key: CredentialKey): string | undefined => {
