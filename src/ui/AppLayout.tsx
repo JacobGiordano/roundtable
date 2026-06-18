@@ -394,6 +394,7 @@ export function AppLayout({
                 type="button"
                 onClick={onNewConversation}
                 aria-label={`New conversation (${newConvShortcut})`}
+                aria-describedby="new-conv-tooltip"
                 onFocus={handleNewConvFocus}
                 onBlur={handleNewConvBlur}
                 className={[
@@ -414,8 +415,11 @@ export function AppLayout({
                   />
                 </svg>
               </button>
-              {/* Tooltip — 600ms hover delay, immediate on focus (#166) */}
+              {/* Tooltip — 600ms hover delay, immediate on focus (#166).
+                  id="new-conv-tooltip" + aria-describedby on button satisfies
+                  WAI-ARIA tooltip pattern (WCAG 4.1.2). */}
               <div
+                id="new-conv-tooltip"
                 role="tooltip"
                 className={[
                   'absolute bottom-full right-0 mb-2',
