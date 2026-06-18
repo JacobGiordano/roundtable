@@ -467,6 +467,34 @@ export default function App() {
   );
 
   /**
+   * Rename a conversation by setting (or clearing) its `title` field.
+   * An empty newTitle clears the title so auto-title can re-derive it from
+   * the first user message on next updateConversation. A non-empty newTitle
+   * is persisted directly, bypassing auto-title (which only fires when title
+   * is undefined — so explicitly setting "" is treated as "let auto-title fire").
+   */
+  /**
+   * Rename a conversation by setting (or clearing) its `title` field.
+   * Empty newTitle clears the stored title so auto-title re-derives it from
+   * the first user message on the next updateConversation call.
+   * A non-empty newTitle is persisted directly as a user-set title.
+   */
+  const handleRenameConversation = useCallback(
+    (id: string, newTitle: string) => {
+      const conv = store.getConversation(id);
+      if (!conv || conv.isGhost) return;
+      const trimmed = newTitle.trim();
+      // Pass undefined for title to let auto-title re-derive; pass the string to set explicitly.
+      void store.updateConversation({
+        ...conv,
+        title: trimmed === '' ? undefined : trimmed,
+        updatedAt: Date.now(),
+      });
+    },
+    [store],
+  );
+
+  /**
    * Export handler: delegates to store.exportConversation then triggers a
    * browser download via downloadExportedConversation from @/storage.
    * Only fires when there is an active conversation — ExportButton is disabled
@@ -516,6 +544,7 @@ export default function App() {
       onUnarchiveConversation={handleUnarchiveConversation}
       onDeleteConversation={handleDeleteConversation}
       onSetConversationGroup={handleSetConversationGroup}
+      onRenameConversation={handleRenameConversation}
       onBulkArchive={handleBulkArchive}
       onBulkDelete={handleBulkDelete}
       isRosterEmpty={isRosterEmpty}
