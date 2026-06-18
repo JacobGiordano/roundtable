@@ -99,6 +99,8 @@ interface AppLayoutProps {
   onDeleteConversation?: (id: string) => void;
   /** Assign or clear a group on a conversation. Threaded App → AppLayout → Sidebar. */
   onSetConversationGroup?: (id: string, groupId: string | undefined) => void;
+  /** Rename a conversation. Threaded App → AppLayout → Sidebar. */
+  onRenameConversation?: (id: string, newTitle: string) => void;
   /** Archive multiple conversations. Threaded App → AppLayout → Sidebar. */
   onBulkArchive?: (ids: string[]) => void;
   /** Delete multiple conversations. Threaded App → AppLayout → Sidebar. */
@@ -151,6 +153,7 @@ export function AppLayout({
   onUnarchiveConversation,
   onDeleteConversation,
   onSetConversationGroup,
+  onRenameConversation,
   onBulkArchive,
   onBulkDelete,
   isRosterEmpty = false,
@@ -278,6 +281,7 @@ export function AppLayout({
         onUnarchiveConversation={onUnarchiveConversation}
         onDeleteConversation={onDeleteConversation}
         onSetConversationGroup={onSetConversationGroup}
+        onRenameConversation={onRenameConversation}
         onBulkArchive={onBulkArchive}
         onBulkDelete={onBulkDelete}
         isMobileOpen={isMobileMenuOpen}

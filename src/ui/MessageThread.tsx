@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
@@ -38,6 +38,93 @@ function findModelConfig(modelId: string | undefined, models: ModelConfig[]): Mo
   return models.find((m) => m.modelId === modelId);
 }
 
+// ─── ModelVisibilityBar (#165) ─────────────────────────────────────────────────
+
+/**
+ * Renders a row of per-model visibility toggle buttons.
+ * Only shown when there are 2+ active models (single-model sessions have nothing to hide).
+ *
+ * Accessibility:
+ * - Each button is an aria-pressed toggle (true = visible, false = hidden).
+ * - The "at least one must remain visible" guard disables the toggle when only
+ *   one model is currently visible — the disabled state is announced via aria-disabled.
+ * - The entire bar is wrapped in a <section> with an accessible label so screen
+ *   readers can navigate to it.
+ */
+interface ModelVisibilityBarProps {
+  models: ModelConfig[];
+  hiddenModelIds: Set<ModelId>;
+  onToggleVisibility: (modelId: ModelId) => void;
+}
+
+function ModelVisibilityBar({ models, hiddenModelIds, onToggleVisibility }: ModelVisibilityBarProps) {
+  // Only render when there are 2+ models — no point hiding if only one.
+  if (models.length < 2) return null;
+
+  const visibleCount = models.length - hiddenModelIds.size;
+
+  return (
+    <div
+      className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 border-b border-border"
+      role="group"
+      aria-label="Model visibility"
+    >
+      <span className="text-[11px] text-text-muted font-medium mr-1 flex-shrink-0">Show:</span>
+      {models.map((model) => {
+        const isVisible = !hiddenModelIds.has(model.modelId);
+        // Disable the toggle when this is the last visible model (guard against hiding all).
+        const isLastVisible = isVisible && visibleCount === 1;
+
+        return (
+          <button
+            key={model.modelId}
+            type="button"
+            aria-pressed={isVisible}
+            aria-label={`${isVisible ? 'Hide' : 'Show'} ${model.name}`}
+            aria-disabled={isLastVisible ? true : undefined}
+            disabled={isLastVisible}
+            onClick={() => { if (!isLastVisible) onToggleVisibility(model.modelId); }}
+            className={[
+              'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium',
+              'border transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              isVisible
+                ? 'bg-hover border-border text-text-primary'
+                : 'border-transparent text-text-muted hover:text-text-secondary hover:bg-hover/40',
+              isLastVisible
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer',
+            ].join(' ')}
+          >
+            {/* Colored dot matching model accent */}
+            <span
+              className="w-[6px] h-[6px] rounded-full flex-shrink-0"
+              style={{ backgroundColor: `var(--${model.color ?? 'accent-other'})` }}
+              aria-hidden="true"
+            />
+            {model.name}
+            {/* Eye icon: open when visible, crossed when hidden */}
+            <span aria-hidden="true" className="flex-shrink-0 opacity-60">
+              {isVisible ? (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <ellipse cx="6" cy="6" rx="5" ry="3.5" stroke="currentColor" strokeWidth="1.1" />
+                  <circle cx="6" cy="6" r="1.5" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M1.5 1.5l9 9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                  <path d="M3 4.5C2.1 5.1 1.5 5.6 1 6c1 1.7 2.8 3.5 5 3.5.8 0 1.5-.2 2.2-.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                  <path d="M9.5 7.8C10.5 6.9 11 6.3 11 6c-1-1.7-2.8-3.5-5-3.5-.7 0-1.4.2-2 .5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                </svg>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Returns the stagger index for bubble entrance animations.
  * Only streaming or newly-arrived assistant messages get a stagger delay.
@@ -71,6 +158,45 @@ export function MessageThread({
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Ref for the scrollable message list container. */
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // ─── Per-model visibility (#165) ───────────────────────────────────────────
+  // Ephemeral per-session state: which model IDs are currently hidden.
+  // Hidden models still receive messages — only their display is suppressed.
+  // Reset when the models prop changes (e.g. conversation switch) so hidden
+  // state from one conversation does not carry over to the next.
+  const [hiddenModelIds, setHiddenModelIds] = useState<Set<ModelId>>(new Set());
+
+  // Reset hidden state whenever the set of active model IDs changes.
+  // We key on the sorted join of model IDs — if models are added/removed or the
+  // conversation switches, we clear hidden state to avoid stale suppressions.
+  const modelIdsKey = useMemo(
+    () => models.map((m) => m.modelId).sort().join(','),
+    [models],
+  );
+  const prevModelIdsKeyRef = useRef(modelIdsKey);
+  if (prevModelIdsKeyRef.current !== modelIdsKey) {
+    prevModelIdsKeyRef.current = modelIdsKey;
+    // Reset hidden set synchronously during render (same as derived state pattern).
+    // This avoids a double-render from useEffect and prevents a flash of incorrectly
+    // hidden messages when switching conversations.
+    setHiddenModelIds(new Set());
+  }
+
+  const handleToggleVisibility = useCallback((modelId: ModelId) => {
+    setHiddenModelIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(modelId)) {
+        next.delete(modelId);
+      } else {
+        // Guard: never hide if it would leave zero visible models.
+        // (Button is also disabled at the UI level, but defence-in-depth.)
+        const visibleCount = models.length - prev.size;
+        if (visibleCount <= 1) return prev;
+        next.add(modelId);
+      }
+      return next;
+    });
+  }, [models.length]);
 
   // ─── Smart scroll (#161) ───────────────────────────────────────────────────
   // pinnedToBottom: true when the user is at (or near) the bottom of the
@@ -209,7 +335,11 @@ export function MessageThread({
   // Combine persisted messages and in-flight streaming messages for rendering.
   // Streaming messages are always appended after persisted ones so the thread
   // ordering is: all committed messages → all in-flight streaming messages.
-  const allMessages = [...messages, ...streamingMessages];
+  // Filter: hide messages from models the user has toggled off (#165).
+  // User messages are always shown regardless of visibility state.
+  const allMessages = [...messages, ...streamingMessages].filter(
+    (m) => m.role === 'user' || !m.modelId || !hiddenModelIds.has(m.modelId),
+  );
 
   // ─── Auto-scroll logic (#161) ──────────────────────────────────────────────
   // Track the last user message ID so we can detect when the user sends a new
@@ -270,6 +400,16 @@ export function MessageThread({
       >
         {arrivalAnnouncement}
       </div>
+
+      {/* Model visibility bar (#165) — only shown when 2+ models are active.
+          Lets users hide individual model responses without stopping message delivery.
+          Hidden models still receive and process messages; their output is simply not
+          rendered until the user toggles them back on. */}
+      <ModelVisibilityBar
+        models={models}
+        hiddenModelIds={hiddenModelIds}
+        onToggleVisibility={handleToggleVisibility}
+      />
 
       {/* Thread header — only shown when there are messages */}
       {onExport && (

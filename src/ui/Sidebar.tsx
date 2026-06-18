@@ -59,6 +59,8 @@ interface SidebarProps {
   onDeleteConversation?: (id: string) => void;
   /** Assign or clear a group on a conversation. Pass undefined to clear. */
   onSetConversationGroup?: (id: string, groupId: string | undefined) => void;
+  /** Rename a conversation. Empty string reverts to the auto-derived title. */
+  onRenameConversation?: (id: string, newTitle: string) => void;
   /** Archive multiple conversations at once (no confirmation required). */
   onBulkArchive?: (ids: string[]) => void;
   /** Delete multiple conversations at once. */
@@ -169,7 +171,8 @@ type ThreadMenuState =
   | { type: 'closed' }
   | { type: 'menu' }
   | { type: 'confirm-delete' }
-  | { type: 'group-input' };
+  | { type: 'group-input' }
+  | { type: 'rename' };
 
 interface ThreadActionMenuProps {
   conversation: Conversation;
@@ -179,6 +182,7 @@ interface ThreadActionMenuProps {
   onUnarchive: () => void;
   onDelete: () => void;
   onSetGroup: (groupId: string | undefined) => void;
+  onRename: (newTitle: string) => void;
   onClose: () => void;
   /** Ref to the trigger button — focus is returned here on Escape or Tab close. */
   triggerRef: React.RefObject<HTMLButtonElement>;
@@ -191,13 +195,18 @@ function ThreadActionMenu({
   onUnarchive,
   onDelete,
   onSetGroup,
+  onRename,
   onClose,
   triggerRef,
 }: ThreadActionMenuProps) {
   const [menuState, setMenuState] = useState<ThreadMenuState>({ type: 'menu' });
   const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
+  // renameInput: initialized to the current title (or derived title) so the
+  // user sees the existing name pre-filled and can edit it in place.
+  const [renameInput, setRenameInput] = useState(getThreadTitle(conversation));
   const menuRef = useRef<HTMLDivElement>(null);
   const groupInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   // Ref for the Cancel button in the confirm-delete sub-state.
   // Focus is moved here on transition so keyboard users land on the safe
   // default action (Cancel) rather than losing focus to document.body.
@@ -232,6 +241,14 @@ function ThreadActionMenu({
     }
   }, [menuState.type]);
 
+  // Focus rename input when it appears; select all so the user can overtype immediately.
+  useEffect(() => {
+    if (menuState.type === 'rename') {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [menuState.type]);
+
   /** Close the menu and return focus to the trigger button. */
   const closeAndReturnFocus = useCallback(() => {
     onClose();
@@ -261,6 +278,28 @@ function ThreadActionMenu({
       }
     },
     [handleGroupConfirm, closeAndReturnFocus],
+  );
+
+  const handleRenameConfirm = useCallback(() => {
+    const trimmed = renameInput.trim();
+    // Empty title: revert to original auto-title by passing the original title
+    // (or empty string which updateConversation will treat as "derive from messages").
+    // Non-empty: persist the user's chosen name.
+    onRename(trimmed === '' ? (conversation.title ?? '') : trimmed);
+    closeAndReturnFocus();
+  }, [renameInput, conversation.title, onRename, closeAndReturnFocus]);
+
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleRenameConfirm();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAndReturnFocus();
+      }
+    },
+    [handleRenameConfirm, closeAndReturnFocus],
   );
 
   /**
@@ -379,6 +418,15 @@ function ThreadActionMenu({
       >
       {menuState.type === 'menu' && (
         <>
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => { setRenameInput(getThreadTitle(conversation)); setMenuState({ type: 'rename' }); }}
+            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+          >
+            Rename
+          </button>
           {isArchived ? (
             <button
               type="button"
@@ -512,6 +560,49 @@ function ThreadActionMenu({
           </div>
         </div>
       )}
+
+      {menuState.type === 'rename' && (
+        <div className="px-3 py-2">
+          <p className="text-text-muted mb-1.5 text-[11px]">Rename conversation</p>
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameInput}
+            onChange={(e) => setRenameInput(e.target.value)}
+            onKeyDown={handleRenameKeyDown}
+            placeholder="Conversation title"
+            aria-label="Conversation title"
+            className={[
+              'w-full px-2 py-1 rounded text-[12px]',
+              'bg-input border border-border',
+              'text-text-primary placeholder:text-text-muted',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={closeAndReturnFocus}
+              className={[
+                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleRenameConfirm}
+              className={[
+                'flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              Rename
+            </button>
+          </div>
+        </div>
+      )}
     </div>
     </>
   );
@@ -530,6 +621,7 @@ interface ThreadRowProps {
   onUnarchive: () => void;
   onDelete: () => void;
   onSetGroup: (groupId: string | undefined) => void;
+  onRename: (newTitle: string) => void;
 }
 
 // AnimatedListItem — applies thread-entering CSS animation on mount, then removes
@@ -561,6 +653,7 @@ function ThreadRow({
   onUnarchive,
   onDelete,
   onSetGroup,
+  onRename,
 }: ThreadRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   // Ref used to return focus to the trigger button when the menu closes via
@@ -697,6 +790,7 @@ function ThreadRow({
           onUnarchive={onUnarchive}
           onDelete={onDelete}
           onSetGroup={onSetGroup}
+          onRename={onRename}
           onClose={handleMenuClose}
           triggerRef={menuTriggerRef}
         />
@@ -970,6 +1064,7 @@ export function Sidebar({
   onUnarchiveConversation,
   onDeleteConversation,
   onSetConversationGroup,
+  onRenameConversation,
   onBulkArchive,
   onBulkDelete,
   isMobileOpen = false,
@@ -1514,6 +1609,7 @@ export function Sidebar({
                             onUnarchive={() => onUnarchiveConversation?.(conv.id)}
                             onDelete={() => onDeleteConversation?.(conv.id)}
                             onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
+                            onRename={(title) => onRenameConversation?.(conv.id, title)}
                           />
                         </AnimatedListItem>
                       ))}
@@ -1537,6 +1633,7 @@ export function Sidebar({
                   onUnarchive={() => onUnarchiveConversation?.(conv.id)}
                   onDelete={() => onDeleteConversation?.(conv.id)}
                   onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
+                  onRename={(title) => onRenameConversation?.(conv.id, title)}
                 />
               </AnimatedListItem>
             ))}
@@ -1557,6 +1654,7 @@ export function Sidebar({
                   onUnarchive={() => onUnarchiveConversation?.(conv.id)}
                   onDelete={() => onDeleteConversation?.(conv.id)}
                   onSetGroup={(gid) => onSetConversationGroup?.(conv.id, gid)}
+                  onRename={(title) => onRenameConversation?.(conv.id, title)}
                 />
               </AnimatedListItem>
             ))}
