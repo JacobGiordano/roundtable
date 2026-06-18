@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
@@ -8,6 +8,10 @@ import { ModelSelectorPanel } from './ModelSelectorPanel';
 import { RoundtableLogo } from './RoundtableLogo';
 import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 import { OnboardingEmptyState } from './OnboardingEmptyState';
+
+// Module-level constant — safe for SSR/test environments (navigator may be undefined).
+// Used to show platform-appropriate keyboard shortcut hint in button labels and tooltips.
+const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
 
 interface AppLayoutProps {
   conversations: Conversation[];
@@ -182,6 +186,52 @@ export function AppLayout({
   const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);
   const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
+  // #166: Cmd+N / Ctrl+N keyboard shortcut — create new conversation.
+  // Suppressed when focus is in an editable element (input, textarea, contenteditable)
+  // so users can still type "n" freely. preventDefault() blocks browser "open new window".
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'n') return;
+      const tag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
+      e.preventDefault();
+      onNewConversation();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onNewConversation]);
+
+  // #166: Tooltip state for the mobile header new-conversation button.
+  // 600ms hover delay per tooltip.md §1; immediate on focus; hidden on leave/blur.
+  const [isNewConvTooltipVisible, setIsNewConvTooltipVisible] = useState(false);
+  const newConvHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleNewConvMouseEnter = useCallback(() => {
+    newConvHoverTimerRef.current = setTimeout(() => setIsNewConvTooltipVisible(true), 600);
+  }, []);
+
+  const handleNewConvMouseLeave = useCallback(() => {
+    if (newConvHoverTimerRef.current !== null) {
+      clearTimeout(newConvHoverTimerRef.current);
+      newConvHoverTimerRef.current = null;
+    }
+    setIsNewConvTooltipVisible(false);
+  }, []);
+
+  const handleNewConvFocus = useCallback(() => {
+    if (newConvHoverTimerRef.current !== null) {
+      clearTimeout(newConvHoverTimerRef.current);
+      newConvHoverTimerRef.current = null;
+    }
+    setIsNewConvTooltipVisible(true);
+  }, []);
+
+  const handleNewConvBlur = useCallback(() => setIsNewConvTooltipVisible(false), []);
+
+  // Platform-appropriate shortcut label.
+  const newConvShortcut = isMac ? '⌘N' : 'Ctrl+N';
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
       {/* Skip-to-main-content link — WCAG 2.4.1 bypass block requirement.
@@ -334,29 +384,62 @@ export function AppLayout({
               </svg>
             </button>
 
-            {/* New conversation button */}
-            <button
-              type="button"
-              onClick={onNewConversation}
-              aria-label="New conversation"
-              className={[
-                'flex items-center justify-center',
-                'min-w-[44px] min-h-[44px]',
-                'text-text-secondary hover:text-text-primary',
-                'hover:bg-hover rounded-md',
-                'transition-colors duration-fast',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
+            {/* New conversation button (#166: tooltip + keyboard shortcut hint) */}
+            <div
+              className="relative"
+              onMouseEnter={handleNewConvMouseEnter}
+              onMouseLeave={handleNewConvMouseLeave}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M8 2v12M2 8h12"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
+              <button
+                type="button"
+                onClick={onNewConversation}
+                aria-label={`New conversation (${newConvShortcut})`}
+                aria-describedby="new-conv-tooltip"
+                onFocus={handleNewConvFocus}
+                onBlur={handleNewConvBlur}
+                className={[
+                  'flex items-center justify-center',
+                  'min-w-[44px] min-h-[44px]',
+                  'text-text-secondary hover:text-text-primary',
+                  'hover:bg-hover rounded-md',
+                  'transition-colors duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M8 2v12M2 8h12"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              {/* Tooltip — 600ms hover delay, immediate on focus (#166).
+                  id="new-conv-tooltip" + aria-describedby on button satisfies
+                  WAI-ARIA tooltip pattern (WCAG 4.1.2). */}
+              <div
+                id="new-conv-tooltip"
+                role="tooltip"
+                className={[
+                  'absolute bottom-full right-0 mb-2',
+                  'w-max',
+                  'bg-sidebar border border-border rounded-sm shadow-md',
+                  'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
+                  'pointer-events-none',
+                  'transition-opacity duration-fast',
+                  'z-20',
+                  isNewConvTooltipVisible ? 'opacity-100' : 'opacity-0',
+                ].join(' ')}
+              >
+                New conversation
+                <span className="ml-1.5 font-mono text-text-muted">{newConvShortcut}</span>
+                <span
+                  className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                  aria-hidden="true"
                 />
-              </svg>
-            </button>
+              </div>
+            </div>
           </div>
         </div>
 
