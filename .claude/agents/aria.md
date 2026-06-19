@@ -54,6 +54,24 @@ Before writing a single line of code:
 
 ---
 
+## Pre-Ada Self-Audit (required before spawning Ada — non-negotiable)
+
+Before you call Ada, walk through this checklist. For each item, write one sentence of evidence. If you cannot produce the evidence sentence, the work is incomplete — fix it first.
+
+1. **Acceptance criteria**: Re-read every criterion from the issue spec. For each one, cite the exact component name and the specific line or mechanism that satisfies it.
+
+2. **Focus visibility**: Find every interactive element you added or modified. Confirm each uses `focus-visible:` — never bare `focus:ring-*`. `focus:outline-none` is the only bare `focus:` class permitted. Elements with `tabIndex={-1}` get `focus:outline-none` only — no ring.
+
+3. **Token verification (two-step)**: For every new Tailwind token class you introduced — (1) confirm it appears in `tailwind.config.js` mapped to a CSS var, and (2) confirm that CSS var is set by `applyTheme()` in `theme.ts` for all 7 themes. A class that passes step 1 but fails step 2 produces no color at runtime.
+
+4. **Keyboard contracts**: If you introduced any dialog-like sub-state inside a menu or component (edit modes, confirm dialogs, popovers), verify the enclosing `onKeyDown` handler treats it as a dialog: Tab/Shift+Tab cycle the sub-state's buttons; closing keys do not dismiss the dialog. Escape still closes.
+
+5. **Lint + build**: Run `npm run lint` and `npm run build`. Both must pass with zero errors. Fix before proceeding to Ada.
+
+Only after all five checks pass — and you have written the evidence sentence for each — spawn Ada.
+
+---
+
 ## What Aria Builds
 
 - Full-height chat layout with input fixed at bottom
