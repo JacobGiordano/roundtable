@@ -10,6 +10,7 @@ import {
   hasCredential,
   saveCredentials,
   clearCredentials,
+  getCredentials,
 } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
 // Replaces the inline getProviderDotColor function in this file.
@@ -112,6 +113,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [keyInputValue, setKeyInputValue] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
+  const [keyRevealed, setKeyRevealed] = useState(false);
   const keyInputRef = useRef<HTMLInputElement>(null);
 
   const name = getProviderName(provider);
@@ -131,6 +133,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     setIsEditingKey(true);
     setKeyInputValue('');
     setShowKeyInput(false);
+    setKeyRevealed(false);
     requestAnimationFrame(() => {
       keyInputRef.current?.focus();
     });
@@ -150,6 +153,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     setIsEditingKey(false);
     setKeyInputValue('');
     setShowKeyInput(false);
+    setKeyRevealed(false);
     setBadgeState(getBadgeState(provider));
   }, [credentialKey, keyInputValue, provider]);
 
@@ -160,6 +164,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     setIsEditingKey(false);
     setKeyInputValue('');
     setShowKeyInput(false);
+    setKeyRevealed(false);
     setBadgeState(getBadgeState(provider));
   }, [credentialKey, provider]);
 
@@ -197,11 +202,8 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     ? { animation: 'provider-enter 200ms ease-out' }
     : {};
 
-  // Edit affordance button — only when credentialKey is defined and not in remove-confirm.
-  const editButtonLabel =
-    badgeState === 'key-set' ? `Edit API key for ${name}` : `Set API key for ${name}`;
-  const editButtonText = badgeState === 'key-set' ? 'Edit' : 'Set key';
-  const showEditButton = badgeState !== 'no-key-required' && credentialKey !== undefined;
+  // "Set key" button — only when no key is set yet and not in edit mode.
+  const showSetKeyButton = badgeState === 'no-key' && credentialKey !== undefined && !isEditingKey;
 
   return (
     // aria-live="polite" lets screen readers announce confirmation message on row update.
@@ -226,10 +228,10 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
               {name}
             </span>
             <ApiKeyBadge state={badgeState} />
-            {showEditButton && !isEditingKey && (
+            {showSetKeyButton && (
               <button
                 type="button"
-                aria-label={editButtonLabel}
+                aria-label={`Set API key for ${name}`}
                 onClick={handleOpenKeyEditor}
                 className={[
                   'ml-2 text-[11px] text-text-muted underline cursor-pointer',
@@ -238,7 +240,7 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
                   'transition-colors duration-fast',
                 ].join(' ')}
               >
-                {editButtonText}
+                Set key
               </button>
             )}
             <button
@@ -259,6 +261,71 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
               </svg>
             </button>
           </div>
+
+          {/* ── Masked key display (when key is set and not editing) ───── */}
+          {badgeState === 'key-set' && !isEditingKey && credentialKey !== undefined && (
+            <div className="pb-3 flex flex-col gap-2">
+              {/* Masked/revealed key row with eye toggle */}
+              <div
+                className="relative w-full h-8 bg-input rounded-md border border-border overflow-hidden"
+                aria-label={`${name} API key — ${keyRevealed ? 'revealed' : 'saved and masked'}`}
+              >
+                <span className="absolute inset-0 flex items-center px-3 pr-9 text-[13px] font-mono text-text-muted overflow-hidden">
+                  <span className="truncate">
+                    {keyRevealed ? (getCredentials(credentialKey) ?? '—') : '••••••••••••••••••••••••••••••••'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setKeyRevealed((v) => !v)}
+                  aria-label={keyRevealed ? 'Hide key' : 'Show key'}
+                  tabIndex={-1}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors duration-fast focus-visible:outline-none"
+                >
+                  {keyRevealed ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z" stroke="currentColor" strokeWidth="1.2" />
+                      <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {/* Edit / Clear buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleOpenKeyEditor}
+                  className={[
+                    'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+                    'text-text-secondary border border-border',
+                    'hover:text-text-primary hover:border-border-strong',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearKey}
+                  aria-label={`Clear API key for ${name}`}
+                  className={[
+                    'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+                    'text-error border border-border',
+                    'hover:border-error/50',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Inline key editor (expands below row) ─────────────────── */}
           {isEditingKey && (

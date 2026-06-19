@@ -23,7 +23,7 @@ import { applyUserAccentColors } from './theme';
 import { contrastRatio } from './colorUtils';
 // #152: MODEL_ACCENT_CSS_VARS is the single source of truth for modelId → CSS var name.
 // Previously defined inline here and in theme.ts; both files now import from utils/modelColor.
-import { MODEL_ACCENT_CSS_VARS } from './utils/modelColor';
+import { MODEL_ACCENT_CSS_VARS, getModelAccentCssValue } from './utils/modelColor';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,19 @@ function isValidHex(value: string): boolean {
 function getModelDefaultAccentHex(modelId: ModelId): string {
   if (typeof document === 'undefined') return SWATCHES[0].hex;
   const cssVar = MODEL_ACCENT_CSS_VARS[modelId];
-  if (!cssVar) return SWATCHES[0].hex;
+  if (!cssVar) {
+    // Custom provider — read the resolved color from utils/modelColor (which checks roster).
+    const resolved = getModelAccentCssValue(modelId);
+    // resolved may be a hex string (custom roster color) or a var(...) for a token.
+    if (isValidHex(resolved)) return resolved;
+    // Extract the CSS var name and read the live computed value.
+    const match = resolved.match(/^var\((--[^)]+)\)$/);
+    if (!match) return SWATCHES[0].hex;
+    const computed = getComputedStyle(document.documentElement)
+      .getPropertyValue(match[1])
+      .trim();
+    return isValidHex(computed) ? computed : SWATCHES[0].hex;
+  }
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(cssVar)
     .trim();

@@ -362,8 +362,8 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
                 style={getModelDotStyle(model.modelId)}
                 aria-hidden="true"
               />
-              <span className="text-[14px] text-text-primary flex-1">{model.name}</span>
-              <span className="text-[12px] text-text-muted">
+              <span className="text-[14px] text-text-primary flex-1 truncate">{model.name}</span>
+              <span className="text-[12px] text-text-muted flex-shrink-0">
                 {PROVIDER_NAME_BY_MODEL_ID.get(model.modelId) ?? 'Unknown'}
               </span>
             </button>

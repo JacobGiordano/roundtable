@@ -306,9 +306,9 @@ export function InputBar({
             'placeholder:text-text-muted',
             'min-h-[36px] max-h-[200px]',
             'self-end',
-            // focus-visible: prevents the ring from showing on mouse clicks while
-            // still rendering it for keyboard navigation. (#234)
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
+            // Suppress the browser default outline. The outer InputBar container
+            // provides the visible focus indicator (border-border-strong).
+            'focus-visible:outline-none',
             // Disable new-message submit while streaming, but still allow typing
             isStreaming ? 'cursor-text' : '',
           ].join(' ')}

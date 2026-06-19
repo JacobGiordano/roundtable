@@ -80,6 +80,7 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
   };
   const [draft, setDraft] = useState('');
   const [revealed, setRevealed] = useState(false);
+  const [showRevealed, setShowRevealed] = useState(false);
   const [editing, setEditing] = useState(!isSet);
   const inputRef = useRef<HTMLInputElement>(null);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,11 +106,13 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
     setDraft('');
     setEditing(true);
     setRevealed(false);
+    setShowRevealed(false);
   };
 
   const handleEdit = () => {
     setEditing(true);
     setDraft('');
+    setShowRevealed(false);
     // Focus the input on next tick after it mounts
     setTimeout(() => inputRef.current?.focus(), 0);
   };
@@ -145,10 +148,10 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
   return (
     <div className="py-3 border-b border-border-subtle last:border-0">
       {/* Label row */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
         <label
           htmlFor={editing ? inputId : undefined}
-          className="text-[13px] font-medium text-text-primary"
+          className="text-[13px] font-medium text-text-primary truncate min-w-0"
         >
           {meta.provider}
         </label>
@@ -252,83 +255,106 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
         </div>
       ) : (
         /* Masked display when key is saved */
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2">
+          {/* Masked/revealed key row with eye toggle */}
           <div
             className={[
-              'flex-1 h-8 px-3 flex items-center',
-              'bg-input rounded-md border border-border',
-              'text-[13px] font-mono text-text-muted',
+              'relative w-full h-8',
+              'bg-input rounded-md border border-border overflow-hidden',
             ].join(' ')}
-            aria-label={`${meta.provider} API key — saved and masked`}
+            aria-label={`${meta.provider} API key — ${showRevealed ? 'revealed' : 'saved and masked'}`}
           >
-            ••••••••••••••••
+            <span className="absolute inset-0 flex items-center px-3 pr-9 text-[13px] font-mono text-text-muted overflow-hidden">
+              <span className="truncate">
+                {showRevealed ? (getCredentials(credentialKey) ?? '—') : '••••••••••••••••••••••••••••••••'}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowRevealed((v) => !v)}
+              aria-label={showRevealed ? 'Hide key' : 'Show key'}
+              tabIndex={-1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors duration-fast focus-visible:outline-none"
+            >
+              {showRevealed ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M1 7C1 7 3 3 7 3s6 4 6 4-2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.2" />
+                  <circle cx="7" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M2 2l10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M1 7C1 7 3 3 7 3s6 4 6 4-2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.2" />
+                  <circle cx="7" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+              )}
+            </button>
           </div>
 
-          {/* Test button — only shown in masked state */}
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={testState === 'testing'}
-            aria-label={`Test ${meta.provider} API key`}
-            className={[
-              'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
-              'border border-border',
-              testState === 'idle'
-                ? 'text-text-secondary hover:text-text-primary hover:border-border-strong'
-                : testState === 'testing'
-                  ? 'text-text-secondary opacity-50 cursor-not-allowed'
-                  : testState === 'valid' || testState === 'rate-limited'
-                    ? 'text-success'
-                    : 'text-error',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            {testState === 'idle' && 'Test'}
-            {testState === 'testing' && 'Testing…'}
-            {testState === 'valid' && '✓ Valid'}
-            {testState === 'rate-limited' && '✓ Valid (rate limited)'}
-            {testState === 'invalid' && '✗ Invalid key'}
-            {testState === 'error' && `✗ ${testMessage}`}
-          </button>
+          {/* Button row on its own line — never competes with the input width */}
+          <div className="flex items-center gap-1.5">
+            {/* Test button */}
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={testState === 'testing'}
+              aria-label={`Test ${meta.provider} API key`}
+              className={[
+                'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+                'border border-border',
+                testState === 'idle'
+                  ? 'text-text-secondary hover:text-text-primary hover:border-border-strong'
+                  : testState === 'testing'
+                    ? 'text-text-secondary opacity-50 cursor-not-allowed'
+                    : testState === 'valid' || testState === 'rate-limited'
+                      ? 'text-success'
+                      : 'text-error',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              {testState === 'idle' && 'Test'}
+              {testState === 'testing' && 'Testing…'}
+              {testState === 'valid' && '✓ Valid'}
+              {testState === 'rate-limited' && '✓ Valid (rate limited)'}
+              {testState === 'invalid' && '✗ Invalid key'}
+              {testState === 'error' && `✗ ${testMessage}`}
+            </button>
 
-          {/* Visually-hidden live region for screen reader announcements */}
-          <span
-            role="status"
-            aria-live="polite"
-            className="sr-only"
-          >
-            {testMessage}
-          </span>
+            {/* Visually-hidden live region for screen reader announcements */}
+            <span role="status" aria-live="polite" className="sr-only">
+              {testMessage}
+            </span>
 
-          <button
-            type="button"
-            onClick={handleEdit}
-            className={[
-              'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
-              'text-text-secondary border border-border',
-              'hover:text-text-primary hover:border-border-strong',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            Change
-          </button>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className={[
+                'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+                'text-text-secondary border border-border',
+                'hover:text-text-primary hover:border-border-strong',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              Edit
+            </button>
 
-          <button
-            type="button"
-            onClick={handleClear}
-            aria-label={`Clear ${meta.provider} API key`}
-            className={[
-              'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
-              'text-error border border-border',
-              'hover:border-error/50',
-              'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            Clear
-          </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label={`Clear ${meta.provider} API key`}
+              className={[
+                'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+                'text-error border border-border',
+                'hover:border-error/50',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 

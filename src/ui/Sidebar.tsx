@@ -1754,24 +1754,6 @@ export function Sidebar({
                           : 'border-transparent text-text-secondary hover:bg-hover/60 hover:text-text-primary',
                       ].join(' ')}
                     >
-                      {/* Two-color swatch — background + Claude accent (#167).
-                          Colors are runtime values from THEME_MAP JSON, so inline
-                          style is unavoidable here (Tailwind JIT cannot resolve
-                          dynamic values). aria-hidden: the button label is the
-                          accessible name; the swatch is purely decorative. */}
-                      <span
-                        className="flex items-center gap-[2px] flex-shrink-0"
-                        aria-hidden="true"
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full border border-black/10"
-                          style={{ backgroundColor: THEME_MAP[themeId].surfaces.background }}
-                        />
-                        <span
-                          className="w-2.5 h-2.5 rounded-full border border-black/10"
-                          style={{ backgroundColor: THEME_MAP[themeId].accents['model-claude'] }}
-                        />
-                      </span>
                       {label}
                     </button>
                   );
