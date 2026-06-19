@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
+// #235: getModelDotStyle resolves custom provider accent colors via roster
+// fallback — same import used in Sidebar, ModelSelectorPanel, ProviderSettingsPanel.
+import { getModelDotStyle } from './utils/modelColor';
 
 interface MessageThreadProps {
   messages: Message[];
@@ -31,6 +34,12 @@ interface MessageThreadProps {
    * triggers downloadExportedConversation. Omit to hide the export button.
    */
   onExport?: (format: ExportFormat) => void;
+  /**
+   * Called when the user clicks the edit button on a user message bubble.
+   * Receives the 0-based index of that message in the `messages` array so App
+   * can truncate at that point and re-send with edited content (#162).
+   */
+  onEditMessage?: (messageIndex: number) => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -95,10 +104,11 @@ function ModelVisibilityBar({ models, hiddenModelIds, onToggleVisibility }: Mode
                 : 'cursor-pointer',
             ].join(' ')}
           >
-            {/* Colored dot matching model accent */}
+            {/* Colored dot matching model accent — uses getModelDotStyle so custom
+                provider roster fallback is applied (#235). */}
             <span
               className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-              style={{ backgroundColor: `var(--${model.color ?? 'accent-other'})` }}
+              style={getModelDotStyle(model.modelId)}
               aria-hidden="true"
             />
             {model.name}
@@ -153,6 +163,7 @@ export function MessageThread({
   onDirectedReply,
   tokenCountVisibility,
   onExport,
+  onEditMessage,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Ref for the scrollable message list container. */
@@ -188,7 +199,7 @@ export function MessageThread({
         next.delete(modelId);
       } else {
         // Guard: never hide if it would leave zero visible models.
-        // (Button is also disabled at the UI level, but defence-in-depth.)
+        // (Button uses aria-disabled at the UI level — stays in tab order — but defence-in-depth.)
         const visibleCount = models.length - prev.size;
         if (visibleCount <= 1) return prev;
         next.add(modelId);
@@ -438,6 +449,13 @@ export function MessageThread({
               message.role === 'assistant' &&
               prevMessage.modelId !== message.modelId;
 
+            // Resolve the persisted-messages index for this message (#162).
+            // allMessages = [...messages, ...streamingMessages]; streaming messages
+            // never get an edit button, so we only compute this for persisted messages
+            // (index < messages.length). Streaming messages (tail of allMessages)
+            // always produce undefined, hiding the edit button.
+            const persistedMessageIndex = index < messages.length ? index : undefined;
+
             return (
               <div
                 key={message.id}
@@ -452,6 +470,8 @@ export function MessageThread({
                   onDirectedReply={onDirectedReply}
                   entranceIndex={entranceIndex}
                   tokenCountVisibility={tokenCountVisibility}
+                  onEditMessage={onEditMessage}
+                  messageIndex={persistedMessageIndex}
                 />
               </div>
             );
