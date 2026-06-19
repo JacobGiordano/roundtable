@@ -17,3 +17,9 @@ export {
   buildDefaultModelConfigs,
 } from './registry';
 export type { ModelRegistryEntry } from './registry';
+
+// Remote and live-API catalog fetch utilities.
+// Aria may call these to populate the version picker with dynamically fetched
+// model lists (documented cross-agent exception per CLAUDE.md).
+// ModelCatalogEntry is defined in @/types — no new types exported here.
+export { fetchRemoteCatalog, fetchLiveApiCatalog } from './catalog';
