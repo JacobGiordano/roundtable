@@ -44,6 +44,28 @@ function CheckIcon() {
   );
 }
 
+/** Pencil/edit icon — 14×14 SVG, consistent with other icon buttons in the app. */
+function EditIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+      className="flex-shrink-0"
+    >
+      <path
+        d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   modelConfig?: ModelConfig;
@@ -72,6 +94,18 @@ interface MessageBubbleProps {
    * Defaults to 'active' when omitted.
    */
   tokenCountVisibility?: TokenCountVisibility;
+  /**
+   * Called when the user clicks the edit button on a user message bubble.
+   * Receives the message's index in the thread so App can truncate at that point.
+   * Only provided for user message bubbles — omitting hides the edit button.
+   */
+  onEditMessage?: (messageIndex: number) => void;
+  /**
+   * The 0-based index of this message in the full messages array.
+   * Required when onEditMessage is provided so the click handler can pass the
+   * correct truncation index back to App.
+   */
+  messageIndex?: number;
 }
 
 /** Maps a ModelId to the data-model attribute value for streaming shimmer CSS targeting. */
@@ -270,6 +304,8 @@ export function MessageBubble({
   onDirectedReply,
   targetModelConfig,
   tokenCountVisibility = 'active',
+  onEditMessage,
+  messageIndex,
 }: MessageBubbleProps) {
   const isStreaming = message.isStreaming ?? false;
   const hasError    = !!error;
@@ -337,6 +373,29 @@ export function MessageBubble({
       onMouseLeave={() => setIsHovered(false)}
       aria-busy={isStreaming && message.role === 'assistant' ? true : undefined}
     >
+      {/* Edit button — user messages only, revealed on hover or focus.
+          Positioned to the left of the copy button (right-10 vs right-2) so the
+          two buttons don't overlap. Always in the DOM so keyboard users can reach
+          it via Tab — only visual opacity is toggled, never DOM presence.
+          Calls onEditMessage(messageIndex) which triggers App's truncate+resend path. */}
+      {message.role === 'user' && onEditMessage && messageIndex !== undefined && (
+        <button
+          type="button"
+          onClick={() => onEditMessage(messageIndex)}
+          aria-label="Edit message"
+          className={[
+            'absolute top-2 right-10',
+            'w-6 h-6 rounded flex items-center justify-center',
+            'text-text-secondary hover:bg-hover hover:text-text-primary',
+            'transition-opacity transition-colors duration-fast',
+            isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+          ].join(' ')}
+        >
+          <EditIcon />
+        </button>
+      )}
+
       {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus.
           Available on all messages (user and assistant) as long as there is content to copy.
           aria-label switches between "Copy message" and "Copied!" to announce the state

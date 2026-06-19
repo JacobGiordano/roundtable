@@ -121,6 +121,14 @@ export default function App() {
   // Cleared automatically after a message is sent, or manually via the × pill.
   const [pendingTargetModelId, setPendingTargetModelId] = useState<ModelId | null>(null);
 
+  // Edit state (#162): when set, InputBar is in edit mode pre-filled with the
+  // original message content. handleSend routes through the truncate+resend path
+  // when this is non-null. Cleared on send, cancel, or conversation switch.
+  const [editingMessage, setEditingMessage] = useState<{
+    messageIndex: number;
+    originalContent: string;
+  } | null>(null);
+
   // UserPreferences from Gate — read at the App root so tokenCountVisibility can
   // be threaded down the tree without per-component Gate imports.
   const [userPrefs] = useUserPreferences();
@@ -190,24 +198,59 @@ export default function App() {
   const handleSend = (content: string) => {
     // Snapshot the active conversation before state updates so sendMessage
     // receives a consistent view and we have a base to build the updated conv from.
-    const conversationSnapshot = store.getActiveConversation();
+    const conversationSnapshot = store.getActiveConversation() ??
+      (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
     if (!conversationSnapshot) return;
 
-    const userMessage: Message = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content,
-      // Stamp targetModelId onto the user message so it persists in the thread.
-      targetModelId: pendingTargetModelId ?? undefined,
-      timestamp: Date.now(),
-    };
+    let updatedConversation: Conversation;
 
-    // Build the updated conversation with the new user message.
-    const updatedConversation: Conversation = {
-      ...conversationSnapshot,
-      messages: [...conversationSnapshot.messages, userMessage],
-      updatedAt: Date.now(),
-    };
+    if (editingMessage) {
+      // ── Edit path (#162) ───────────────────────────────────────────────────
+      // Truncate the conversation to the edit point, replace with the edited
+      // user message, and re-send. All model responses after the edited message
+      // are discarded — the user is restarting from that point.
+
+      // 1. Truncate to the edit point (exclusive: drop the original + all after)
+      const truncated: Conversation = {
+        ...conversationSnapshot,
+        messages: conversationSnapshot.messages.slice(0, editingMessage.messageIndex),
+        updatedAt: Date.now(),
+      };
+
+      // 2. Build the edited user message
+      const editedUserMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content,
+        timestamp: Date.now(),
+      };
+
+      // 3. Compose the updated conversation
+      updatedConversation = {
+        ...truncated,
+        messages: [...truncated.messages, editedUserMessage],
+      };
+
+      // 4. Clear edit state before persisting so UI snaps to normal mode immediately
+      setEditingMessage(null);
+    } else {
+      // ── Normal send path ───────────────────────────────────────────────────
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content,
+        // Stamp targetModelId onto the user message so it persists in the thread.
+        targetModelId: pendingTargetModelId ?? undefined,
+        timestamp: Date.now(),
+      };
+
+      // Build the updated conversation with the new user message.
+      updatedConversation = {
+        ...conversationSnapshot,
+        messages: [...conversationSnapshot.messages, userMessage],
+        updatedAt: Date.now(),
+      };
+    }
 
     // Persist the updated conversation to storage. updateConversation handles
     // auto-titling (first user message → title) and optimistic in-memory update.
@@ -320,15 +363,35 @@ export default function App() {
         store.setActiveConversation(newConv.id);
       });
     }
-    // Clear directed-reply target when switching conversations.
+    // Clear directed-reply target and edit state when switching conversations.
     setPendingTargetModelId(null);
+    setEditingMessage(null);
   };
 
   const handleSelectConversation = (id: string) => {
     store.setActiveConversation(id);
-    // Clear directed-reply target when switching conversations.
+    // Clear directed-reply target and edit state when switching conversations.
     setPendingTargetModelId(null);
+    setEditingMessage(null);
   };
+
+  /**
+   * Called by MessageBubble (via MessageThread) when the user clicks the edit button.
+   * Sets edit mode: InputBar pre-fills with the original content of that message.
+   * The conversation is truncated and re-sent when the user submits the edit.
+   */
+  const handleEditMessage = useCallback((messageIndex: number) => {
+    const conv = store.getActiveConversation() ??
+      (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
+    const msg = conv?.messages[messageIndex];
+    if (!msg || msg.role !== 'user') return;
+    setEditingMessage({ messageIndex, originalContent: msg.content });
+  }, [store, getGhostConversation]);
+
+  /** Called by InputBar Cancel button or Escape key — abandons the current edit. */
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+  }, []);
 
   const handleToggleModel = (modelId: ModelId) => {
     setModels((prev) => {
@@ -549,6 +612,9 @@ export default function App() {
       onBulkDelete={handleBulkDelete}
       isRosterEmpty={isRosterEmpty}
       onRosterChange={handleRosterChange}
+      editingMessage={editingMessage ?? undefined}
+      onEditMessage={handleEditMessage}
+      onCancelEdit={handleCancelEdit}
     />
   );
 }

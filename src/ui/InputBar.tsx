@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useId } from 'react';
+import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { ModelConfig } from '@/types';
 
 interface InputBarProps {
@@ -28,6 +28,13 @@ interface InputBarProps {
    * rather than the non-interactive <main> container. See WCAG 2.4.1.
    */
   textareaId?: string;
+  /**
+   * When set, InputBar is in edit mode — pre-filled with this content.
+   * A Cancel button is shown. Pressing Escape or clicking Cancel calls onCancelEdit.
+   */
+  editingMessage?: { messageIndex: number; originalContent: string };
+  /** Called when user clicks Cancel in edit mode or presses Escape. */
+  onCancelEdit?: () => void;
 }
 
 /** Ghost icon: SVG outline, 16×16. Used when ghost mode is active. */
@@ -102,10 +109,30 @@ export function InputBar({
   onClearDirectedReply,
   activeModelCount,
   textareaId,
+  editingMessage,
+  onCancelEdit,
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Edit mode: when editingMessage is set, pre-fill the textarea with the original
+  // content and move focus to it. Clears when editingMessage becomes null.
+  useEffect(() => {
+    if (editingMessage) {
+      setValue(editingMessage.originalContent);
+      // Reset height to auto first, then let the auto-resize compute the new height.
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      }
+      // Move focus to the textarea so the user can start editing immediately.
+      // Double-rAF ensures the DOM has settled after any React re-renders.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      });
+    }
+  }, [editingMessage]);
 
   // Ghost mode tooltip — 600ms hover delay per tooltip.md §1 (#210).
   // Hover shows after intentionality delay; focus shows immediately.
@@ -150,8 +177,14 @@ export function InputBar({
         e.preventDefault();
         handleSend();
       }
+      // Escape in edit mode cancels the edit and clears the textarea.
+      if (e.key === 'Escape' && editingMessage) {
+        e.preventDefault();
+        setValue('');
+        onCancelEdit?.();
+      }
     },
-    [handleSend],
+    [handleSend, editingMessage, onCancelEdit],
   );
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -164,11 +197,14 @@ export function InputBar({
   }, []);
 
   // §3.3: when zero models are active, tell the user they need to add one first.
-  const placeholderText = directedReplyTarget
-    ? `Ask ${directedReplyTarget.name}...`
-    : activeModelCount === 0
-      ? 'Add a model to start chatting'
-      : 'Ask all models...';
+  // In edit mode, override the placeholder so the user knows what they're doing.
+  const placeholderText = editingMessage
+    ? 'Edit your message…'
+    : directedReplyTarget
+      ? `Ask ${directedReplyTarget.name}...`
+      : activeModelCount === 0
+        ? 'Add a model to start chatting'
+        : 'Ask all models...';
 
   return (
     <div
@@ -178,6 +214,45 @@ export function InputBar({
       // for browsers that don't support the safe-area-inset environment variables.
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
+      {/* Edit mode banner — rendered above the input row when editing a message (#162).
+          Sits flush against the input row (same pattern as the directed-reply pill).
+          The Cancel button lets the user abandon the edit and restore normal mode. */}
+      {editingMessage && (
+        <div
+          className={[
+            'px-3 pt-2',
+            'bg-input border-t border-x border-border rounded-t-lg',
+            'flex items-center justify-between',
+          ].join(' ')}
+        >
+          <span
+            className="text-[12px] font-medium text-text-secondary"
+            aria-live="polite"
+          >
+            Editing message
+          </span>
+          {onCancelEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setValue('');
+                onCancelEdit();
+              }}
+              aria-label="Cancel edit"
+              className={[
+                'text-[12px] font-medium text-text-secondary',
+                'hover:text-text-primary',
+                'px-2 py-0.5 rounded',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Directed-reply pill — rendered above the input row when a target model is set.
           Uses the model's accent color to make directed mode visually distinct.
           The pill sits flush against the input row (no gap) to read as a single unit. */}
@@ -223,7 +298,7 @@ export function InputBar({
         className={[
           'w-full bg-input',
           'border-t border-border',
-          directedReplyTarget ? 'border-x border-b border-border rounded-b-none rounded-t-none' : 'rounded-t-lg rounded-b-none',
+          (directedReplyTarget || editingMessage) ? 'border-x border-b border-border rounded-b-none rounded-t-none' : 'rounded-t-lg rounded-b-none',
           'shadow-md',
           'px-3 py-3',
           'flex items-end gap-2',

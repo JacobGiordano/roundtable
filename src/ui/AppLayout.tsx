@@ -118,6 +118,23 @@ interface AppLayoutProps {
    * model: Gate exposes sync-only CRUD; AppLayout notifies App on panel close.
    */
   onRosterChange?: () => void;
+  /**
+   * When set, the InputBar is in edit mode — pre-filled with the original message
+   * content. MessageThread shows the edit button on user bubbles. App owns this
+   * state; AppLayout threads it to InputBar and MessageThread (#162).
+   */
+  editingMessage?: { messageIndex: number; originalContent: string };
+  /**
+   * Called when user clicks the edit button on a user message bubble (#162).
+   * Receives the 0-based index of the message in the conversation's messages array.
+   * App uses this to set editingMessage state.
+   */
+  onEditMessage?: (messageIndex: number) => void;
+  /**
+   * Called when user clicks Cancel in InputBar edit mode or presses Escape (#162).
+   * App clears editingMessage state.
+   */
+  onCancelEdit?: () => void;
 }
 
 export function AppLayout({
@@ -158,6 +175,9 @@ export function AppLayout({
   onBulkDelete,
   isRosterEmpty = false,
   onRosterChange,
+  editingMessage,
+  onEditMessage,
+  onCancelEdit,
 }: AppLayoutProps) {
   // Mobile drawer state — controls the Sidebar slide-in overlay on small screens.
   // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
@@ -463,6 +483,7 @@ export function AppLayout({
             onDirectedReply={onDirectedReply}
             tokenCountVisibility={tokenCountVisibility}
             onExport={onExportConversation}
+            onEditMessage={onEditMessage}
           />
         )}
 
@@ -509,6 +530,8 @@ export function AppLayout({
             onClearDirectedReply={onClearDirectedReply}
             activeModelCount={allModels.filter((m) => m.isActive).length}
             textareaId={isRosterEmpty ? undefined : 'skip-target'}
+            editingMessage={editingMessage}
+            onCancelEdit={onCancelEdit}
           />
         </div>
       </main>
