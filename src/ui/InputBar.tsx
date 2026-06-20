@@ -141,14 +141,32 @@ export function InputBar({
   const stopButtonRef = useRef<HTMLButtonElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  // Focus the stop button when streaming starts — the send button unmounts and the
-  // stop button takes its place, dropping focus to document.body. Double-rAF ensures
-  // the DOM has settled after React's unmount/mount cycle before .focus() fires.
-  // WCAG 2.4.3 — focus must not be lost when a control is replaced. Issue #244.
+  // Track whether streaming has ever been active so the focus-return branch
+  // (isStreaming → false) does not fire on initial render. We only want to
+  // return focus when the stop→send swap actually occurs, not at mount time.
+  const hasStreamedRef = useRef(false);
+
+  // Manage focus across the send↔stop button swap (WCAG 2.4.3 — issue #244).
+  //
+  // When streaming starts (send unmounts, stop mounts): move focus to the stop
+  // button so keyboard users stay in the input area.
+  //
+  // When streaming ends — whether by natural completion or abort (stop unmounts,
+  // send mounts): return focus to the textarea so the user can type the next
+  // message without tabbing back in.
+  //
+  // Double-rAF ensures the DOM has settled after React's unmount/mount cycle
+  // before .focus() fires. Same pattern as closeAndReturnFocus() in Sidebar.tsx.
   useEffect(() => {
     if (isStreaming && onStopMessage) {
+      hasStreamedRef.current = true;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => stopButtonRef.current?.focus());
+      });
+    } else if (!isStreaming && hasStreamedRef.current) {
+      // Only fire on a real stream-end transition, not on initial render.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => textareaRef.current?.focus());
       });
     }
   }, [isStreaming, onStopMessage]);
