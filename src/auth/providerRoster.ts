@@ -292,6 +292,51 @@ export function removeProvider(id: string): void {
 }
 
 /**
+ * Update the editable fields of an existing custom provider.
+ *
+ * Applies displayName, endpointUrl, modelString, and optionally color to the
+ * matching custom entry in the roster. `credentialKey` and `id` are never
+ * changed — they are stable identifiers; `credentialKey` in particular links
+ * the provider to its stored API key and must survive edits.
+ *
+ * No-op if:
+ *   - No provider with the given `id` exists in the roster.
+ *   - The matching entry is not a custom provider (kind !== 'custom').
+ */
+export function updateCustomProvider(
+  id: string,
+  input: {
+    displayName: string;
+    endpointUrl: string;
+    modelString: string;
+    color?: string;
+  },
+): void {
+  const roster = readRoster();
+
+  let found = false;
+  const updated = roster.map((p): ProviderConfig => {
+    if (p.kind !== 'custom' || p.id !== id) return p;
+    found = true;
+    const entry: CustomProviderConfig = {
+      ...p,
+      displayName: input.displayName,
+      endpointUrl: input.endpointUrl,
+      modelString: input.modelString,
+    };
+    if (input.color !== undefined) {
+      entry.color = input.color;
+    } else {
+      delete entry.color;
+    }
+    return entry;
+  });
+
+  if (!found) return; // No matching custom provider — no write needed.
+  writeRoster(updated);
+}
+
+/**
  * Find a provider in the roster by its identifier.
  *
  * For built-in providers: matches on `modelId`.
