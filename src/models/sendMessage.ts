@@ -196,7 +196,13 @@ async function runProviderIsolated(
     // clean done chunk already. If it didn't (e.g., abort fired before any
     // chunk), we silently resolve rather than emitting a spurious error.
     // This is not a failure condition — it is the expected abort path.
-    if (err instanceof Error && err.name === 'AbortError') {
+    //
+    // Duck-type the name check instead of using `instanceof Error` because
+    // jsdom's DOMException does not extend Error — `err instanceof Error`
+    // evaluates to false in vitest/jsdom even for a valid AbortError. The
+    // duck-type check works in both browsers (DOMException extends Error) and
+    // jsdom (DOMException does not extend Error).
+    if ((err as { name?: string })?.name === 'AbortError') {
       return;
     }
     // Unexpected throw from a provider (shouldn't happen given the providers'
