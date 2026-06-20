@@ -82,6 +82,27 @@ export interface ModelRegistryEntry {
    * is the exact string passed to the provider's API endpoint.
    */
   availableVersions: ModelVersionOption[];
+  /**
+   * URL of a remote `models.json` file to fetch at runtime via `fetchRemoteCatalog`.
+   * When present, `resolveVersionCatalog` fetches this URL and returns the result.
+   * The URL is expected to be hosted on `raw.githubusercontent.com` (on the network
+   * allowlist). Falls back to `availableVersions` if the fetch fails.
+   *
+   * None of the built-in registry entries populate this field — their version lists
+   * are complete and static. This field is reserved for future providers whose
+   * canonical version list is maintained externally.
+   */
+  remoteCatalogUrl?: string;
+  /**
+   * Base API endpoint for live model discovery via `fetchLiveApiCatalog`.
+   * When present (and an `apiKey` is provided), `resolveVersionCatalog` calls
+   * `fetchLiveApiCatalog(liveApiEndpoint, apiKey)` and returns the result.
+   * Takes precedence over `remoteCatalogUrl` when both are set.
+   *
+   * Example: `"https://openrouter.ai/api/v1"` (note: openrouter.ai is NOT on
+   * the dev-container firewall allowlist — live fetch degrades to [] in dev).
+   */
+  liveApiEndpoint?: string;
 }
 
 /**

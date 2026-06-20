@@ -9,6 +9,7 @@
 // This module never reads localStorage directly.
 
 import type { ModelCatalogEntry } from '@/types';
+import type { ModelRegistryEntry } from './registry';
 
 // ─── Remote catalog shape (not exported — internal parse contract) ────────────
 
@@ -215,4 +216,71 @@ export async function fetchLiveApiCatalog(
     ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
     source: 'live-api',
   }));
+}
+
+// ─── Resolver utilities — consumed by Aria via models/index.ts ────────────────
+
+/**
+ * Resolves the version catalog for a registry entry using the best available
+ * source, in priority order:
+ *
+ *   1. Live API  — if `entry.liveApiEndpoint` is set AND `apiKey` is provided,
+ *                  calls `fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey)`.
+ *                  Returns the result (may be [] if network is blocked).
+ *   2. Remote    — if `entry.remoteCatalogUrl` is set, calls
+ *                  `fetchRemoteCatalog(entry.remoteCatalogUrl)`.
+ *                  Returns the result (may be [] if fetch fails).
+ *   3. Bundled   — falls back to `entry.availableVersions` mapped to
+ *                  `ModelCatalogEntry[]` with `source: 'bundled'`.
+ *
+ * Never throws. Graceful degradation is the contract: a failed remote/live
+ * fetch produces the bundled list, not an error.
+ *
+ * Aria calls this (documented cross-agent exception — see models/index.ts).
+ *
+ * @param entry  - A `ModelRegistryEntry` from `MODEL_REGISTRY`.
+ * @param apiKey - Optional API key for live endpoint auth (Gate-mediated; never
+ *                 stored or logged here). Required for path 1 to activate.
+ */
+export async function resolveVersionCatalog(
+  entry: ModelRegistryEntry,
+  apiKey?: string
+): Promise<ModelCatalogEntry[]> {
+  if (entry.liveApiEndpoint !== undefined && apiKey !== undefined) {
+    return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
+  }
+
+  if (entry.remoteCatalogUrl !== undefined) {
+    return fetchRemoteCatalog(entry.remoteCatalogUrl);
+  }
+
+  // Bundled fallback — map static ModelVersionOption[] to ModelCatalogEntry[]
+  return entry.availableVersions.map(
+    (v): ModelCatalogEntry => ({
+      id: v.id,
+      displayName: v.displayName,
+      ...(v.description !== undefined ? { description: v.description } : {}),
+      source: 'bundled' as const,
+    })
+  );
+}
+
+/**
+ * Fetches the model catalog for a custom (non-registry) provider via its live
+ * API endpoint. Delegates to `fetchLiveApiCatalog`.
+ *
+ * This is the named entry point Aria uses for custom providers (OpenRouter-style)
+ * so that it never reaches into catalog.ts directly and remains decoupled from
+ * the internal fetch implementation.
+ *
+ * Aria calls this (documented cross-agent exception — see models/index.ts).
+ *
+ * @param liveApiEndpoint - Base URL of the provider's API (e.g. `https://openrouter.ai/api/v1`).
+ * @param apiKey          - Bearer token for authorization. Passed by Gate; never stored here.
+ */
+export async function resolveCustomProviderCatalog(
+  liveApiEndpoint: string,
+  apiKey: string
+): Promise<ModelCatalogEntry[]> {
+  return fetchLiveApiCatalog(liveApiEndpoint, apiKey);
 }

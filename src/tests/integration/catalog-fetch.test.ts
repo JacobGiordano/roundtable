@@ -30,8 +30,9 @@
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fetchRemoteCatalog, fetchLiveApiCatalog } from '@/models/catalog';
-import type { ModelCatalogEntry } from '@/types';
+import { fetchRemoteCatalog, fetchLiveApiCatalog, resolveVersionCatalog, resolveCustomProviderCatalog } from '@/models/catalog';
+import type { ModelCatalogEntry, ModelVersionOption } from '@/types';
+import type { ModelRegistryEntry } from '@/models/registry';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -280,5 +281,217 @@ describe('fetchLiveApiCatalog', () => {
 
     expect(result[0]!.description).toBe('A great model');
     expect(result[0]!.contextWindow).toBe(128000);
+  });
+});
+
+// ─── resolveVersionCatalog ────────────────────────────────────────────────────
+
+describe('resolveVersionCatalog', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Minimal ModelRegistryEntry with no URL fields — bundled-only path. */
+  function makeBundledEntry(
+    versions: ModelVersionOption[] = [
+      { id: 'model-v1', displayName: 'Model V1', description: 'Stable' },
+      { id: 'model-v2', displayName: 'Model V2' },
+    ]
+  ): ModelRegistryEntry {
+    return {
+      modelId: 'test-model',
+      name: 'Test Model',
+      providerName: 'TestCo',
+      color: 'accent-other',
+      defaultActive: false,
+      availableVersions: versions,
+    };
+  }
+
+  it('returns bundled versions with source: bundled when no URL fields are set', async () => {
+    // No fetch stub — fetch must not be called
+    const entry = makeBundledEntry();
+
+    const result = await resolveVersionCatalog(entry);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]!.id).toBe('model-v1');
+    expect(result[0]!.displayName).toBe('Model V1');
+    expect(result[0]!.description).toBe('Stable');
+    expect(result[0]!.source).toBe('bundled');
+    expect(result[1]!.id).toBe('model-v2');
+    expect(result[1]!.source).toBe('bundled');
+    // description absent on second entry — should not be present on result
+    expect(result[1]!.description).toBeUndefined();
+  });
+
+  it('omits description key when ModelVersionOption has no description (bundled path)', async () => {
+    const entry = makeBundledEntry([{ id: 'no-desc', displayName: 'No Desc' }]);
+
+    const result = await resolveVersionCatalog(entry);
+
+    expect(result).toHaveLength(1);
+    // description must not appear as a key at all (not just undefined)
+    expect(Object.prototype.hasOwnProperty.call(result[0], 'description')).toBe(false);
+  });
+
+  it('calls fetchRemoteCatalog when remoteCatalogUrl is set', async () => {
+    const remoteData = [{ id: 'remote-model', displayName: 'Remote Model' }];
+    vi.stubGlobal('fetch', makeFetchOk(remoteData));
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      remoteCatalogUrl: 'https://raw.githubusercontent.com/example/models.json',
+    };
+
+    const result = await resolveVersionCatalog(entry);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('remote-model');
+    expect(result[0]!.source).toBe('remote');
+  });
+
+  it('returns [] (not bundled) when remoteCatalogUrl fetch fails', async () => {
+    // Network error during remote fetch — resolveVersionCatalog should NOT
+    // fall back to bundled; it returns whatever fetchRemoteCatalog returns ([]).
+    vi.stubGlobal('fetch', makeFetchNetworkError());
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      remoteCatalogUrl: 'https://raw.githubusercontent.com/example/models.json',
+    };
+
+    const result = await resolveVersionCatalog(entry);
+
+    // fetchRemoteCatalog degrades to [] on error; resolveVersionCatalog returns that
+    expect(result).toEqual([]);
+  });
+
+  it('calls fetchLiveApiCatalog when liveApiEndpoint and apiKey are both present', async () => {
+    const liveResponse = {
+      data: [{ id: 'live-model', name: 'Live Model' }],
+    };
+    vi.stubGlobal('fetch', makeFetchOk(liveResponse));
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+    };
+
+    const result = await resolveVersionCatalog(entry, 'test-api-key');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('live-model');
+    expect(result[0]!.source).toBe('live-api');
+  });
+
+  it('prefers liveApiEndpoint over remoteCatalogUrl when both are set and apiKey is provided', async () => {
+    const liveResponse = {
+      data: [{ id: 'live-wins', name: 'Live Wins' }],
+    };
+    const mockFetch = makeFetchOk(liveResponse);
+    vi.stubGlobal('fetch', mockFetch);
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+      remoteCatalogUrl: 'https://raw.githubusercontent.com/example/models.json',
+    };
+
+    const result = await resolveVersionCatalog(entry, 'test-api-key');
+
+    // Only one fetch call — to the live endpoint, not the remote catalog
+    expect(result[0]!.id).toBe('live-wins');
+    expect(result[0]!.source).toBe('live-api');
+    const calledUrl = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string;
+    expect(calledUrl).toContain('openrouter.ai');
+  });
+
+  it('uses remoteCatalogUrl when liveApiEndpoint is set but apiKey is absent', async () => {
+    const remoteData = [{ id: 'remote-fallback', displayName: 'Remote Fallback' }];
+    vi.stubGlobal('fetch', makeFetchOk(remoteData));
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+      remoteCatalogUrl: 'https://raw.githubusercontent.com/example/models.json',
+    };
+
+    // No apiKey passed — liveApiEndpoint path skipped; remoteCatalogUrl used
+    const result = await resolveVersionCatalog(entry);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('remote-fallback');
+    expect(result[0]!.source).toBe('remote');
+  });
+
+  it('uses bundled fallback when liveApiEndpoint is set but apiKey is absent and no remoteCatalogUrl', async () => {
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+      // no remoteCatalogUrl
+    };
+
+    // No apiKey — live path skipped; no remote URL — bundled fallback
+    const result = await resolveVersionCatalog(entry);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]!.source).toBe('bundled');
+  });
+});
+
+// ─── resolveCustomProviderCatalog ─────────────────────────────────────────────
+
+describe('resolveCustomProviderCatalog', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const liveResponse = {
+    data: [
+      { id: 'custom/model-a', name: 'Custom Model A' },
+      { id: 'custom/model-b', name: 'Custom Model B', context_length: 32000 },
+    ],
+  };
+
+  it('returns live-api entries from the provided endpoint', async () => {
+    vi.stubGlobal('fetch', makeFetchOk(liveResponse));
+
+    const result = await resolveCustomProviderCatalog(
+      'https://openrouter.ai/api/v1',
+      'custom-api-key'
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0]!.id).toBe('custom/model-a');
+    expect(result[0]!.source).toBe('live-api');
+    expect(result[1]!.contextWindow).toBe(32000);
+  });
+
+  it('delegates to fetchLiveApiCatalog — sends Authorization header', async () => {
+    const mockFetch = makeFetchOk(liveResponse);
+    vi.stubGlobal('fetch', mockFetch);
+
+    await resolveCustomProviderCatalog('https://openrouter.ai/api/v1', 'sk-custom-key');
+
+    const calledInit = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as RequestInit;
+    const headers = calledInit?.headers as Record<string, string>;
+    expect(headers?.['Authorization']).toBe('Bearer sk-custom-key');
+  });
+
+  it('returns [] on network error (graceful degradation)', async () => {
+    vi.stubGlobal('fetch', makeFetchNetworkError());
+
+    await expect(
+      resolveCustomProviderCatalog('https://openrouter.ai/api/v1', 'test-key')
+    ).resolves.toEqual([]);
+  });
+
+  it('returns [] on non-2xx response', async () => {
+    vi.stubGlobal('fetch', makeFetchStatus(401));
+
+    await expect(
+      resolveCustomProviderCatalog('https://openrouter.ai/api/v1', 'bad-key')
+    ).resolves.toEqual([]);
   });
 });

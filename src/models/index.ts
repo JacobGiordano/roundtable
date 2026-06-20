@@ -18,8 +18,20 @@ export {
 } from './registry';
 export type { ModelRegistryEntry } from './registry';
 
-// Remote and live-API catalog fetch utilities.
+// Remote and live-API catalog fetch utilities — documented cross-agent exceptions.
 // Aria may call these to populate the version picker with dynamically fetched
-// model lists (documented cross-agent exception per CLAUDE.md).
-// ModelCatalogEntry is defined in @/types — no new types exported here.
-export { fetchRemoteCatalog, fetchLiveApiCatalog } from './catalog';
+// model lists. ModelCatalogEntry is defined in @/types — no new types exported here.
+//
+//   fetchRemoteCatalog(url)              — fetches a remote models.json
+//   fetchLiveApiCatalog(endpoint, key)   — fetches a live provider /models endpoint
+//   resolveVersionCatalog(entry, key?)   — resolver: live API → remote → bundled fallback
+//   resolveCustomProviderCatalog(ep, key) — resolver for custom (non-registry) providers
+//
+// Aria should call resolveVersionCatalog for built-in registry entries and
+// resolveCustomProviderCatalog for custom providers — not fetchLiveApiCatalog directly.
+export {
+  fetchRemoteCatalog,
+  fetchLiveApiCatalog,
+  resolveVersionCatalog,
+  resolveCustomProviderCatalog,
+} from './catalog';
