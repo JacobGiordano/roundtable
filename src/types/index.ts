@@ -477,6 +477,25 @@ export interface SendMessageOptions {
    * or no system prompt at all when no per-model value is set.
    */
   systemPrompt?: string;
+  /**
+   * Optional cancellation signal for the fan-out. When aborted, Atlas should
+   * terminate all active provider streams as quickly as possible.
+   *
+   * Design note: this field lives on `SendMessageOptions` rather than on
+   * `ModelProvider.sendMessage` because every concrete provider already uses
+   * the fourth positional parameter slot for `selectedVersionId?: string`
+   * (an Atlas-internal version-threading mechanism). Adding `signal` as a
+   * fourth parameter on the public interface would make all six provider
+   * implementations structurally incompatible with `ModelProvider`. Atlas
+   * extracts this signal from `options` and threads it to individual providers
+   * through its internal `VersionAwareProvider` type, which Atlas owns and may
+   * extend freely.
+   *
+   * Aria passes this by creating an `AbortController`, storing the controller
+   * as state, and passing `controller.signal` here. Aria calls `stopMessage()`
+   * (which invokes `controller.abort()`) when the user clicks the stop button.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -604,20 +623,17 @@ export interface ModelProvider {
    * Sends messages to the underlying model and streams the response.
    * Resolves with token usage once the stream is complete.
    * Rejects if a non-recoverable error occurs (auth, network, etc.).
+   *
+   * Cancellation: stream cancellation is not surfaced as a parameter here
+   * because all concrete providers already use the fourth positional slot
+   * for `selectedVersionId` (an Atlas-internal concern). Atlas threads the
+   * `AbortSignal` from `SendMessageOptions.signal` to individual providers
+   * via its internal `VersionAwareProvider` type.
    */
   sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler,
-    /**
-     * Optional cancellation signal. When the signal is aborted, the provider
-     * should terminate the active stream as quickly as possible and resolve
-     * (not reject) with whatever partial token usage has accumulated.
-     *
-     * Absence means "no cancellation support" — existing provider implementations
-     * remain valid until Atlas adds AbortController wiring.
-     */
-    signal?: AbortSignal
+    onChunk: StreamHandler
   ): Promise<{ tokenUsage?: TokenUsage }>;
 }
 
