@@ -26,6 +26,8 @@ be rejected.
 | **Spark** | *(called by Aria)* | Produces micro-interaction specs; no directory ownership |
 | **Coda** | *(coordinator)* | Sequences agents; no directory ownership |
 | **Flint** | *(reviewer)* | Read-only phase gate; no directory ownership |
+| **Forge** | `.github/workflows/` | `/src/**`, `/backend/src/**`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, root-level docs, `CLAUDE.md` |
+| **Bastion** | `/backend/tests/` | `/backend/src/**`, `/src/**`, root-level docs, `CLAUDE.md` |
 
 Cross-agent communication happens **only** through the interfaces defined in
 `/src/types/index.ts`. If your change needs something from another agent's
@@ -90,6 +92,8 @@ what's in flight. Always check `HANDOFF.md` before starting work.
 | **Spark** | Micro-interactions and delight work (called by Aria in Phase 2+) |
 | **Coda** | Multi-agent coordination, phase kickoff, dependency sequencing |
 | **Flint** | Phase gate validation — verifies acceptance criteria before advancing |
+| **Forge** | GitHub Actions workflows — lint, build, test, release, docker publish; ensures every PR is validated and every release is reproducible |
+| **Bastion** | Backend test suite in `/backend/tests/` — API integration tests, route tests, auth flow tests, database contract tests; counterpart to Scout |
 
 ### One issue per agent per session
 
