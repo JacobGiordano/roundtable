@@ -1,7 +1,12 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StreamChunk } from '@/types';
+import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
+// useStreamingMessages: UI-owned hook for in-flight streaming accumulation (#158).
+// Extracted from App.tsx to reduce the god-component footprint. Pure React state
+// management — persistence callbacks are supplied by App so the hook stays
+// agnostic about @/storage and ghost-mode concerns.
+import { useStreamingMessages } from '@/ui/useStreamingMessages';
 // Cross-agent exception: sendMessage, getSessionTokenUsage, and MODEL_REGISTRY
 // are pure utilities exported from @/models per the documented exception in
 // CLAUDE.md. MODEL_REGISTRY is the static display-metadata registry Atlas
@@ -152,18 +157,6 @@ export default function App() {
     setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev));
   }, []);
 
-  // ── Streaming state ───────────────────────────────────────────────────────
-  // streamingMessages holds in-flight assistant responses, keyed by
-  // `${conversationId}:${modelId}`. This is pure React state — never written
-  // to localStorage until isDone. Multiple concurrent models are safe because
-  // each key is unique per model per conversation.
-  const [streamingMessages, setStreamingMessages] = useState<Record<string, Message>>({});
-
-  // accumulatorRef mirrors streamingMessages but is readable inside the chunk
-  // callback closure without stale-closure issues. We read from the ref and
-  // write to both ref + state on every chunk.
-  const accumulatorRef = useRef<Record<string, Message>>({});
-
   // Derive the active conversation from either the persisted store (normal
   // conversations) or the in-memory GhostModeManager (ghost conversations).
   // Ghost conversations are not in store.conversations, so getActiveConversation()
@@ -181,20 +174,44 @@ export default function App() {
     ? models.find((m) => m.modelId === pendingTargetModelId)
     : undefined;
 
-  // Derive streaming messages for the active conversation — only messages whose
-  // key matches the active conversationId are surfaced to the thread.
-  const activeStreamingMessages = activeConversation
-    ? Object.entries(streamingMessages)
-        .filter(([key]) => key.startsWith(`${activeConversation.id}:`))
-        .map(([, msg]) => msg)
-    : [];
-
-  // isStreaming is true when any model is still sending chunks for the active conv.
-  const anyStreaming = activeStreamingMessages.length > 0;
-
   // Compute per-model session token totals for the active conversation.
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
   const sessionUsage = activeConversation ? getSessionTokenUsage(activeConversation) : [];
+
+  // ── Streaming state (useStreamingMessages hook, #158) ─────────────────────
+  // Persistence callback supplied by App so the hook stays agnostic about
+  // @/storage, ghost-mode, and conversation-store internals.
+  const handleMessageComplete = useCallback(
+    (sendingConversationId: string, finalMsg: Message) => {
+      // Read the current conversation from whichever backend it lives in.
+      // Must re-check here — another model may have finalized while this one streamed.
+      const currentConv =
+        store.getActiveConversation() ??
+        getGhostConversation(sendingConversationId);
+      if (currentConv && currentConv.id === sendingConversationId) {
+        const updated: Conversation = {
+          ...currentConv,
+          messages: [...currentConv.messages, finalMsg],
+          updatedAt: Date.now(),
+        };
+        if (updated.isGhost) {
+          saveGhostConversation(updated);
+        } else {
+          void store.updateConversation(updated);
+        }
+      }
+    },
+    [store, getGhostConversation, saveGhostConversation],
+  );
+
+  const {
+    activeStreamingMessages,
+    isStreaming: anyStreaming,
+    handleChunk,
+  } = useStreamingMessages({
+    activeConversationId: store.activeConversationId,
+    onMessageComplete: handleMessageComplete,
+  });
 
   const handleSend = (content: string) => {
     // Snapshot the active conversation before state updates so sendMessage
@@ -273,6 +290,8 @@ export default function App() {
 
     // Pass the conversation so sendMessage can resolve per-model systemPrompts
     // from each ModelConfig.systemPrompt on the conversation's models array.
+    // handleChunk(sendingConversationId) returns a stable per-send callback that
+    // accumulates chunks and calls onMessageComplete when isDone — see #158.
     void sendMessage(
       {
         conversationId: sendingConversationId,
@@ -281,65 +300,7 @@ export default function App() {
         targetModelId: pendingTargetModelId ?? undefined,
         conversation: updatedConversation,
       },
-      (chunk: StreamChunk) => {
-        const key = `${sendingConversationId}:${chunk.modelId}`;
-
-        if (chunk.isDone) {
-          // Finalize the streaming message: flip isStreaming off, attach usage/error.
-          const existing = accumulatorRef.current[key];
-          if (existing) {
-            const finalMsg: Message = {
-              ...existing,
-              isStreaming: false,
-              tokenUsage: chunk.tokenUsage,
-              // Arch added error?: ModelError to Message — propagate when stream fails.
-              ...(chunk.error ? { error: chunk.error } : {}),
-            };
-            // Remove from accumulator ref so it no longer appears in streamingMessages.
-            const next = { ...accumulatorRef.current };
-            delete next[key];
-            accumulatorRef.current = next;
-            setStreamingMessages(next);
-
-            // Persist the completed message to the conversation store.
-            // We read the current conversation from either the persisted store
-            // (normal) or the in-memory GhostModeManager (ghost) to get any
-            // other messages that may have finalized while this one streamed.
-            const currentConv =
-              store.getActiveConversation() ??
-              getGhostConversation(sendingConversationId);
-            if (currentConv && currentConv.id === sendingConversationId) {
-              const updated: Conversation = {
-                ...currentConv,
-                messages: [...currentConv.messages, finalMsg],
-                updatedAt: Date.now(),
-              };
-              if (updated.isGhost) {
-                saveGhostConversation(updated);
-              } else {
-                void store.updateConversation(updated);
-              }
-            }
-          }
-        } else {
-          // Non-done chunk: accumulate content onto the in-progress message.
-          const existing = accumulatorRef.current[key];
-          const streamMsg: Message = existing
-            ? { ...existing, content: existing.content + chunk.content }
-            : {
-                id: `stream-${sendingConversationId}-${chunk.modelId}-${Date.now()}`,
-                role: 'assistant',
-                modelId: chunk.modelId,
-                content: chunk.content,
-                timestamp: Date.now(),
-                isStreaming: true,
-              };
-
-          const next = { ...accumulatorRef.current, [key]: streamMsg };
-          accumulatorRef.current = next;
-          setStreamingMessages(next);
-        }
-      },
+      handleChunk(sendingConversationId),
     );
   };
 

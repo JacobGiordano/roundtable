@@ -685,12 +685,14 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
 
                 {/* Accent color */}
                 <div>
-                  <label className="block text-[12px] font-medium text-text-secondary mb-1.5">
+                  {/* htmlFor associates the label with the color swatch button (#237). */}
+                  <label htmlFor={`edit-accent-color-btn-${id}`} className="block text-[12px] font-medium text-text-secondary mb-1.5">
                     Accent color
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="relative">
                       <button
+                        id={`edit-accent-color-btn-${id}`}
                         type="button"
                         aria-label="Choose accent color"
                         onClick={() => {
@@ -1181,7 +1183,10 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
 
         {/* Accent Color */}
         <div>
-          <label className={labelClass}>
+          {/* htmlFor="psp-accent-color-btn" associates the label with the color
+              swatch button (#237). Clicking the label activates the button, which
+              programmatically opens the native color picker. */}
+          <label htmlFor="psp-accent-color-btn" className={labelClass}>
             Accent color
           </label>
           <p className="text-[11px] text-text-muted mb-2">
@@ -1190,6 +1195,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
           <div className="flex items-center gap-2">
             <div className="relative">
               <button
+                id="psp-accent-color-btn"
                 type="button"
                 aria-label="Choose accent color"
                 onClick={() => {

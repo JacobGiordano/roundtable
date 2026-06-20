@@ -298,12 +298,14 @@ function ThreadActionMenu({
    */
   const handleMenuKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      // Tab (or Shift+Tab): in confirm-delete state, cycle between the two
-      // confirm buttons (dialog-like behaviour). In all other states, exit the
-      // menu — menus must not be Tab-navigable.
+      // Tab (or Shift+Tab): in confirm-delete, group-input, and rename states,
+      // cycle between the sub-state's interactive controls (dialog-like behaviour).
+      // In the top-level 'menu' state, Tab exits the menu — menus must not be
+      // Tab-navigable per the ARIA menu keyboard contract.
       if (e.key === 'Tab') {
         e.preventDefault();
         if (menuState.type === 'confirm-delete') {
+          // Cycle between the two confirm buttons only.
           const buttons = Array.from(
             menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-confirm="true"]') ?? [],
           );
@@ -313,6 +315,24 @@ function ThreadActionMenu({
             ? idx > 0 ? idx - 1 : buttons.length - 1
             : idx < buttons.length - 1 ? idx + 1 : 0;
           buttons[next]?.focus();
+        } else if (menuState.type === 'group-input' || menuState.type === 'rename') {
+          // Cycle through all focusable elements in the sub-state panel.
+          // Querying by the [data-substate] container ensures we stay within
+          // the active sub-state and do not accidentally reach menuitem buttons.
+          const panel = menuRef.current?.querySelector<HTMLElement>('[data-substate]');
+          const focusable = Array.from(
+            panel?.querySelectorAll<HTMLElement>(
+              'input:not([disabled]):not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"])',
+            ) ?? [],
+          );
+          if (focusable.length > 0) {
+            const focused = document.activeElement as HTMLElement;
+            const idx = focusable.indexOf(focused);
+            const next = e.shiftKey
+              ? idx > 0 ? idx - 1 : focusable.length - 1
+              : idx < focusable.length - 1 ? idx + 1 : 0;
+            focusable[next]?.focus();
+          }
         } else {
           closeAndReturnFocus();
         }
@@ -482,7 +502,7 @@ function ThreadActionMenu({
       )}
 
       {menuState.type === 'group-input' && (
-        <div className="px-3 py-2">
+        <div data-substate className="px-3 py-2">
           <p className="text-text-muted mb-1.5 text-[11px]">Group name (blank to clear)</p>
           <input
             ref={groupInputRef}
@@ -543,7 +563,7 @@ function ThreadActionMenu({
       )}
 
       {menuState.type === 'rename' && (
-        <div className="px-3 py-2">
+        <div data-substate className="px-3 py-2">
           <p className="text-text-muted mb-1.5 text-[11px]">Rename conversation</p>
           <input
             ref={renameInputRef}
