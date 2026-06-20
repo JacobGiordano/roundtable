@@ -5,6 +5,12 @@ interface InputBarProps {
   onSend: (content: string) => void;
   /** When true, the send button and Enter-to-submit are disabled. Atlas sets this. */
   isStreaming?: boolean;
+  /**
+   * Called when the user clicks the stop button. Only active while isStreaming is true.
+   * Wired to the AbortController in App.tsx — aborts all active provider streams.
+   * Issue #159.
+   */
+  onStopMessage?: () => void;
   /** When true, shows the ghost mode SVG indicator. Gate wires this up in a later issue. */
   isGhostMode?: boolean;
   /**
@@ -62,6 +68,23 @@ function GhostIcon() {
   );
 }
 
+/** Stop icon: filled square, 10×10 inside a 16×16 viewport. Used on the stop button. */
+function StopIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Filled square centered in the 16×16 viewport */}
+      <rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** Send arrow icon: right-pointing arrow, 16×16. */
 function SendIcon({ disabled }: { disabled: boolean }) {
   return (
@@ -104,6 +127,7 @@ function getPillAccentStyle(color: string): React.CSSProperties {
 export function InputBar({
   onSend,
   isStreaming = false,
+  onStopMessage,
   isGhostMode = false,
   directedReplyTarget,
   onClearDirectedReply,
@@ -370,6 +394,19 @@ export function InputBar({
           {isGhostMode ? 'Ghost mode on — messages won\'t be saved' : 'Ghost mode off'}
         </span>
 
+        {/* Visually-hidden live region — announces streaming state changes to screen readers.
+            When streaming starts (send button replaced by stop button), announces
+            "Generating response — press Stop to cancel" so keyboard and AT users know
+            the stop affordance is available. Announces when streaming ends so users
+            know the response is complete. Issue #159. */}
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {isStreaming ? 'Generating response — press Stop to cancel' : ''}
+        </span>
+
         {/* Textarea */}
         <textarea
           ref={textareaRef}
@@ -398,26 +435,49 @@ export function InputBar({
           aria-multiline="true"
         />
 
-        {/* Send button — visible area is 36×36px but tap target is expanded to 44×44px
-            via min-w/min-h to meet WCAG 2.5.5 (AAA) and iOS HIG touch target guidelines.
-            The visual button uses w-9 h-9 (36px); the extra area is transparent padding. */}
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          aria-label="Send message"
-          className={[
-            'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
-            'flex items-center justify-center',
-            'transition-[background-color,filter,transform] duration-fast',
-            canSend
-              ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
-              : 'bg-hover cursor-not-allowed opacity-50',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-          ].join(' ')}
-        >
-          <SendIcon disabled={!canSend} />
-        </button>
+        {/* Stop button — shown only while streaming is active, replacing the send button.
+            Calls onStopMessage() which signals the AbortController in App.tsx.
+            Atlas guarantees a clean isDone chunk on abort so no partial-message
+            cleanup is needed here. Tap target meets WCAG 2.5.5 (44×44px minimum).
+            Issue #159. */}
+        {isStreaming && onStopMessage ? (
+          <button
+            type="button"
+            onClick={onStopMessage}
+            aria-label="Stop generating"
+            className={[
+              'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
+              'flex items-center justify-center',
+              'bg-hover hover:brightness-110 active:brightness-90 active:scale-[0.96]',
+              'text-text-secondary hover:text-text-primary',
+              'transition-[background-color,filter,transform] duration-fast cursor-pointer',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          >
+            <StopIcon />
+          </button>
+        ) : (
+          /* Send button — visible area is 36×36px but tap target is expanded to 44×44px
+              via min-w/min-h to meet WCAG 2.5.5 (AAA) and iOS HIG touch target guidelines.
+              The visual button uses w-9 h-9 (36px); the extra area is transparent padding. */
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label="Send message"
+            className={[
+              'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
+              'flex items-center justify-center',
+              'transition-[background-color,filter,transform] duration-fast',
+              canSend
+                ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
+                : 'bg-hover cursor-not-allowed opacity-50',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            ].join(' ')}
+          >
+            <SendIcon disabled={!canSend} />
+          </button>
+        )}
       </div>
     </div>
   );

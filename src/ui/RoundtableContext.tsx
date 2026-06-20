@@ -22,6 +22,7 @@ import type {
   ModelConfig,
   ModelId,
   SessionTokenUsage,
+  StopMessageFn,
   TokenCountVisibility,
 } from '@/types';
 
@@ -67,6 +68,12 @@ export interface RoundtableContextValue {
   isStreaming: boolean;
   directedReplyTarget: ModelConfig | undefined;
   onClearDirectedReply: () => void;
+  /**
+   * Abort all active streams for the current fan-out. No-op before any send
+   * and after all streams settle. Wired to the stop button in InputBar.
+   * Type: StopMessageFn (from @/types — Atlas-declared, Aria-consumed).
+   */
+  stopMessage: StopMessageFn;
 
   // ── Model selector (ModelSelectorPanel) ─────────────────────────────────
   onToggleModel: (modelId: ModelId) => void;

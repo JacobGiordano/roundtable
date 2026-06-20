@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster } from '@/types';
+import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
 // useStreamingMessages: UI-owned hook for in-flight streaming accumulation (#158).
@@ -178,6 +178,23 @@ export default function App() {
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
   const sessionUsage = activeConversation ? getSessionTokenUsage(activeConversation) : [];
 
+  // ── Streaming cancellation (#159) ─────────────────────────────────────────
+  // abortControllerRef holds the AbortController for the in-flight sendMessage
+  // call. Created just before each sendMessage call; cleared when the promise
+  // resolves (stream done OR aborted). Stored in a ref (not state) so changes
+  // do not trigger re-renders — the stop button visibility is driven by
+  // isStreaming (derived from streaming messages state), not by this ref.
+  //
+  // handleStopMessage is the stable StopMessageFn passed through context. It
+  // aborts via the ref so it never goes stale. No-op before any send and after
+  // all streams settle (ref is null). useCallback with [] gives a stable
+  // reference for the entire lifetime of App — context consumers do not
+  // re-render merely because a send started.
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const handleStopMessage = useCallback<StopMessageFn>(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
   // ── Streaming state (useStreamingMessages hook, #158) ─────────────────────
   // Persistence callback supplied by App so the hook stays agnostic about
   // @/storage, ghost-mode, and conversation-store internals.
@@ -292,6 +309,14 @@ export default function App() {
     // from each ModelConfig.systemPrompt on the conversation's models array.
     // handleChunk(sendingConversationId) returns a stable per-send callback that
     // accumulates chunks and calls onMessageComplete when isDone — see #158.
+    //
+    // AbortController lifecycle (#159): create a fresh controller per send.
+    // The signal is threaded into SendMessageOptions so Atlas can abort all
+    // in-flight provider streams when the user clicks stop. The controller is
+    // cleared in the finally block so abortControllerRef never holds a stale
+    // controller after the fan-out resolves (whether normally or via abort).
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     void sendMessage(
       {
         conversationId: sendingConversationId,
@@ -299,9 +324,14 @@ export default function App() {
         // Thread targetModelId into SendMessageOptions so Atlas routes to only that model.
         targetModelId: pendingTargetModelId ?? undefined,
         conversation: updatedConversation,
+        signal: controller.signal,
       },
       handleChunk(sendingConversationId),
-    );
+    ).finally(() => {
+      // Clear the ref when the stream settles (done or aborted) so
+      // handleStopMessage becomes a safe no-op again.
+      abortControllerRef.current = null;
+    });
   };
 
   const handleNewConversation = () => {
@@ -560,6 +590,7 @@ export default function App() {
         isStreaming: anyStreaming,
         directedReplyTarget,
         onClearDirectedReply: handleClearDirectedReply,
+        stopMessage: handleStopMessage,
         onToggleModel: handleToggleModel,
         onAddModel: handleAddModel,
         onUpdateSystemPrompt: handleUpdateSystemPrompt,

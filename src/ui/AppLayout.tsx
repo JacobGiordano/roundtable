@@ -61,6 +61,7 @@ export function AppLayout({ onSend }: AppLayoutProps) {
     isStreaming,
     directedReplyTarget,
     onClearDirectedReply,
+    stopMessage,
     onToggleModel,
     onAddModel,
     onUpdateSystemPrompt,
@@ -419,6 +420,7 @@ export function AppLayout({ onSend }: AppLayoutProps) {
           <InputBar
             onSend={onSend}
             isStreaming={isStreaming}
+            onStopMessage={stopMessage}
             isGhostMode={isGhostMode}
             directedReplyTarget={directedReplyTarget}
             onClearDirectedReply={onClearDirectedReply}
