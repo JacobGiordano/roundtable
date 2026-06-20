@@ -39,7 +39,17 @@
  * so we use Vitest-native assertions only. Pattern:
  *   "element present"   → screen.getBy...() — throws if absent (presence IS assertion)
  *   "element absent"    → expect(screen.queryBy...()).toBeNull()
- *   "text content"      → expect(el.textContent).toContain('...')
+ *   "text content"      → screen.getByText(...) rather than expect(el.textContent).toContain(...)
+ *
+ * Note on sub-state selectors: issue #241 (Aria) will restructure ThreadActionMenu
+ * so that sub-state panels (confirm-delete, group-input, rename) are rendered as
+ * siblings of role="menu" rather than children of it. This fixes the
+ * aria-required-children WCAG violation. As a result, within(menu).getBy*() queries
+ * that reach into sub-state content will break after #241 lands. Sub-state queries
+ * in this file use document-scoped screen.getBy*() — they work on both the current
+ * DOM layout (sub-states inside role="menu") and the post-#241 layout (sub-states
+ * outside role="menu"). within(menu) is still correct for querying menuitems
+ * (which always live inside role="menu" in both layouts).
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
@@ -163,13 +173,20 @@ describe('ThreadActionMenu state transitions', () => {
     // After clicking Delete, the menu transitions to the confirm-delete sub-state.
     // The confirm-delete sub-state renders "Delete this conversation?" and two
     // action buttons (not menuitems): Cancel and Delete.
-    expect(menu.textContent).toContain('Delete this conversation?');
+    //
+    // NOTE: #241 will restructure the DOM so that sub-state panels are rendered
+    // *outside* the role="menu" element (fixing aria-required-children). These
+    // selectors use screen.getBy* (document-scoped) rather than within(menu)
+    // so they survive the restructure — the sub-state content is reachable in
+    // the document regardless of whether it lives inside or beside the menu element.
+    screen.getByText(/delete this conversation\?/i);
 
-    // Confirm-state buttons are present
-    within(menu).getByRole('button', { name: /cancel/i });
-    within(menu).getByRole('button', { name: /^delete$/i });
+    // Confirm-state buttons are present (document-scoped — survive #241 restructure)
+    screen.getByRole('button', { name: /cancel/i });
+    screen.getByRole('button', { name: /^delete$/i });
 
-    // The top-level menuitems are gone (replaced by the sub-state)
+    // The top-level menuitems are gone (replaced by the sub-state).
+    // menuitems always live inside role="menu" — within(menu) is correct here.
     expect(within(menu).queryAllByRole('menuitem')).toHaveLength(0);
   });
 
@@ -184,12 +201,16 @@ describe('ThreadActionMenu state transitions', () => {
 
     // After clicking "Move to group…", the menu transitions to the group-input sub-state.
     // A text input for the group name appears.
-    within(menu).getByRole('textbox');
+    //
+    // NOTE: #241 will move sub-state panels outside the role="menu" element. Use
+    // document-scoped screen.getBy* so these selectors survive the restructure.
+    screen.getByRole('textbox');
 
-    // The group name prompt text is visible
-    expect(menu.textContent).toContain('Group name');
+    // The group name prompt text is visible (document-scoped — survive #241 restructure)
+    screen.getByText(/group name/i);
 
-    // Top-level menuitems are replaced by the input sub-state
+    // Top-level menuitems are replaced by the input sub-state.
+    // menuitems always live inside role="menu" — within(menu) is correct here.
     expect(within(menu).queryAllByRole('menuitem')).toHaveLength(0);
   });
 
@@ -206,10 +227,14 @@ describe('ThreadActionMenu state transitions', () => {
     const menu = screen.getByRole('menu', { name: /conversation actions/i });
     const deleteBtn = within(menu).getByRole('menuitem', { name: /^delete$/i });
     fireEvent.click(deleteBtn);
-    expect(menu.textContent).toContain('Delete this conversation?');
+    // Confirm-delete text is visible in the document (sub-state may be outside
+    // role="menu" after #241 restructure — use document-scoped query).
+    screen.getByText(/delete this conversation\?/i);
 
-    // Click Cancel in the confirm-delete sub-state
-    const cancelBtn = within(menu).getByRole('button', { name: /cancel/i });
+    // Click Cancel in the confirm-delete sub-state.
+    // Document-scoped: Cancel is unambiguous here (BulkActionBar is not active).
+    // Survives #241 restructure where the sub-state panel moves outside role="menu".
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i });
     fireEvent.click(cancelBtn);
 
     // After Cancel, ThreadActionMenu is unmounted (onClose → menuOpen=false).
