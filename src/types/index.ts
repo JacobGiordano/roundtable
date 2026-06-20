@@ -132,13 +132,13 @@ export interface TokenUsage {
 /**
  * Running session totals for a single model. Aria reads this to display
  * per-model usage in the UI (issue #15 / #16).
+ *
+ * Defined as a `TokenUsage` intersection to eliminate field duplication (#144).
+ * The shape is structurally identical to the previous explicit definition —
+ * all existing object literals `{ modelId, inputTokens, outputTokens, totalTokens }`
+ * continue to satisfy this type without modification.
  */
-export interface SessionTokenUsage {
-  modelId: ModelId;
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-}
+export type SessionTokenUsage = { modelId: ModelId } & TokenUsage;
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
