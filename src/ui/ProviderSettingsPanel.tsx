@@ -17,6 +17,32 @@ import {
 // Replaces the inline getProviderDotColor function in this file.
 import { getModelAccentCssValue } from './utils/modelColor';
 
+// ─── Credential-test support ──────────────────────────────────────────────────
+
+/**
+ * Credential keys for which live provider testing is available.
+ * Derived from credentialTest.ts PROVIDER_TEST_CONFIGS (Gate owns that file;
+ * this local set is the cross-agent contract boundary).
+ *
+ * When Gate exports testCredential from @/auth, wire the Test button handler
+ * below to call it. Until then the enabled Test button shows a "not yet wired"
+ * state. Issue #238 tracks full credential-test wiring.
+ */
+const TESTABLE_CREDENTIAL_KEYS = new Set([
+  'anthropic',
+  'openai',
+  'google',
+  'xai',
+  'deepseek',
+  'mistral',
+]);
+
+/** Returns true when a live API test is available for the given credential key. */
+function isCredentialTestable(credentialKey: string | undefined): boolean {
+  if (!credentialKey) return false;
+  return TESTABLE_CREDENTIAL_KEYS.has(credentialKey);
+}
+
 // ─── Built-in model metadata ───────────────────────────────────────────────────
 
 /**
@@ -88,6 +114,133 @@ function ApiKeyBadge({ state }: { state: BadgeState }) {
     <span className="text-[11px] font-medium text-text-muted bg-hover rounded-full px-2 py-0.5 flex-shrink-0">
       No key required
     </span>
+  );
+}
+
+// ─── Test button ──────────────────────────────────────────────────────────────
+
+interface TestButtonProps {
+  credentialKey: string;
+  providerName: string;
+}
+
+/**
+ * Test button for verifying a stored API key against the provider's live endpoint.
+ *
+ * For unsupported providers (keyless custom endpoints), the button is disabled
+ * and shows a tooltip explaining why and suggesting an alternative (#240).
+ *
+ * For supported providers, the button is enabled. Full test call wiring
+ * is pending Gate exporting testCredential from @/auth (#238).
+ *
+ * Tooltip pattern: identical to InteractionModeSwitcher.tsx — 600ms hover
+ * intentionality delay, immediate on focus, aria-describedby on the trigger.
+ */
+function TestButton({ credentialKey, providerName }: TestButtonProps) {
+  const canTest = isCredentialTestable(credentialKey);
+  const tooltipId = `test-btn-tooltip-${credentialKey.replace(/[^a-z0-9]/gi, '-')}`;
+
+  // Tooltip show/hide with 600ms hover delay (tooltip.md §1).
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (canTest) return; // No tooltip for supported providers.
+    hoverTimerRef.current = setTimeout(() => setIsTooltipVisible(true), 600);
+  }, [canTest]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current !== null) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsTooltipVisible(false);
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    if (canTest) return;
+    if (hoverTimerRef.current !== null) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsTooltipVisible(true);
+  }, [canTest]);
+
+  const handleBlur = useCallback(() => {
+    setIsTooltipVisible(false);
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setIsTooltipVisible(false);
+  }, []);
+
+  // Cleanup timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
+
+  return (
+    // Wrapper div carries mouse events so tooltip shows when hovering the
+    // disabled button (pointer-events:none on disabled prevents mouseenter).
+    <div
+      className="relative w-fit"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        type="button"
+        disabled={!canTest}
+        aria-label={`Test ${providerName} API key`}
+        aria-describedby={!canTest ? tooltipId : undefined}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className={[
+          'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+          'border border-border',
+          'transition-colors duration-fast',
+          canTest
+            ? [
+                'text-text-secondary',
+                'hover:text-text-primary hover:border-border-strong',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')
+            : [
+                'text-text-muted opacity-50 cursor-not-allowed',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' '),
+        ].join(' ')}
+      >
+        Test
+      </button>
+
+      {/* Tooltip — shown for unsupported providers only */}
+      {!canTest && (
+        <div
+          id={tooltipId}
+          role="tooltip"
+          className={[
+            'absolute bottom-full left-0 mb-2',
+            'w-max max-w-[240px]',
+            'bg-sidebar border border-border rounded-sm shadow-md',
+            'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
+            'pointer-events-none',
+            'transition-opacity duration-fast',
+            'z-20',
+            isTooltipVisible ? 'opacity-100' : 'opacity-0',
+          ].join(' ')}
+        >
+          Key testing isn&apos;t available for this provider. Start a conversation to verify your connection.
+          {/* Caret */}
+          <span
+            className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+            aria-hidden="true"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -384,7 +537,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   onClick={() => setKeyRevealed((v) => !v)}
                   aria-label={keyRevealed ? 'Hide key' : 'Show key'}
                   tabIndex={-1}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors duration-fast focus-visible:outline-none"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors duration-fast focus:outline-none"
                 >
                   {keyRevealed ? (
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -398,10 +551,12 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   )}
                 </button>
               </div>
-              {/* Edit / Clear buttons */}
+              {/* Test / Edit / Clear buttons — each on their own stable row */}
+              <TestButton credentialKey={credentialKey} providerName={name} />
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  aria-label={`Edit API key for ${name}`}
                   onClick={handleOpenKeyEditor}
                   className={[
                     'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
@@ -608,8 +763,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
           {/* ── Inline key editor (expands below row) ─────────────────── */}
           {isEditingKey && (
             <div className="mt-2 pb-3">
-              {/* Password input with show/hide toggle */}
-              <div className="relative flex items-center">
+              {/* Password input — full-width, eye toggle overlaid absolutely */}
+              <div className="relative w-full">
                 <input
                   ref={keyInputRef}
                   id={`key-input-${id}`}
@@ -623,7 +778,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   }}
                   placeholder="Enter new API key"
                   className={[
-                    'flex-1 h-9 rounded-md text-[13px] text-text-primary placeholder:text-text-muted',
+                    'w-full h-9 rounded-md text-[13px] text-text-primary placeholder:text-text-muted',
                     'bg-input border border-border',
                     'focus:outline-none focus:border-border-strong',
                     'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
