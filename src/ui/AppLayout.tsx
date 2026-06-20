@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, SessionTokenUsage, TokenCountVisibility } from '@/types';
 import { MessageThread } from './MessageThread';
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
@@ -8,177 +7,72 @@ import { ModelSelectorPanel } from './ModelSelectorPanel';
 import { RoundtableLogo } from './RoundtableLogo';
 import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 import { OnboardingEmptyState } from './OnboardingEmptyState';
+import { useRoundtable } from './RoundtableContext';
 
 // Module-level constant — safe for SSR/test environments (navigator may be undefined).
 // Used to show platform-appropriate keyboard shortcut hint in button labels and tooltips.
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
 
+/**
+ * AppLayoutProps: only props that AppLayout owns locally.
+ *
+ * All App-level state (conversations, models, messages, callbacks) is now
+ * consumed via useRoundtable() rather than threaded through props. The only
+ * prop remaining is onSend — it is kept as a prop because it is a
+ * render-time closure that captures App's streaming accumulator ref and
+ * cannot be meaningfully serialised into a context value without losing
+ * its closure over the ref. The alternative (putting handleSend in context)
+ * would require wrapping it in useCallback with every state dependency, and
+ * any new state added to App would require updating the context value type.
+ * Keeping it as a direct prop is the simpler, more explicit choice.
+ */
 interface AppLayoutProps {
-  conversations: Conversation[];
-  activeConversationId: string | null;
-  activeModels: ModelConfig[];
-  /** Full model list for the active conversation (active + inactive). */
-  allModels: ModelConfig[];
-  messages: Message[];
-  /**
-   * In-flight streaming messages for the active conversation.
-   * Keyed externally by `${conversationId}:${modelId}` in App; threaded here
-   * as a flat array for MessageThread to append after persisted messages.
-   * Cleared from this array when isDone — at that point the message is in `messages`.
-   */
-  streamingMessages?: Message[];
-  isStreaming?: boolean;
-  isGhostMode?: boolean;
-  /** Called when the user clicks the ghost mode toggle button. */
-  onToggleGhostMode?: () => void;
   onSend: (content: string) => void;
-  onSelectConversation: (id: string) => void;
-  onNewConversation: () => void;
-  onRetry?: (messageId: string) => void;
-  /** Called when user toggles a model pill on/off. */
-  onToggleModel: (modelId: ModelId) => void;
-  /** Called when user adds an inactive model back into the active set. */
-  onAddModel: (modelId: ModelId) => void;
-  /** Current interaction mode for the active conversation. */
-  activeMode: InteractionMode;
-  /** Called when the user switches interaction modes. Parent persists the change. */
-  onModeChange: (mode: InteractionMode) => void;
-  /** Called when user edits or clears a per-model system prompt. */
-  onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
-  /**
-   * Called when the user selects a model version in the per-model version picker.
-   * App persists to Gate and updates ModelConfig.selectedVersionId in state.
-   */
-  onSelectModelVersion: (modelId: ModelId, versionId: string) => void;
-  /**
-   * Called when the user resets a model's version to provider default.
-   * App calls clearModelVersion (Gate) and sets selectedVersionId to undefined in state.
-   */
-  onClearModelVersion: (modelId: ModelId) => void;
-  /**
-   * Per-model token usage totals for the current conversation session.
-   * Passed through to ModelSelectorPanel for display in the slide-up panel.
-   */
-  sessionUsage: SessionTokenUsage[];
-  /**
-   * When set, the InputBar shows a directed-reply pill for this model.
-   * App owns this state; AppLayout threads it through to InputBar and MessageThread.
-   */
-  directedReplyTarget?: ModelConfig;
-  /** Called when user clicks "Reply to [Model]" on a bubble. Sets the directed-reply target. */
-  onDirectedReply: (modelId: ModelId) => void;
-  /** Called when user clicks × on the directed-reply pill to clear the target. */
-  onClearDirectedReply: () => void;
-  /**
-   * Controls token count rendering per UserPreferences.tokenCountVisibility.
-   * Threaded from App → AppLayout → MessageThread and ModelSelectorPanel.
-   * Defaults to 'active' when omitted.
-   */
-  tokenCountVisibility?: TokenCountVisibility;
-  /**
-   * True while the initial conversation list load is in flight.
-   * Threaded from App (useConversationStore) → AppLayout → Sidebar.
-   */
-  isConversationsLoading?: boolean;
-  /**
-   * Set when a storage operation fails (e.g. quota exceeded).
-   * Threaded from App (useConversationStore) → AppLayout → Sidebar.
-   */
-  conversationStoreError?: Error | null;
-  /**
-   * Called when the user picks an export format from the ExportButton popover.
-   * Threaded from App → AppLayout → MessageThread → ExportButton.
-   * Omit to hide the export button (e.g. when no active conversation exists).
-   */
-  onExportConversation?: (format: ExportFormat) => void;
-  /** Archive a single conversation. Threaded App → AppLayout → Sidebar. */
-  onArchiveConversation?: (id: string) => void;
-  /** Unarchive a single conversation. Threaded App → AppLayout → Sidebar. */
-  onUnarchiveConversation?: (id: string) => void;
-  /** Permanently delete a single conversation. Threaded App → AppLayout → Sidebar. */
-  onDeleteConversation?: (id: string) => void;
-  /** Assign or clear a group on a conversation. Threaded App → AppLayout → Sidebar. */
-  onSetConversationGroup?: (id: string, groupId: string | undefined) => void;
-  /** Rename a conversation. Threaded App → AppLayout → Sidebar. */
-  onRenameConversation?: (id: string, newTitle: string) => void;
-  /** Archive multiple conversations. Threaded App → AppLayout → Sidebar. */
-  onBulkArchive?: (ids: string[]) => void;
-  /** Delete multiple conversations. Threaded App → AppLayout → Sidebar. */
-  onBulkDelete?: (ids: string[]) => void;
-  /**
-   * True when the ProviderRoster is empty (no built-in or custom providers configured).
-   * When true, the conversation column body is replaced by OnboardingEmptyState.
-   * Derived in App from getProviderRoster().length === 0 — see #100.
-   * When false (or omitted), the normal MessageThread renders.
-   */
-  isRosterEmpty?: boolean;
-  /**
-   * Called whenever the ProviderSettingsPanel closes, giving App a chance to
-   * re-read the roster and update isRosterEmpty. This is the simplest subscription
-   * model: Gate exposes sync-only CRUD; AppLayout notifies App on panel close.
-   */
-  onRosterChange?: () => void;
-  /**
-   * When set, the InputBar is in edit mode — pre-filled with the original message
-   * content. MessageThread shows the edit button on user bubbles. App owns this
-   * state; AppLayout threads it to InputBar and MessageThread (#162).
-   */
-  editingMessage?: { messageIndex: number; originalContent: string };
-  /**
-   * Called when user clicks the edit button on a user message bubble (#162).
-   * Receives the 0-based index of the message in the conversation's messages array.
-   * App uses this to set editingMessage state.
-   */
-  onEditMessage?: (messageIndex: number) => void;
-  /**
-   * Called when user clicks Cancel in InputBar edit mode or presses Escape (#162).
-   * App clears editingMessage state.
-   */
-  onCancelEdit?: () => void;
 }
 
-export function AppLayout({
-  conversations,
-  activeConversationId,
-  activeModels,
-  allModels,
-  messages,
-  streamingMessages,
-  isStreaming = false,
-  isGhostMode = false,
-  onToggleGhostMode,
-  onSend,
-  onSelectConversation,
-  onNewConversation,
-  onRetry,
-  onToggleModel,
-  onAddModel,
-  activeMode,
-  onModeChange,
-  onUpdateSystemPrompt,
-  onSelectModelVersion,
-  onClearModelVersion,
-  sessionUsage,
-  directedReplyTarget,
-  onDirectedReply,
-  onClearDirectedReply,
-  tokenCountVisibility,
-  isConversationsLoading,
-  conversationStoreError,
-  onExportConversation,
-  onArchiveConversation,
-  onUnarchiveConversation,
-  onDeleteConversation,
-  onSetConversationGroup,
-  onRenameConversation,
-  onBulkArchive,
-  onBulkDelete,
-  isRosterEmpty = false,
-  onRosterChange,
-  editingMessage,
-  onEditMessage,
-  onCancelEdit,
-}: AppLayoutProps) {
+export function AppLayout({ onSend }: AppLayoutProps) {
+  const {
+    conversations,
+    activeConversationId,
+    isConversationsLoading,
+    conversationStoreError,
+    onSelectConversation,
+    onNewConversation,
+    onArchiveConversation,
+    onUnarchiveConversation,
+    onDeleteConversation,
+    onSetConversationGroup,
+    onRenameConversation,
+    onBulkArchive,
+    onBulkDelete,
+    isGhostMode,
+    onToggleGhostMode,
+    messages,
+    streamingMessages,
+    activeModels,
+    allModels,
+    onRetry,
+    onDirectedReply,
+    tokenCountVisibility,
+    onExportConversation,
+    onEditMessage,
+    editingMessage,
+    onCancelEdit,
+    isStreaming,
+    directedReplyTarget,
+    onClearDirectedReply,
+    onToggleModel,
+    onAddModel,
+    onUpdateSystemPrompt,
+    onSelectModelVersion,
+    onClearModelVersion,
+    sessionUsage,
+    activeMode,
+    onModeChange,
+    isRosterEmpty,
+    onRosterChange,
+  } = useRoundtable();
+
   // Mobile drawer state — controls the Sidebar slide-in overlay on small screens.
   // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -203,7 +97,7 @@ export function AppLayout({
     // Notify App that the panel closed so it can re-read the roster.
     // This is the roster subscription mechanism: Gate is sync-only, so App
     // learns about roster changes by rechecking on panel close.
-    onRosterChange?.();
+    onRosterChange();
   }, [onRosterChange]);
 
   const handleOpenMobileMenu = useCallback(() => setIsMobileMenuOpen(true), []);

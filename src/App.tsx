@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StreamChunk } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
+import { RoundtableContext } from '@/ui/RoundtableContext';
 // Cross-agent exception: sendMessage, getSessionTokenUsage, and MODEL_REGISTRY
 // are pure utilities exported from @/models per the documented exception in
 // CLAUDE.md. MODEL_REGISTRY is the static display-metadata registry Atlas
@@ -573,48 +574,50 @@ export default function App() {
   );
 
   return (
-    <AppLayout
-      conversations={store.conversations}
-      activeConversationId={store.activeConversationId}
-      activeModels={activeModels}
-      allModels={models}
-      messages={messages}
-      streamingMessages={activeStreamingMessages}
-      isStreaming={anyStreaming}
-      isGhostMode={isGlobalGhostMode}
-      onToggleGhostMode={handleToggleGhostMode}
-      onSend={handleSend}
-      onSelectConversation={handleSelectConversation}
-      onNewConversation={handleNewConversation}
-      onToggleModel={handleToggleModel}
-      onAddModel={handleAddModel}
-      activeMode={activeConversation?.interactionMode ?? 'parallel'}
-      onModeChange={handleModeChange}
-      onUpdateSystemPrompt={handleUpdateSystemPrompt}
-      onSelectModelVersion={handleSelectModelVersion}
-      onClearModelVersion={handleClearModelVersion}
-      sessionUsage={sessionUsage}
-      directedReplyTarget={directedReplyTarget}
-      onDirectedReply={handleDirectedReply}
-      onClearDirectedReply={handleClearDirectedReply}
-      tokenCountVisibility={tokenCountVisibility}
-      isConversationsLoading={store.isLoading}
-      conversationStoreError={store.storageError}
-      onExportConversation={
-        store.activeConversationId ? handleExportConversation : undefined
-      }
-      onArchiveConversation={handleArchiveConversation}
-      onUnarchiveConversation={handleUnarchiveConversation}
-      onDeleteConversation={handleDeleteConversation}
-      onSetConversationGroup={handleSetConversationGroup}
-      onRenameConversation={handleRenameConversation}
-      onBulkArchive={handleBulkArchive}
-      onBulkDelete={handleBulkDelete}
-      isRosterEmpty={isRosterEmpty}
-      onRosterChange={handleRosterChange}
-      editingMessage={editingMessage ?? undefined}
-      onEditMessage={handleEditMessage}
-      onCancelEdit={handleCancelEdit}
-    />
+    <RoundtableContext.Provider
+      value={{
+        conversations: store.conversations,
+        activeConversationId: store.activeConversationId,
+        isConversationsLoading: store.isLoading,
+        conversationStoreError: store.storageError,
+        onSelectConversation: handleSelectConversation,
+        onNewConversation: handleNewConversation,
+        onArchiveConversation: handleArchiveConversation,
+        onUnarchiveConversation: handleUnarchiveConversation,
+        onDeleteConversation: handleDeleteConversation,
+        onSetConversationGroup: handleSetConversationGroup,
+        onRenameConversation: handleRenameConversation,
+        onBulkArchive: handleBulkArchive,
+        onBulkDelete: handleBulkDelete,
+        isGhostMode: isGlobalGhostMode,
+        onToggleGhostMode: handleToggleGhostMode,
+        messages,
+        streamingMessages: activeStreamingMessages,
+        activeModels,
+        allModels: models,
+        onRetry: () => { /* stub — retry not yet wired */ },
+        onDirectedReply: handleDirectedReply,
+        tokenCountVisibility,
+        onExportConversation: store.activeConversationId ? handleExportConversation : undefined,
+        onEditMessage: handleEditMessage,
+        editingMessage: editingMessage ?? undefined,
+        onCancelEdit: handleCancelEdit,
+        isStreaming: anyStreaming,
+        directedReplyTarget,
+        onClearDirectedReply: handleClearDirectedReply,
+        onToggleModel: handleToggleModel,
+        onAddModel: handleAddModel,
+        onUpdateSystemPrompt: handleUpdateSystemPrompt,
+        onSelectModelVersion: handleSelectModelVersion,
+        onClearModelVersion: handleClearModelVersion,
+        sessionUsage,
+        activeMode: activeConversation?.interactionMode ?? 'parallel',
+        onModeChange: handleModeChange,
+        isRosterEmpty,
+        onRosterChange: handleRosterChange,
+      }}
+    >
+      <AppLayout onSend={handleSend} />
+    </RoundtableContext.Provider>
   );
 }
