@@ -48,6 +48,7 @@
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
+    "SLACK_WEBHOOK_URL": "${localEnv:SLACK_WEBHOOK_URL}",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "DISABLE_AUTOUPDATER": "1",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
