@@ -175,7 +175,7 @@ describe('FakeAbortableProvider — direct abort behavior', () => {
     try {
       await provider.sendMessage([], undefined, acc.onChunk, undefined, controller.signal);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if ((err as { name?: string })?.name === 'AbortError') {
         threw = true;
       }
     }
@@ -187,31 +187,19 @@ describe('FakeAbortableProvider — direct abort behavior', () => {
   });
 
   it('emits partial content then a clean done chunk when aborted mid-stream', async () => {
-    const controller = new AbortController();
-
-    const provider = new FakeAbortableProvider('claude', ['Hello', ' world']);
-    const acc = new ChunkAccumulator();
-
-    // Abort after first chunk is "emitted" by simulating signal.aborted state.
-    // We do this by aborting before calling sendMessage but intercepting mid-way.
-    // The FakeAbortableProvider checks signal.aborted in its loop.
-    // We set up a provider that yields chunks then aborts.
-    const interceptingProvider = new FakeAbortableProvider('claude', ['Hello']);
+    // Test mid-stream abort: the provider emits one chunk, then aborts the signal
+    // itself (simulating signal firing mid-stream), emits a clean done chunk with
+    // partial token usage, and re-throws AbortError.
+    const controller2 = new AbortController();
     const interceptAcc = new ChunkAccumulator();
 
-    // Abort the signal before calling — but provider emits its first chunk
-    // synchronously before checking, so we need the abort to happen in the loop.
-    // To test mid-stream abort cleanly: abort after the call starts.
-    // Use a provider that aborts on second check.
-
-    // Simpler approach: test the full abort-mid-stream behavior by aborting
-    // right before the provider's loop check.
-    const controller2 = new AbortController();
-    let chunksEmitted = 0;
-
-    const midStreamProvider: ModelProvider = {
+    // Inline provider with extended signature (5 params). The ModelProvider
+    // interface declares 3 params; the optional 4th (selectedVersionId) and 5th
+    // (signal) are accepted by all concrete providers via VersionAwareProvider.
+    // We bypass the interface type here to call with the full signature.
+    const midStreamProvider = {
       config: {
-        modelId: 'claude',
+        modelId: 'claude' as const,
         name: 'MidStreamFake',
         color: 'gray',
         credentialKey: 'anthropic',
@@ -222,10 +210,9 @@ describe('FakeAbortableProvider — direct abort behavior', () => {
         onChunk2: StreamHandler,
         _v?: string,
         sig?: AbortSignal
-      ) {
+      ): Promise<{ tokenUsage?: import('@/types').TokenUsage }> {
         // Emit first chunk
         onChunk2({ modelId: 'claude', content: 'Hello', isDone: false });
-        chunksEmitted++;
 
         // Abort here — simulates signal firing mid-stream
         controller2.abort();
@@ -248,11 +235,12 @@ describe('FakeAbortableProvider — direct abort behavior', () => {
     };
 
     // Simulate runProviderIsolated behavior:
+    // Call with 5 args (the full VersionAwareProvider signature).
     let abortCaught = false;
     try {
       await midStreamProvider.sendMessage([], undefined, interceptAcc.onChunk, undefined, controller2.signal);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if ((err as { name?: string })?.name === 'AbortError') {
         abortCaught = true;
       }
     }
@@ -266,7 +254,6 @@ describe('FakeAbortableProvider — direct abort behavior', () => {
     expect(interceptAcc.doneChunks[0].error).toBeUndefined();
     expect(interceptAcc.doneChunks[0].tokenUsage).toBeDefined();
     expect(interceptAcc.doneChunks[0].tokenUsage?.outputTokens).toBe(2);
-    void acc; // unused, silence lint
   });
 });
 
@@ -509,7 +496,7 @@ describe('runProviderIsolated — AbortError swallowed, never becomes error chun
     try {
       await abortingProvider.sendMessage([], undefined, acc.onChunk);
     } catch (err) {
-      if (!(err instanceof Error && err.name === 'AbortError')) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
         // Not an abort error — would emit error chunk in real runProviderIsolated.
         throw err;
       }
