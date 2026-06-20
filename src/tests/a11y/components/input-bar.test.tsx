@@ -92,8 +92,21 @@ describe('InputBar — accessibility (#226)', () => {
 //   (b) the stop button exists, is keyboard operable, and has an accessible name
 //   (c) when streaming ends, focus is returned to the textarea (not body)
 //
-// Note: jsdom does not run rAF callbacks automatically in tests. We use
-// vi.useFakeTimers() + vi.runAllTimers() to flush the double-rAF sequence.
+// jsdom does not run rAF callbacks natively. We follow the established project
+// pattern (provider-settings-panel.test.tsx, sidebar-state-machines.test.tsx):
+// stub requestAnimationFrame with a synchronous implementation so callbacks
+// fire immediately during the test. This is safe — tests are isolated and
+// the stub is restored in afterEach via vi.restoreAllMocks() or manually.
+
+/** Replace window.requestAnimationFrame with a synchronous stub for testing. */
+function stubRafSync(): () => void {
+  const original = window.requestAnimationFrame;
+  window.requestAnimationFrame = (cb: FrameRequestCallback) => {
+    cb(performance.now());
+    return 0;
+  };
+  return () => { window.requestAnimationFrame = original; };
+}
 
 describe('InputBar — streaming state accessibility (#244)', () => {
   it('has no axe violations in streaming state (isStreaming + onStopMessage)', async () => {
@@ -147,27 +160,20 @@ describe('InputBar — streaming state accessibility (#244)', () => {
     // This test verifies the core of the #244 fix: the useEffect + stopButtonRef
     // mechanism must move focus to the stop button when the send→stop swap occurs.
     //
-    // Strategy: render in non-streaming state, then rerender in streaming state
-    // and flush the double-rAF. The stop button must hold document focus.
+    // Strategy: render in non-streaming state, rerender in streaming state, then
+    // flush the double-rAF with a synchronous stub. The stop button must hold focus.
     //
-    // jsdom does not implement requestAnimationFrame natively. vitest-environment-jsdom
-    // stubs rAF as a synchronous no-op by default. We use fake timers to control
-    // rAF execution and flush both frames.
-    vi.useFakeTimers();
+    // rAF is stubbed synchronously following the established project pattern from
+    // provider-settings-panel.test.tsx and sidebar-state-machines.test.tsx.
+    const restoreRaf = stubRafSync();
 
     const { rerender } = render(
       <InputBar onSend={vi.fn()} isStreaming={false} onStopMessage={vi.fn()} />,
     );
 
-    // Transition to streaming — this is when the useEffect should fire.
-    rerender(<InputBar onSend={vi.fn()} isStreaming={true} onStopMessage={vi.fn()} />);
-
-    // Flush the double-rAF: two runAllTimers passes are needed because the
-    // first rAF schedules the second, and runAllTimers only processes pending
-    // timers/rAFs at call time.
+    // Transition to streaming — this is when the useEffect fires.
     await act(async () => {
-      vi.runAllTimers();
-      vi.runAllTimers();
+      rerender(<InputBar onSend={vi.fn()} isStreaming={true} onStopMessage={vi.fn()} />);
     });
 
     const stopButton = screen.getByRole('button', { name: /stop generating/i });
@@ -176,37 +182,30 @@ describe('InputBar — streaming state accessibility (#244)', () => {
     // is the active element (focus dropped on unmount).
     expect(document.activeElement).toBe(stopButton);
 
-    vi.useRealTimers();
+    restoreRaf();
   });
 
   it('focus returns to textarea when streaming ends naturally (WCAG 2.4.3 — stop→send swap)', async () => {
     // When isStreaming becomes false, the stop button unmounts and the send button
     // mounts. Without explicit focus management, focus drops to document.body.
-    // This test asserts that a symmetric useEffect (isStreaming === false branch)
-    // returns focus to the textarea when streaming ends — whether by natural
-    // completion or abort.
-    //
-    // CURRENT STATUS: This test is expected to FAIL until Aria implements the
-    // focus-return branch. It is filed as a regression guard so that the fix
-    // can be verified in place. See issue #244.
-    vi.useFakeTimers();
+    // This asserts the symmetric useEffect branch (isStreaming === false with
+    // hasStreamedRef guard) returns focus to the textarea on stream end —
+    // whether by natural completion or abort.
+    const restoreRaf = stubRafSync();
 
     const { rerender } = render(
       <InputBar onSend={vi.fn()} isStreaming={true} onStopMessage={vi.fn()} />,
     );
 
     // Simulate streaming end (natural completion or abort settled).
-    rerender(<InputBar onSend={vi.fn()} isStreaming={false} onStopMessage={vi.fn()} />);
-
     await act(async () => {
-      vi.runAllTimers();
-      vi.runAllTimers();
+      rerender(<InputBar onSend={vi.fn()} isStreaming={false} onStopMessage={vi.fn()} />);
     });
 
     const textarea = screen.getByRole('textbox');
     // Focus must have returned to the textarea — not to body.
     expect(document.activeElement).toBe(textarea);
 
-    vi.useRealTimers();
+    restoreRaf();
   });
 });
