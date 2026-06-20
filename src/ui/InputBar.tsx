@@ -138,7 +138,20 @@ export function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const stopButtonRef = useRef<HTMLButtonElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Focus the stop button when streaming starts — the send button unmounts and the
+  // stop button takes its place, dropping focus to document.body. Double-rAF ensures
+  // the DOM has settled after React's unmount/mount cycle before .focus() fires.
+  // WCAG 2.4.3 — focus must not be lost when a control is replaced. Issue #244.
+  useEffect(() => {
+    if (isStreaming && onStopMessage) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => stopButtonRef.current?.focus());
+      });
+    }
+  }, [isStreaming, onStopMessage]);
 
   // Edit mode: when editingMessage is set, pre-fill the textarea with the original
   // content and move focus to it. Clears when editingMessage becomes null.
@@ -439,9 +452,11 @@ export function InputBar({
             Calls onStopMessage() which signals the AbortController in App.tsx.
             Atlas guarantees a clean isDone chunk on abort so no partial-message
             cleanup is needed here. Tap target meets WCAG 2.5.5 (44×44px minimum).
-            Issue #159. */}
+            ref + useEffect above move focus here when the button mounts (WCAG 2.4.3).
+            Issue #159, #244. */}
         {isStreaming && onStopMessage ? (
           <button
+            ref={stopButtonRef}
             type="button"
             onClick={onStopMessage}
             aria-label="Stop generating"
