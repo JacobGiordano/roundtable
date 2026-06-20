@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship Wave 21 — #158, #236, #237)
+Last updated: 2026-06-20 (ship #177 follow-on — catalog resolver)
 
 ## Current phase
 
@@ -6,36 +6,31 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Three-issue Aria wave (single session):
+**#177 follow-on (Atlas)**: Wired `fetchLiveApiCatalog` and `fetchRemoteCatalog` into a
+structured resolver pattern so Aria can call them from the version picker.
 
-- **#158 (Aria)**: `useStreamingMessages` hook extracted from `App.tsx`. New file
-  `/src/ui/useStreamingMessages.ts`. Hook owns streaming accumulator state, `accumulatorRef`,
-  and chunk-processing logic. App.tsx consumes via `handleChunk(sendingConversationId)` and
-  `handleMessageComplete` callback. Pure refactor — no behavior change.
-
-- **#236 (Aria)**: Sidebar group-input/rename sub-states: Tab/Shift+Tab now cycles within
-  `[data-substate]` panel instead of exiting the menu. Escape closes and returns focus to
-  trigger via double-rAF. WCAG 2.1 SC 2.1.1.
-
-- **#237 (Aria)**: Accent color `<label htmlFor>` / `<button id>` association fixed in both
-  `AddCustomForm` and the edit-provider form. Dynamic id pattern (`edit-accent-color-btn-${id}`)
-  prevents collisions across multiple custom providers.
-
-Ada audit: 1036 passing, 0 failing. Flint: READY TO ADVANCE.
+- `ModelRegistryEntry` in `registry.ts` gains optional `remoteCatalogUrl` and
+  `liveApiEndpoint` fields (interface-only; no built-in registry entries populate them today)
+- `resolveVersionCatalog(entry, apiKey?)` in `catalog.ts`: priority live API → remote → bundled
+- `resolveCustomProviderCatalog(endpoint, key)` in `catalog.ts`: named entry point for
+  custom (non-registry) providers (OpenRouter-style) — delegates to `fetchLiveApiCatalog`
+- Both exported from `models/index.ts` as documented cross-agent exceptions Aria may call
+- 13 new tests in `catalog-fetch.test.ts`; full suite 1048 passing, 7 pre-existing skips
 
 ## Key decisions
 
-- `useStreamingMessages` hook is storage-agnostic — persistence/ghost-mode routing stays in
-  App.tsx via `onMessageComplete` callback to avoid cross-agent boundary violations.
-- `[data-substate]` as the Tab-cycling anchor (not role or class) — stable across sub-state
-  type changes without a lookup table.
+- `resolveVersionCatalog` does NOT fall back to bundled when a remote/live fetch fails —
+  it returns whatever the underlying fetch function returns ([] on error). Callers that
+  want a guaranteed non-empty list must implement their own fallback chain.
+- Custom provider resolver is a thin wrapper, not a new fetch path — keeps the fetch
+  implementation in one place and gives Aria a named boundary to call through.
+- `openrouter.ai` is not on the container firewall allowlist — live API fetch degrades
+  gracefully to [] in dev. Documented in registry.ts JSDoc.
 
 ## Open advisories (filed, not yet addressed)
 
 - #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children violation in sub-states (pre-existing)
 - #238 (Gate/Atlas) — Custom provider credential testing (CORS/keyless edge cases)
-- #237 resolved ✓
-- #236 resolved ✓
 - #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -45,14 +40,13 @@ Ada audit: 1036 passing, 0 failing. Flint: READY TO ADVANCE.
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
 - #159 (Atlas/Aria) — Cancel streaming
-- #158 resolved ✓
 
 ## What's next
 
 Top candidates:
-- Atlas: wire `fetchLiveApiCatalog` / `fetchRemoteCatalog` into version picker (#177 follow-on)
-- Aria/Atlas: #159 (Cancel streaming) — Atlas AbortController first, then Aria stop button
+- Atlas/Aria: #159 (Cancel streaming) — Atlas AbortController first, then Aria stop button
 - Aria: #241 (ThreadActionMenu sub-state role fix) — straightforward structural change
+- Aria: wire `resolveVersionCatalog` into `ModelSelectorPanel` version picker (no issue # yet)
 
 ## Gotchas
 
