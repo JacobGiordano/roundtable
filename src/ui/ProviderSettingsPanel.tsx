@@ -6,6 +6,7 @@ import {
   getProviderRoster,
   addBuiltInProvider,
   addCustomProvider,
+  updateCustomProvider,
   removeProvider,
   hasCredential,
   saveCredentials,
@@ -98,10 +99,11 @@ interface ProviderRowProps {
   provider: ProviderConfig;
   isLast: boolean;
   onRemoved: () => void;
+  onUpdated?: () => void;
   isNew?: boolean;
 }
 
-function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRowProps) {
+function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: ProviderRowProps) {
   const [confirmState, setConfirmState] = useState<RowConfirmState>('idle');
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -115,6 +117,19 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [keyRevealed, setKeyRevealed] = useState(false);
   const keyInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Inline provider editor state (custom providers only) ──────────────────
+  const [isEditingProvider, setIsEditingProvider] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editEndpointUrl, setEditEndpointUrl] = useState('');
+  const [editModelString, setEditModelString] = useState('');
+  const [editAccentColor, setEditAccentColor] = useState('');
+  const [editErrors, setEditErrors] = useState<FormErrors>({});
+  const [editSubmitAttempted, setEditSubmitAttempted] = useState(false);
+  // Ref to the pencil button — focus returns here on Save or Cancel.
+  const editPencilRef = useRef<HTMLButtonElement>(null);
+  // Ref to the display name input — receives focus when the edit form opens.
+  const editDisplayNameRef = useRef<HTMLInputElement>(null);
 
   const name = getProviderName(provider);
   const id = getProviderId(provider);
@@ -184,6 +199,73 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
     }, 200);
   }, [id, onRemoved]);
 
+  // ── Provider edit handlers ─────────────────────────────────────────────────
+
+  // Open the inline provider editor — pre-populate fields from current provider data.
+  const handleOpenProviderEdit = useCallback(() => {
+    if (provider.kind !== 'custom') return;
+    setEditDisplayName(provider.displayName);
+    setEditEndpointUrl(provider.endpointUrl);
+    setEditModelString(provider.modelString);
+    setEditAccentColor(provider.color ?? '');
+    setEditErrors({});
+    setEditSubmitAttempted(false);
+    setIsEditingProvider(true);
+    // Double-rAF: first frame commits the DOM; second ensures focus-visible ring renders.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        editDisplayNameRef.current?.focus();
+      });
+    });
+  }, [provider]);
+
+  // Close the editor and return focus to the pencil button.
+  const handleCancelProviderEdit = useCallback(() => {
+    setIsEditingProvider(false);
+    setEditErrors({});
+    setEditSubmitAttempted(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        editPencilRef.current?.focus();
+      });
+    });
+  }, []);
+
+  // Validate a single field and update editErrors (only when submit has been attempted).
+  const handleEditValidateField = useCallback(
+    (field: keyof FormErrors) => {
+      if (!editSubmitAttempted) return;
+      const newErrors = validateForm(editDisplayName, editEndpointUrl, editModelString);
+      setEditErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
+    },
+    [editSubmitAttempted, editDisplayName, editEndpointUrl, editModelString],
+  );
+
+  // Save the updated provider and close the editor.
+  const handleSaveProviderEdit = useCallback(() => {
+    setEditSubmitAttempted(true);
+    const newErrors = validateForm(editDisplayName, editEndpointUrl, editModelString);
+    if (Object.keys(newErrors).length > 0) {
+      setEditErrors(newErrors);
+      return;
+    }
+    updateCustomProvider(id, {
+      displayName: editDisplayName.trim(),
+      endpointUrl: editEndpointUrl.trim(),
+      modelString: editModelString.trim(),
+      ...(editAccentColor ? { color: editAccentColor } : {}),
+    });
+    onUpdated?.();
+    setIsEditingProvider(false);
+    setEditErrors({});
+    setEditSubmitAttempted(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        editPencilRef.current?.focus();
+      });
+    });
+  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, onUpdated]);
+
   // Move focus to the Cancel button when the row enters a confirm state so
   // keyboard users land on a usable control rather than body (WCAG 2.4.3, #115).
   useEffect(() => {
@@ -241,6 +323,28 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
                 ].join(' ')}
               >
                 Set key
+              </button>
+            )}
+            {/* Pencil button — custom providers only, not while editing key */}
+            {provider.kind === 'custom' && !isEditingKey && (
+              <button
+                ref={editPencilRef}
+                type="button"
+                aria-label={`Edit ${name}`}
+                onClick={handleOpenProviderEdit}
+                className={[
+                  'w-7 h-7 flex items-center justify-center rounded-sm flex-shrink-0 ml-2',
+                  'bg-transparent text-text-muted',
+                  'hover:bg-hover hover:text-text-primary',
+                  'transition-all duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                {/* Pencil icon — 14px stroke-based */}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M9.5 2.5l2 2-7 7H2.5v-2l7-7z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M8 4l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
               </button>
             )}
             <button
@@ -322,6 +426,180 @@ function ProviderRow({ provider, isLast, onRemoved, isNew = false }: ProviderRow
                   ].join(' ')}
                 >
                   Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Inline provider editor (custom providers only) ────────── */}
+          {isEditingProvider && provider.kind === 'custom' && (
+            // onKeyDown: capture Escape here so it closes only the edit form, not
+            // the entire panel. e.nativeEvent.stopImmediatePropagation() prevents the
+            // document-level panel Escape listener from also firing.
+            <div
+              className="mt-2 pb-3 border-t border-border pt-3"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.nativeEvent.stopImmediatePropagation();
+                  handleCancelProviderEdit();
+                }
+              }}
+            >
+              <p className="text-[12px] font-medium text-text-secondary mb-3">Edit provider</p>
+              <div className="flex flex-col gap-4">
+                {/* Display name */}
+                <div>
+                  <label htmlFor={`edit-display-name-${id}`} className="block text-[12px] font-medium text-text-secondary mb-1.5">
+                    Display name
+                  </label>
+                  <input
+                    ref={editDisplayNameRef}
+                    id={`edit-display-name-${id}`}
+                    type="text"
+                    value={editDisplayName}
+                    onChange={(e) => setEditDisplayName(e.target.value)}
+                    onBlur={() => handleEditValidateField('displayName')}
+                    maxLength={40}
+                    className={[
+                      'w-full h-10 px-3 rounded-md text-[14px] text-text-primary placeholder:text-text-muted',
+                      'bg-input border transition-colors duration-fast',
+                      'focus:outline-none focus:border-border-strong',
+                      'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                      editErrors.displayName ? 'border-error' : 'border-border',
+                    ].join(' ')}
+                    placeholder="My Llama Server"
+                  />
+                  {editErrors.displayName ? (
+                    <p role="alert" className="mt-1 text-[11px] text-error">{editErrors.displayName}</p>
+                  ) : null}
+                </div>
+
+                {/* Endpoint URL */}
+                <div>
+                  <label htmlFor={`edit-endpoint-url-${id}`} className="block text-[12px] font-medium text-text-secondary mb-1.5">
+                    Endpoint URL
+                  </label>
+                  <input
+                    id={`edit-endpoint-url-${id}`}
+                    type="url"
+                    value={editEndpointUrl}
+                    onChange={(e) => setEditEndpointUrl(e.target.value)}
+                    onBlur={() => handleEditValidateField('endpointUrl')}
+                    className={[
+                      'w-full h-10 px-3 rounded-md text-[14px] text-text-primary placeholder:text-text-muted',
+                      'bg-input border transition-colors duration-fast',
+                      'focus:outline-none focus:border-border-strong',
+                      'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                      editErrors.endpointUrl ? 'border-error' : 'border-border',
+                    ].join(' ')}
+                    placeholder="https://my-server.example.com/v1"
+                  />
+                  {editErrors.endpointUrl ? (
+                    <p role="alert" className="mt-1 text-[11px] text-error">{editErrors.endpointUrl}</p>
+                  ) : null}
+                </div>
+
+                {/* Model string */}
+                <div>
+                  <label htmlFor={`edit-model-string-${id}`} className="block text-[12px] font-medium text-text-secondary mb-1.5">
+                    Model string
+                  </label>
+                  <input
+                    id={`edit-model-string-${id}`}
+                    type="text"
+                    value={editModelString}
+                    onChange={(e) => setEditModelString(e.target.value)}
+                    onBlur={() => handleEditValidateField('modelString')}
+                    className={[
+                      'w-full h-10 px-3 rounded-md text-[14px] text-text-primary placeholder:text-text-muted',
+                      'bg-input border transition-colors duration-fast',
+                      'focus:outline-none focus:border-border-strong',
+                      'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                      editErrors.modelString ? 'border-error' : 'border-border',
+                    ].join(' ')}
+                    placeholder="llama3.2:latest"
+                  />
+                  {editErrors.modelString ? (
+                    <p role="alert" className="mt-1 text-[11px] text-error">{editErrors.modelString}</p>
+                  ) : null}
+                </div>
+
+                {/* Accent color */}
+                <div>
+                  <label className="block text-[12px] font-medium text-text-secondary mb-1.5">
+                    Accent color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <button
+                        type="button"
+                        aria-label="Choose accent color"
+                        onClick={() => {
+                          const el = document.getElementById(`edit-color-input-${id}`) as HTMLInputElement | null;
+                          el?.click();
+                        }}
+                        className={[
+                          'w-9 h-9 rounded-sm border border-border',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                        ].join(' ')}
+                        style={{ backgroundColor: editAccentColor || 'var(--accent-other)' }}
+                      />
+                      <input
+                        id={`edit-color-input-${id}`}
+                        type="color"
+                        value={editAccentColor || '#9966cc'}
+                        onChange={(e) => setEditAccentColor(e.target.value)}
+                        className="sr-only"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <span className="text-[12px] text-text-muted">
+                      {editAccentColor ? editAccentColor.toUpperCase() : 'Default'}
+                    </span>
+                    {editAccentColor && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAccentColor('')}
+                        className={[
+                          'text-[11px] text-text-muted',
+                          'hover:text-text-secondary hover:underline',
+                          'transition-colors duration-fast',
+                          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+                        ].join(' ')}
+                      >
+                        Reset to default
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Save / Cancel */}
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={handleSaveProviderEdit}
+                  className={[
+                    'h-8 px-4 rounded-md text-[12px] font-medium',
+                    'bg-accent-claude text-text-inverse',
+                    'hover:brightness-110 transition-all duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelProviderEdit}
+                  className={[
+                    'h-8 px-4 rounded-md text-[12px] font-medium',
+                    'bg-transparent border border-border text-text-secondary',
+                    'hover:bg-hover transition-all duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Cancel
                 </button>
               </div>
             </div>
@@ -1054,6 +1332,7 @@ export function ProviderSettingsPanel({
                       provider={provider}
                       isLast={roster.length === 1}
                       onRemoved={handleProviderRemoved}
+                      onUpdated={refreshRoster}
                       isNew={isNew}
                     />
                   </div>
