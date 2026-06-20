@@ -182,9 +182,15 @@ export function InputBar({
         e.preventDefault();
         setValue('');
         onCancelEdit?.();
+      } else if (e.key === 'Escape' && directedReplyTarget && !editingMessage) {
+        // Escape clears the directed-reply pill without closing any open dropdown.
+        // Focus remains in the textarea — no blur needed.
+        e.preventDefault();
+        e.stopPropagation();
+        onClearDirectedReply?.();
       }
     },
-    [handleSend, editingMessage, onCancelEdit],
+    [handleSend, editingMessage, onCancelEdit, directedReplyTarget, onClearDirectedReply],
   );
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
