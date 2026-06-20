@@ -54,6 +54,7 @@ export {
   saveProviderRoster,
   addBuiltInProvider,
   addCustomProvider,
+  updateCustomProvider,
   removeProvider,
   getProviderById,
 } from './providerRoster';

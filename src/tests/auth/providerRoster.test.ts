@@ -54,6 +54,7 @@ import {
   saveProviderRoster,
   addBuiltInProvider,
   addCustomProvider,
+  updateCustomProvider,
   removeProvider,
   getProviderById,
 } from '@/auth/providerRoster';
@@ -830,6 +831,202 @@ describe('round-trip consistency', () => {
     saveProviderRoster([bi, cu]);
     const result = getProviderRoster();
     expect(result).toEqual([bi, cu]);
+  });
+});
+
+// ─── updateCustomProvider ─────────────────────────────────────────────────────
+
+describe('updateCustomProvider', () => {
+  it('updates all four editable fields on the matching custom provider', () => {
+    const cu = addCustomProvider({
+      displayName: 'Original Name',
+      endpointUrl: 'https://original.example.com/v1',
+      modelString: 'original-model',
+      color: '#111111',
+    });
+
+    updateCustomProvider(cu.id, {
+      displayName: 'Updated Name',
+      endpointUrl: 'https://updated.example.com/v1',
+      modelString: 'updated-model',
+      color: '#FFFFFF',
+    });
+
+    const result = getProviderById(cu.id) as CustomProviderConfig;
+    expect(result.displayName).toBe('Updated Name');
+    expect(result.endpointUrl).toBe('https://updated.example.com/v1');
+    expect(result.modelString).toBe('updated-model');
+    expect(result.color).toBe('#FFFFFF');
+  });
+
+  it('does not change credentialKey after update', () => {
+    const cu = addCustomProvider({
+      displayName: 'My Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+      credentialKey: 'my-stable-key',
+    });
+
+    updateCustomProvider(cu.id, {
+      displayName: 'My Provider Updated',
+      endpointUrl: 'https://api.example.com/v2',
+      modelString: 'model-v2',
+    });
+
+    const result = getProviderById(cu.id) as CustomProviderConfig;
+    expect(result.credentialKey).toBe('my-stable-key');
+  });
+
+  it('does not change id after update', () => {
+    const cu = addCustomProvider({
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+    });
+    const originalId = cu.id;
+
+    updateCustomProvider(cu.id, {
+      displayName: 'Provider Updated',
+      endpointUrl: 'https://api.example.com/v2',
+      modelString: 'model-v2',
+    });
+
+    const result = getProviderById(originalId) as CustomProviderConfig;
+    expect(result).toBeDefined();
+    expect(result.id).toBe(originalId);
+  });
+
+  it('removes color when color is not supplied in the update input', () => {
+    const cu = addCustomProvider({
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+      color: '#AABBCC',
+    });
+
+    updateCustomProvider(cu.id, {
+      displayName: 'Provider Updated',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+      // color omitted
+    });
+
+    const result = getProviderById(cu.id) as CustomProviderConfig;
+    expect(result.color).toBeUndefined();
+  });
+
+  it('adds color when color was absent and is now supplied', () => {
+    const cu = addCustomProvider({
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+      // no color
+    });
+
+    updateCustomProvider(cu.id, {
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+      color: '#FF5500',
+    });
+
+    const result = getProviderById(cu.id) as CustomProviderConfig;
+    expect(result.color).toBe('#FF5500');
+  });
+
+  it('is a no-op when the id does not exist in the roster', () => {
+    addCustomProvider({
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+    });
+
+    const setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem');
+    updateCustomProvider('custom:nonexistent', {
+      displayName: 'New Name',
+      endpointUrl: 'https://api.example.com/v2',
+      modelString: 'model-v2',
+    });
+
+    expect(setItemSpy).not.toHaveBeenCalled();
+    // Roster unchanged
+    expect(getProviderRoster()).toHaveLength(1);
+    expect((getProviderRoster()[0] as CustomProviderConfig).displayName).toBe('Provider');
+  });
+
+  it('is a no-op when the roster is empty', () => {
+    expect(() =>
+      updateCustomProvider('custom:nonexistent', {
+        displayName: 'Name',
+        endpointUrl: 'https://api.example.com/v1',
+        modelString: 'model-v1',
+      }),
+    ).not.toThrow();
+    expect(getProviderRoster()).toEqual([]);
+  });
+
+  it('is a no-op when the id matches a built-in provider (kind !== custom)', () => {
+    addBuiltInProvider('claude');
+
+    const setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem');
+    updateCustomProvider('claude', {
+      displayName: 'Hacked Name',
+      endpointUrl: 'https://evil.example.com',
+      modelString: 'evil-model',
+    });
+
+    expect(setItemSpy).not.toHaveBeenCalled();
+    // Built-in entry is untouched
+    const entry = getProviderById('claude') as BuiltInProviderConfig;
+    expect(entry.kind).toBe('builtin');
+  });
+
+  it('only updates the target provider when multiple custom providers exist', () => {
+    const a = addCustomProvider({
+      displayName: 'Provider A',
+      endpointUrl: 'https://a.example.com/v1',
+      modelString: 'model-a',
+    });
+    const b = addCustomProvider({
+      displayName: 'Provider B',
+      endpointUrl: 'https://b.example.com/v1',
+      modelString: 'model-b',
+    });
+
+    updateCustomProvider(a.id, {
+      displayName: 'Provider A Updated',
+      endpointUrl: 'https://a.example.com/v2',
+      modelString: 'model-a-v2',
+    });
+
+    const updatedA = getProviderById(a.id) as CustomProviderConfig;
+    const unchangedB = getProviderById(b.id) as CustomProviderConfig;
+
+    expect(updatedA.displayName).toBe('Provider A Updated');
+    expect(unchangedB.displayName).toBe('Provider B');
+    expect(unchangedB.endpointUrl).toBe('https://b.example.com/v1');
+  });
+
+  it('updated entry survives getProviderRoster round-trip validation', () => {
+    const cu = addCustomProvider({
+      displayName: 'Provider',
+      endpointUrl: 'https://api.example.com/v1',
+      modelString: 'model-v1',
+    });
+
+    updateCustomProvider(cu.id, {
+      displayName: 'Provider Updated',
+      endpointUrl: 'https://api.example.com/v2',
+      modelString: 'model-v2',
+      color: '#AABBCC',
+    });
+
+    const roster = getProviderRoster();
+    expect(roster).toHaveLength(1);
+    const result = roster[0] as CustomProviderConfig;
+    expect(result.kind).toBe('custom');
+    expect(result.displayName).toBe('Provider Updated');
+    expect(result.color).toBe('#AABBCC');
   });
 });
 
