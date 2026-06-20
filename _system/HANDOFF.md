@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship Wave 19 — #232, #230, #142)
+Last updated: 2026-06-20 (ship Wave 20 — #239, #240)
 
 ## Current phase
 
@@ -6,39 +6,33 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Three-issue wave (Gate + Aria parallel, then Aria #232 UI follow-up):
+Two-issue wave (Aria, single session):
 
-- **#232 (Gate)**: `updateCustomProvider(id, { displayName, endpointUrl, modelString, color? }): void`
-  added to `providerRoster.ts`, exported from `index.ts`. `credentialKey` is structurally
-  immutable (not in input type). 10 new tests, suite 1013 passing.
+- **#239 (Aria)**: API key input now full-width in `ProviderSettingsPanel.tsx`. Save/Cancel/Remove-key
+  buttons moved to their own row below the input. Eye toggle stays overlaid inside the input.
 
-- **#232 (Aria)**: Pencil icon button on custom provider rows in `ProviderSettingsPanel.tsx`.
-  Inline edit form (displayName, endpointUrl, modelString, accent color) expands below row.
-  Save calls `updateCustomProvider` then `onUpdated` (→ `refreshRoster`). Cancel/Escape returns
-  focus to pencil via double-rAF. Ada: PASS, no blockers.
+- **#240 (Aria)**: New `TestButton` component. Custom providers: `aria-disabled` (not `disabled` —
+  keeps button in tab order) with tooltip "Key testing isn't available for this provider. Start a
+  conversation to verify your connection." Tooltip shows on hover (600ms delay) and immediately on
+  focus. Built-in supported providers: button enabled (actual `testCredential()` call wiring deferred
+  to #238). Edit/Clear buttons now have `aria-label`; position stable regardless of Test state.
 
-- **#230 (Aria)**: `Sidebar.tsx:523` group-input Cancel changed from `onClose` to
-  `closeAndReturnFocus`. Focus now returns to three-dot trigger after cancelling group assignment.
-
-- **#142 (Aria)**: `InputBar.tsx` `handleKeyDown` — Escape clears directed-reply pill when
-  `directedReplyTarget` is set and `!editingMessage`. `e.stopPropagation()` prevents dropdown
-  side effects. Focus stays in textarea.
+  Side effect: 6 pre-existing `provider-settings-panel.test.tsx` failures now resolved — Edit button
+  `aria-label` additions fixed the missing-label assertions. Suite: 1019 passing, 0 failing.
 
 ## Key decisions
 
-- Aria's #232 UI was sequenced after Gate (not truly parallel) because Aria can't compile
-  against a function that doesn't exist in her worktree. Gate merged first; Aria pulled main.
-- `credentialKey` is NOT editable in the provider edit form — structurally enforced by the
-  input type. This was an explicit Gate design decision to protect saved API keys.
-- Coda scope rule saved: Coda reads coordination-layer facts only (git log, issue bodies,
-  exported symbols via grep). Deep component reads are the agent's job.
+- `aria-disabled` instead of `disabled` on TestButton — Ada blocker caught in-session. `disabled`
+  removes the element from tab order, preventing keyboard users from discovering the tooltip.
+- Actual `testCredential()` wiring for built-in providers deferred — tracked as #238 (Gate/Atlas).
+- Custom endpoint testing (#238) requires CORS + keyless edge case work before it's trustworthy.
+- Coda scope rule: coordination-layer reads only; deep component reads are the agent's job.
 
 ## Open advisories (filed, not yet addressed)
 
-- #237 (Aria/Ada) — AccentColor `<label>` not associated with form control (pre-existing in AddCustomForm too)
+- #238 (Gate/Atlas) — Custom provider credential testing (CORS/keyless edge cases)
+- #237 (Aria/Ada) — AccentColor `<label>` not associated with form control (pre-existing in AddCustomForm)
 - #236 (Aria/Ada) — Sidebar group-input Tab key exits menu instead of cycling controls
-- #232 (Gate/Aria) — Custom provider endpoints not editable; must delete/recreate — **CLOSED this wave**
-- #230 (Aria) — Sidebar group-input Cancel focus return — **CLOSED this wave**
 - #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -55,7 +49,7 @@ Three-issue wave (Gate + Aria parallel, then Aria #232 UI follow-up):
 Top candidates:
 - Atlas: wire `fetchLiveApiCatalog` / `fetchRemoteCatalog` into version picker (#177 follow-on)
 - Aria: #158 (useStreamingMessages hook extraction) — App.tsx god component
-- Aria: #159 (Cancel streaming) — needs Atlas AbortController first
+- Aria/Atlas: #159 (Cancel streaming) — Atlas AbortController first, then Aria stop button
 
 ## Gotchas
 
@@ -69,7 +63,6 @@ Top candidates:
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
 - Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
 - `openrouter.ai` not on container firewall allowlist — live-API catalog fetch degrades to `[]` in dev
-- 6 pre-existing test failures in `provider-settings-panel.test.tsx` — not regressions
-- App integration tests (app-chunk-handler, app-handler-paths) now read from `lastContextValue`
-  (RoundtableContext), not `lastAppLayoutProps` — future Scout work must follow this pattern
+- App integration tests read from `lastContextValue` (RoundtableContext), not `lastAppLayoutProps`
 - Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
+- `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
