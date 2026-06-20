@@ -191,9 +191,13 @@ function TestButton({ credentialKey, providerName }: TestButtonProps) {
     >
       <button
         type="button"
-        disabled={!canTest}
+        aria-disabled={!canTest ? true : undefined}
         aria-label={`Test ${providerName} API key`}
         aria-describedby={!canTest ? tooltipId : undefined}
+        onClick={() => {
+          if (!canTest) return;
+          // Future: call testCredential() once Gate exports it from @/auth (#238).
+        }}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
