@@ -138,7 +138,38 @@ export function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const stopButtonRef = useRef<HTMLButtonElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Track whether streaming has ever been active so the focus-return branch
+  // (isStreaming → false) does not fire on initial render. We only want to
+  // return focus when the stop→send swap actually occurs, not at mount time.
+  const hasStreamedRef = useRef(false);
+
+  // Manage focus across the send↔stop button swap (WCAG 2.4.3 — issue #244).
+  //
+  // When streaming starts (send unmounts, stop mounts): move focus to the stop
+  // button so keyboard users stay in the input area.
+  //
+  // When streaming ends — whether by natural completion or abort (stop unmounts,
+  // send mounts): return focus to the textarea so the user can type the next
+  // message without tabbing back in.
+  //
+  // Double-rAF ensures the DOM has settled after React's unmount/mount cycle
+  // before .focus() fires. Same pattern as closeAndReturnFocus() in Sidebar.tsx.
+  useEffect(() => {
+    if (isStreaming && onStopMessage) {
+      hasStreamedRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => stopButtonRef.current?.focus());
+      });
+    } else if (!isStreaming && hasStreamedRef.current) {
+      // Only fire on a real stream-end transition, not on initial render.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      });
+    }
+  }, [isStreaming, onStopMessage]);
 
   // Edit mode: when editingMessage is set, pre-fill the textarea with the original
   // content and move focus to it. Clears when editingMessage becomes null.
@@ -439,9 +470,11 @@ export function InputBar({
             Calls onStopMessage() which signals the AbortController in App.tsx.
             Atlas guarantees a clean isDone chunk on abort so no partial-message
             cleanup is needed here. Tap target meets WCAG 2.5.5 (44×44px minimum).
-            Issue #159. */}
+            ref + useEffect above move focus here when the button mounts (WCAG 2.4.3).
+            Issue #159, #244. */}
         {isStreaming && onStopMessage ? (
           <button
+            ref={stopButtonRef}
             type="button"
             onClick={onStopMessage}
             aria-label="Stop generating"
