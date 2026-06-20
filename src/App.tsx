@@ -537,12 +537,6 @@ export default function App() {
    * is persisted directly, bypassing auto-title (which only fires when title
    * is undefined — so explicitly setting "" is treated as "let auto-title fire").
    */
-  /**
-   * Rename a conversation by setting (or clearing) its `title` field.
-   * Empty newTitle clears the stored title so auto-title re-derives it from
-   * the first user message on the next updateConversation call.
-   * A non-empty newTitle is persisted directly as a user-set title.
-   */
   const handleRenameConversation = useCallback(
     (id: string, newTitle: string) => {
       const conv = store.getConversation(id);

@@ -38,6 +38,7 @@ import type {
   StreamChunk,
   StreamHandler,
 } from '@/types/index';
+import type { RoundtableContextValue } from '@/ui/RoundtableContext';
 import { buildLocalStorageMock, resetIdSeq } from '../fixtures/conversations';
 
 // ─── Module mocks (hoisted before imports) ────────────────────────────────────
@@ -132,15 +133,21 @@ vi.mock('@/auth', () => ({
   getModelVersions: () => [],
 }));
 
-// AppLayout spy — captures the props App passes down so we can observe the
-// chunk handler's output without relying on DOM rendering.
+// AppLayout spy — captures the props App passes down AND the context values
+// App delivers via RoundtableContext (post-#174 refactor), so we can observe
+// the chunk handler's output without relying on DOM rendering.
 let lastAppLayoutProps: Record<string, unknown> = {};
-vi.mock('@/ui/AppLayout', () => ({
-  AppLayout: (props: Record<string, unknown>) => {
-    lastAppLayoutProps = props;
-    return null;
-  },
-}));
+let lastContextValue: RoundtableContextValue | null = null;
+vi.mock('@/ui/AppLayout', async () => {
+  const { useRoundtable } = await import('@/ui/RoundtableContext');
+  return {
+    AppLayout: (props: Record<string, unknown>) => {
+      lastAppLayoutProps = props;
+      lastContextValue = useRoundtable();
+      return null;
+    },
+  };
+});
 
 // ─── Imports (after mocks are declared) ──────────────────────────────────────
 
@@ -193,14 +200,14 @@ function triggerSend(content = 'hello'): void {
   });
 }
 
-/** Read streamingMessages from the last AppLayout render. */
+/** Read streamingMessages from the context (delivered via RoundtableContext post-#174). */
 function getStreamingMessages(): Message[] {
-  return (lastAppLayoutProps.streamingMessages ?? []) as Message[];
+  return lastContextValue?.streamingMessages ?? [];
 }
 
-/** True if isStreaming prop passed to AppLayout is currently true. */
+/** True if isStreaming is currently true in RoundtableContext. */
 function isStreaming(): boolean {
-  return Boolean(lastAppLayoutProps.isStreaming);
+  return Boolean(lastContextValue?.isStreaming);
 }
 
 // ─── Setup / teardown ─────────────────────────────────────────────────────────
@@ -211,6 +218,7 @@ beforeEach(() => {
   resetIdSeq();
   capturedOnChunk = null;
   lastAppLayoutProps = {};
+  lastContextValue = null;
   mockActiveConversation = makeTestConversation();
   mockUpdateConversation.mockClear();
   mockCreateConversation.mockClear();

@@ -29,7 +29,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildLocalStorageMock } from '../fixtures/conversations';
-import type { BuiltInProviderConfig, CustomProviderConfig, ProviderRoster } from '@/types';
+import type { BuiltInProviderConfig, CustomProviderConfig, ProviderRoster, BuiltInModelId, BuiltInCredentialKey } from '@/types';
 
 // ─── localStorage mock ────────────────────────────────────────────────────────
 
@@ -187,13 +187,13 @@ describe('getProviderRoster', () => {
   });
 
   it('silently drops built-in entries with an invalid modelId', () => {
-    const bad = builtInConfig({ modelId: 'not-a-real-model' as any });
+    const bad = builtInConfig({ modelId: 'not-a-real-model' as unknown as BuiltInModelId });
     setRaw(JSON.stringify([bad]));
     expect(getProviderRoster()).toEqual([]);
   });
 
   it('silently drops built-in entries with an invalid credentialKey', () => {
-    const bad = builtInConfig({ credentialKey: 'not-a-real-key' as any });
+    const bad = builtInConfig({ credentialKey: 'not-a-real-key' as unknown as BuiltInCredentialKey });
     setRaw(JSON.stringify([bad]));
     expect(getProviderRoster()).toEqual([]);
   });
@@ -247,14 +247,15 @@ describe('getProviderRoster', () => {
   });
 
   it('accepts custom entries with no credentialKey (field is optional)', () => {
-    const { credentialKey: _, ...entry } = customConfig();
+    const entry = customConfig();
+    delete entry.credentialKey;
     setRaw(JSON.stringify([entry]));
     expect(getProviderRoster()).toHaveLength(1);
   });
 
   it('accepts custom entries with no color field (field is optional)', () => {
     const entry = customConfig();
-    delete (entry as any).color;
+    delete entry.color;
     setRaw(JSON.stringify([entry]));
     expect(getProviderRoster()).toHaveLength(1);
   });

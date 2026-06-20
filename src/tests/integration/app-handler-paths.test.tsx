@@ -27,6 +27,7 @@ import type {
   ModelConfig,
   ProviderRoster,
 } from '@/types/index';
+import type { RoundtableContextValue } from '@/ui/RoundtableContext';
 import { buildLocalStorageMock, resetIdSeq } from '../fixtures/conversations';
 
 // ─── Module mocks (hoisted before imports) ────────────────────────────────────
@@ -126,14 +127,20 @@ vi.mock('@/auth', () => ({
   getModelVersions: () => [],
 }));
 
-// AppLayout spy — captures props on every render.
+// AppLayout spy — captures props AND context values on every render.
+// After #174, most state is delivered via RoundtableContext rather than props.
 let lastAppLayoutProps: Record<string, unknown> = {};
-vi.mock('@/ui/AppLayout', () => ({
-  AppLayout: (props: Record<string, unknown>) => {
-    lastAppLayoutProps = props;
-    return null;
-  },
-}));
+let lastContextValue: RoundtableContextValue | null = null;
+vi.mock('@/ui/AppLayout', async () => {
+  const { useRoundtable } = await import('@/ui/RoundtableContext');
+  return {
+    AppLayout: (props: Record<string, unknown>) => {
+      lastAppLayoutProps = props;
+      lastContextValue = useRoundtable();
+      return null;
+    },
+  };
+});
 
 // ─── Imports (after mocks are declared) ──────────────────────────────────────
 
@@ -159,23 +166,21 @@ function makeTestConversation(overrides: Partial<Conversation> = {}): Conversati
   };
 }
 
-/** Call onToggleGhostMode from the captured AppLayout props. */
+/** Call onToggleGhostMode from context (post-#174: no longer a prop). */
 async function triggerToggleGhostMode(): Promise<void> {
   await act(async () => {
-    const handler = lastAppLayoutProps.onToggleGhostMode as () => Promise<void>;
-    await handler();
+    await lastContextValue!.onToggleGhostMode();
   });
 }
 
-/** Call onRosterChange from the captured AppLayout props. */
+/** Call onRosterChange from context (post-#174: no longer a prop). */
 function triggerRosterChange(): void {
   act(() => {
-    const handler = lastAppLayoutProps.onRosterChange as () => void;
-    handler();
+    lastContextValue!.onRosterChange();
   });
 }
 
-/** Call onSend from the captured AppLayout props. */
+/** Call onSend — still a prop after #174. */
 function triggerSend(content = 'hello'): void {
   act(() => {
     const onSend = lastAppLayoutProps.onSend as (content: string) => void;
@@ -183,35 +188,33 @@ function triggerSend(content = 'hello'): void {
   });
 }
 
-/** Call onDirectedReply from the captured AppLayout props. */
+/** Call onDirectedReply from context (post-#174: no longer a prop). */
 function triggerDirectedReply(modelId: string): void {
   act(() => {
-    const handler = lastAppLayoutProps.onDirectedReply as (modelId: string) => void;
-    handler(modelId);
+    lastContextValue!.onDirectedReply(modelId);
   });
 }
 
-/** Call onClearDirectedReply from the captured AppLayout props. */
+/** Call onClearDirectedReply from context (post-#174: no longer a prop). */
 function triggerClearDirectedReply(): void {
   act(() => {
-    const handler = lastAppLayoutProps.onClearDirectedReply as () => void;
-    handler();
+    lastContextValue!.onClearDirectedReply();
   });
 }
 
-/** Read allModels from AppLayout props. */
+/** Read allModels from context (post-#174: no longer a prop). */
 function getAllModels(): ModelConfig[] {
-  return (lastAppLayoutProps.allModels ?? []) as ModelConfig[];
+  return lastContextValue?.allModels ?? [];
 }
 
-/** Read isGhostMode from AppLayout props. */
+/** Read isGhostMode from context (post-#174: no longer a prop). */
 function isGhostMode(): boolean {
-  return Boolean(lastAppLayoutProps.isGhostMode);
+  return Boolean(lastContextValue?.isGhostMode);
 }
 
-/** Read directedReplyTarget from AppLayout props. */
+/** Read directedReplyTarget from context (post-#174: no longer a prop). */
 function getDirectedReplyTarget(): ModelConfig | undefined {
-  return lastAppLayoutProps.directedReplyTarget as ModelConfig | undefined;
+  return lastContextValue?.directedReplyTarget;
 }
 
 // ─── Setup / teardown ─────────────────────────────────────────────────────────
@@ -222,6 +225,7 @@ beforeEach(async () => {
   resetIdSeq();
   capturedSendOptions = null;
   lastAppLayoutProps = {};
+  lastContextValue = null;
   mockActiveConversation = makeTestConversation();
   mockUpdateConversation.mockClear();
   mockCreateConversation.mockClear();
@@ -419,10 +423,9 @@ describe('#208 — handleRosterChange', () => {
 
     render(<App />);
 
-    // Activate claude via the onAddModel handler.
+    // Activate claude via the onAddModel handler (post-#174: in context, not props).
     act(() => {
-      const onAddModel = lastAppLayoutProps.onAddModel as (id: string) => void;
-      onAddModel('claude');
+      lastContextValue!.onAddModel('claude');
     });
 
     // claude should now be active.
