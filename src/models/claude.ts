@@ -78,7 +78,8 @@ export class ClaudeModelProvider implements ModelProvider {
     messages: Message[],
     systemPrompt: string | undefined,
     onChunk: StreamHandler,
-    selectedVersionId?: string
+    selectedVersionId?: string,
+    signal?: AbortSignal
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials('anthropic');
@@ -124,8 +125,14 @@ export class ClaudeModelProvider implements ModelProvider {
           'anthropic-version': ANTHROPIC_API_VERSION,
         },
         body: JSON.stringify(requestBody),
+        signal,
       });
     } catch (networkErr) {
+      // AbortError — user triggered stop before the request completed.
+      // Resolve cleanly; runProviderIsolated handles the AbortError at the outer level.
+      if (networkErr instanceof Error && networkErr.name === 'AbortError') {
+        throw networkErr;
+      }
       const error = buildModelError(
         'network_error',
         networkErr instanceof Error ? networkErr.message : 'Network request failed'
@@ -187,6 +194,22 @@ export class ClaudeModelProvider implements ModelProvider {
         }
       }
     } catch (streamErr) {
+      // AbortError — user triggered stop mid-stream.
+      // Emit a clean done chunk with whatever tokens were counted so far,
+      // then re-throw so runProviderIsolated can identify and swallow it.
+      if (streamErr instanceof Error && streamErr.name === 'AbortError') {
+        onChunk({
+          modelId: this.config.modelId,
+          content: '',
+          isDone: true,
+          tokenUsage: {
+            inputTokens,
+            outputTokens,
+            totalTokens: inputTokens + outputTokens,
+          },
+        });
+        throw streamErr;
+      }
       const error = buildModelError(
         'network_error',
         streamErr instanceof Error ? streamErr.message : 'Stream read failed'

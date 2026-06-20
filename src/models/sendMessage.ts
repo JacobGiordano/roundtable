@@ -40,11 +40,17 @@ type Provider = typeof PROVIDERS[number];
 
 /**
  * Narrow internal interface that extends ModelProvider with the optional
- * selectedVersionId parameter. All six concrete provider classes accept this
- * 4th optional arg — their implementations remain compatible with ModelProvider
- * (extra optional params are additive). sendMessage.ts casts to this type
- * at the call site so the version can be threaded through without modifying the
- * ModelProvider interface contract in /src/types/index.ts.
+ * selectedVersionId and signal parameters. All concrete provider classes accept
+ * these extra optional args — their implementations remain compatible with
+ * ModelProvider (extra optional params are additive). sendMessage.ts casts to
+ * this type at the call site so the version and abort signal can be threaded
+ * through without modifying the ModelProvider interface contract in
+ * /src/types/index.ts.
+ *
+ * The signal originates from SendMessageOptions.signal (set by Aria via an
+ * AbortController) and flows down through runProviderIsolated to each provider's
+ * fetch call. When the signal fires, fetch rejects and the provider resolves
+ * cleanly (no error chunk) with whatever partial token usage was accumulated.
  *
  * This is entirely internal to /src/models — no other agent sees this type.
  */
@@ -53,7 +59,8 @@ interface VersionAwareProvider extends Provider {
     messages: Parameters<Provider['sendMessage']>[0],
     systemPrompt: Parameters<Provider['sendMessage']>[1],
     onChunk: Parameters<Provider['sendMessage']>[2],
-    selectedVersionId?: string
+    selectedVersionId?: string,
+    signal?: AbortSignal
   ): ReturnType<Provider['sendMessage']>;
 }
 
@@ -158,22 +165,40 @@ function emitMissingProviderErrors(missing: ModelId[], onChunk: StreamHandler): 
  * synthetic isDone=true StreamChunk with an error payload so the UI always
  * receives a terminal event for every model, regardless of failure mode.
  *
+ * AbortError handling: when the caller-supplied AbortSignal fires, the
+ * provider's fetch/stream throws a DOMException with name 'AbortError'. This
+ * is NOT an unexpected failure — it is a user-initiated stop. runProviderIsolated
+ * catches it here (after the provider's own catch re-throws it or before, if the
+ * provider itself doesn't handle it) and silently resolves without emitting any
+ * additional error chunk. The provider is responsible for emitting a clean done
+ * chunk with partial token usage before re-throwing, or this wrapper simply
+ * swallows the AbortError if it escapes.
+ *
  * Never rejects — always resolves — so Promise.allSettled (and callers) are
  * guaranteed to see every provider reach completion.
  *
- * selectedVersionId is threaded through to the provider via VersionAwareProvider.
- * If undefined, each provider falls back to its own hardcoded default.
+ * selectedVersionId and signal are threaded through to the provider via
+ * VersionAwareProvider. If undefined, each provider falls back to its own
+ * hardcoded defaults.
  */
 async function runProviderIsolated(
   provider: Provider,
   messages: Message[],
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
-  selectedVersionId?: string
+  selectedVersionId?: string,
+  signal?: AbortSignal
 ): Promise<void> {
   try {
-    await (provider as VersionAwareProvider).sendMessage(messages, systemPrompt, onChunk, selectedVersionId);
+    await (provider as VersionAwareProvider).sendMessage(messages, systemPrompt, onChunk, selectedVersionId, signal);
   } catch (err) {
+    // AbortError — user initiated stop. The provider should have emitted a
+    // clean done chunk already. If it didn't (e.g., abort fired before any
+    // chunk), we silently resolve rather than emitting a spurious error.
+    // This is not a failure condition — it is the expected abort path.
+    if (err instanceof Error && err.name === 'AbortError') {
+      return;
+    }
     // Unexpected throw from a provider (shouldn't happen given the providers'
     // own try/catch, but we guard here for robustness).
     const errorChunk: StreamChunk = {
@@ -219,13 +244,16 @@ function collectingChunkHandler(
  * Fans out to all active providers simultaneously.
  * Each provider resolves its own systemPrompt from conversation.models,
  * falling back to the shared systemPrompt parameter if none is set on the model.
+ * The signal (if provided) is forwarded to every provider so all streams stop
+ * when the user triggers abort.
  */
 async function runParallel(
   providers: Provider[],
   messages: Message[],
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
-  conversation?: Conversation
+  conversation?: Conversation,
+  signal?: AbortSignal
 ): Promise<void> {
   // Fire all providers in parallel. Promise.allSettled ensures every provider
   // runs to completion regardless of whether siblings succeed or fail.
@@ -236,7 +264,7 @@ async function runParallel(
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
       const selectedVersionId = modelConfig?.selectedVersionId;
-      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk, selectedVersionId);
+      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
     })
   );
 }
@@ -247,6 +275,7 @@ async function runParallel(
  * Emits a synthetic error chunk if the target is not active or not found.
  * Resolves per-model systemPrompt from conversation.models, falling back to
  * the shared systemPrompt parameter.
+ * The signal (if provided) is forwarded to the target provider.
  */
 async function runDirected(
   targetModelId: ModelId,
@@ -254,7 +283,8 @@ async function runDirected(
   messages: Message[],
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
-  conversation?: Conversation
+  conversation?: Conversation,
+  signal?: AbortSignal
 ): Promise<void> {
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
@@ -278,7 +308,7 @@ async function runDirected(
   );
   const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
   const selectedVersionId = modelConfig?.selectedVersionId;
-  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk, selectedVersionId);
+  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
 }
 
 /**
@@ -289,13 +319,16 @@ async function runDirected(
  *
  * Active-model guard: steps referencing inactive or roster-missing models emit a
  * synthetic error chunk and continue the chain (they do not append to context).
+ *
+ * Abort handling: before dispatching each step, we check signal.aborted. If the
+ * signal has fired, the chain exits silently — no error chunk, no further steps.
  */
 async function runAutoChain(
   options: SendMessageOptions & { conversation?: Conversation; systemPrompt?: string },
   initialMessages: Message[],
   onChunk: StreamHandler
 ): Promise<void> {
-  const { chainConfig, conversation, systemPrompt } = options;
+  const { chainConfig, conversation, systemPrompt, signal } = options;
   if (!chainConfig) return;
 
   const { steps, maxPasses } = chainConfig;
@@ -321,6 +354,9 @@ async function runAutoChain(
 
   for (let pass = 0; pass < maxPasses; pass++) {
     for (const step of steps) {
+      // If the caller aborted, stop dispatching further chain steps silently.
+      if (signal?.aborted) return;
+
       // Skip steps whose modelId had no roster entry — error was emitted above.
       if (missingIds.includes(step.modelId)) continue;
 
@@ -352,7 +388,7 @@ async function runAutoChain(
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler, selectedVersionId);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler, selectedVersionId, signal);
 
         // Append the model's response as an assistant message for subsequent steps.
         const responseText = getText();
@@ -370,7 +406,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk, selectedVersionId);
+        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
       }
     }
   }
@@ -415,7 +451,7 @@ export async function sendMessage(
   options: SendMessageOptions & { conversation?: Conversation; systemPrompt?: string },
   onChunk: StreamHandler
 ): Promise<void> {
-  const { conversation, systemPrompt, content, targetModelId, chainConfig } = options;
+  const { conversation, systemPrompt, content, targetModelId, chainConfig, signal } = options;
 
   // Resolve active providers from the ProviderRoster when a conversation is available.
   // The PROVIDERS fallback (no conversation) preserves existing behavior for callers
@@ -462,13 +498,13 @@ export async function sendMessage(
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation, signal);
     return;
   }
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation);
+  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation, signal);
 }
 
 /**
