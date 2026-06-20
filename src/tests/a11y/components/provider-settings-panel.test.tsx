@@ -26,6 +26,7 @@
  *   - #118: "Provider settings" shortcut: no indication of cross-panel navigation
  */
 
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
@@ -347,5 +348,147 @@ describe('ProviderRow confirm states — WCAG 2.4.3 focus management (#115 fixed
     // This ensures AT announces the confirmation text when confirmState changes.
     const listitem = container.querySelector('[role="listitem"][aria-live="polite"]');
     expect(listitem).not.toBeNull();
+  });
+});
+
+// ─── Accent color label association (#237 — FIXED) ────────────────────────────
+//
+// Issue #237: AddCustomForm accent color <label> was not associated with the
+// color swatch <button> via htmlFor/id. Aria fixed by:
+//   AddCustomForm: <label htmlFor="psp-accent-color-btn"> + <button id="psp-accent-color-btn">
+//   ProviderRow edit form: <label htmlFor={`edit-accent-color-btn-${id}`}> +
+//                          <button id={`edit-accent-color-btn-${id}`}>
+//
+// WCAG standard: 1.3.1 Info and Relationships, 4.1.2 Name, Role, Value
+//
+// The fix ensures screen readers announce "Accent color" when the swatch
+// button receives focus, rather than just "Choose accent color" (the aria-label).
+// Both names are present — the <label> text is the programmatic association,
+// the aria-label provides the action description.
+
+describe('AddCustomForm — accent color label association (#237, WCAG 1.3.1 / 4.1.2)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  // Top-level vi.mock returns [] for getProviderRoster — no additional setup needed.
+
+  it('accent color button has id="psp-accent-color-btn"', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const btn = document.getElementById('psp-accent-color-btn') as HTMLButtonElement | null;
+    expect(btn).not.toBeNull();
+    expect(btn?.tagName.toLowerCase()).toBe('button');
+  });
+
+  it('accent color label htmlFor="psp-accent-color-btn" matches the button id', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const label = document.querySelector('label[for="psp-accent-color-btn"]') as HTMLLabelElement | null;
+    expect(label).not.toBeNull();
+    expect(label?.textContent?.trim()).toBe('Accent color');
+
+    // Verify the targeted element exists and is the button.
+    const target = document.getElementById('psp-accent-color-btn');
+    expect(target).not.toBeNull();
+    expect(target?.tagName.toLowerCase()).toBe('button');
+  });
+
+  it('has no axe violations in AddCustomForm default state', async () => {
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
+describe('ProviderRow edit form — accent color label association (#237, WCAG 1.3.1 / 4.1.2)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  const CUSTOM_PROVIDER_ROSTER = [
+    {
+      kind: 'custom' as const,
+      id: 'my-llama',
+      displayName: 'My Llama',
+      endpointUrl: 'https://localhost:11434/v1',
+      modelString: 'llama3.2:latest',
+      credentialKey: undefined,
+      isVisible: true,
+    },
+  ];
+
+  it('edit form accent color button has a dynamic id matching the label htmlFor', async () => {
+    const { getProviderRoster } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CUSTOM_PROVIDER_ROSTER as ReturnType<typeof getProviderRoster>,
+    );
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    // Open the inline provider editor by clicking the pencil (Edit) button.
+    const editBtn = document.querySelector(
+      'button[aria-label="Edit My Llama"]',
+    ) as HTMLButtonElement | null;
+    expect(editBtn).not.toBeNull();
+    fireEvent.click(editBtn!);
+
+    // The edit form should now be visible with the accent color section.
+    // The button id is edit-accent-color-btn-my-llama.
+    const colorBtn = document.getElementById('edit-accent-color-btn-my-llama') as HTMLButtonElement | null;
+    expect(colorBtn).not.toBeNull();
+    expect(colorBtn?.tagName.toLowerCase()).toBe('button');
+
+    // The label must target the same id.
+    const label = document.querySelector(
+      'label[for="edit-accent-color-btn-my-llama"]',
+    ) as HTMLLabelElement | null;
+    expect(label).not.toBeNull();
+    expect(label?.textContent?.trim()).toBe('Accent color');
+  });
+
+  it('has no axe violations in edit form state', async () => {
+    const { getProviderRoster } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CUSTOM_PROVIDER_ROSTER as ReturnType<typeof getProviderRoster>,
+    );
+
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    // Open the inline provider editor.
+    const editBtn = document.querySelector(
+      'button[aria-label="Edit My Llama"]',
+    ) as HTMLButtonElement | null;
+    expect(editBtn).not.toBeNull();
+    fireEvent.click(editBtn!);
+
+    const results = await axe(container);
+    assertNoViolations(results);
   });
 });
