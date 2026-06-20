@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship #174 #145 #140 + Wave 18 polish)
+Last updated: 2026-06-20 (ship Wave 19 — #232, #230, #142)
 
 ## Current phase
 
@@ -6,37 +6,39 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-Three-issue wave (Aria + Scout + Quill, parallel worktrees) + Coda post-merge polish:
+Three-issue wave (Gate + Aria parallel, then Aria #232 UI follow-up):
 
-- **#174 (Aria)**: AppLayoutProps prop drilling eliminated. New `RoundtableContext.tsx`
-  exposes `useRoundtable()` with a 35-field value shape. `App.tsx` is the Provider;
-  `AppLayout.tsx` reduced to one prop (`onSend`). `onSend` kept as a prop because
-  `handleSend` closes over `accumulatorRef` (mutable ref) — putting it in context
-  creates staleness risk. Ada: PASS, no blockers.
+- **#232 (Gate)**: `updateCustomProvider(id, { displayName, endpointUrl, modelString, color? }): void`
+  added to `providerRoster.ts`, exported from `index.ts`. `credentialKey` is structurally
+  immutable (not in input type). 10 new tests, suite 1013 passing.
 
-- **#145 (Scout)**: 94 Vitest unit tests for `providerRoster.ts` in
-  `/src/tests/auth/providerRoster.test.ts`. Full lifecycle coverage + `MODEL_CREDENTIAL_MAP`
-  sync guard. No bugs found. Suite: 909 → 1003 passing.
+- **#232 (Aria)**: Pencil icon button on custom provider rows in `ProviderSettingsPanel.tsx`.
+  Inline edit form (displayName, endpointUrl, modelString, accent color) expands below row.
+  Save calls `updateCustomProvider` then `onUpdated` (→ `refreshRoster`). Cancel/Escape returns
+  focus to pencil via double-rAF. Ada: PASS, no blockers.
 
-- **#140 (Quill)**: Forge and Bastion added to two tables in `CONTRIBUTING.md`.
+- **#230 (Aria)**: `Sidebar.tsx:523` group-input Cancel changed from `onClose` to
+  `closeAndReturnFocus`. Focus now returns to three-dot trigger after cancelling group assignment.
 
-- **Coda polish**: Integration tests updated to capture from `RoundtableContext`
-  (old spy read props that no longer exist post-#174). `eslint.config.js` now ignores
-  `.claude/worktrees/**`. Scout's test lint errors fixed (as-unknown-as casts, delete
-  on optional props). Duplicate JSDoc on `handleRenameConversation` in `App.tsx` removed.
+- **#142 (Aria)**: `InputBar.tsx` `handleKeyDown` — Escape clears directed-reply pill when
+  `directedReplyTarget` is set and `!editingMessage`. `e.stopPropagation()` prevents dropdown
+  side effects. Focus stays in textarea.
 
 ## Key decisions
 
-- `onSend` stays as a prop (not in context) — closes over `accumulatorRef`, a mutable
-  ref React can't track. Direct prop keeps the contract explicit.
-- Context shape is UI-internal (`RoundtableContext.tsx`), not in `/src/types/index.ts`
-- `.claude/worktrees/**` added to eslint ignores — prevents parallel agent worktrees
-  from polluting lint output during wave sessions.
+- Aria's #232 UI was sequenced after Gate (not truly parallel) because Aria can't compile
+  against a function that doesn't exist in her worktree. Gate merged first; Aria pulled main.
+- `credentialKey` is NOT editable in the provider edit form — structurally enforced by the
+  input type. This was an explicit Gate design decision to protect saved API keys.
+- Coda scope rule saved: Coda reads coordination-layer facts only (git log, issue bodies,
+  exported symbols via grep). Deep component reads are the agent's job.
 
 ## Open advisories (filed, not yet addressed)
 
-- #232 (Gate/Aria) — Custom provider endpoints not editable; must delete/recreate
-- #230 (Aria) — Sidebar group-input Cancel doesn't return focus to trigger
+- #237 (Aria/Ada) — AccentColor `<label>` not associated with form control (pre-existing in AddCustomForm too)
+- #236 (Aria/Ada) — Sidebar group-input Tab key exits menu instead of cycling controls
+- #232 (Gate/Aria) — Custom provider endpoints not editable; must delete/recreate — **CLOSED this wave**
+- #230 (Aria) — Sidebar group-input Cancel focus return — **CLOSED this wave**
 - #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -50,11 +52,10 @@ Three-issue wave (Aria + Scout + Quill, parallel worktrees) + Coda post-merge po
 
 ## What's next
 
-Top priority:
-- Aria: **#232** (custom provider endpoint editing) — now unblocked; #174 cleared the
-  prop-drilling that would have conflicted
-- Aria: **#230** (Sidebar group-input Cancel focus return) — small, can batch with #232
-- Atlas: wire `fetchLiveApiCatalog` / `fetchRemoteCatalog` into version picker (follow-on #177)
+Top candidates:
+- Atlas: wire `fetchLiveApiCatalog` / `fetchRemoteCatalog` into version picker (#177 follow-on)
+- Aria: #158 (useStreamingMessages hook extraction) — App.tsx god component
+- Aria: #159 (Cancel streaming) — needs Atlas AbortController first
 
 ## Gotchas
 
@@ -71,3 +72,4 @@ Top priority:
 - 6 pre-existing test failures in `provider-settings-panel.test.tsx` — not regressions
 - App integration tests (app-chunk-handler, app-handler-paths) now read from `lastContextValue`
   (RoundtableContext), not `lastAppLayoutProps` — future Scout work must follow this pattern
+- Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
