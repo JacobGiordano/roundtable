@@ -520,7 +520,7 @@ function ThreadActionMenu({
           <div className="flex gap-2 mt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeAndReturnFocus}
               className={[
                 'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
