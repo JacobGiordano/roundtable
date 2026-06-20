@@ -14,6 +14,13 @@
  *   All reads go through parseStoredConversation(), which detects the envelope,
  *   identifies bare (version 0) records, and runs migrations as needed.
  *   See migration.ts for how to add a new schema version.
+ *
+ * Caching:
+ *   listConversations() maintains a Map<id, Conversation> cache on the instance.
+ *   The first call does a full localStorage scan and populates the cache.
+ *   Subsequent calls return from the cache without touching localStorage.
+ *   saveConversation() and deleteConversation() keep the cache in sync on every
+ *   write so the cached result is never stale.
  */
 
 import type {
@@ -102,12 +109,40 @@ function triggerDownload(filename: string, content: string, mimeType: string): v
 
 export class LocalStorageProvider implements StorageProvider {
   /**
+   * In-memory cache of all persisted conversations, keyed by conversation ID.
+   *
+   * Populated on the first `listConversations()` call (full scan). After that,
+   * every write path (`saveConversation`, `deleteConversation`) keeps the cache
+   * in sync so subsequent `listConversations()` calls return from memory without
+   * touching localStorage again.
+   *
+   * `null` means the cache has not yet been populated — the next
+   * `listConversations()` call must do a full scan to initialise it.
+   *
+   * Cache invariants:
+   *   - Only non-ghost conversations are ever stored here (ghost-mode guard runs
+   *     before any cache update on write paths).
+   *   - Corrupt entries are dropped during the initial full scan, matching the
+   *     existing `listConversations()` behaviour.
+   *   - The cache is private to this provider instance. `useConversationStore`
+   *     holds the provider in a stable ref, so the cache persists for the
+   *     lifetime of the hook mount.
+   */
+  private _cache: Map<string, Conversation> | null = null;
+
+  /**
    * Persist a conversation. Ghost-mode conversations are silently skipped —
    * isGhost is the first guard on this write path; nothing is ever written to
    * storage for ghost conversations.
    *
    * Writes a StoredConversation envelope (schemaVersion + data) so the read
    * path can detect the schema version and run migrations if needed.
+   *
+   * Cache: after writing to localStorage, the cache entry is updated (or added)
+   * so that subsequent `listConversations()` calls do not need to re-read from
+   * storage. The cache is only updated if it has already been populated — an
+   * uninitialised cache (`null`) is left alone so the next `listConversations()`
+   * does the full scan naturally.
    */
   async saveConversation(conversation: Conversation): Promise<void> {
     // Ghost-mode guard — first line, before any index or data key is touched.
@@ -124,6 +159,11 @@ export class LocalStorageProvider implements StorageProvider {
     // stale records written by older builds.
     const envelope = wrapForStorage(conversation);
     safeSet(convKey(conversation.id), JSON.stringify(envelope));
+
+    // Keep the cache in sync — avoids stale reads on next listConversations().
+    if (this._cache !== null) {
+      this._cache.set(conversation.id, conversation);
+    }
   }
 
   /** Returns null if the conversation does not exist or the stored data is corrupt. */
@@ -133,22 +173,35 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   /**
-   * Returns all conversations referenced by the index, in insertion order.
+   * Returns all conversations sorted newest-first by `updatedAt`.
+   *
+   * First call: performs a full scan of localStorage (reads every conversation
+   * referenced by the index), populates the internal cache, and returns the
+   * sorted result.
+   *
+   * Subsequent calls: returns the cached result directly without touching
+   * localStorage. The cache is kept in sync by `saveConversation` and
+   * `deleteConversation`, so no re-scan is needed.
+   *
    * Entries whose underlying data is missing or corrupt are silently skipped
    * to keep the list consistent even if storage is partially cleared.
    */
   async listConversations(): Promise<Conversation[]> {
-    const ids = readIndex();
-    const conversations: Conversation[] = [];
+    if (this._cache === null) {
+      // First call — full scan to populate the cache.
+      const ids = readIndex();
+      this._cache = new Map();
 
-    for (const id of ids) {
-      const conv = parseConversation(localStorage.getItem(convKey(id)));
-      if (conv !== null) {
-        conversations.push(conv);
+      for (const id of ids) {
+        const conv = parseConversation(localStorage.getItem(convKey(id)));
+        if (conv !== null) {
+          this._cache.set(id, conv);
+        }
       }
     }
 
-    // Sort newest-first by updatedAt so the UI gets a sensible default order.
+    // Return cache contents sorted newest-first by updatedAt.
+    const conversations = Array.from(this._cache.values());
     conversations.sort((a, b) => b.updatedAt - a.updatedAt);
     return conversations;
   }
@@ -158,6 +211,11 @@ export class LocalStorageProvider implements StorageProvider {
     const ids = readIndex().filter((i) => i !== id);
     writeIndex(ids);
     localStorage.removeItem(convKey(id));
+
+    // Remove from cache if populated.
+    if (this._cache !== null) {
+      this._cache.delete(id);
+    }
   }
 
   /**

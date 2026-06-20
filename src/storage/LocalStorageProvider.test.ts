@@ -15,6 +15,8 @@
  *   - export returns null for missing conversation
  *   - corrupt data resilience (index and conversation data)
  *   - quota exceeded error is surfaced as a readable Error
+ *   - listConversations() cache: populated on first call, served from cache on
+ *     subsequent calls, invalidated correctly by saveConversation / deleteConversation
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -317,5 +319,115 @@ describe('corrupt load', () => {
     store.set('roundtable:conv:bad', '{ broken json }');
     const result = await provider.loadConversation('bad');
     expect(result).toBeNull();
+  });
+});
+
+describe('listConversations() cache', () => {
+  it('populates cache on first call and serves it on subsequent calls without re-reading localStorage', async () => {
+    const conv = makeConversation({ id: 'cache-test', updatedAt: 5000 });
+    await provider.saveConversation(conv);
+
+    // First call — full scan populates the cache.
+    const first = await provider.listConversations();
+    expect(first).toHaveLength(1);
+
+    // Poison the localStorage entry so a second scan would return different data.
+    store.set('roundtable:conv:cache-test', '{"schemaVersion":1,"data":{"id":"cache-test","title":"POISONED","messages":[],"models":[],"interactionMode":"parallel","isGhost":false,"createdAt":1,"updatedAt":5000}}');
+
+    // Second call — must return the cached value, NOT the poisoned record.
+    const second = await provider.listConversations();
+    expect(second).toHaveLength(1);
+    expect(second[0].title).toBe('Test conversation'); // cached, not poisoned
+  });
+
+  it('updates cache when saveConversation is called after initial list', async () => {
+    const conv = makeConversation({ id: 'a', updatedAt: 1000 });
+    await provider.saveConversation(conv);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    // Save a second conversation.
+    const conv2 = makeConversation({ id: 'b', updatedAt: 2000 });
+    await provider.saveConversation(conv2);
+
+    // Cache should reflect the new entry without needing a re-scan.
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(2);
+    expect(list.map((c) => c.id)).toContain('b');
+  });
+
+  it('updates cache when an existing conversation is re-saved', async () => {
+    const conv = makeConversation({ id: 'a', title: 'Original', updatedAt: 1000 });
+    await provider.saveConversation(conv);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    // Re-save with a new title.
+    await provider.saveConversation({ ...conv, title: 'Updated', updatedAt: 2000 });
+
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(1);
+    expect(list[0].title).toBe('Updated');
+  });
+
+  it('removes entry from cache when deleteConversation is called', async () => {
+    const conv = makeConversation({ id: 'to-delete', updatedAt: 1000 });
+    await provider.saveConversation(conv);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    // Delete the conversation.
+    await provider.deleteConversation('to-delete');
+
+    // Cache should reflect the deletion.
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(0);
+  });
+
+  it('does not corrupt cache when a ghost conversation save is attempted', async () => {
+    const real = makeConversation({ id: 'real', updatedAt: 1000 });
+    await provider.saveConversation(real);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    // Attempt to save a ghost — must be a no-op on both storage and cache.
+    const ghost = makeConversation({ id: 'ghost', isGhost: true });
+    await provider.saveConversation(ghost);
+
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe('real');
+  });
+
+  it('cache reflects archiveConversation result on next list', async () => {
+    const conv = makeConversation({ id: 'to-archive', updatedAt: 1000 });
+    await provider.saveConversation(conv);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    await provider.archiveConversation('to-archive');
+
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(1);
+    expect(list[0].archivedAt).toBeDefined();
+  });
+
+  it('cache reflects unarchiveConversation result on next list', async () => {
+    const conv = makeConversation({ id: 'to-unarchive', archivedAt: 500, updatedAt: 500 });
+    await provider.saveConversation(conv);
+
+    // Warm the cache.
+    await provider.listConversations();
+
+    await provider.unarchiveConversation('to-unarchive');
+
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(1);
+    expect(list[0].archivedAt).toBeUndefined();
   });
 });
