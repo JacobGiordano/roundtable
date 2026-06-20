@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship #177 follow-on — catalog resolver)
+Last updated: 2026-06-20 (ship #159 — cancel streaming)
 
 ## Current phase
 
@@ -6,30 +6,27 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#177 follow-on (Atlas)**: Wired `fetchLiveApiCatalog` and `fetchRemoteCatalog` into a
-structured resolver pattern so Aria can call them from the version picker.
+**Wave: cancel streaming (#159, #242)**
 
-- `ModelRegistryEntry` in `registry.ts` gains optional `remoteCatalogUrl` and
-  `liveApiEndpoint` fields (interface-only; no built-in registry entries populate them today)
-- `resolveVersionCatalog(entry, apiKey?)` in `catalog.ts`: priority live API → remote → bundled
-- `resolveCustomProviderCatalog(endpoint, key)` in `catalog.ts`: named entry point for
-  custom (non-registry) providers (OpenRouter-style) — delegates to `fetchLiveApiCatalog`
-- Both exported from `models/index.ts` as documented cross-agent exceptions Aria may call
-- 13 new tests in `catalog-fetch.test.ts`; full suite 1048 passing, 7 pre-existing skips
+- **Arch**: `StopMessageFn = () => void`, `signal?: AbortSignal` on `SendMessageOptions`, `stopMessage: StopMessageFn` on `ConversationContext` — all in `/src/types/index.ts`
+- **Atlas**: AbortSignal threaded through all 7 providers via `options.signal`; `runProviderIsolated` swallows AbortError (duck-typed `err?.name === 'AbortError'` — jsdom `DOMException` does not extend `Error`); all three routing modes (parallel, directed, auto-chain) thread signal; 12 tests in `abort-controller.test.ts`
+- **Aria**: `AbortController` ref in `App.tsx`, new controller per send, `.finally()` clears ref; `stopMessage` in context; stop button in `InputBar` (44×44px, filled square) replaces send while streaming; `aria-live="polite"` live region announces state
+- **Flint**: cleared, all 5 acceptance criteria passed
+
+**#241 deferred** — correct structural fix breaks Scout's `sidebar-state-machines.test.tsx` (`within(menu)` queries sub-state content). Filed #243 for Scout to update test contracts first.
 
 ## Key decisions
 
-- `resolveVersionCatalog` does NOT fall back to bundled when a remote/live fetch fails —
-  it returns whatever the underlying fetch function returns ([] on error). Callers that
-  want a guaranteed non-empty list must implement their own fallback chain.
-- Custom provider resolver is a thin wrapper, not a new fetch path — keeps the fetch
-  implementation in one place and gives Aria a named boundary to call through.
-- `openrouter.ai` is not on the container firewall allowlist — live API fetch degrades
-  gracefully to [] in dev. Documented in registry.ts JSDoc.
+- `signal` lives on `SendMessageOptions`, not on `ModelProvider.sendMessage` — the 4th positional param slot is already `selectedVersionId?: string`; adding AbortSignal there would break all 6 provider classes
+- Aria owns the `AbortController` (creates, stores, passes signal, calls abort) — Atlas only threads the signal through
+- AbortError detection by `err?.name === 'AbortError'` (not `instanceof Error`) for jsdom cross-environment compat
+- `sendMessage` always resolves on abort — never rejects; clean `isDone: true` chunk with partial token usage emitted on mid-stream abort
 
 ## Open advisories (filed, not yet addressed)
 
-- #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children violation in sub-states (pre-existing)
+- #244 (Aria/Ada) — Stop button: focus drops to body when send unmounts on stream start (WCAG 2.4.3)
+- #243 (Scout) — Update sidebar-state-machines tests to unblock #241
+- #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children in sub-states (blocked on #243)
 - #238 (Gate/Atlas) — Custom provider credential testing (CORS/keyless edge cases)
 - #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
@@ -39,13 +36,13 @@ structured resolver pattern so Aria can call them from the version picker.
 - #175 (Vault) — StorageProvider pagination
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
-- #159 (Atlas/Aria) — Cancel streaming
 
 ## What's next
 
 Top candidates:
-- Atlas/Aria: #159 (Cancel streaming) — Atlas AbortController first, then Aria stop button
-- Aria: #241 (ThreadActionMenu sub-state role fix) — straightforward structural change
+- Scout: #243 (update sidebar-state-machines tests) → unblocks #241
+- Aria: #241 (ThreadActionMenu role fix) — once #243 lands
+- Aria: #244 (focus drop on send→stop swap)
 - Aria: wire `resolveVersionCatalog` into `ModelSelectorPanel` version picker (no issue # yet)
 
 ## Gotchas
@@ -63,3 +60,4 @@ Top candidates:
 - App integration tests read from `lastContextValue` (RoundtableContext), not `lastAppLayoutProps`
 - Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
+- jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
