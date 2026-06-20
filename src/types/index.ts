@@ -488,6 +488,23 @@ export type SendMessageFn = (
   onChunk: StreamHandler
 ) => Promise<void>;
 
+/**
+ * Aborts all active streams for the current fan-out.
+ *
+ * Atlas implements this by signalling the AbortController(s) it created when
+ * the paired `sendMessage` call was dispatched. Aria wires this to a stop
+ * button in the input bar.
+ *
+ * Atlas provides a no-op stub before any stream is in flight; the real
+ * implementation is installed at the moment `sendMessage` begins dispatching.
+ * Calling `stopMessage` after all streams have already settled is safe and has
+ * no effect.
+ *
+ * Aria: import this type and add `stopMessage: StopMessageFn` to
+ * `RoundtableContextValue` so the stop button can call it.
+ */
+export type StopMessageFn = () => void;
+
 // ─── ModelProvider — Atlas implements per model ───────────────────────────────
 
 export type ModelErrorCode =
@@ -591,7 +608,16 @@ export interface ModelProvider {
   sendMessage(
     messages: Message[],
     systemPrompt: string | undefined,
-    onChunk: StreamHandler
+    onChunk: StreamHandler,
+    /**
+     * Optional cancellation signal. When the signal is aborted, the provider
+     * should terminate the active stream as quickly as possible and resolve
+     * (not reject) with whatever partial token usage has accumulated.
+     *
+     * Absence means "no cancellation support" — existing provider implementations
+     * remain valid until Atlas adds AbortController wiring.
+     */
+    signal?: AbortSignal
   ): Promise<{ tokenUsage?: TokenUsage }>;
 }
 
