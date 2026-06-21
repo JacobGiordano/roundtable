@@ -79,24 +79,29 @@ export interface MigrationResult {
 }
 
 /**
- * Copy all conversations from a LocalStorageProvider to a ServerStorageProvider.
+ * Copy all conversations from one StorageProvider to another.
  *
  * Reads the full conversation list from `local` and writes each one to `server`
  * via `saveConversation`. Individual failures are collected in the result rather
  * than aborting the migration — every conversation gets an attempt regardless
  * of whether prior ones succeeded.
  *
- * Ghost-mode conversations are never in localStorage (the ghost-mode guard
- * prevented them from being written), so `listConversations()` will never
- * return them. No ghost-mode check is needed here.
+ * Both parameters accept any `StorageProvider` implementation. The typical use
+ * case is `LocalStorageProvider` → `ServerStorageProvider`, but the function
+ * is not restricted to those concrete types — any two implementations of the
+ * interface are valid.
+ *
+ * Ghost-mode conversations are never persisted (the ghost-mode guard in
+ * `saveConversation` prevented them from being written), so `listConversations()`
+ * will never return them. No ghost-mode check is needed here.
  *
  * The caller is responsible for deciding what to do after the migration
  * (e.g. deleting local data, reporting errors to the user). This function
  * only moves data — it does not clean up the source.
  */
 export async function migrateLocalToServer(
-  local: LocalStorageProvider,
-  server: ServerStorageProvider,
+  local: StorageProvider,
+  server: StorageProvider,
 ): Promise<MigrationResult> {
   const result: MigrationResult = {
     migrated: 0,
