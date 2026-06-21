@@ -157,7 +157,7 @@ describe('auth + models — done chunk structure on auth failure', () => {
 describe('auth + models — network error classification (401/403 → auth_failure)', () => {
   it('HTTP 401 response maps to auth_failure error code', async () => {
     // Set a credential so we get past the "no key" guard and reach the HTTP layer.
-    globalThis.localStorage.setItem('rt_key_anthropic', 'invalid-key');
+    globalThis.localStorage.setItem('roundtable:key:anthropic', 'invalid-key');
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
@@ -176,7 +176,7 @@ describe('auth + models — network error classification (401/403 → auth_failu
   });
 
   it('HTTP 403 response maps to auth_failure error code', async () => {
-    globalThis.localStorage.setItem('rt_key_anthropic', 'forbidden-key');
+    globalThis.localStorage.setItem('roundtable:key:anthropic', 'forbidden-key');
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
@@ -194,7 +194,7 @@ describe('auth + models — network error classification (401/403 → auth_failu
   });
 
   it('HTTP 429 response maps to rate_limit error code', async () => {
-    globalThis.localStorage.setItem('rt_key_anthropic', 'real-key');
+    globalThis.localStorage.setItem('roundtable:key:anthropic', 'real-key');
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
@@ -212,7 +212,7 @@ describe('auth + models — network error classification (401/403 → auth_failu
   });
 
   it('network failure (fetch throws) maps to network_error code', async () => {
-    globalThis.localStorage.setItem('rt_key_anthropic', 'real-key');
+    globalThis.localStorage.setItem('roundtable:key:anthropic', 'real-key');
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Failed to fetch')));
 
