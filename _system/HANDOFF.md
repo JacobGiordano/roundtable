@@ -1,4 +1,4 @@
-Last updated: 2026-06-21 (ship wave: #241, #199, #149, #150, #136, #146, #147, #151)
+Last updated: 2026-06-21 (ship: advisory batch — stale comment, GhostIcon, ExportButton focus, motion-reduce)
 
 ## Current phase
 
@@ -6,33 +6,23 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: Aria megabatch + Arch types (#241, #199, #149, #150, #136, #146, #147, #151)**
+**Wave: 4 Ada advisories (Aria)**
 
-- **Aria #241**: ThreadActionMenu sub-states (confirm-delete, group-input, rename) now use `role="dialog" aria-modal="true"`. Ada caught `role="group"` as a blocker; fixed in session. `data-menu-container` attr for test selectors.
-- **Aria #199**: InteractionModeSwitcher radiogroup gets `aria-owns` pointing to enabled radio IDs only. Coming-soon spans have no role/ID.
-- **Aria #149**: `useClickOutside` consolidated from 4 impls → `/src/ui/hooks/useClickOutside.ts` (mousedown).
-- **Aria #150**: `ChevronIcon` shared component at `/src/ui/components/ChevronIcon.tsx`, 3 inline defs eliminated.
-- **Aria #136**: `sidebarUtils.ts` extracted from `Sidebar.tsx` (`filterByArchiveStatus`, `deriveExistingGroups`, `resolveGroupInput`, `isAllSelected`, `getThreadTitle`).
-- **Aria #146**: `ThreadActionMenu` extracted to `/src/ui/components/ThreadActionMenu.tsx`.
-- **Aria #147**: Shared icon system at `/src/ui/icons/index.tsx` — 8 icons, all `aria-hidden="true"`. Pre-existing `GhostIcon` in `InputBar.tsx` deferred as follow-up.
-- **Arch #151**: `BuiltInModelId` JSDoc updated with runtime enumeration single-source rule. Gate follow-up required (see below).
-- **Ada**: PASS on all 7 Aria issues (one blocker on #241 caught and fixed in session).
-- **Flint**: cleared wave. 1108/1108 tests passing.
+- **Stale comment removed** — `ThreadActionMenu.tsx:28-30`: comment claiming `getThreadTitle` is re-exported from this file was false; removed.
+- **GhostIcon migrated** — `InputBar.tsx`: inline 24-line function replaced with `import { GhostIcon } from './icons'` (closes #147 follow-up).
+- **ExportButton keyboard contract** — `ExportButton.tsx`: `tabIndex={-1}` on menuitems, `useEffect` focuses first item on open, `onKeyDown` on `role="menu"` implements ArrowDown/ArrowUp cycling + Tab/Escape → close + return focus. Ada caught missing arrow-key wiring as a blocker; fixed in session.
+- **motion-reduce** — `ChevronIcon.tsx` and `RightChevronIcon` in `icons/index.tsx`: `motion-reduce:transition-none` added to transition classes.
+- **Ada**: PASS (one blocker caught and fixed in session — ExportButton unreachable by keyboard).
+- **Flint**: cleared wave.
 
 ## Key decisions
 
-- ThreadActionMenu sub-states: `role="dialog" aria-modal="true"` is the correct pattern — not `role="menu"` (violates aria-required-children) and not `role="group"` (insufficient, Ada-blocked).
-- `useClickOutside` uses `mousedown` (not `click`) — matches all 4 original implementations and their tests.
-- Shared icon system: 8 icons in `/src/ui/icons/index.tsx`. Remaining inline icons (e.g. `GhostIcon` in `InputBar.tsx`) deferred to follow-up.
-- `BuiltInModelId` runtime consolidation is Gate's work: create `/src/auth/builtinModelIds.ts` exporting `BUILTIN_MODEL_IDS: ReadonlySet<BuiltInModelId>` and update `modelVersion.ts`, `providerRoster.ts`, `accentColors.ts` to import it. Arch's JSDoc documents the rule.
-- Aria `ALL_BUILTIN_IDS` in `ProviderSettingsPanel.tsx:68` should consume Gate's constant (or an Arch-surfaced re-export) — part of #151 follow-up.
+- ExportButton keyboard contract pattern: matches `ThreadActionMenu` sub-state pattern (Ada-audited). WAI-ARIA menu: ArrowDown/Up cycle with wrap, Tab/Escape close + return focus to trigger.
+- All inline icon definitions now eliminated from `InputBar.tsx`; shared icon system (#147) is the single source of truth.
 
-## Open advisories (filed this wave)
+## Open advisories
 
-- **NEW** — Stale comment in `ThreadActionMenu.tsx:29-31` describes a re-export that doesn't exist (cleanup)
-- **NEW** — `GhostIcon` inline in `InputBar.tsx:47` duplicates shared icon system (follow-up to #147)
-- **NEW** — `ExportButton` menuitem buttons missing `tabIndex={-1}` + focus ring (Ada advisory, pre-existing)
-- **NEW** — `ChevronIcon` / `RightChevronIcon` missing `motion-reduce:transition-none` (Ada advisory)
+- **Gate: #151 continuation** — create `/src/auth/builtinModelIds.ts` exporting `BUILTIN_MODEL_IDS: ReadonlySet<BuiltInModelId>`, update `modelVersion.ts`, `providerRoster.ts`, `accentColors.ts` in Gate; Aria consumes in `ProviderSettingsPanel.tsx:68`.
 - #238 (Gate/Atlas) — Custom provider credential testing
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -46,11 +36,9 @@ Phase 4+ — Full gate process active.
 
 ## What's next
 
-Top candidates:
-- **Gate: #151 continuation** — create `builtinModelIds.ts`, update 3 Gate files + Aria `ProviderSettingsPanel.tsx`
+- **Gate: #151 continuation** — highest priority; no type dependency, no Arch needed
 - **Aria: #160** — conversation search/filter (next real feature)
-- **Gate/Arch: #156** — localStorage key naming (can parallel with Aria if no type dependency)
-- **Ada advisory sweep** — 4 new advisories just filed, batch with next Aria session
+- **Gate/Arch: #156** — can parallel with Aria if #151 is done first
 
 ## Gotchas
 
@@ -70,3 +58,4 @@ Top candidates:
 - jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
 - Vault cache is in `LocalStorageProvider` instance scope — tests that create fresh instances always start cold
 - ThreadActionMenu sub-states: `role="dialog" aria-modal="true"` not `role="menu"` (aria-required-children violation)
+- ExportButton: WAI-ARIA menu pattern requires ArrowDown/Up wiring alongside `tabIndex={-1}` — `tabIndex` alone leaves items keyboard-unreachable
