@@ -95,10 +95,12 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
-# Copy and set up firewall script
-COPY init-firewall.sh /usr/local/bin/
+# Install a thin wrapper that delegates to the workspace copy at runtime,
+# so changes to init-firewall.sh take effect on container start without rebuild.
 USER root
-RUN chmod +x /usr/local/bin/init-firewall.sh && \
+RUN printf '#!/bin/bash\nset -euo pipefail\nexec /workspace/.devcontainer/init-firewall.sh "$@"\n' \
+      > /usr/local/bin/init-firewall.sh && \
+  chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
 USER node
