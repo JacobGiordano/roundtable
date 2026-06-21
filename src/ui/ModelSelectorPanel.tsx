@@ -1,5 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+// #149: shared click-outside hook replaces the inline document.addEventListener pattern.
+import { useClickOutside } from './hooks/useClickOutside';
+// #150: shared ChevronIcon replaces the local copy.
+import { ChevronIcon } from './components/ChevronIcon';
+// #147: shared icon system — PaletteIcon replaces the local copy, GearIcon replaces
+// the inline gear SVG in the settings shortcut at the bottom of the panel.
+import { PaletteIcon, GearIcon } from './icons';
 import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
 // read-only registry of all model display metadata including providerName and
@@ -39,34 +46,6 @@ const AVAILABLE_VERSIONS_BY_MODEL_ID = new Map<ModelId, ModelVersionOption[]>(
 /** Default placeholder text for the system prompt textarea. */
 const SYSTEM_PROMPT_PLACEHOLDER =
   'Give this model a persona, set context, or restrict its behavior…';
-
-// ─── PaletteIcon ─────────────────────────────────────────────────────────────
-
-/** 14×14 SVG palette icon for the accent color trigger. */
-function PaletteIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      aria-hidden="true"
-    >
-      {/* Palette body */}
-      <path
-        d="M7 1.5A5.5 5.5 0 1 0 12.5 7c0-.83-.17-1.5-1-1.5H10a1.5 1.5 0 0 1 0-3 5.5 5.5 0 0 0-3-1Z"
-        stroke="currentColor"
-        strokeWidth="1.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Colour dots on the palette */}
-      <circle cx="4.5" cy="5" r="0.75" fill="currentColor" />
-      <circle cx="4.5" cy="9" r="0.75" fill="currentColor" />
-      <circle cx="7"   cy="10.5" r="0.75" fill="currentColor" />
-    </svg>
-  );
-}
 
 // ─── ModelPill ────────────────────────────────────────────────────────────────
 
@@ -300,20 +279,9 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
 
   const closeDropdown = useCallback(() => setIsOpen(false), []);
 
-  // Close on outside click
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleOutside(e: MouseEvent) {
-      if (
-        buttonRef.current && !buttonRef.current.contains(e.target as Node) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
-      ) {
-        closeDropdown();
-      }
-    }
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [isOpen, closeDropdown]);
+  // Close on outside click — shared hook (#149). Pass both refs so clicking
+  // either the trigger button or the portal dropdown does not close the menu.
+  useClickOutside([buttonRef, dropdownRef], closeDropdown, isOpen);
 
   // Close on Escape
   useEffect(() => {
@@ -400,30 +368,6 @@ function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) {
 
       {dropdown}
     </div>
-  );
-}
-
-// ─── ChevronIcon ──────────────────────────────────────────────────────────────
-
-function ChevronIcon({ isOpen }: { isOpen: boolean }) {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      aria-hidden="true"
-      className="transition-transform duration-fast flex-shrink-0"
-      style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-    >
-      <path
-        d="M1.5 3.5L5 7L8.5 3.5"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -1146,20 +1090,8 @@ export function ModelSelectorPanel({
                 'cursor-pointer',
               ].join(' ')}
             >
-              {/* 12×12 gear icon */}
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path
-                  d="M6 7.875A1.875 1.875 0 1 0 6 4.125a1.875 1.875 0 0 0 0 3.75Z"
-                  stroke="currentColor"
-                  strokeWidth="1.05"
-                />
-                <path
-                  d="M10.125 6c0-.255-.023-.503-.068-.742l1.193-.93-1.125-1.95-1.425.57a4.125 4.125 0 0 0-1.283-.742L7.125.75h-2.25l-.293 1.456a4.125 4.125 0 0 0-1.283.742l-1.424-.57L.75 4.328l1.193.93A4.2 4.2 0 0 0 1.875 6c0 .255.023.503.068.742L.75 7.672l1.125 1.95 1.424-.57c.4.307.817.548 1.283.742L4.875 11.25h2.25l.293-1.456a4.125 4.125 0 0 0 1.283-.742l1.425.57 1.125-1.95-1.193-.93c.045-.239.067-.487.067-.742Z"
-                  stroke="currentColor"
-                  strokeWidth="1.05"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              {/* Gear icon — shared icon (#147) */}
+              <GearIcon size={12} />
               Provider settings
             </button>
           </div>

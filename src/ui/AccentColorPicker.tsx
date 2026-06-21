@@ -8,6 +8,8 @@
  */
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+// #149: shared click-outside hook replaces the inline document.addEventListener pattern.
+import { useClickOutside } from './hooks/useClickOutside';
 import type { ModelId, ModelAccentColors } from '@/types';
 // Gate cross-agent exception: setModelAccentColor and clearModelAccentColor are
 // the persistence functions from @/auth. Aria must validate before calling
@@ -198,16 +200,8 @@ export function AccentColorPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Close on click outside.
-  useEffect(() => {
-    function handleMouseDown(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [onClose]);
+  // Close on click outside — shared hook (#149).
+  useClickOutside([popoverRef], onClose);
 
   // Close on Escape.
   useEffect(() => {
