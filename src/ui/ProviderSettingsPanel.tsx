@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { BuiltInModelId, ProviderConfig, BuiltInProviderConfig } from '@/types';
 // Gate cross-agent exception: provider roster CRUD functions and credential
 // helpers are pure Gate persistence utilities — permitted per CLAUDE.md.
+// BUILTIN_MODEL_IDS: Gate's canonical ReadonlySet<BuiltInModelId> — imported
+// per #151 so this file does not re-enumerate the union members locally.
 import {
   getProviderRoster,
   addBuiltInProvider,
@@ -12,6 +14,7 @@ import {
   saveCredentials,
   clearCredentials,
   getCredentials,
+  BUILTIN_MODEL_IDS,
 } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
 // Replaces the inline getProviderDotColor function in this file.
@@ -65,9 +68,6 @@ const BUILTIN_META: Record<BuiltInModelId, { name: string; color: string }> = {
   'mistral':  { name: 'Mistral',   color: 'accent-mistral' },
 };
 
-const ALL_BUILTIN_IDS: BuiltInModelId[] = [
-  'claude', 'gpt-5.5', 'gemini', 'grok', 'deepseek', 'mistral',
-];
 
 // ─── Provider helpers ─────────────────────────────────────────────────────────
 
@@ -1407,7 +1407,7 @@ export function ProviderSettingsPanel({
       .filter((p): p is BuiltInProviderConfig => p.kind === 'builtin')
       .map((p) => p.modelId),
   );
-  const availableBuiltIns = ALL_BUILTIN_IDS.filter((id) => !configuredBuiltInIds.has(id));
+  const availableBuiltIns = [...BUILTIN_MODEL_IDS].filter((id) => !configuredBuiltInIds.has(id));
 
   return (
     <div

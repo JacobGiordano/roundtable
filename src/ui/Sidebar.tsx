@@ -28,7 +28,7 @@ import { groupConversations } from './groupConversations';
 // #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
 // and the ArchiveFilter type live in sidebarUtils.ts so they can be unit-tested
 // without a DOM environment or React testing setup.
-import { filterByArchiveStatus, deriveExistingGroups, getThreadTitle, type ArchiveFilter } from './sidebarUtils';
+import { filterByArchiveStatus, filterBySearchQuery, deriveExistingGroups, getThreadTitle, type ArchiveFilter } from './sidebarUtils';
 // #148: getModelDotStyle is the shared utility for model identity dot colors.
 // Extracted from inline implementations in Sidebar, ModelSelectorPanel, and
 // ProviderSettingsPanel into utils/modelColor.ts — single source of truth.
@@ -433,6 +433,114 @@ function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
   );
 }
 
+// ─── Search bar ──────────────────────────────────────────────────────────────
+
+interface SearchBarProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+/**
+ * Inline search/filter input for the sidebar conversation list (#160).
+ *
+ * Keyboard contract:
+ * - Escape: clears the query and keeps focus on the input (does NOT close
+ *   the sidebar or trigger any other Escape handler up the tree — this is
+ *   achieved by calling e.stopPropagation() before clearing).
+ * - The clear (×) button is focusable via Tab; clicking it clears the query
+ *   and returns focus to the text input.
+ */
+function SearchBar({ value, onChange }: SearchBarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClear = useCallback(() => {
+    onChange('');
+    // Return focus to the input after clearing so the user can immediately
+    // type a new query without re-clicking.
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [onChange]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') {
+        // Stop propagation so the sidebar settings panel (and any other
+        // Escape listeners) are not triggered when the user clears a query.
+        e.stopPropagation();
+        onChange('');
+        // Keep focus on the input after clearing — no blur, no dismiss.
+        // (focus is already on the input, so no action needed here)
+      }
+    },
+    [onChange],
+  );
+
+  return (
+    <div className="flex-shrink-0 px-3 py-2">
+      <div
+        className={[
+          'flex items-center gap-1.5 h-8 rounded-md',
+          'bg-input border border-border',
+          'transition-colors duration-fast',
+          'focus-within:border-border-strong',
+        ].join(' ')}
+      >
+        {/* Search icon */}
+        <svg
+          className="ml-2 flex-shrink-0 text-text-muted"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M8 8l2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+
+        <input
+          ref={inputRef}
+          type="search"
+          role="searchbox"
+          aria-label="Search conversations"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Search"
+          className={[
+            'flex-1 min-w-0 bg-transparent text-[12px] text-text-primary placeholder:text-text-muted',
+            // focus:outline-none suppresses the browser default ring; focus-visible:ring-2
+            // provides a keyboard-only ring (WCAG 2.4.7 / Aria focus-visibility rules).
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset rounded-md',
+            // Suppress browser default clear button on type="search" — we provide our own.
+            '[&::-webkit-search-cancel-button]:appearance-none',
+          ].join(' ')}
+        />
+
+        {/* Clear button — only visible when there is a query */}
+        {value && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={handleClear}
+            className={[
+              'mr-1.5 flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full',
+              'text-text-muted hover:text-text-secondary hover:bg-hover',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+              <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Bulk action bar ──────────────────────────────────────────────────────────
 
 type BulkBarState = 'idle' | 'confirm-delete';
@@ -726,6 +834,8 @@ export function Sidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // Archive filter: show active or archived conversations.
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
+  // Search query — filters the conversation list by title and content preview (#160).
+  const [searchQuery, setSearchQuery] = useState('');
   // Bulk selection: set of selected conversation IDs.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -800,11 +910,11 @@ export function Sidebar({
     });
   }, []);
 
-  // Filter conversations by archive status via sidebarUtils (#136).
-  const filteredConversations = useMemo(
-    () => filterByArchiveStatus(conversations, archiveFilter),
-    [conversations, archiveFilter],
-  );
+  // Filter conversations: archive status first, then search query (#136, #160).
+  const filteredConversations = useMemo(() => {
+    const byArchive = filterByArchiveStatus(conversations, archiveFilter);
+    return filterBySearchQuery(byArchive, searchQuery);
+  }, [conversations, archiveFilter, searchQuery]);
 
   // Memoize grouping — recalculates only when the filtered conversations change.
   const { named: namedGroups, ungrouped } = useMemo(
@@ -842,10 +952,11 @@ export function Sidebar({
     setSelectedIds(new Set());
   }, []);
 
-  // Clear selection when the filter tab changes to avoid stale selections.
+  // Clear selection and search query when the filter tab changes to avoid stale state.
   const handleArchiveFilterChange = useCallback((value: ArchiveFilter) => {
     setArchiveFilter(value);
     setSelectedIds(new Set());
+    setSearchQuery('');
   }, []);
 
   const handleBulkArchive = useCallback(() => {
@@ -1037,10 +1148,13 @@ export function Sidebar({
         </div>
       </header>
 
-      {/* Archive filter toggle — below header, above thread list */}
+      {/* Archive filter toggle — below header, above search */}
       <div className="flex-shrink-0">
         <ArchiveToggle value={archiveFilter} onChange={handleArchiveFilterChange} />
       </div>
+
+      {/* Search bar — filter conversation list by title or content (#160) */}
+      <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
       {/* Bulk action bar — shown when 1+ conversations are selected */}
       {hasBulkSelection && (
@@ -1070,9 +1184,11 @@ export function Sidebar({
         ) : filteredConversations.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-[13px] text-text-muted text-center px-4">
-              {archiveFilter === 'archived'
-                ? 'No archived conversations'
-                : 'Start a conversation'}
+              {searchQuery.trim()
+                ? 'No conversations match your search'
+                : archiveFilter === 'archived'
+                  ? 'No archived conversations'
+                  : 'Start a conversation'}
             </p>
           </div>
         ) : hasAnyGroups ? (
