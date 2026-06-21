@@ -78,6 +78,33 @@ export function isAllSelected(selected: Set<string>, available: Conversation[]):
   return available.length > 0 && available.every((c) => selected.has(c.id));
 }
 
+// ─── Search filter ────────────────────────────────────────────────────────────
+
+/**
+ * Filters a conversation list by a search query.
+ *
+ * Match criteria (case-insensitive, both must pass):
+ *   1. Conversation title (explicit or auto-derived from first user message)
+ *   2. Content preview: the text of the first user message
+ *
+ * An empty or whitespace-only query returns all conversations unchanged.
+ *
+ * Extracted here (#160) so it can be unit-tested independently of the
+ * Sidebar component.
+ */
+export function filterBySearchQuery(
+  conversations: Conversation[],
+  query: string,
+): Conversation[] {
+  const normalised = query.trim().toLowerCase();
+  if (!normalised) return conversations;
+  return conversations.filter((c) => {
+    const title = getThreadTitle(c).toLowerCase();
+    const preview = (c.messages.find((m) => m.role === 'user')?.content ?? '').toLowerCase();
+    return title.includes(normalised) || preview.includes(normalised);
+  });
+}
+
 // ─── Thread title derivation ──────────────────────────────────────────────────
 
 /**
