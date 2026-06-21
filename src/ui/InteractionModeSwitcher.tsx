@@ -127,13 +127,13 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
   );
 
   if (isDisabled) {
-    // Render as a non-interactive span inside the radiogroup.
-    // No role is applied — the span is transparent to AT's radiogroup role model
-    // (only Parallel is announced as the selectable radio). In browse/reading mode,
-    // AT reads the span's aria-label ("Manual — coming soon") because aria-hidden
-    // is unset. The tooltip (role="tooltip", aria-describedby) carries the full
-    // "Coming soon" description for users who encounter this element in reading mode.
-    // tabIndex is deliberately absent — the span must not be keyboard-reachable.
+    // Render as role="radio" aria-disabled="true" inside the radiogroup (#199).
+    // Without role="radio", the coming-soon items are not valid radiogroup children —
+    // a radiogroup's aria-required-children contract requires role="radio" on every
+    // owned item. Using role="radio" aria-disabled="true" aria-checked="false"
+    // correctly represents a disabled radio option and satisfies the ownership contract.
+    // tabIndex is deliberately absent — these items remain outside the keyboard tab
+    // sequence. Only the active (Parallel) radio is reachable by keyboard.
     return (
       <div
         className="relative"
@@ -141,6 +141,9 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         onMouseLeave={handleMouseLeave}
       >
         <span
+          role="radio"
+          aria-checked={false}
+          aria-disabled="true"
           aria-label={`${config.label} — coming soon`}
           aria-describedby={tooltipId}
           className={[

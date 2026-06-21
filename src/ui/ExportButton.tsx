@@ -1,41 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ExportFormat } from '@/types';
+// #149: shared click-outside hook replaces the inline document.addEventListener pattern.
+import { useClickOutside } from './hooks/useClickOutside';
+// #147: shared DownloadIcon replaces the local copy.
+import { DownloadIcon } from './icons';
 
 interface ExportButtonProps {
   /** Called when the user picks a format. Parent handles the async export + download. */
   onExport: (format: ExportFormat) => void;
   /** Disabled when there is no active conversation or it has no messages. */
   disabled?: boolean;
-}
-
-/**
- * Download icon — 16×16 SVG, consistent with other icon buttons in the app.
- */
-function DownloadIcon() {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 15 15"
-      fill="none"
-      aria-hidden="true"
-      className="flex-shrink-0"
-    >
-      <path
-        d="M7.5 1v8M4.5 6.5L7.5 9.5L10.5 6.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M2 11h11"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }
 
 /**
@@ -64,19 +38,8 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
     close();
   };
 
-  // Close on outside click
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        close();
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [isOpen, close]);
+  // Close on outside click — shared hook (#149).
+  useClickOutside([containerRef], close, isOpen);
 
   // Close on Escape
   useEffect(() => {
@@ -112,7 +75,7 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
             : 'text-text-secondary hover:bg-hover cursor-pointer',
         ].join(' ')}
       >
-        <DownloadIcon />
+        <DownloadIcon className="flex-shrink-0" />
       </button>
 
       {isOpen && (

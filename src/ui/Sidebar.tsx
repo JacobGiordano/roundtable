@@ -25,6 +25,10 @@ import {
   getThemePreference,
 } from '@/auth';
 import { groupConversations } from './groupConversations';
+// #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
+// and the ArchiveFilter type live in sidebarUtils.ts so they can be unit-tested
+// without a DOM environment or React testing setup.
+import { filterByArchiveStatus, deriveExistingGroups, type ArchiveFilter } from './sidebarUtils';
 // #148: getModelDotStyle is the shared utility for model identity dot colors.
 // Extracted from inline implementations in Sidebar, ModelSelectorPanel, and
 // ProviderSettingsPanel into utils/modelColor.ts — single source of truth.
@@ -37,6 +41,21 @@ import { getModelDotStyle } from './utils/modelColor';
 import { applyUserAccentColors, applyTheme, THEME_MAP, THEME_IDS } from './theme';
 import type { ThemeId } from '@/types';
 import { RoundtableLogo } from './RoundtableLogo';
+// #150: shared ChevronIcon replaces the down-chevron SVG in the settings toggle.
+import { ChevronIcon } from './components/ChevronIcon';
+// #146: ThreadActionMenu extracted to its own file for focus and testability.
+// getThreadTitle is re-exported from ThreadActionMenu so ThreadRow can use it.
+import { ThreadActionMenu, getThreadTitle } from './components/ThreadActionMenu';
+// #147: shared icon system — PlusIcon, CloseIcon, GhostIcon, EllipsisVerticalIcon,
+// GearIcon, and RightChevronIcon replace inline SVGs throughout this file.
+import {
+  PlusIcon,
+  CloseIcon,
+  GhostIcon,
+  EllipsisVerticalIcon,
+  GearIcon,
+  RightChevronIcon,
+} from './icons';
 
 // #166: Platform detection for keyboard shortcut hint in button aria-labels.
 // Module-level constant — navigator may be undefined in SSR/test environments.
@@ -136,478 +155,9 @@ function formatRelativeTime(timestamp: number): string {
   return msgDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-/** Derive thread title from conversation data. */
-function getThreadTitle(conversation: Conversation): string {
-  if (conversation.title) return conversation.title;
-  const firstUserMsg = conversation.messages.find((m) => m.role === 'user');
-  if (firstUserMsg) {
-    return firstUserMsg.content.replace(/\n/g, ' ').slice(0, 40);
-  }
-  return 'New conversation';
-}
+// getThreadTitle and ThreadActionMenu are imported from ./components/ThreadActionMenu (#146).
+// They are re-exported from that file so they can be used by ThreadRow (below).
 
-// ─── Three-dot menu ───────────────────────────────────────────────────────────
-
-type ThreadMenuState =
-  | { type: 'closed' }
-  | { type: 'menu' }
-  | { type: 'confirm-delete' }
-  | { type: 'group-input' }
-  | { type: 'rename' };
-
-interface ThreadActionMenuProps {
-  conversation: Conversation;
-  /** All distinct group names currently in use across conversations. */
-  existingGroups: string[];
-  onArchive: () => void;
-  onUnarchive: () => void;
-  onDelete: () => void;
-  onSetGroup: (groupId: string | undefined) => void;
-  onRename: (newTitle: string) => void;
-  onClose: () => void;
-  /** Ref to the trigger button — focus is returned here on Escape or Tab close. */
-  triggerRef: React.RefObject<HTMLButtonElement>;
-}
-
-function ThreadActionMenu({
-  conversation,
-  existingGroups,
-  onArchive,
-  onUnarchive,
-  onDelete,
-  onSetGroup,
-  onRename,
-  onClose,
-  triggerRef,
-}: ThreadActionMenuProps) {
-  const [menuState, setMenuState] = useState<ThreadMenuState>({ type: 'menu' });
-  const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
-  // renameInput: initialized to the current title (or derived title) so the
-  // user sees the existing name pre-filled and can edit it in place.
-  const [renameInput, setRenameInput] = useState(getThreadTitle(conversation));
-  const menuRef = useRef<HTMLDivElement>(null);
-  const groupInputRef = useRef<HTMLInputElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  // Ref for the Cancel button in the confirm-delete sub-state.
-  // Focus is moved here on transition so keyboard users land on the safe
-  // default action (Cancel) rather than losing focus to document.body.
-  // Same pattern as ProviderRow confirm state in #115 (WCAG 2.4.3).
-  const confirmCancelRef = useRef<HTMLButtonElement>(null);
-
-  // Outside-click close is handled by the full-viewport backdrop rendered in
-  // ThreadActionMenu's JSX (fixed inset-0 z-30). The document-level mousedown
-  // listener is no longer needed.
-
-  // Focus first menuitem when the menu state is 'menu' (on initial open and
-  // if the user navigates back to the top-level menu from a sub-state).
-  useEffect(() => {
-    if (menuState.type === 'menu') {
-      const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
-      firstItem?.focus();
-    }
-  }, [menuState.type]);
-
-  // Focus Cancel button when confirm-delete sub-state opens (WCAG 2.4.3, #113).
-  // Cancel is the safe default for a destructive action.
-  useEffect(() => {
-    if (menuState.type === 'confirm-delete') {
-      confirmCancelRef.current?.focus();
-    }
-  }, [menuState.type]);
-
-  // Focus group input when it appears
-  useEffect(() => {
-    if (menuState.type === 'group-input') {
-      groupInputRef.current?.focus();
-    }
-  }, [menuState.type]);
-
-  // Focus rename input when it appears; select all so the user can overtype immediately.
-  useEffect(() => {
-    if (menuState.type === 'rename') {
-      renameInputRef.current?.focus();
-      renameInputRef.current?.select();
-    }
-  }, [menuState.type]);
-
-  /** Close the menu and return focus to the trigger button. */
-  const closeAndReturnFocus = useCallback(() => {
-    onClose();
-    // Double-rAF: first frame lets React unmount the menu; second frame
-    // guarantees the browser has fully painted before restoring focus,
-    // preventing React from moving focus to <body> between the two steps.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        triggerRef.current?.focus();
-      });
-    });
-  }, [onClose, triggerRef]);
-
-  const handleGroupConfirm = useCallback(() => {
-    const trimmed = groupInput.trim();
-    onSetGroup(trimmed === '' ? undefined : trimmed);
-    closeAndReturnFocus();
-  }, [groupInput, onSetGroup, closeAndReturnFocus]);
-
-  const handleGroupKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleGroupConfirm();
-      } else if (e.key === 'Escape') {
-        closeAndReturnFocus();
-      }
-    },
-    [handleGroupConfirm, closeAndReturnFocus],
-  );
-
-  const handleRenameConfirm = useCallback(() => {
-    const trimmed = renameInput.trim();
-    // Empty title: revert to original auto-title by passing the original title
-    // (or empty string which updateConversation will treat as "derive from messages").
-    // Non-empty: persist the user's chosen name.
-    onRename(trimmed === '' ? (conversation.title ?? '') : trimmed);
-    closeAndReturnFocus();
-  }, [renameInput, conversation.title, onRename, closeAndReturnFocus]);
-
-  const handleRenameKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleRenameConfirm();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        closeAndReturnFocus();
-      }
-    },
-    [handleRenameConfirm, closeAndReturnFocus],
-  );
-
-  /**
-   * Keyboard handler attached to the menu container (role="menu").
-   *
-   * ARIA menu keyboard contract:
-   * - Tab / Shift+Tab: close menu (menus are not in the tab order).
-   * - Escape: close menu and return focus to trigger.
-   * - ArrowDown/Up: move focus between menuitems (wraps at boundaries).
-   * - Home/End: jump to first/last menuitem.
-   *
-   * Arrow-key navigation only applies in the top-level 'menu' state.
-   * The confirm-delete and group-input sub-states manage their own focus
-   * and Tab behaviour (they are dialog-like widgets, not menus).
-   */
-  const handleMenuKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      // Tab (or Shift+Tab): in confirm-delete, group-input, and rename states,
-      // cycle between the sub-state's interactive controls (dialog-like behaviour).
-      // In the top-level 'menu' state, Tab exits the menu — menus must not be
-      // Tab-navigable per the ARIA menu keyboard contract.
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        if (menuState.type === 'confirm-delete') {
-          // Cycle between the two confirm buttons only.
-          const buttons = Array.from(
-            menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-confirm="true"]') ?? [],
-          );
-          const focused = document.activeElement as HTMLButtonElement;
-          const idx = buttons.indexOf(focused);
-          const next = e.shiftKey
-            ? idx > 0 ? idx - 1 : buttons.length - 1
-            : idx < buttons.length - 1 ? idx + 1 : 0;
-          buttons[next]?.focus();
-        } else if (menuState.type === 'group-input' || menuState.type === 'rename') {
-          // Cycle through all focusable elements in the sub-state panel.
-          // Querying by the [data-substate] container ensures we stay within
-          // the active sub-state and do not accidentally reach menuitem buttons.
-          const panel = menuRef.current?.querySelector<HTMLElement>('[data-substate]');
-          const focusable = Array.from(
-            panel?.querySelectorAll<HTMLElement>(
-              'input:not([disabled]):not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"])',
-            ) ?? [],
-          );
-          if (focusable.length > 0) {
-            const focused = document.activeElement as HTMLElement;
-            const idx = focusable.indexOf(focused);
-            const next = e.shiftKey
-              ? idx > 0 ? idx - 1 : focusable.length - 1
-              : idx < focusable.length - 1 ? idx + 1 : 0;
-            focusable[next]?.focus();
-          }
-        } else {
-          closeAndReturnFocus();
-        }
-        return;
-      }
-
-      // Escape always closes and returns focus.
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeAndReturnFocus();
-        return;
-      }
-
-      // Left/Right arrow cycles between buttons in confirm-delete state.
-      if (menuState.type === 'confirm-delete' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-        e.preventDefault();
-        const buttons = Array.from(
-          menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-confirm="true"]') ?? [],
-        );
-        const focused = document.activeElement as HTMLButtonElement;
-        const idx = buttons.indexOf(focused);
-        const next = e.key === 'ArrowRight'
-          ? idx < buttons.length - 1 ? idx + 1 : 0
-          : idx > 0 ? idx - 1 : buttons.length - 1;
-        buttons[next]?.focus();
-        return;
-      }
-
-      // Arrow-key navigation is only relevant in the top-level menu state.
-      if (menuState.type !== 'menu') return;
-
-      const items = Array.from(
-        menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
-      );
-      if (items.length === 0) return;
-
-      const focused = document.activeElement as HTMLElement;
-      const currentIndex = items.indexOf(focused);
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
-        items[next]?.focus();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
-        items[prev]?.focus();
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        items[0]?.focus();
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        items[items.length - 1]?.focus();
-      }
-    },
-    [menuState.type, closeAndReturnFocus],
-  );
-
-  const isArchived = conversation.archivedAt !== undefined;
-
-  return (
-    <>
-      {/* Full-viewport backdrop — sits behind the menu, above all sibling rows.
-          Intercepts pointer events so rows beneath the open menu cannot receive
-          hover or click events (fixes #114 hover bleed). onMouseDown closes the
-          menu and replaces the document-level mousedown listener for outside clicks. */}
-      <div
-        className="fixed inset-0 z-30"
-        aria-hidden="true"
-        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
-      />
-      <div
-        ref={menuRef}
-        role="menu"
-        aria-label="Conversation actions"
-        onKeyDown={handleMenuKeyDown}
-        className={[
-          'absolute right-2 top-1 z-40',
-          'min-w-[160px] py-1 rounded-md',
-          'bg-card border border-border',
-          'shadow-md',
-          'text-[12px]',
-        ].join(' ')}
-      >
-      {menuState.type === 'menu' && (
-        <>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => { setRenameInput(getThreadTitle(conversation)); setMenuState({ type: 'rename' }); }}
-            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-          >
-            Rename
-          </button>
-          {isArchived ? (
-            <button
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              onClick={() => { onUnarchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-            >
-              Unarchive
-            </button>
-          ) : (
-            <button
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              onClick={() => { onArchive(); closeAndReturnFocus(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-            >
-              Archive
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => setMenuState({ type: 'group-input' })}
-            className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-          >
-            Move to group&hellip;
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => setMenuState({ type: 'confirm-delete' })}
-            className="w-full text-left px-3 py-1.5 text-error hover:bg-hover transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-          >
-            Delete
-          </button>
-        </>
-      )}
-
-      {menuState.type === 'confirm-delete' && (
-        <div className="px-3 py-2">
-          <p className="text-text-secondary mb-2">Delete this conversation?</p>
-          <div className="flex gap-2">
-            <button
-              ref={confirmCancelRef}
-              type="button"
-              data-confirm="true"
-              onClick={onClose}
-              className={[
-                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              data-confirm="true"
-              onClick={() => { onDelete(); onClose(); }}
-              className={[
-                'flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {menuState.type === 'group-input' && (
-        <div data-substate className="px-3 py-2">
-          <p className="text-text-muted mb-1.5 text-[11px]">Group name (blank to clear)</p>
-          <input
-            ref={groupInputRef}
-            type="text"
-            value={groupInput}
-            onChange={(e) => setGroupInput(e.target.value)}
-            onKeyDown={handleGroupKeyDown}
-            placeholder="Enter group name"
-            className={[
-              'w-full px-2 py-1 rounded text-[12px]',
-              'bg-input border border-border',
-              'text-text-primary placeholder:text-text-muted',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          />
-          {/* Existing group suggestions */}
-          {existingGroups.length > 0 && (
-            <ul className="mt-1.5 max-h-24 overflow-y-auto">
-              {existingGroups.map((g) => (
-                <li key={g}>
-                  <button
-                    type="button"
-                    onClick={() => { onSetGroup(g); onClose(); }}
-                    className={[
-                      'w-full text-left px-2 py-1 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast text-[11px] rounded',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-                    ].join(' ')}
-                  >
-                    {g}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={closeAndReturnFocus}
-              className={[
-                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleGroupConfirm}
-              className={[
-                'flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Confirm
-            </button>
-          </div>
-        </div>
-      )}
-
-      {menuState.type === 'rename' && (
-        <div data-substate className="px-3 py-2">
-          <p className="text-text-muted mb-1.5 text-[11px]">Rename conversation</p>
-          <input
-            ref={renameInputRef}
-            type="text"
-            value={renameInput}
-            onChange={(e) => setRenameInput(e.target.value)}
-            onKeyDown={handleRenameKeyDown}
-            placeholder="Conversation title"
-            aria-label="Conversation title"
-            className={[
-              'w-full px-2 py-1 rounded text-[12px]',
-              'bg-input border border-border',
-              'text-text-primary placeholder:text-text-muted',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={closeAndReturnFocus}
-              className={[
-                'flex-1 px-2 py-1 rounded text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleRenameConfirm}
-              className={[
-                'flex-1 px-2 py-1 rounded text-text-primary bg-interactive-active hover:opacity-90 transition-opacity duration-fast text-[11px]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              Rename
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-    </>
-  );
-}
 
 // ─── ThreadRow ────────────────────────────────────────────────────────────────
 
@@ -774,12 +324,8 @@ function ThreadRow({
           menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
         ].join(' ')}
       >
-        {/* Vertical three-dot (ellipsis) icon */}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <circle cx="6" cy="2" r="1.1" />
-          <circle cx="6" cy="6" r="1.1" />
-          <circle cx="6" cy="10" r="1.1" />
-        </svg>
+        {/* Vertical three-dot (ellipsis) icon — shared icon (#147) */}
+        <EllipsisVerticalIcon className="flex-shrink-0" />
       </button>
 
       {/* Dropdown menu */}
@@ -824,24 +370,8 @@ function GroupHeader({ label, isOpen, onToggle }: GroupHeaderProps) {
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
       ].join(' ')}
     >
-      {/* Chevron rotates to indicate open/closed state */}
-      <svg
-        width="8"
-        height="8"
-        viewBox="0 0 8 8"
-        fill="none"
-        aria-hidden="true"
-        className="flex-shrink-0 transition-transform duration-fast"
-        style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-      >
-        <path
-          d="M2 1.5L5.5 4L2 6.5"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      {/* Right-chevron rotates to indicate open/closed state — shared icon (#147) */}
+      <RightChevronIcon isOpen={isOpen} />
       <span className="text-[11px] font-semibold uppercase tracking-wide truncate">
         {label}
       </span>
@@ -862,7 +392,7 @@ function ThreadSkeleton() {
 
 // ─── Archive filter toggle ────────────────────────────────────────────────────
 
-type ArchiveFilter = 'active' | 'archived';
+// ArchiveFilter type is imported from ./sidebarUtils (#136).
 
 interface ArchiveToggleProps {
   value: ArchiveFilter;
@@ -1271,12 +801,9 @@ export function Sidebar({
     });
   }, []);
 
-  // Filter conversations by archive status, then memoize grouping.
+  // Filter conversations by archive status via sidebarUtils (#136).
   const filteredConversations = useMemo(
-    () =>
-      conversations.filter((c) =>
-        archiveFilter === 'active' ? c.archivedAt === undefined : c.archivedAt !== undefined,
-      ),
+    () => filterByArchiveStatus(conversations, archiveFilter),
     [conversations, archiveFilter],
   );
 
@@ -1288,14 +815,11 @@ export function Sidebar({
 
   const hasAnyGroups = namedGroups.size > 0;
 
-  // Collect all existing group names for suggestions in the group input.
-  const existingGroups = useMemo(() => {
-    const groups = new Set<string>();
-    for (const conv of conversations) {
-      if (conv.groupId) groups.add(conv.groupId);
-    }
-    return [...groups].sort((a, b) => a.localeCompare(b));
-  }, [conversations]);
+  // Collect all existing group names for suggestions — via sidebarUtils (#136).
+  const existingGroups = useMemo(
+    () => deriveExistingGroups(conversations),
+    [conversations],
+  );
 
   // ── Bulk selection helpers ─────────────────────────────────────────────────
 
@@ -1425,19 +949,8 @@ export function Sidebar({
                   : 'text-text-muted hover:text-text-secondary hover:bg-hover',
               ].join(' ')}
             >
-              {/* Ghost icon: a simple rounded ghost silhouette */}
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M8 2a5 5 0 0 0-5 5v6l1.5-1.5L6 13l2-1.5L10 13l1.5-1.5L13 13V7a5 5 0 0 0-5-5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                  fill={isGhostMode ? 'currentColor' : 'none'}
-                  fillOpacity={isGhostMode ? '0.15' : '0'}
-                />
-                <circle cx="6" cy="7.5" r="0.8" fill="currentColor" />
-                <circle cx="10" cy="7.5" r="0.8" fill="currentColor" />
-              </svg>
+              {/* Ghost icon — shared icon (#147) */}
+              <GhostIcon filled={isGhostMode} />
             </button>
           )}
           {/* Desktop-only controls: new conversation + provider-settings gear */}
@@ -1462,14 +975,8 @@ export function Sidebar({
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 ].join(' ')}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M8 2v12M2 8h12"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                {/* Plus icon — shared icon (#147) */}
+                <PlusIcon />
               </button>
               <div
                 id="sidebar-new-conv-tooltip"
@@ -1508,20 +1015,8 @@ export function Sidebar({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
               ].join(' ')}
             >
-              {/* 20×20 gear icon */}
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path
-                  d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                />
-                <path
-                  d="M17 10c0-.43-.04-.85-.11-1.25l1.98-1.54-1.88-3.24-2.36.95a7 7 0 0 0-2.16-1.25L12.12 2H7.88L7.53 3.67a7 7 0 0 0-2.16 1.25L3.01 3.97 1.13 7.21l1.98 1.54C3.04 9.15 3 9.57 3 10c0 .43.04.85.11 1.25L1.13 12.79l1.88 3.24 2.36-.95a7 7 0 0 0 2.16 1.25L7.88 18h4.24l.35-1.67a7 7 0 0 0 2.16-1.25l2.36.95 1.88-3.24-1.98-1.54C16.96 10.85 17 10.43 17 10Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              {/* Gear icon — shared icon (#147) */}
+              <GearIcon size={20} />
             </button>
           )}
           </div>
@@ -1537,9 +1032,8 @@ export function Sidebar({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
             ].join(' ')}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            {/* Close icon — shared icon (#147) */}
+            <CloseIcon />
           </button>
         </div>
       </header>
@@ -1694,46 +1188,11 @@ export function Sidebar({
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
           ].join(' ')}
         >
-          {/* Gear icon */}
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            aria-hidden="true"
-            className="flex-shrink-0"
-          >
-            <path
-              d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-            />
-            <path
-              d="M11.5 7c0-.28-.03-.55-.07-.81l1.3-1.01-1.25-2.16-1.57.63a4.5 4.5 0 0 0-1.4-.81L8.25 1h-2.5l-.26 1.84a4.5 4.5 0 0 0-1.4.81L2.52 3.02 1.27 5.18l1.3 1.01A4.6 4.6 0 0 0 2.5 7c0 .28.03.55.07.81L1.27 8.82l1.25 2.16 1.57-.63c.43.33.9.6 1.4.81L5.75 13h2.5l.26-1.84c.5-.21.97-.48 1.4-.81l1.57.63 1.25-2.16-1.3-1.01c.04-.26.07-.53.07-.81Z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-          </svg>
+          {/* Gear icon — shared icon (#147) */}
+          <GearIcon size={14} className="flex-shrink-0" />
           <span className="text-[12px] font-medium flex-1">Settings</span>
-          {/* Chevron */}
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            aria-hidden="true"
-            className="transition-transform duration-fast flex-shrink-0"
-            style={{ transform: isSettingsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-          >
-            <path
-              d="M1.5 3.5L5 7L8.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          {/* Chevron — shared ChevronIcon (#150) */}
+          <ChevronIcon isOpen={isSettingsOpen} />
         </button>
 
         {/* Expanded settings body */}
