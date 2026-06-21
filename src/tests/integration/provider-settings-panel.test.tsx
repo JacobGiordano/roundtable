@@ -45,6 +45,9 @@ vi.mock('@/auth', () => ({
   hasCredential: vi.fn(),
   saveCredentials: vi.fn(),
   clearCredentials: vi.fn(),
+  // #151: BUILTIN_MODEL_IDS now consumed by ProviderSettingsPanel — include in mock
+  // so the component can call [...BUILTIN_MODEL_IDS].filter() without error.
+  BUILTIN_MODEL_IDS: new Set(['claude', 'gpt-5.5', 'gemini', 'grok', 'deepseek', 'mistral']),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────

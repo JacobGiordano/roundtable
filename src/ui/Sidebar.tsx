@@ -502,7 +502,6 @@ function SearchBar({ value, onChange }: SearchBarProps) {
         <input
           ref={inputRef}
           type="search"
-          role="searchbox"
           aria-label="Search conversations"
           value={value}
           onChange={(e) => onChange(e.target.value)}
