@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship wave: #243, #244, #175, #144)
+Last updated: 2026-06-21 (ship wave: #241, #199, #149, #150, #136, #146, #147, #151)
 
 ## Current phase
 
@@ -6,51 +6,51 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: test contracts + focus fix + cache + types (#243, #244, #175, #144)**
+**Wave: Aria megabatch + Arch types (#241, #199, #149, #150, #136, #146, #147, #151)**
 
-- **Scout #243**: `sidebar-state-machines.test.tsx` sub-state queries moved from `within(menu).getBy*()` to `screen.getBy*()` — resilient to #241 DOM restructure. `within(menu)` kept for `queryAllByRole('menuitem')` only. #241 is now unblocked.
-- **Aria #244**: Stop button receives focus via double-rAF on send→stop swap; focus returns to textarea on stop→send. `hasStreamedRef` guard prevents false-fire on initial render. Ada: PASS (11 a11y tests).
-- **Vault #175**: In-memory `Map` cache on `LocalStorageProvider`. First `listConversations()` scans, subsequent calls serve from cache. `saveConversation()` and `deleteConversation()` keep cache in sync. Ghost-mode guard fires before any cache write. Interface unchanged.
-- **Arch #144**: `SessionTokenUsage` is now `type SessionTokenUsage = { modelId: ModelId } & TokenUsage`. Eliminates 4 duplicated fields. Zero downstream breakage. PR #245 merged.
-- **Flint**: cleared all 4 issues.
+- **Aria #241**: ThreadActionMenu sub-states (confirm-delete, group-input, rename) now use `role="dialog" aria-modal="true"`. Ada caught `role="group"` as a blocker; fixed in session. `data-menu-container` attr for test selectors.
+- **Aria #199**: InteractionModeSwitcher radiogroup gets `aria-owns` pointing to enabled radio IDs only. Coming-soon spans have no role/ID.
+- **Aria #149**: `useClickOutside` consolidated from 4 impls → `/src/ui/hooks/useClickOutside.ts` (mousedown).
+- **Aria #150**: `ChevronIcon` shared component at `/src/ui/components/ChevronIcon.tsx`, 3 inline defs eliminated.
+- **Aria #136**: `sidebarUtils.ts` extracted from `Sidebar.tsx` (`filterByArchiveStatus`, `deriveExistingGroups`, `resolveGroupInput`, `isAllSelected`, `getThreadTitle`).
+- **Aria #146**: `ThreadActionMenu` extracted to `/src/ui/components/ThreadActionMenu.tsx`.
+- **Aria #147**: Shared icon system at `/src/ui/icons/index.tsx` — 8 icons, all `aria-hidden="true"`. Pre-existing `GhostIcon` in `InputBar.tsx` deferred as follow-up.
+- **Arch #151**: `BuiltInModelId` JSDoc updated with runtime enumeration single-source rule. Gate follow-up required (see below).
+- **Ada**: PASS on all 7 Aria issues (one blocker on #241 caught and fixed in session).
+- **Flint**: cleared wave. 1108/1108 tests passing.
 
 ## Key decisions
 
-- Vault cache is implementation-internal — `StorageProvider` interface unchanged. True cursor-based pagination (listConversations with offset/limit) still needs an Arch types PR when warranted.
-- Arch used `type` alias (not `interface extends`) for the intersection — more direct, communicates intent at a glance.
-- Slack notification hook fixed: `rm -f /tmp/claude-prompt-start` now inside the `[ $elapsed -gt 60 ]` branch so the start timestamp persists across quick stops during long agent waves.
+- ThreadActionMenu sub-states: `role="dialog" aria-modal="true"` is the correct pattern — not `role="menu"` (violates aria-required-children) and not `role="group"` (insufficient, Ada-blocked).
+- `useClickOutside` uses `mousedown` (not `click`) — matches all 4 original implementations and their tests.
+- Shared icon system: 8 icons in `/src/ui/icons/index.tsx`. Remaining inline icons (e.g. `GhostIcon` in `InputBar.tsx`) deferred to follow-up.
+- `BuiltInModelId` runtime consolidation is Gate's work: create `/src/auth/builtinModelIds.ts` exporting `BUILTIN_MODEL_IDS: ReadonlySet<BuiltInModelId>` and update `modelVersion.ts`, `providerRoster.ts`, `accentColors.ts` to import it. Arch's JSDoc documents the rule.
+- Aria `ALL_BUILTIN_IDS` in `ProviderSettingsPanel.tsx:68` should consume Gate's constant (or an Arch-surfaced re-export) — part of #151 follow-up.
 
-## Open advisories (filed, not yet addressed)
+## Open advisories (filed this wave)
 
-- #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children in sub-states — **NOW UNBLOCKED, top priority**
-- #244 done; next Ada a11y issue is #199 (InteractionModeSwitcher radiogroup ownership)
-- #238 (Gate/Atlas) — Custom provider credential testing (CORS/keyless edge cases)
-- #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
+- **NEW** — Stale comment in `ThreadActionMenu.tsx:29-31` describes a re-export that doesn't exist (cleanup)
+- **NEW** — `GhostIcon` inline in `InputBar.tsx:47` duplicates shared icon system (follow-up to #147)
+- **NEW** — `ExportButton` menuitem buttons missing `tabIndex={-1}` + focus ring (Ada advisory, pre-existing)
+- **NEW** — `ChevronIcon` / `RightChevronIcon` missing `motion-reduce:transition-none` (Ada advisory)
+- #238 (Gate/Atlas) — Custom provider credential testing
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
-- #175 done; pagination follow-up still needs Arch types PR
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
 - #160 (Aria) — Conversation search/filter
 - #156 (Gate/Arch) — localStorage key naming conventions
 - #154 (Vault) — migrateLocalToServer interface misuse
-- #151 (Arch/Gate) — BuiltInModelId consolidation
-- #150 (Aria) — ChevronIcon duplication
-- #149 (Aria) — useClickOutside 4 implementations
-- #147 (Aria) — No shared icon system
-- #146 (Aria) — Sidebar.tsx/ModelSelectorPanel.tsx splitting
-- #144 done
-- #136 (Aria) — Sidebar.tsx inlining sidebarUtils
 
 ## What's next
 
 Top candidates:
-- **Aria: #241** (ThreadActionMenu role fix) — unblocked, high priority
-- **Aria: #199** (InteractionModeSwitcher radiogroup) — a11y, Ada follow-up
-- **Aria: refactor wave** — #136, #146, #147, #149, #150 (batch to avoid double Ada overhead)
-- **Arch/Gate: #151, #156** — can run parallel with Aria if no type dependency
+- **Gate: #151 continuation** — create `builtinModelIds.ts`, update 3 Gate files + Aria `ProviderSettingsPanel.tsx`
+- **Aria: #160** — conversation search/filter (next real feature)
+- **Gate/Arch: #156** — localStorage key naming (can parallel with Aria if no type dependency)
+- **Ada advisory sweep** — 4 new advisories just filed, batch with next Aria session
 
 ## Gotchas
 
@@ -69,3 +69,4 @@ Top candidates:
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
 - jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
 - Vault cache is in `LocalStorageProvider` instance scope — tests that create fresh instances always start cold
+- ThreadActionMenu sub-states: `role="dialog" aria-modal="true"` not `role="menu"` (aria-required-children violation)
