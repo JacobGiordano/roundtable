@@ -24,6 +24,7 @@ import type {
   ProviderRoster,
 } from '@/types';
 import { MODEL_CREDENTIAL_MAP } from './credentials';
+import { BUILTIN_MODEL_IDS } from './builtinModelIds';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
@@ -31,19 +32,7 @@ const ROSTER_STORAGE_KEY = 'roundtable:provider-roster' as const;
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
 
-/**
- * The set of known BuiltInModelId values. Used to discriminate deserialized
- * entries — entries whose modelId (built-in) or id (custom) is structurally
- * invalid are dropped.
- */
-const BUILTIN_MODEL_IDS: ReadonlySet<BuiltInModelId> = new Set<BuiltInModelId>([
-  'claude',
-  'gpt-5.5',
-  'gemini',
-  'grok',
-  'deepseek',
-  'mistral',
-]);
+// BUILTIN_MODEL_IDS imported from builtinModelIds.ts — canonical single source.
 
 const BUILTIN_CREDENTIAL_KEYS: ReadonlySet<BuiltInCredentialKey> = new Set<BuiltInCredentialKey>([
   'anthropic',

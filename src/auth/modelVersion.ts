@@ -14,6 +14,7 @@
  */
 
 import type { BuiltInModelId, ModelId } from '@/types';
+import { BUILTIN_MODEL_IDS } from './builtinModelIds';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
@@ -22,27 +23,16 @@ const MODEL_VERSION_STORAGE_KEY = 'roundtable:model-versions' as const;
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 /**
- * The complete set of built-in model IDs. Gate maintains this list
- * independently — no import from /src/models (boundary rule).
- * Must stay in sync with BuiltInModelId in /src/types/index.ts.
+ * Guard for deserialization: checks whether a stored string is a known
+ * built-in model ID. Custom model IDs are not rejected — they simply won't
+ * be in this set, which is correct (custom providers may also store version
+ * selections and pass through the ModelId-typed public API).
  *
- * This is intentionally ReadonlySet<BuiltInModelId> (not ModelId) — this guard
- * covers the closed set of built-ins only. Custom model IDs are not rejected;
- * they simply won't be in this set, which is the correct behavior for version
- * storage (custom providers may also store version selections — they pass through
- * the ModelId-typed public API).
+ * Uses BUILTIN_MODEL_IDS from builtinModelIds.ts — the canonical single source
+ * per the rule in /src/types/index.ts.
  */
-const VALID_MODEL_IDS: ReadonlySet<BuiltInModelId> = new Set<BuiltInModelId>([
-  'claude',
-  'gpt-5.5',
-  'gemini',
-  'grok',
-  'deepseek',
-  'mistral',
-]);
-
 function isValidModelId(value: unknown): value is BuiltInModelId {
-  return typeof value === 'string' && VALID_MODEL_IDS.has(value as BuiltInModelId);
+  return typeof value === 'string' && BUILTIN_MODEL_IDS.has(value as BuiltInModelId);
 }
 
 // ─── Internal read helper ─────────────────────────────────────────────────────
