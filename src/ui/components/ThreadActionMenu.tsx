@@ -7,10 +7,19 @@
  * and a trigger ref.
  *
  * ARIA contract (#241): the container switches role based on state:
- *   - 'menu'           → role="menu"   (aria-required-children: menuitem)
- *   - sub-states       → role="dialog" aria-modal="true" (dialog children)
- * This prevents the aria-required-children violation that occurs when the menu
- * container holds dialog-like controls (inputs, plain buttons) in sub-states.
+ *   - 'menu'      → role="menu"                   (owned: menuitem)
+ *   - sub-states  → role="dialog" aria-modal="true" (owned: any interactive element)
+ *
+ * Switching roles prevents the WCAG 4.1.2 aria-required-children violation.
+ * role="menu" requires all owned children to be menuitem | menuitemcheckbox |
+ * menuitemradio | group, and a group's children must also be menuitem variants.
+ * Sub-state panels contain plain <button> and <input> elements that satisfy
+ * dialog semantics but not menu ownership. Switching to role="dialog" when any
+ * sub-state is active resolves the critical axe violation without restructuring
+ * the DOM.
+ *
+ * A `data-menu-container` attribute is placed on the container so tests can
+ * locate it regardless of its current role.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -58,6 +67,12 @@ export function ThreadActionMenu({
   triggerRef,
 }: ThreadActionMenuProps) {
   const [menuState, setMenuState] = useState<ThreadMenuState>({ type: 'menu' });
+
+  // #241: The container role switches based on whether the menu is in its
+  // top-level state (role="menu") or a dialog-like sub-state (role="dialog").
+  // role="menu" aria-required-children mandates menuitem descendants; sub-state
+  // panels hold inputs and plain buttons, which are valid dialog children only.
+  const isSubState = menuState.type !== 'menu';
   const [groupInput, setGroupInput] = useState(conversation.groupId ?? '');
   // renameInput: initialized to the current title (or derived title) so the
   // user sees the existing name pre-filled and can edit it in place.
@@ -279,22 +294,13 @@ export function ThreadActionMenu({
         aria-hidden="true"
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
       />
-      {/*
-        #241: aria-required-children fix. role="menu" must own only menuitem,
-        menuitemcheckbox, menuitemradio, or group children. When sub-states are
-        active, the menu's children are dialog-like controls (inputs, plain
-        buttons) that are not menuitems — a direct child violation.
 
-        Fix: keep role="menu" on the container always (so the tests that fire
-        key events on [role="menu"] continue to work), but wrap all sub-state
-        content in role="group" + an accessible label. role="group" is one of
-        the valid aria-required-children for role="menu", so the ownership
-        contract is satisfied in every state.
-      */}
       <div
         ref={menuRef}
-        role="menu"
+        role={isSubState ? 'dialog' : 'menu'}
         aria-label="Conversation actions"
+        aria-modal={isSubState ? true : undefined}
+        data-menu-container
         onKeyDown={handleMenuKeyDown}
         className={[
           'absolute right-2 top-1 z-40',

@@ -179,7 +179,7 @@ describe('ThreadActionMenu group-input sub-state — keyboard contract (#236, WC
     expect(groupInput).not.toBeNull();
     groupInput.focus();
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     expect(menuDiv).not.toBeNull();
 
     // Fire Tab — must advance to next focusable within panel.
@@ -215,7 +215,7 @@ describe('ThreadActionMenu group-input sub-state — keyboard contract (#236, WC
     lastElement.focus();
     expect(document.activeElement).toBe(lastElement);
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     keyDown(menuDiv, 'Tab', true); // Shift+Tab
 
     const afterShiftTab = document.activeElement;
@@ -233,11 +233,11 @@ describe('ThreadActionMenu group-input sub-state — keyboard contract (#236, WC
 
     expect(document.querySelector('[data-substate]')).not.toBeNull();
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     keyDown(menuDiv, 'Escape');
 
     // Menu must close immediately.
-    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.querySelector('[data-menu-container]')).toBeNull();
 
     // Focus returns to trigger via double-rAF.
     await waitRaf();
@@ -265,22 +265,21 @@ describe('ThreadActionMenu group-input sub-state — keyboard contract (#236, WC
   });
 
   it('has no axe violations in the [data-substate] panel (group-input)', async () => {
-    // Note: we scan [data-substate] rather than the full container. The
-    // role="menu" wrapper is a pre-existing violation when in a sub-state
-    // (it has no role="menuitem" children — replaced by dialog-like sub-state UI).
-    // That violation predates Wave 21 and is tracked separately as an advisory
-    // finding (WAI-ARIA 4.1.2 — menuitem ownership). The [data-substate] panel
-    // itself has no violations, which is what we verify here.
+    // We scan the full container here because #241 is fixed: the container
+    // switches to role="dialog" in sub-states, so there is no aria-required-children
+    // violation. The [data-substate] panel is inside a dialog, which accepts any
+    // interactive children.
     render(<Sidebar {...SIDEBAR_BASE_PROPS} />);
     openMenu();
 
     const groupBtn = screen.getByRole('menuitem', { name: /move to group/i });
     fireEvent.click(groupBtn);
 
-    const panel = document.querySelector('[data-substate]') as HTMLElement;
-    expect(panel).not.toBeNull();
+    // #241 fixed: scan the full menu container (now role="dialog" in sub-state)
+    const menuContainer = document.querySelector('[data-menu-container]') as HTMLElement;
+    expect(menuContainer).not.toBeNull();
 
-    const results = await axe(panel);
+    const results = await axe(menuContainer);
     assertNoViolations(results);
   });
 });
@@ -309,7 +308,7 @@ describe('ThreadActionMenu rename sub-state — keyboard contract (#236, WCAG 2.
     expect(renameInput).not.toBeNull();
     renameInput.focus();
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     keyDown(menuDiv, 'Tab');
 
     const afterTab = document.activeElement;
@@ -337,7 +336,7 @@ describe('ThreadActionMenu rename sub-state — keyboard contract (#236, WCAG 2.
     const lastElement = focusable[focusable.length - 1]; // "Rename" confirm button
     lastElement.focus();
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     keyDown(menuDiv, 'Tab', true);
 
     const afterShiftTab = document.activeElement;
@@ -354,10 +353,10 @@ describe('ThreadActionMenu rename sub-state — keyboard contract (#236, WCAG 2.
 
     expect(document.querySelector('[data-substate]')).not.toBeNull();
 
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
     keyDown(menuDiv, 'Escape');
 
-    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.querySelector('[data-menu-container]')).toBeNull();
 
     await waitRaf();
     await waitRaf();
@@ -384,18 +383,19 @@ describe('ThreadActionMenu rename sub-state — keyboard contract (#236, WCAG 2.
   });
 
   it('has no axe violations in the [data-substate] panel (rename)', async () => {
-    // See note above about scoping to [data-substate]: the role="menu" wrapper
-    // has a pre-existing aria-required-children violation in any sub-state.
+    // #241 is fixed: the container switches to role="dialog" in sub-states, so
+    // the full container scan is now safe with no aria-required-children violation.
     render(<Sidebar {...SIDEBAR_BASE_PROPS} />);
     openMenu();
 
     const renameBtn = screen.getByRole('menuitem', { name: /rename/i });
     fireEvent.click(renameBtn);
 
-    const panel = document.querySelector('[data-substate]') as HTMLElement;
-    expect(panel).not.toBeNull();
+    // #241 fixed: scan the full menu container (now role="dialog" in sub-state)
+    const menuContainer = document.querySelector('[data-menu-container]') as HTMLElement;
+    expect(menuContainer).not.toBeNull();
 
-    const results = await axe(panel);
+    const results = await axe(menuContainer);
     assertNoViolations(results);
   });
 });
@@ -415,7 +415,7 @@ describe('ThreadActionMenu sub-state Tab containment — WCAG 2.1.1 regression g
     fireEvent.click(screen.getByRole('menuitem', { name: /move to group/i }));
 
     const panel = document.querySelector('[data-substate]') as HTMLElement;
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
 
     // Tab 6 times — all focus positions must remain within [data-substate].
     for (let i = 0; i < 6; i++) {
@@ -423,7 +423,7 @@ describe('ThreadActionMenu sub-state Tab containment — WCAG 2.1.1 regression g
       const active = document.activeElement;
       expect(panel.contains(active) || active === panel).toBe(true);
       // Verify the menu is still open (Tab must not close it).
-      expect(document.querySelector('[role="menu"]')).not.toBeNull();
+      expect(document.querySelector('[data-menu-container]')).not.toBeNull();
     }
   });
 
@@ -434,13 +434,13 @@ describe('ThreadActionMenu sub-state Tab containment — WCAG 2.1.1 regression g
     fireEvent.click(screen.getByRole('menuitem', { name: /rename/i }));
 
     const panel = document.querySelector('[data-substate]') as HTMLElement;
-    const menuDiv = document.querySelector('[role="menu"]') as HTMLDivElement;
+    const menuDiv = document.querySelector('[data-menu-container]') as HTMLDivElement;
 
     for (let i = 0; i < 6; i++) {
       keyDown(menuDiv, 'Tab');
       const active = document.activeElement;
       expect(panel.contains(active) || active === panel).toBe(true);
-      expect(document.querySelector('[role="menu"]')).not.toBeNull();
+      expect(document.querySelector('[data-menu-container]')).not.toBeNull();
     }
   });
 });
