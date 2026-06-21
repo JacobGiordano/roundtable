@@ -13,7 +13,7 @@ import type { CredentialKey } from '@/types';
 import { CREDENTIAL_LABELS, getCredentials } from './credentials';
 import { useCredentials } from './useCredentials';
 import { getProviderRoster } from './providerRoster';
-import { testCredential } from './credentialTest';
+import { testCredential, testCustomCredential } from './credentialTest';
 import type { TestResult } from './credentialTest';
 
 // ─── Missing-key warning ──────────────────────────────────────────────────────
@@ -69,9 +69,15 @@ interface ApiKeyRowProps {
     placeholder?: string;
     docsUrl?: string;
   };
+  /**
+   * Base URL of the custom OpenAI-compatible endpoint (e.g. "http://localhost:11434/v1").
+   * When present, the Test button calls testCustomCredential(endpointUrl, key)
+   * instead of testCredential(credentialKey, key). Only set for custom providers.
+   */
+  endpointUrl?: string;
 }
 
-function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear, customLabel }: ApiKeyRowProps) {
+function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear, customLabel, endpointUrl }: ApiKeyRowProps) {
   const builtInMeta = CREDENTIAL_LABELS[credentialKey as keyof typeof CREDENTIAL_LABELS];
   const meta = builtInMeta ?? {
     provider: customLabel?.provider ?? credentialKey,
@@ -134,8 +140,15 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     setTestState('testing');
     setTestMessage('');
-    const savedValue = getCredentials(credentialKey) ?? '';
-    const result = await testCredential(credentialKey, savedValue);
+    const savedValue = getCredentials(credentialKey);
+    let result: TestResult;
+    if (endpointUrl) {
+      // Custom provider: test the endpoint URL directly.
+      // Pass savedValue only when it exists — keyless endpoints omit the header.
+      result = await testCustomCredential(endpointUrl, savedValue);
+    } else {
+      result = await testCredential(credentialKey, savedValue ?? '');
+    }
     setTestState(result.status);
     setTestMessage(result.message);
     // Auto-clear after 5 seconds; store the handle so it can be cancelled on unmount.
@@ -308,7 +321,9 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
                     ? 'text-text-secondary opacity-50 cursor-not-allowed'
                     : testState === 'valid' || testState === 'rate-limited'
                       ? 'text-success'
-                      : 'text-error',
+                      : testState === 'cors-or-network'
+                        ? 'text-warning'
+                        : 'text-error',
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
@@ -319,6 +334,7 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
               {testState === 'rate-limited' && '✓ Valid (rate limited)'}
               {testState === 'invalid' && '✗ Invalid key'}
               {testState === 'error' && `✗ ${testMessage}`}
+              {testState === 'cors-or-network' && '? CORS / network'}
             </button>
 
             {/* Visually-hidden live region for screen reader announcements */}
@@ -378,6 +394,89 @@ function ApiKeyRow({ credentialKey, isSet, showWarning = false, onSave, onClear,
   );
 }
 
+// ─── Keyless endpoint test row ────────────────────────────────────────────────
+
+/**
+ * A read-only row for custom providers that require no API key.
+ * Shows the provider name and a reachability test button only — no key entry.
+ */
+interface KeylessEndpointRowProps {
+  displayName: string;
+  endpointUrl: string;
+}
+
+function KeylessEndpointRow({ displayName, endpointUrl }: KeylessEndpointRowProps) {
+  type TestState = 'idle' | 'testing' | TestResult['status'];
+  const [testState, setTestState] = useState<TestState>('idle');
+  const [testMessage, setTestMessage] = useState('');
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    };
+  }, []);
+
+  const handleTest = async () => {
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    setTestState('testing');
+    setTestMessage('');
+    // No key — test reachability only.
+    const result = await testCustomCredential(endpointUrl);
+    setTestState(result.status);
+    setTestMessage(result.message);
+    clearTimerRef.current = setTimeout(() => { setTestState('idle'); setTestMessage(''); }, 5000);
+  };
+
+  return (
+    <div className="py-3 border-b border-border-subtle last:border-0">
+      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+        <span className="text-[13px] font-medium text-text-primary truncate min-w-0">
+          {displayName}
+        </span>
+        <span className="text-[11px] text-text-muted flex-shrink-0">No key required</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={handleTest}
+          disabled={testState === 'testing'}
+          aria-label={`Test ${displayName} endpoint`}
+          className={[
+            'h-8 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+            'border border-border',
+            testState === 'idle'
+              ? 'text-text-secondary hover:text-text-primary hover:border-border-strong'
+              : testState === 'testing'
+                ? 'text-text-secondary opacity-50 cursor-not-allowed'
+                : testState === 'valid' || testState === 'rate-limited'
+                  ? 'text-success'
+                  : testState === 'cors-or-network'
+                    ? 'text-warning'
+                    : 'text-error',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+          ].join(' ')}
+        >
+          {testState === 'idle' && 'Test connection'}
+          {testState === 'testing' && 'Testing…'}
+          {testState === 'valid' && '✓ Reachable'}
+          {testState === 'rate-limited' && '✓ Reachable'}
+          {testState === 'invalid' && '✗ Auth required'}
+          {testState === 'error' && `✗ ${testMessage}`}
+          {testState === 'cors-or-network' && '? CORS / network'}
+        </button>
+
+        {/* Visually-hidden live region for screen reader announcements */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {testMessage}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 /** Keys that have an active model needing them — passed in by the caller (Aria). */
@@ -407,12 +506,21 @@ export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
   const BUILTIN_KEYS: CredentialKey[] = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
 
   /**
-   * Custom providers that have a credentialKey set (no-auth providers are excluded).
+   * Custom providers with a credentialKey set — rendered as ApiKeyRow.
    * Roster is read at render time; re-renders on save/clear will pick up changes.
    */
-  const customProviders = getProviderRoster().filter(
+  const keyedCustomProviders = getProviderRoster().filter(
     (p): p is (typeof p & { kind: 'custom'; credentialKey: string }) =>
-      p.kind === 'custom' && p.credentialKey !== undefined,
+      p.kind === 'custom' && typeof p.credentialKey === 'string' && p.credentialKey.length > 0,
+  );
+
+  /**
+   * Custom providers with no credentialKey (keyless/no-auth endpoints).
+   * Rendered as KeylessEndpointRow — test-only, no key entry UI.
+   */
+  const keylessCustomProviders = getProviderRoster().filter(
+    (p): p is (typeof p & { kind: 'custom'; credentialKey: undefined }) =>
+      p.kind === 'custom' && (p.credentialKey === undefined || p.credentialKey === ''),
   );
 
   return (
@@ -439,7 +547,7 @@ export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
             onClear={clear}
           />
         ))}
-        {customProviders.map((provider) => (
+        {keyedCustomProviders.map((provider) => (
           <ApiKeyRow
             key={provider.credentialKey}
             credentialKey={provider.credentialKey}
@@ -448,6 +556,14 @@ export function ApiKeyPanel({ requiredKeys = [] }: ApiKeyPanelProps) {
             onSave={save}
             onClear={clear}
             customLabel={{ provider: provider.displayName }}
+            endpointUrl={provider.endpointUrl}
+          />
+        ))}
+        {keylessCustomProviders.map((provider) => (
+          <KeylessEndpointRow
+            key={provider.id}
+            displayName={provider.displayName}
+            endpointUrl={provider.endpointUrl}
           />
         ))}
       </div>
