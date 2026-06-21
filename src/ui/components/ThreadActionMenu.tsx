@@ -26,8 +26,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Conversation } from '@/types';
 // getThreadTitle lives in sidebarUtils (pure util, not a component) to satisfy
 // the react-refresh/only-export-components lint rule — files must not mix
-// component exports with non-component exports. The re-export makes it available
-// to Sidebar.tsx which imports both ThreadActionMenu and getThreadTitle from here.
+// component exports with non-component exports.
 import { getThreadTitle } from '../sidebarUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

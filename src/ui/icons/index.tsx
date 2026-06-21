@@ -179,7 +179,7 @@ export function RightChevronIcon({
       viewBox="0 0 8 8"
       fill="none"
       aria-hidden="true"
-      className={['flex-shrink-0 transition-transform duration-fast', className].filter(Boolean).join(' ')}
+      className={['flex-shrink-0 transition-transform duration-fast motion-reduce:transition-none', className].filter(Boolean).join(' ')}
       style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
     >
       <path

@@ -1,5 +1,7 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { ModelConfig } from '@/types';
+// GhostIcon: shared icon system (#147). Permitted import from icons/ within /src/ui.
+import { GhostIcon } from './icons';
 
 interface InputBarProps {
   onSend: (content: string) => void;
@@ -41,31 +43,6 @@ interface InputBarProps {
   editingMessage?: { messageIndex: number; originalContent: string };
   /** Called when user clicks Cancel in edit mode or presses Escape. */
   onCancelEdit?: () => void;
-}
-
-/** Ghost icon: SVG outline, 16×16. Used when ghost mode is active. */
-function GhostIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      {/* Ghost body outline */}
-      <path
-        d="M8 1.5C5.515 1.5 3.5 3.515 3.5 6v5.5l1.5-1 1.5 1 1.5-1 1.5 1 1.5-1 1.5 1V6c0-2.485-2.015-4.5-4.5-4.5z"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinejoin="round"
-      />
-      {/* Eyes */}
-      <circle cx="6.5" cy="6.5" r="0.75" fill="currentColor" />
-      <circle cx="9.5" cy="6.5" r="0.75" fill="currentColor" />
-    </svg>
-  );
 }
 
 /** Stop icon: filled square, 10×10 inside a 16×16 viewport. Used on the stop button. */

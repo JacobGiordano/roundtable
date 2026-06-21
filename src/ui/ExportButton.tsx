@@ -92,13 +92,14 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => handleSelect('markdown')}
             className={[
               'w-full text-left px-3 py-2',
               'text-[13px] text-text-primary',
               'hover:bg-hover',
               'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:bg-hover',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:bg-hover',
             ].join(' ')}
           >
             Download as Markdown
@@ -106,13 +107,14 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => handleSelect('html')}
             className={[
               'w-full text-left px-3 py-2',
               'text-[13px] text-text-primary',
               'hover:bg-hover',
               'transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:bg-hover',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:bg-hover',
             ].join(' ')}
           >
             Download as HTML

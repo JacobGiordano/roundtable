@@ -24,7 +24,7 @@ export function ChevronIcon({ isOpen, size = 10, className = '' }: ChevronIconPr
       viewBox="0 0 10 10"
       fill="none"
       aria-hidden="true"
-      className={['transition-transform duration-fast flex-shrink-0', className].filter(Boolean).join(' ')}
+      className={['transition-transform duration-fast motion-reduce:transition-none flex-shrink-0', className].filter(Boolean).join(' ')}
       style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
     >
       <path
