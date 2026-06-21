@@ -59,3 +59,5 @@ export {
   removeProvider,
   getProviderById,
 } from './providerRoster';
+export { testCredential, testCustomCredential } from './credentialTest';
+export type { TestResult } from './credentialTest';

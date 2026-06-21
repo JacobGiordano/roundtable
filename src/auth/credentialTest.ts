@@ -18,7 +18,17 @@ export type TestResult =
   | { status: 'valid'; message: string }
   | { status: 'invalid'; message: string }
   | { status: 'rate-limited'; message: string }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string }
+  /**
+   * The fetch() call threw — most likely a CORS preflight rejection or a
+   * network-level failure (DNS, connection refused, timeout). These are
+   * indistinguishable at the browser level. The endpoint may still be valid;
+   * the user should verify it directly.
+   *
+   * Built-in providers use 'error' for this case (they always support CORS).
+   * Custom providers use 'cors-or-network' to surface the ambiguity clearly.
+   */
+  | { status: 'cors-or-network'; message: string };
 
 // ─── Provider endpoint config ─────────────────────────────────────────────────
 
@@ -84,6 +94,25 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
   },
 };
 
+// ─── Shared HTTP status interpreter ───────────────────────────────────────────
+
+/**
+ * Interpret a fetch Response's HTTP status code into a TestResult.
+ * Shared by testCredential and testCustomCredential.
+ */
+function interpretHttpStatus(status: number): TestResult {
+  if (status >= 200 && status <= 299) {
+    return { status: 'valid', message: 'Key is valid' };
+  }
+  if (status === 401 || status === 403) {
+    return { status: 'invalid', message: 'Invalid key' };
+  }
+  if (status === 429) {
+    return { status: 'rate-limited', message: 'Rate limited — key is valid' };
+  }
+  return { status: 'error', message: `Error (HTTP ${status})` };
+}
+
 // ─── testCredential ────────────────────────────────────────────────────────────
 
 /**
@@ -115,20 +144,90 @@ export async function testCredential(
     response = await fetch(url, config.buildInit(value));
   } catch {
     // Network failure — DNS lookup error, connection refused, CORS abort, etc.
+    // Built-in provider endpoints always support CORS, so this is a genuine
+    // network error rather than a CORS ambiguity.
     return { status: 'error', message: 'Network error' };
   }
 
-  if (response.status >= 200 && response.status <= 299) {
-    return { status: 'valid', message: 'Key is valid' };
+  return interpretHttpStatus(response.status);
+}
+
+// ─── testCustomCredential ─────────────────────────────────────────────────────
+
+/**
+ * Test connectivity and authentication for a user-configured custom
+ * OpenAI-compatible endpoint.
+ *
+ * Strategy: issue a GET request to `<endpointUrl>/v1/models`.
+ * - If the fetch() itself throws, the cause is almost always either CORS or a
+ *   network-level failure. These are indistinguishable at the browser API
+ *   level — a CORS preflight rejection and a TCP connection-refused both surface
+ *   as a TypeError with no status code. We return 'cors-or-network' to surface
+ *   this ambiguity clearly to the user rather than a misleading "invalid key".
+ * - 2xx → 'valid'
+ * - 401/403 → 'invalid' (endpoint reachable; key is wrong)
+ * - 429 → 'rate-limited' (key is valid)
+ * - Other → 'error' with HTTP status
+ *
+ * Keyless endpoints (apiKey absent or empty string):
+ *   The Authorization header is omitted entirely. A 2xx response confirms the
+ *   endpoint is reachable; 401/403 indicates auth IS required.
+ *
+ * URL normalisation:
+ *   `endpointUrl` is the base URL the user configured — it should be the
+ *   /chat/completions root (e.g. "http://localhost:11434/v1"). We probe
+ *   `<endpointUrl>/models` (stripping any trailing slash) to avoid double-slash.
+ *   If the base URL already ends with "/models" we use it as-is.
+ *
+ * Security: `apiKey` is sent only to `endpointUrl` and is never logged.
+ */
+export async function testCustomCredential(
+  endpointUrl: string,
+  apiKey?: string,
+): Promise<TestResult> {
+  if (!endpointUrl || !endpointUrl.trim()) {
+    return { status: 'error', message: 'No endpoint URL configured' };
   }
 
-  if (response.status === 401 || response.status === 403) {
-    return { status: 'invalid', message: 'Invalid key' };
+  const base = endpointUrl.trim().replace(/\/+$/, '');
+  const probeUrl = base.endsWith('/models') ? base : `${base}/models`;
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+
+  const trimmedKey = apiKey?.trim() ?? '';
+  if (trimmedKey) {
+    // Only attach Authorization if a key was supplied — keyless endpoints
+    // (e.g. a local Ollama instance) do not want or need this header.
+    headers['Authorization'] = `Bearer ${trimmedKey}`;
   }
 
-  if (response.status === 429) {
-    return { status: 'rate-limited', message: 'Rate limited — key is valid' };
+  let response: Response;
+  try {
+    response = await fetch(probeUrl, {
+      method: 'GET',
+      headers,
+    });
+  } catch {
+    // fetch() threw — indistinguishable between CORS rejection and network
+    // failure (DNS, connection refused, timeout). Return 'cors-or-network'
+    // so the UI can show an informative message rather than "invalid key".
+    return {
+      status: 'cors-or-network',
+      message:
+        'Cannot reach endpoint — CORS or network error. ' +
+        'The endpoint may be valid; verify it is running and allows browser requests.',
+    };
   }
 
-  return { status: 'error', message: `Error (HTTP ${response.status})` };
+  // If the endpoint requires auth but none was supplied, surface that clearly.
+  if (!trimmedKey && (response.status === 401 || response.status === 403)) {
+    return {
+      status: 'invalid',
+      message: 'Endpoint requires an API key',
+    };
+  }
+
+  return interpretHttpStatus(response.status);
 }
