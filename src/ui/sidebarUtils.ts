@@ -77,3 +77,26 @@ export function resolveGroupInput(raw: string): string | undefined {
 export function isAllSelected(selected: Set<string>, available: Conversation[]): boolean {
   return available.length > 0 && available.every((c) => selected.has(c.id));
 }
+
+// ─── Thread title derivation ──────────────────────────────────────────────────
+
+/**
+ * Derives a display title from conversation data.
+ *
+ * Priority:
+ *   1. Explicit title (user-renamed conversation)
+ *   2. First user message, truncated to 40 chars
+ *   3. Fallback: "New conversation"
+ *
+ * Extracted here (#146) so ThreadActionMenu.tsx can export this pure function
+ * without triggering the react-refresh/only-export-components lint rule
+ * (which flags files that export both components and non-component values).
+ */
+export function getThreadTitle(conversation: Conversation): string {
+  if (conversation.title) return conversation.title;
+  const firstUserMsg = conversation.messages.find((m) => m.role === 'user');
+  if (firstUserMsg) {
+    return firstUserMsg.content.replace(/\n/g, ' ').slice(0, 40);
+  }
+  return 'New conversation';
+}

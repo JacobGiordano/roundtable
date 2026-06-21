@@ -57,9 +57,11 @@ interface ModeButtonProps {
   onSelect: (mode: InteractionMode) => void;
   /** Controls which edge the tooltip anchors to avoid viewport clipping. */
   tooltipAlign?: TooltipAlign;
+  /** id applied to the radio button element — used by the radiogroup's aria-owns (#199). */
+  radioId?: string;
 }
 
-function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: ModeButtonProps) {
+function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', radioId }: ModeButtonProps) {
   // Tooltip horizontal positioning classes — chosen to prevent right-edge clipping
   const tooltipPositionClass =
     tooltipAlign === 'right'
@@ -127,13 +129,11 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
   );
 
   if (isDisabled) {
-    // Render as role="radio" aria-disabled="true" inside the radiogroup (#199).
-    // Without role="radio", the coming-soon items are not valid radiogroup children —
-    // a radiogroup's aria-required-children contract requires role="radio" on every
-    // owned item. Using role="radio" aria-disabled="true" aria-checked="false"
-    // correctly represents a disabled radio option and satisfies the ownership contract.
-    // tabIndex is deliberately absent — these items remain outside the keyboard tab
-    // sequence. Only the active (Parallel) radio is reachable by keyboard.
+    // Render as a non-interactive span inside the radiogroup.
+    // The radiogroup's aria-owns attribute (see InteractionModeSwitcher below)
+    // explicitly lists only the real radio buttons, making the coming-soon spans
+    // transparent to the ARIA ownership tree without requiring them to have
+    // role="radio" (#199). tabIndex is deliberately absent — keyboard-unreachable.
     return (
       <div
         className="relative"
@@ -141,9 +141,6 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         onMouseLeave={handleMouseLeave}
       >
         <span
-          role="radio"
-          aria-checked={false}
-          aria-disabled="true"
           aria-label={`${config.label} — coming soon`}
           aria-describedby={tooltipId}
           className={[
@@ -195,6 +192,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
     >
       <button
         type="button"
+        id={radioId}
         role="radio"
         aria-checked={isSelected}
         aria-label={`${config.label} — ${config.description}`}
@@ -281,6 +279,15 @@ export function InteractionModeSwitcher({
 }: InteractionModeSwitcherProps) {
   const lastIndex = INTERACTION_MODES.length - 1;
 
+  // #199: aria-owns lists only the enabled radio button IDs. This satisfies the
+  // ARIA aria-required-children rule for role="radiogroup", which requires all
+  // owned children to have role="radio". The coming-soon spans are DOM children
+  // of the radiogroup but are excluded from ARIA ownership via this explicit list.
+  // Only enabled (non-comingSoon) modes get radio IDs.
+  const enabledRadioIds = INTERACTION_MODES
+    .filter((c) => !c.comingSoon)
+    .map((c) => `interaction-mode-radio-${c.mode}`);
+
   // #221: sr-only span is a sibling of the radiogroup (not inside it) to prevent
   // double-read on older AT (JAWS ≤ 2022, some NVDA browse modes). The
   // aria-describedby reference on the radiogroup remains valid regardless of
@@ -291,11 +298,15 @@ export function InteractionModeSwitcher({
         role="radiogroup"
         aria-label="Interaction mode"
         aria-describedby="interaction-mode-coming-soon-note"
+        aria-owns={enabledRadioIds.join(' ')}
         className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
       >
         {INTERACTION_MODES.map((config, index) => {
           const tooltipAlign: TooltipAlign =
             index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
+          const radioId = config.comingSoon
+            ? undefined
+            : `interaction-mode-radio-${config.mode}`;
           return (
             <ModeButton
               key={config.mode}
@@ -303,6 +314,7 @@ export function InteractionModeSwitcher({
               isSelected={activeMode === config.mode}
               onSelect={onModeChange}
               tooltipAlign={tooltipAlign}
+              radioId={radioId}
             />
           );
         })}

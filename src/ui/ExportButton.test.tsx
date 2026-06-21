@@ -127,8 +127,8 @@ describe('ExportButton — popover open/close', () => {
     renderButton();
     await userEvent.click(getExportButton());
     expect(screen.getByRole('menu')).toBeDefined();
-    // Simulate a pointerdown event outside the component.
-    fireEvent.pointerDown(document.body);
+    // Simulate a mousedown event outside the component (hook uses mousedown, #149).
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
@@ -188,7 +188,7 @@ describe('ExportButton — format selection', () => {
   it('closing via outside click does not call onExport', async () => {
     const { onExport } = renderButton();
     await userEvent.click(getExportButton());
-    fireEvent.pointerDown(document.body);
+    fireEvent.mouseDown(document.body);
     expect(onExport).not.toHaveBeenCalled();
   });
 

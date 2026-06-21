@@ -28,7 +28,7 @@ import { groupConversations } from './groupConversations';
 // #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
 // and the ArchiveFilter type live in sidebarUtils.ts so they can be unit-tested
 // without a DOM environment or React testing setup.
-import { filterByArchiveStatus, deriveExistingGroups, type ArchiveFilter } from './sidebarUtils';
+import { filterByArchiveStatus, deriveExistingGroups, getThreadTitle, type ArchiveFilter } from './sidebarUtils';
 // #148: getModelDotStyle is the shared utility for model identity dot colors.
 // Extracted from inline implementations in Sidebar, ModelSelectorPanel, and
 // ProviderSettingsPanel into utils/modelColor.ts — single source of truth.
@@ -44,8 +44,7 @@ import { RoundtableLogo } from './RoundtableLogo';
 // #150: shared ChevronIcon replaces the down-chevron SVG in the settings toggle.
 import { ChevronIcon } from './components/ChevronIcon';
 // #146: ThreadActionMenu extracted to its own file for focus and testability.
-// getThreadTitle is re-exported from ThreadActionMenu so ThreadRow can use it.
-import { ThreadActionMenu, getThreadTitle } from './components/ThreadActionMenu';
+import { ThreadActionMenu } from './components/ThreadActionMenu';
 // #147: shared icon system — PlusIcon, CloseIcon, GhostIcon, EllipsisVerticalIcon,
 // GearIcon, and RightChevronIcon replace inline SVGs throughout this file.
 import {
@@ -155,8 +154,8 @@ function formatRelativeTime(timestamp: number): string {
   return msgDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-// getThreadTitle and ThreadActionMenu are imported from ./components/ThreadActionMenu (#146).
-// They are re-exported from that file so they can be used by ThreadRow (below).
+// ThreadActionMenu: imported from ./components/ThreadActionMenu (#146).
+// getThreadTitle: imported from ./sidebarUtils (pure util, not a component).
 
 
 // ─── ThreadRow ────────────────────────────────────────────────────────────────

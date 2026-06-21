@@ -15,18 +15,11 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Conversation } from '@/types';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Derive a display title from conversation data. */
-export function getThreadTitle(conversation: Conversation): string {
-  if (conversation.title) return conversation.title;
-  const firstUserMsg = conversation.messages.find((m) => m.role === 'user');
-  if (firstUserMsg) {
-    return firstUserMsg.content.replace(/\n/g, ' ').slice(0, 40);
-  }
-  return 'New conversation';
-}
+// getThreadTitle lives in sidebarUtils (pure util, not a component) to satisfy
+// the react-refresh/only-export-components lint rule — files must not mix
+// component exports with non-component exports. The re-export makes it available
+// to Sidebar.tsx which imports both ThreadActionMenu and getThreadTitle from here.
+import { getThreadTitle } from '../sidebarUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -287,23 +280,21 @@ export function ThreadActionMenu({
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
       />
       {/*
-        Role switching (#241): when the top-level 'menu' state is active, the
-        container uses role="menu" (aria-required-children = menuitem). When a
-        sub-state is active the children are dialog-like controls — inputs and
-        plain buttons that are NOT menuitems. Using role="menu" in that state
-        violates the aria-required-children contract. Fix: switch to role="dialog"
-        aria-modal="true" in sub-states so the ownership contract always holds.
+        #241: aria-required-children fix. role="menu" must own only menuitem,
+        menuitemcheckbox, menuitemradio, or group children. When sub-states are
+        active, the menu's children are dialog-like controls (inputs, plain
+        buttons) that are not menuitems — a direct child violation.
+
+        Fix: keep role="menu" on the container always (so the tests that fire
+        key events on [role="menu"] continue to work), but wrap all sub-state
+        content in role="group" + an accessible label. role="group" is one of
+        the valid aria-required-children for role="menu", so the ownership
+        contract is satisfied in every state.
       */}
       <div
         ref={menuRef}
-        role={menuState.type === 'menu' ? 'menu' : 'dialog'}
-        aria-modal={menuState.type !== 'menu' ? true : undefined}
-        aria-label={
-          menuState.type === 'menu' ? 'Conversation actions'
-          : menuState.type === 'confirm-delete' ? 'Confirm delete'
-          : menuState.type === 'group-input' ? 'Move to group'
-          : 'Rename conversation'
-        }
+        role="menu"
+        aria-label="Conversation actions"
         onKeyDown={handleMenuKeyDown}
         className={[
           'absolute right-2 top-1 z-40',
@@ -367,7 +358,7 @@ export function ThreadActionMenu({
       )}
 
       {menuState.type === 'confirm-delete' && (
-        <div className="px-3 py-2">
+        <div role="group" aria-label="Confirm delete" className="px-3 py-2">
           <p className="text-text-secondary mb-2">Delete this conversation?</p>
           <div className="flex gap-2">
             <button
@@ -398,7 +389,7 @@ export function ThreadActionMenu({
       )}
 
       {menuState.type === 'group-input' && (
-        <div data-substate className="px-3 py-2">
+        <div role="group" aria-label="Move to group" data-substate className="px-3 py-2">
           <p className="text-text-muted mb-1.5 text-[11px]">Group name (blank to clear)</p>
           <input
             ref={groupInputRef}
@@ -459,7 +450,7 @@ export function ThreadActionMenu({
       )}
 
       {menuState.type === 'rename' && (
-        <div data-substate className="px-3 py-2">
+        <div role="group" aria-label="Rename conversation" data-substate className="px-3 py-2">
           <p className="text-text-muted mb-1.5 text-[11px]">Rename conversation</p>
           <input
             ref={renameInputRef}
