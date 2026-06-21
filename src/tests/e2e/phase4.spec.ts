@@ -14,7 +14,7 @@
  *   - No horizontal overflow at 1280×800 with multiple providers configured
  *
  * Implementation notes:
- *   - Credential storage prefix: 'rt_key_' (see /src/auth/credentials.ts)
+ *   - Credential storage prefix: 'roundtable:key:' (see /src/auth/credentials.ts)
  *   - Roster storage key: 'roundtable:provider-roster' (see /src/auth/providerRoster.ts)
  *   - ProviderRow's badgeState is initialized once on mount — tests that need
  *     a pre-existing key must set it via addInitScript (before page load) or
@@ -26,7 +26,7 @@ import { test, expect } from '@playwright/test';
 // ─── Storage key constants (mirror /src/auth) ─────────────────────────────────
 
 const ROSTER_KEY = 'roundtable:provider-roster';
-const CRED_PREFIX = 'rt_key_';
+const CRED_PREFIX = 'roundtable:key:';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -146,8 +146,8 @@ test.describe('credential editor — built-in provider (Claude)', () => {
     await expect(claudeRow.getByLabel('New API key')).not.toBeVisible();
     await expect(claudeRow.getByText('Key set')).toBeVisible();
 
-    // The credential is in localStorage under rt_key_anthropic.
-    const stored = await page.evaluate(() => localStorage.getItem('rt_key_anthropic'));
+    // The credential is in localStorage under roundtable:key:anthropic.
+    const stored = await page.evaluate(() => localStorage.getItem('roundtable:key:anthropic'));
     expect(stored).toBe('sk-ant-test-key-12345');
   });
 
@@ -190,7 +190,7 @@ test.describe('credential editor — built-in provider (Claude)', () => {
     await expect(claudeRow.getByText('No key')).toBeVisible();
 
     // Confirm the key is gone from localStorage.
-    const stored = await page.evaluate(() => localStorage.getItem('rt_key_anthropic'));
+    const stored = await page.evaluate(() => localStorage.getItem('roundtable:key:anthropic'));
     expect(stored).toBeNull();
   });
 
@@ -204,7 +204,7 @@ test.describe('credential editor — built-in provider (Claude)', () => {
 
     // Editor gone, key not stored.
     await expect(claudeRow.getByLabel('New API key')).not.toBeVisible();
-    const stored = await page.evaluate(() => localStorage.getItem('rt_key_anthropic'));
+    const stored = await page.evaluate(() => localStorage.getItem('roundtable:key:anthropic'));
     expect(stored).toBeNull();
   });
 
