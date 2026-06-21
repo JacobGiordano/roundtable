@@ -18,6 +18,17 @@
  * provider requires a types PR (Arch), an Atlas implementation, and a Gate
  * credential entry.
  *
+ * **Runtime enumeration — single-source rule:** Any Gate module that needs a
+ * runtime collection of these values (e.g. a `Set` for deserialization
+ * validation, an array for iteration) must import from a single canonical Gate
+ * utility rather than re-enumerating the string literals. Duplicating the list
+ * across multiple files creates a silent drift hazard: adding a new member to
+ * this union does not cause a compiler error in files that maintain their own
+ * `Set`, so a new provider passes type-checking but fails runtime validation
+ * silently. `MODEL_CREDENTIAL_MAP` in `@/auth/credentials` is the one allowed
+ * exception — its `Record<BuiltInModelId, ...>` type enforces exhaustiveness
+ * at compile time and is safe as a separate declaration.
+ *
  * @see ModelId for the open union that includes user-defined custom providers.
  */
 export type BuiltInModelId =
