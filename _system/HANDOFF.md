@@ -1,4 +1,4 @@
-Last updated: 2026-06-21 (ship: wave — Gate #151 canonical BUILTIN_MODEL_IDS + Aria #151 consumer + #160 conversation search)
+Last updated: 2026-06-21 (ship: wave — Vault #154 + Aria #149 tests + Gate #156 + Scout key updates)
 
 ## Current phase
 
@@ -6,36 +6,44 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: Gate #151 + Aria #151 consumer + Aria #160**
+**Wave: Vault #154 + Aria #136/#149/#150 + Gate #156 + Scout**
 
-- **Gate #151** — `/src/auth/builtinModelIds.ts` created; exports `BUILTIN_MODEL_IDS: ReadonlySet<BuiltInModelId>`. `modelVersion.ts`, `providerRoster.ts`, `accentColors.ts` updated to import from it. `src/auth/index.ts` re-exports for cross-agent consumption.
-- **Aria #151 consumer** — `ProviderSettingsPanel.tsx`: local `ALL_BUILTIN_IDS` array removed; replaced with `[...BUILTIN_MODEL_IDS].filter(...)` imported from `@/auth` (documented cross-agent exception).
-- **Aria #160 — Conversation search/filter** — `SearchBar` added to `Sidebar.tsx` between archive toggle and conversation list. `filterBySearchQuery()` in `sidebarUtils.ts`: case-insensitive match on title + first-user-message. Escape clears + stops propagation; clear (×) button returns focus via rAF. Empty state: "No conversations match your search." Archive tab change clears query.
-- **Ada**: PASS (one inline fix: removed redundant `role="searchbox"` from `<input type="search">`).
-- **Flint**: PASS — all criteria met, 1128/1129 tests green (1 pre-existing ExportButton Escape failure).
+- **#144 (Arch)** — Closed pre-wave: `SessionTokenUsage = { modelId: ModelId } & TokenUsage` was already in place.
+- **#136 (Aria)** — Closed pre-wave: `Sidebar.tsx` already imports `filterByArchiveStatus`/`deriveExistingGroups` from `sidebarUtils.ts`.
+- **#150 (Aria)** — Closed pre-wave: `ChevronIcon` already lives at `/src/ui/components/ChevronIcon.tsx` and both consumers import from there.
+- **#149 (Aria)** — `useClickOutside` hook existed but lacked unit tests. Added `/src/ui/hooks/useClickOutside.test.ts` (10 tests). ThreadActionMenu intentionally uses backdrop pattern instead of the hook — documented.
+- **#154 (Vault)** — `migrateLocalToServer` parameters widened from concrete classes to `StorageProvider` interface.
+- **#156 (Gate + Scout)** — Canonical localStorage prefix `roundtable:` applied to all 3 legacy key formats:
+  - `rt_key_<cred>` → `roundtable:key:<cred>` (credentials.ts)
+  - `roundtable_user_preferences` → `roundtable:user-preferences` (preferences.ts)
+  - `rt-ui-sidebar-width` → `roundtable:ui-sidebar-width` (sidebarWidth.ts)
+  - Migration-on-read shims in all three files. 68 new unit tests in /src/auth/.
+  - Scout updated phase4.spec.ts + auth-models.test.ts to canonical key names.
+- **Flint**: PASS — 1206/1207 tests green (1 pre-existing ExportButton Escape failure).
 
 ## Key decisions
 
-- `BUILTIN_MODEL_IDS` is the single runtime source for all builtin model ID enumeration; Gate owns it, Aria imports from `@/auth` (exception documented with comment).
-- `filterBySearchQuery` chains after `filterByArchiveStatus` — archive tab change clears search query to prevent cross-tab stale state.
+- `roundtable:` prefix (colon separator, kebab-case) is the canonical localStorage convention for all new keys.
+- Migration shims live in place for one release cycle, then get removed.
+- ThreadActionMenu backdrop pattern is intentional — backdrop blocks hover bleed; `useClickOutside` is for non-modal dropdowns only.
 
 ## Open advisories
 
-- #238 (Gate/Atlas) — Custom provider credential testing
+- #241 (Ada/Aria) — ThreadActionMenu: role="menu" aria-required-children violation in sub-states
+- #199 (Ada/Aria) — InteractionModeSwitcher coming-soon spans break radiogroup ownership model
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
-- #156 (Gate/Arch) — localStorage key naming conventions
-- #154 (Vault) — migrateLocalToServer interface misuse
 
 ## What's next
 
-- **Gate/Arch: #156** — localStorage key naming conventions (Gate + Arch, no Aria dependency)
-- **Gate/Atlas: #238** — Custom provider credential testing
-- **Aria: #160 is done** — next Aria issue is #170 (Backend auth UI) or pick from backlog
+- **Gate/Atlas: #238** — Custom provider credential testing (next top priority)
+- **Aria: #146** — Sidebar.tsx (1499 lines) + ModelSelectorPanel.tsx (1215 lines) splitting (big)
+- **Aria: #147** — Shared icon system (~25 SVGs inlined; big)
+- **Aria/Ada: #241** — ThreadActionMenu role violation (blocker-level a11y)
 
 ## Gotchas
 
@@ -57,3 +65,5 @@ Phase 4+ — Full gate process active.
 - ThreadActionMenu sub-states: `role="dialog" aria-modal="true"` not `role="menu"` (aria-required-children violation)
 - ExportButton: WAI-ARIA menu pattern requires ArrowDown/Up wiring alongside `tabIndex={-1}` — pre-existing test failure in ExportButton Escape (unrelated to recent waves)
 - `BUILTIN_MODEL_IDS` from `@/auth` is the only Gate import Aria is permitted — document with comment at import site
+- localStorage migration shims: `rt_key_` / `roundtable_user_preferences` / `rt-ui-sidebar-width` shims in place — remove after one release cycle
+- `useClickOutside` uses `mousedown`; ThreadActionMenu uses backdrop instead — not a regression
