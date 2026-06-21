@@ -4,7 +4,7 @@
  * Persists the user's preferred sidebar width so Aria's drag-resize UI can
  * restore it across sessions.
  *
- * Storage key : 'rt-ui-sidebar-width'  (localStorage only)
+ * Storage key : 'roundtable:ui-sidebar-width'  (localStorage only)
  * Default     : 280 (px) — matches the hardcoded sidebar width prior to #62
  *
  * Rules:
@@ -15,7 +15,14 @@
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SIDEBAR_WIDTH_STORAGE_KEY = 'rt-ui-sidebar-width' as const;
+/**
+ * Canonical key: 'roundtable:ui-sidebar-width'
+ * Legacy key (pre-#156): 'rt-ui-sidebar-width'
+ * Migration-on-read: if canonical key is absent but legacy key exists,
+ * value is moved to canonical key and legacy key is removed.
+ */
+const SIDEBAR_WIDTH_STORAGE_KEY = 'roundtable:ui-sidebar-width' as const;
+const LEGACY_SIDEBAR_WIDTH_STORAGE_KEY = 'rt-ui-sidebar-width' as const;
 
 /** Minimum sidebar width in pixels. Aria should enforce the same floor in the drag UI. */
 export const SIDEBAR_WIDTH_MIN = 278;
@@ -53,10 +60,25 @@ function parseStoredWidth(raw: string | null): number | null {
  *
  * Returns a pixel value. Falls back to SIDEBAR_WIDTH_DEFAULT (280) if nothing
  * has been saved yet or the stored value is corrupt or out of range.
+ *
+ * Migration: if the canonical key is absent but the legacy key exists, the
+ * value is migrated to the canonical key and the legacy key is removed.
  */
 export function getSidebarWidth(): number {
   const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-  return parseStoredWidth(raw) ?? SIDEBAR_WIDTH_DEFAULT;
+  if (raw !== null) {
+    return parseStoredWidth(raw) ?? SIDEBAR_WIDTH_DEFAULT;
+  }
+
+  // Migration path: check for legacy key format.
+  const legacyRaw = localStorage.getItem(LEGACY_SIDEBAR_WIDTH_STORAGE_KEY);
+  if (legacyRaw !== null) {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, legacyRaw);
+    localStorage.removeItem(LEGACY_SIDEBAR_WIDTH_STORAGE_KEY);
+    return parseStoredWidth(legacyRaw) ?? SIDEBAR_WIDTH_DEFAULT;
+  }
+
+  return SIDEBAR_WIDTH_DEFAULT;
 }
 
 /**

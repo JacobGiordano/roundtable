@@ -15,10 +15,23 @@ import type { BuiltInCredentialKey, BuiltInModelId, CredentialKey, GetCredential
 
 // ─── Storage key prefix ────────────────────────────────────────────────────────
 
-const STORAGE_PREFIX = 'rt_key_' as const;
+/**
+ * Canonical key prefix: "roundtable:key:<credentialKey>"
+ * e.g. roundtable:key:anthropic, roundtable:key:openai
+ *
+ * Legacy prefix (pre-#156): "rt_key_<credentialKey>"
+ * Migration-on-read: if the canonical key is absent but the legacy key exists,
+ * the value is moved to the canonical key and the legacy key is removed.
+ */
+const STORAGE_PREFIX = 'roundtable:key:' as const;
+const LEGACY_STORAGE_PREFIX = 'rt_key_' as const;
 
 function storageKey(key: CredentialKey): string {
   return `${STORAGE_PREFIX}${key}`;
+}
+
+function legacyStorageKey(key: CredentialKey): string {
+  return `${LEGACY_STORAGE_PREFIX}${key}`;
 }
 
 // ─── Implementations ──────────────────────────────────────────────────────────
@@ -26,10 +39,26 @@ function storageKey(key: CredentialKey): string {
 /**
  * Retrieve a stored API key from localStorage.
  * Returns undefined if the key has never been set or was cleared.
+ *
+ * Migration: if the canonical key is absent but the legacy `rt_key_<key>`
+ * entry exists, the value is migrated to the canonical key on read and the
+ * legacy key is removed.
  */
 export const getCredentials: GetCredentialsFn = (key: CredentialKey): string | undefined => {
-  const stored = localStorage.getItem(storageKey(key));
-  return stored ?? undefined;
+  const canonicalKey = storageKey(key);
+  const stored = localStorage.getItem(canonicalKey);
+  if (stored !== null) return stored;
+
+  // Migration path: check for legacy key format.
+  const legacyKey = legacyStorageKey(key);
+  const legacy = localStorage.getItem(legacyKey);
+  if (legacy !== null) {
+    localStorage.setItem(canonicalKey, legacy);
+    localStorage.removeItem(legacyKey);
+    return legacy;
+  }
+
+  return undefined;
 };
 
 /**
@@ -42,17 +71,25 @@ export const saveCredentials: SaveCredentialsFn = (key: CredentialKey, value: st
 
 /**
  * Remove a stored API key from localStorage.
+ * Also removes the legacy key if it exists, so migration leftovers are cleared.
  */
 export const clearCredentials: ClearCredentialsFn = (key: CredentialKey): void => {
   localStorage.removeItem(storageKey(key));
+  localStorage.removeItem(legacyStorageKey(key));
 };
 
 /**
  * Check whether a given API key is currently set.
  * Safe to call frequently — does not expose the value.
+ *
+ * Migration: checks the canonical key first; falls back to calling getCredentials
+ * which will migrate a legacy key to the canonical location if found.
  */
 export function hasCredential(key: CredentialKey): boolean {
-  return localStorage.getItem(storageKey(key)) !== null;
+  if (localStorage.getItem(storageKey(key)) !== null) return true;
+  // Trigger migration by calling getCredentials — it will move the legacy value
+  // to the canonical key if it exists.
+  return getCredentials(key) !== undefined;
 }
 
 // ─── Model → credential mapping ───────────────────────────────────────────────

@@ -4,7 +4,7 @@
  * Implements getUserPreferences() and saveUserPreferences() for UserPreferences
  * as defined in /src/types/index.ts.
  *
- * Storage key: 'roundtable_user_preferences' (separate from theme preferences)
+ * Storage key: 'roundtable:user-preferences' (separate from theme preferences)
  * Persistence layer: localStorage only
  *
  * Default values when no preference is stored:
@@ -15,7 +15,14 @@ import type { UserPreferences, TokenCountVisibility } from '@/types';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
-const USER_PREFS_STORAGE_KEY = 'roundtable_user_preferences' as const;
+/**
+ * Canonical key: 'roundtable:user-preferences'
+ * Legacy key (pre-#156): 'roundtable_user_preferences'
+ * Migration-on-read: if canonical key is absent but legacy key exists,
+ * value is moved to canonical key and legacy key is removed.
+ */
+const USER_PREFS_STORAGE_KEY = 'roundtable:user-preferences' as const;
+const LEGACY_USER_PREFS_STORAGE_KEY = 'roundtable_user_preferences' as const;
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   tokenCountVisibility: 'active',
@@ -62,10 +69,25 @@ function parseStoredPreferences(raw: string | null): UserPreferences | null {
  *
  * Returns a UserPreferences object. Falls back to `{ tokenCountVisibility: 'active' }`
  * if nothing has been saved yet or the stored value is corrupt/unrecognised.
+ *
+ * Migration: if the canonical key is absent but the legacy key exists, the
+ * value is migrated to the canonical key and the legacy key is removed.
  */
 export function getUserPreferences(): UserPreferences {
   const raw = localStorage.getItem(USER_PREFS_STORAGE_KEY);
-  return parseStoredPreferences(raw) ?? { ...DEFAULT_PREFERENCES };
+  if (raw !== null) {
+    return parseStoredPreferences(raw) ?? { ...DEFAULT_PREFERENCES };
+  }
+
+  // Migration path: check for legacy key format.
+  const legacyRaw = localStorage.getItem(LEGACY_USER_PREFS_STORAGE_KEY);
+  if (legacyRaw !== null) {
+    localStorage.setItem(USER_PREFS_STORAGE_KEY, legacyRaw);
+    localStorage.removeItem(LEGACY_USER_PREFS_STORAGE_KEY);
+    return parseStoredPreferences(legacyRaw) ?? { ...DEFAULT_PREFERENCES };
+  }
+
+  return { ...DEFAULT_PREFERENCES };
 }
 
 /**
