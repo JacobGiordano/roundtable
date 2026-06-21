@@ -1,4 +1,4 @@
-Last updated: 2026-06-20 (ship #159 — cancel streaming)
+Last updated: 2026-06-20 (ship wave: #243, #244, #175, #144)
 
 ## Current phase
 
@@ -6,44 +6,51 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: cancel streaming (#159, #242)**
+**Wave: test contracts + focus fix + cache + types (#243, #244, #175, #144)**
 
-- **Arch**: `StopMessageFn = () => void`, `signal?: AbortSignal` on `SendMessageOptions`, `stopMessage: StopMessageFn` on `ConversationContext` — all in `/src/types/index.ts`
-- **Atlas**: AbortSignal threaded through all 7 providers via `options.signal`; `runProviderIsolated` swallows AbortError (duck-typed `err?.name === 'AbortError'` — jsdom `DOMException` does not extend `Error`); all three routing modes (parallel, directed, auto-chain) thread signal; 12 tests in `abort-controller.test.ts`
-- **Aria**: `AbortController` ref in `App.tsx`, new controller per send, `.finally()` clears ref; `stopMessage` in context; stop button in `InputBar` (44×44px, filled square) replaces send while streaming; `aria-live="polite"` live region announces state
-- **Flint**: cleared, all 5 acceptance criteria passed
-
-**#241 deferred** — correct structural fix breaks Scout's `sidebar-state-machines.test.tsx` (`within(menu)` queries sub-state content). Filed #243 for Scout to update test contracts first.
+- **Scout #243**: `sidebar-state-machines.test.tsx` sub-state queries moved from `within(menu).getBy*()` to `screen.getBy*()` — resilient to #241 DOM restructure. `within(menu)` kept for `queryAllByRole('menuitem')` only. #241 is now unblocked.
+- **Aria #244**: Stop button receives focus via double-rAF on send→stop swap; focus returns to textarea on stop→send. `hasStreamedRef` guard prevents false-fire on initial render. Ada: PASS (11 a11y tests).
+- **Vault #175**: In-memory `Map` cache on `LocalStorageProvider`. First `listConversations()` scans, subsequent calls serve from cache. `saveConversation()` and `deleteConversation()` keep cache in sync. Ghost-mode guard fires before any cache write. Interface unchanged.
+- **Arch #144**: `SessionTokenUsage` is now `type SessionTokenUsage = { modelId: ModelId } & TokenUsage`. Eliminates 4 duplicated fields. Zero downstream breakage. PR #245 merged.
+- **Flint**: cleared all 4 issues.
 
 ## Key decisions
 
-- `signal` lives on `SendMessageOptions`, not on `ModelProvider.sendMessage` — the 4th positional param slot is already `selectedVersionId?: string`; adding AbortSignal there would break all 6 provider classes
-- Aria owns the `AbortController` (creates, stores, passes signal, calls abort) — Atlas only threads the signal through
-- AbortError detection by `err?.name === 'AbortError'` (not `instanceof Error`) for jsdom cross-environment compat
-- `sendMessage` always resolves on abort — never rejects; clean `isDone: true` chunk with partial token usage emitted on mid-stream abort
+- Vault cache is implementation-internal — `StorageProvider` interface unchanged. True cursor-based pagination (listConversations with offset/limit) still needs an Arch types PR when warranted.
+- Arch used `type` alias (not `interface extends`) for the intersection — more direct, communicates intent at a glance.
+- Slack notification hook fixed: `rm -f /tmp/claude-prompt-start` now inside the `[ $elapsed -gt 60 ]` branch so the start timestamp persists across quick stops during long agent waves.
 
 ## Open advisories (filed, not yet addressed)
 
-- #244 (Aria/Ada) — Stop button: focus drops to body when send unmounts on stream start (WCAG 2.4.3)
-- #243 (Scout) — Update sidebar-state-machines tests to unblock #241
-- #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children in sub-states (blocked on #243)
+- #241 (Aria/Ada) — ThreadActionMenu `role="menu"` aria-required-children in sub-states — **NOW UNBLOCKED, top priority**
+- #244 done; next Ada a11y issue is #199 (InteractionModeSwitcher radiogroup ownership)
 - #238 (Gate/Atlas) — Custom provider credential testing (CORS/keyless edge cases)
 - #199 (Aria/Ada) — InteractionModeSwitcher coming-soon spans: radiogroup ownership
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
-- #175 (Vault) — StorageProvider pagination
+- #175 done; pagination follow-up still needs Arch types PR
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
+- #160 (Aria) — Conversation search/filter
+- #156 (Gate/Arch) — localStorage key naming conventions
+- #154 (Vault) — migrateLocalToServer interface misuse
+- #151 (Arch/Gate) — BuiltInModelId consolidation
+- #150 (Aria) — ChevronIcon duplication
+- #149 (Aria) — useClickOutside 4 implementations
+- #147 (Aria) — No shared icon system
+- #146 (Aria) — Sidebar.tsx/ModelSelectorPanel.tsx splitting
+- #144 done
+- #136 (Aria) — Sidebar.tsx inlining sidebarUtils
 
 ## What's next
 
 Top candidates:
-- Scout: #243 (update sidebar-state-machines tests) → unblocks #241
-- Aria: #241 (ThreadActionMenu role fix) — once #243 lands
-- Aria: #244 (focus drop on send→stop swap)
-- Aria: wire `resolveVersionCatalog` into `ModelSelectorPanel` version picker (no issue # yet)
+- **Aria: #241** (ThreadActionMenu role fix) — unblocked, high priority
+- **Aria: #199** (InteractionModeSwitcher radiogroup) — a11y, Ada follow-up
+- **Aria: refactor wave** — #136, #146, #147, #149, #150 (batch to avoid double Ada overhead)
+- **Arch/Gate: #151, #156** — can run parallel with Aria if no type dependency
 
 ## Gotchas
 
@@ -61,3 +68,4 @@ Top candidates:
 - Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
 - jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
+- Vault cache is in `LocalStorageProvider` instance scope — tests that create fresh instances always start cold
