@@ -63,6 +63,13 @@ start a conversation.
 > CDN can rotate those IPs during a long session, causing intermittent network
 > errors. Restart the container to re-resolve. No code change needed.
 
+> **Note — personal VS Code extensions:** `.devcontainer/devcontainer.json`
+> includes a few extensions beyond the project essentials (e.g.
+> `man-vu.claude-code-usage-dashboard`). If you don't want them, remove the
+> relevant entries from the `customizations.vscode.extensions` array before
+> building the container. The project requires only `anthropic.claude-code`,
+> `dbaeumer.vscode-eslint`, and `esbenp.prettier-vscode`.
+
 ## Self-hosted backend (optional)
 
 A standalone Express + SQLite backend is included in `/backend/` for teams or

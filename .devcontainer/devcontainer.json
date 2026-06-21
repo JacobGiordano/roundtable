@@ -17,6 +17,7 @@
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
+        "man-vu.claude-code-usage-dashboard",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "eamodio.gitlens"
@@ -44,7 +45,8 @@
   "containerUser": "node",
   "mounts": [
     "source=roundtable-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=roundtable-claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
+    "source=roundtable-claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=roundtable-gh-config-${devcontainerId},target=/home/node/.config/gh,type=volume"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -56,6 +58,6 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
   "postCreateCommand": "npx playwright install chromium",
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": "sudo cp /workspace/.devcontainer/init-firewall.sh /usr/local/bin/init-firewall.sh && sudo /usr/local/bin/init-firewall.sh",
   "waitFor": "postStartCommand"
 }

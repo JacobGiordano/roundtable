@@ -123,6 +123,24 @@ iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
 # Explicitly REJECT all other outbound traffic for immediate feedback
 iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 
+# Start background daemon to refresh CDN-backed domain IPs every 30 minutes.
+# These domains serve from large rotating IP pools (AWS CloudFront / ELB), so
+# IPs baked in at container start drift mid-session and block outbound requests.
+nohup bash -c '
+CDN_DOMAINS="hooks.slack.com api.openai.com"
+while true; do
+  sleep 1800
+  for domain in $CDN_DOMAINS; do
+    ips=$(dig +noall +answer A "$domain" 2>/dev/null | awk '"'"'$4 == "A" {print $5}'"'"')
+    while IFS= read -r ip; do
+      [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && \
+        ipset add -exist allowed-domains "$ip" 2>/dev/null || true
+    done <<< "$ips"
+  done
+done
+' >/var/log/firewall-refresh.log 2>&1 &
+disown
+
 echo "Firewall configuration complete"
 echo "Verifying firewall rules..."
 if curl --connect-timeout 5 https://example.com >/dev/null 2>&1; then
