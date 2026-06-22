@@ -795,10 +795,11 @@ export function Sidebar({
                   type="button"
                   onClick={handleResetAllAccentColors}
                   className={[
+                    'py-1 px-2 rounded',
                     'text-[13px] text-text-secondary',
                     'hover:text-text-primary hover:underline',
                     'transition-colors duration-fast',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                   ].join(' ')}
                 >
                   Reset all model colors to theme defaults

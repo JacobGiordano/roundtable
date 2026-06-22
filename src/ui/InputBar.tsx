@@ -278,8 +278,8 @@ export function InputBar({
                 onClick={onClearDirectedReply}
                 aria-label={`Clear directed reply to ${directedReplyTarget.name}`}
                 className={[
-                  'ml-0.5 flex items-center justify-center',
-                  'w-4 h-4 rounded-full',
+                  'flex items-center justify-center',
+                  'w-6 h-6 rounded-full',
                   'hover:bg-black/10',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                   'transition-colors duration-fast',

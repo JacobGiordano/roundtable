@@ -145,14 +145,17 @@ export function ThreadRow({
           'transition-opacity duration-fast',
         ].join(' ')}
       >
-        <input
-          type="checkbox"
-          aria-label={`Select conversation: ${title}`}
-          checked={isChecked}
-          onChange={handleCheckboxChange}
-          onClick={(e) => e.stopPropagation()}
-          className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
-        />
+        {/* 24px effective click area wrapper — WCAG 2.5.8 target size minimum */}
+        <div className="min-w-[24px] min-h-[24px] flex items-center justify-center">
+          <input
+            type="checkbox"
+            aria-label={`Select conversation: ${title}`}
+            checked={isChecked}
+            onChange={handleCheckboxChange}
+            onClick={(e) => e.stopPropagation()}
+            className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
+          />
+        </div>
       </div>
 
       {/* Main row button */}
@@ -207,7 +210,7 @@ export function ThreadRow({
         onClick={handleMenuOpen}
         className={[
           'absolute right-1.5 top-1/2 -translate-y-1/2 z-10',
-          'w-6 h-6 rounded flex items-center justify-center',
+          'w-7 h-7 rounded flex items-center justify-center',
           'text-text-muted hover:text-text-secondary hover:bg-hover',
           'transition-colors duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',

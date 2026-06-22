@@ -24,7 +24,7 @@ export function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
         type="button"
         onClick={() => onChange('active')}
         className={[
-          'flex-1 py-1 text-center transition-colors duration-fast',
+          'flex-1 h-8 text-center transition-colors duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
           value === 'active'
             ? 'bg-hover text-text-primary'
@@ -38,7 +38,7 @@ export function ArchiveToggle({ value, onChange }: ArchiveToggleProps) {
         type="button"
         onClick={() => onChange('archived')}
         className={[
-          'flex-1 py-1 text-center transition-colors duration-fast',
+          'flex-1 h-8 text-center transition-colors duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
           value === 'archived'
             ? 'bg-hover text-text-primary'
