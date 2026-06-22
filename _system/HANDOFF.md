@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: hotfix #256 SystemPromptRow clear button + wave #252/#254/#255)
+Last updated: 2026-06-22 (ship: #253 AddModelButton WAI-ARIA keyboard nav)
 
 ## Current phase
 
@@ -6,31 +6,25 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: Gate #252 + Aria #254/#255 + hotfix #256**
+**#253 (Aria)**: AddModelButton now implements the full WAI-ARIA Menu Button keyboard contract. Open → focus first menuitem (single rAF via useEffect([isOpen])). ArrowDown/Up with end-to-end wrap. Home/End to first/last. Escape: closeAndReturn() returns focus to trigger. Tab: no trap. Trigger re-click while open: closeAndReturn() (was bare closeDropdown()). Menuitems: tabIndex={-1}. 28 new Ada tests pass. 1370/1370 + 7 skipped + 1 pre-existing ExportButton Escape.
 
-- **#252 (Gate)**: `testCredential` catch block now returns `cors-or-network` on fetch throw. `testCredential` and `testCustomCredential` now behave consistently. 42/42 tests pass.
-- **#254 (Aria)**: `handleToggle` is a pure updater. rAF focus moved to `useEffect([isExpanded])`. Eliminates Strict Mode double-invocation hazard.
-- **#255 (Aria)**: Expandable body always in DOM; `hidden={!isExpanded}` controls AT visibility. `aria-controls` always resolves.
-- **#256 (Aria hotfix)**: Clear button invisible after #255 — GPU compositing stale layer on `display:none` → visible transition. Fix: `isolate` on `relative` wrapper + `z-10` on clear button.
-
-**Flint**: PASS all four — 1342/1342 + 7 skipped + 1 pre-existing ExportButton Escape.
+**Flint**: PASS — all acceptance criteria verified.
 
 ## Open bugs / known issues
 
-- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent. Related to #253 scope.
+- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent. Related to #253 scope (AddModelButton is now fixed; ExportButton is a separate component).
 
 ## Key decisions
 
-- `cors-or-network` is now consistent across both `testCredential` and `testCustomCredential` — both return it on fetch throw.
-- `hidden` attribute (not `aria-hidden`) is the correct pattern for `aria-controls` progressive disclosure targets.
-- `useEffect([isExpanded])` is the correct place for post-mount focus side effects — not inside setState updaters.
-- `isolate` + `z-10` is the fix for absolutely-positioned children going invisible after a `hidden` → visible transition (GPU compositing stale layer).
+- `activeFocusIndexRef` (useRef, not useState) is the correct way to track keyboard focus index in menus — avoids re-render per keypress.
+- Single rAF in `useEffect([isOpen])` is sufficient for focus-on-open — items already in DOM, no double-rAF needed.
+- `closeAndReturn()` is the correct pattern for both Escape and trigger re-click (not bare closeDropdown()).
+- `tabIndex={-1}` + `focus:outline-none` on menuitems is correct for programmatic-only focus targets.
 
 ## Open advisories
 
-- #253 (Ada/Aria) — AddModelButton: role="menu" lacks ArrowDown/Up keyboard navigation
-- #248 (Aria) — Document SearchBar magnifying glass as inline exception in icons/index.tsx
 - #247 (Aria) — ThreadActionMenu: group-suggestion and confirm-delete buttons skip closeAndReturnFocus (WCAG 2.4.3)
+- #248 (Aria) — Document SearchBar magnifying glass as inline exception in icons/index.tsx
 - #199 (Ada/Aria) — InteractionModeSwitcher coming-soon spans break radiogroup ownership model
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -41,9 +35,8 @@ Phase 4+ — Full gate process active.
 
 ## What's next
 
-1. **Aria: #253** — AddModelButton ArrowDown/Up/Home/End keyboard nav (a11y, save for fresh window — meaty)
-2. **Aria: #247** — ThreadActionMenu closeAndReturnFocus (WCAG 2.4.3)
-3. **Aria: #248** — SearchBar inline SVG exception comment (tiny, batch with next Aria wave)
+1. **Aria: #247** — ThreadActionMenu closeAndReturnFocus (WCAG 2.4.3)
+2. **Aria: #248** — SearchBar inline SVG exception comment (tiny, batch with #247)
 
 ## Gotchas
 
@@ -73,3 +66,4 @@ Phase 4+ — Full gate process active.
 - `TESTABLE_CREDENTIAL_KEYS` in ProviderSettingsPanel must stay in sync with Gate's `PROVIDER_TEST_CONFIGS`
 - MessageBubble + OnboardingEmptyState + SearchBar magnifying glass SVGs remain inline (#248 to document SearchBar)
 - AddModelButton dropdown: uses `createPortal` into `document.body` with fixed positioning from `getBoundingClientRect()`
+- `activeFocusIndexRef` (useRef) for menu keyboard nav — not useState; avoids re-render per keypress
