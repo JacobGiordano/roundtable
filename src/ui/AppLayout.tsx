@@ -94,6 +94,10 @@ export function AppLayout({ onSend }: AppLayoutProps) {
   // Typed as RefObject<HTMLButtonElement> (not |null) so it matches Sidebar's prop type.
   const providerSettingsTriggerRef = useRef<HTMLButtonElement>(null);
 
+  // #260: Ref to the mobile hamburger button — Sidebar's Escape handler uses this
+  // to return focus after closing the drawer (WCAG 2.1.2 + 2.4.3).
+  const hamburgerTriggerRef = useRef<HTMLButtonElement>(null);
+
   const handleOpenProviderSettings = useCallback(() => setIsProviderPanelOpen(true), []);
   const handleCloseProviderSettings = useCallback(() => {
     setIsProviderPanelOpen(false);
@@ -203,6 +207,7 @@ export function AppLayout({ onSend }: AppLayoutProps) {
         onBulkDelete={onBulkDelete}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={handleCloseMobileMenu}
+        mobileMenuTriggerRef={hamburgerTriggerRef}
         isSettingsOpen={isSettingsOpen}
         onToggleSettings={handleToggleSettings}
         onOpenProviderSettings={handleOpenProviderSettings}
@@ -258,6 +263,7 @@ export function AppLayout({ onSend }: AppLayoutProps) {
         <div className="flex md:hidden h-12 items-center justify-between px-3 border-b border-border bg-sidebar flex-shrink-0">
           {/* Hamburger — opens mobile sidebar drawer */}
           <button
+            ref={hamburgerTriggerRef}
             type="button"
             aria-label="Open navigation"
             aria-expanded={isMobileMenuOpen}
