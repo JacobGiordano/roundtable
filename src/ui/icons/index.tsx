@@ -10,6 +10,10 @@
  *
  * MessageBubble and OnboardingEmptyState icons remain inline — their SVGs are
  * single-use with no cross-file duplication.
+ *
+ * SearchBar's magnifying glass SVG is also intentionally inline (#248) — it
+ * applies Tailwind size/color classes directly on the SVG path and does not fit
+ * the fixed-size IconProps contract. This is the documented exception.
  */
 
 import type { SVGProps } from 'react';
