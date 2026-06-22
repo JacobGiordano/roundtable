@@ -292,6 +292,12 @@ export function ModelSelectorPanel({
         className={panelClass}
         onTransitionEnd={handleTransitionEnd}
         aria-hidden={!isOpen && !isClosing}
+        // inert removes all descendants from the tab order + AT tree when the
+        // panel is fully closed (not open and not mid-close animation).
+        // Matches the aria-hidden condition so the two attributes stay in sync.
+        // @types/react 18.3 only exposes inert in experimental.d.ts, so we
+        // cast rather than import the experimental types globally.
+        {...((!isOpen && !isClosing) ? { inert: '' } : {} as React.HTMLAttributes<HTMLDivElement>)}
       >
         <div
           className={[
