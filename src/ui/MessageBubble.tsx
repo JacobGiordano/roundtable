@@ -385,7 +385,7 @@ export function MessageBubble({
           aria-label="Edit message"
           className={[
             'absolute top-2 right-10',
-            'w-6 h-6 rounded flex items-center justify-center',
+            'w-7 h-7 rounded flex items-center justify-center',
             'text-text-secondary hover:bg-hover hover:text-text-primary',
             'transition-opacity transition-colors duration-fast',
             isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
@@ -409,7 +409,7 @@ export function MessageBubble({
           aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
           className={[
             'absolute top-2 right-2',
-            'w-6 h-6 rounded flex items-center justify-center',
+            'w-7 h-7 rounded flex items-center justify-center',
             'text-text-secondary',
             copyState === 'copied'
               ? 'opacity-100 text-semantic-success'

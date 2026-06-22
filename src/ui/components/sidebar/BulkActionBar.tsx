@@ -72,13 +72,16 @@ export function BulkActionBar({
     <div className="flex-shrink-0 border-b border-border bg-hover/30">
       {/* Header row: select-all + deselect */}
       <div className="flex items-center px-3 py-1.5 gap-2">
-        <input
-          type="checkbox"
-          aria-label={allSelected ? 'Deselect all' : 'Select all'}
-          checked={allSelected}
-          onChange={allSelected ? onDeselectAll : onSelectAll}
-          className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
-        />
+        {/* 24px effective click area wrapper — WCAG 2.5.8 target size minimum */}
+        <div className="min-w-[24px] min-h-[24px] flex items-center justify-center">
+          <input
+            type="checkbox"
+            aria-label={allSelected ? 'Deselect all' : 'Select all'}
+            checked={allSelected}
+            onChange={allSelected ? onDeselectAll : onSelectAll}
+            className="w-3.5 h-3.5 rounded accent-[var(--accent-claude)] cursor-pointer"
+          />
+        </div>
         <span className="flex-1 text-[11px] text-text-secondary">
           {selectedCount} selected
         </span>
@@ -101,7 +104,7 @@ export function BulkActionBar({
             type="button"
             onClick={onBulkArchive}
             className={[
-              'flex-1 py-1 rounded text-[11px] text-center',
+              'flex-1 py-1.5 rounded text-[11px] text-center',
               'text-text-secondary bg-hover hover:bg-hover/80',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
@@ -114,7 +117,7 @@ export function BulkActionBar({
             type="button"
             onClick={() => setBarState('confirm-delete')}
             className={[
-              'flex-1 py-1 rounded text-[11px] text-center',
+              'flex-1 py-1.5 rounded text-[11px] text-center',
               'text-error bg-hover hover:bg-hover/80',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
@@ -135,7 +138,7 @@ export function BulkActionBar({
               type="button"
               onClick={handleCancelConfirm}
               className={[
-                'flex-1 py-1 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast',
+                'flex-1 py-1.5 rounded text-[11px] text-text-secondary bg-hover hover:bg-hover/80 transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
             >
@@ -145,7 +148,7 @@ export function BulkActionBar({
               type="button"
               onClick={handleBulkDeleteConfirm}
               className={[
-                'flex-1 py-1 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast',
+                'flex-1 py-1.5 rounded text-[11px] text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
             >

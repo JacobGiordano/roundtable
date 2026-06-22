@@ -180,7 +180,7 @@ export function ModelSelectorPanel({
         aria-expanded={false}
         className={[
           'inline-flex items-center gap-[6px]',
-          'h-6 px-[10px]',
+          'h-7 px-[10px]',
           'text-[12px] font-medium text-text-muted',
           'bg-transparent border border-border-subtle rounded-full',
           'hover:border-border transition-[border-color] duration-fast',
@@ -346,6 +346,7 @@ export function ModelSelectorPanel({
               onClick={handleOpenSettingsFromPanel}
               className={[
                 'inline-flex items-center gap-[5px]',
+                'py-1.5',
                 'text-[11px] text-text-muted',
                 'hover:text-text-secondary transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
@@ -368,7 +369,7 @@ export function ModelSelectorPanel({
         onClick={handleTriggerClick}
         className={[
           'inline-flex items-center gap-[6px]',
-          'h-6 px-[10px]',
+          'h-7 px-[10px]',
           'text-[12px] font-medium text-text-secondary',
           'bg-transparent border border-border-subtle rounded-full',
           'hover:border-border transition-[border-color] duration-fast',
