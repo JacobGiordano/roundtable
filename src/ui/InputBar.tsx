@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { ModelConfig } from '@/types';
-// GhostIcon: shared icon system (#147). Permitted import from icons/ within /src/ui.
-import { GhostIcon } from './icons';
+// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon replace inline SVGs.
+import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon } from './icons';
 
 interface InputBarProps {
   onSend: (content: string) => void;
@@ -45,45 +45,7 @@ interface InputBarProps {
   onCancelEdit?: () => void;
 }
 
-/** Stop icon: filled square, 10×10 inside a 16×16 viewport. Used on the stop button. */
-function StopIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      {/* Filled square centered in the 16×16 viewport */}
-      <rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** Send arrow icon: right-pointing arrow, 16×16. */
-function SendIcon({ disabled }: { disabled: boolean }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M2 8h12M9 3l5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={disabled ? 'text-text-muted' : 'text-text-inverse'}
-      />
-    </svg>
-  );
-}
+// StopIcon and SendIcon are now imported from the shared icon system (#147).
 
 /**
  * Returns inline styles for the directed-reply pill using the model's CSS custom property.
@@ -323,9 +285,8 @@ export function InputBar({
                   'transition-colors duration-fast',
                 ].join(' ')}
               >
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                  <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                {/* Small close icon — shared icon (#147) */}
+                <SmallCloseIcon />
               </button>
             )}
           </div>
