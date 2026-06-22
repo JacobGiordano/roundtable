@@ -89,6 +89,12 @@ interface SidebarProps {
   /** Called when the mobile drawer should close (e.g. a conversation is selected). */
   onMobileClose?: () => void;
   /**
+   * Ref to the hamburger trigger button in AppLayout's mobile header.
+   * Used by the Escape key handler to return focus to the trigger after closing
+   * the drawer (WCAG 2.1.2 + 2.4.3 — keyboard dismiss + focus return).
+   */
+  mobileMenuTriggerRef?: React.RefObject<HTMLButtonElement>;
+  /**
    * When provided, overrides the internal isSettingsOpen state.
    * Used by AppLayout to synchronise the sidebar settings panel with the
    * header gear button trigger on both desktop and mobile.
@@ -140,6 +146,7 @@ export function Sidebar({
   onBulkDelete,
   isMobileOpen = false,
   onMobileClose,
+  mobileMenuTriggerRef,
   isSettingsOpen: isSettingsOpenProp,
   onToggleSettings: onToggleSettingsProp,
   onOpenProviderSettings,
@@ -190,6 +197,49 @@ export function Sidebar({
       ? window.matchMedia('(max-width: 767px)').matches
       : false,
   );
+
+  // #260: Reactive mobile breakpoint state for inert gating.
+  // isMobileViewport (ref above) is used for the inline-style width guard and
+  // is never updated after mount. We need a reactive state here so that the
+  // `inert` attribute on <aside> correctly reflects the current viewport
+  // without stale values after orientation changes or resize.
+  // The mq listener updates state whenever the breakpoint crosses 768px.
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 767px)').matches
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // #260: Escape key handler — WCAG 2.1.2 (keyboard dismiss) + WCAG 2.4.3 (focus return).
+  // When the mobile drawer is open, pressing Escape closes it and returns focus
+  // to the hamburger trigger button. Same contract as MSP's Escape handler (#259).
+  useEffect(() => {
+    if (!isMobileOpen) return;
+
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onMobileClose?.();
+      // Double-rAF: wait for React to unmount/hide the drawer before restoring focus,
+      // matching the pattern used by ProviderSettingsPanel (#259).
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          mobileMenuTriggerRef?.current?.focus();
+        });
+      });
+    }
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isMobileOpen, onMobileClose, mobileMenuTriggerRef]);
 
   const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -446,6 +496,13 @@ export function Sidebar({
       // On desktop the drag-resize inline style applies. Inline styles have higher
       // specificity than Tailwind classes, so we guard against mobile override here.
       style={isMobileViewport.current ? undefined : { width: sidebarWidth }}
+      // #260: WCAG 2.4.3 — when the mobile drawer is closed, the sidebar is
+      // visually off-screen (translated left via -translate-x-full) but its
+      // interactive elements remain in the DOM tab order. Applying `inert` removes
+      // all descendants from the tab order and the AT tree while the drawer is hidden.
+      // Gated on isMobile so desktop never receives inert (sidebar is always visible).
+      // Pattern: isMobile && !isMobileOpen ? '' : undefined (HANDOFF gotcha).
+      {...(isMobile && !isMobileOpen ? ({ inert: '' } as React.HTMLAttributes<HTMLElement>) : {})}
     >
       {/* Drag handle — right edge of sidebar, desktop only */}
       <div
