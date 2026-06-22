@@ -7,7 +7,7 @@
  * prompt, and a clear button when a prompt is set.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ModelConfig, ModelId } from '@/types';
 // #150: shared ChevronIcon replaces the local copy.
 import { ChevronIcon } from '../ChevronIcon';
@@ -31,15 +31,16 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
   const hasPrompt = Boolean(model.systemPrompt && model.systemPrompt.trim().length > 0);
 
   const handleToggle = useCallback(() => {
-    setIsExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        // Focus textarea once it mounts
-        requestAnimationFrame(() => textareaRef.current?.focus());
-      }
-      return next;
-    });
+    setIsExpanded((prev) => !prev);
   }, []);
+
+  // #254: rAF moved out of setState updater — updaters must be pure.
+  // In React Strict Mode the updater runs twice, which would schedule duplicate rAFs.
+  useEffect(() => {
+    if (isExpanded) {
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [isExpanded]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -109,61 +110,62 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
       </button>
 
       {/* Expandable body */}
-      {isExpanded && (
-        <div
-          id={rowId}
-          className="pb-3 pt-1 px-1"
-        >
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              value={model.systemPrompt ?? ''}
-              onChange={handleChange}
-              placeholder={SYSTEM_PROMPT_PLACEHOLDER}
-              rows={3}
-              aria-label={`System prompt for ${model.name}`}
+      {/* #255: always render the div so aria-controls always resolves to a real DOM node.
+          hidden attribute removes it from the a11y tree when collapsed. */}
+      <div
+        id={rowId}
+        hidden={!isExpanded}
+        className="pb-3 pt-1 px-1"
+      >
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={model.systemPrompt ?? ''}
+            onChange={handleChange}
+            placeholder={SYSTEM_PROMPT_PLACEHOLDER}
+            rows={3}
+            aria-label={`System prompt for ${model.name}`}
+            className={[
+              'w-full resize-none rounded-md',
+              'bg-input border border-border',
+              'text-[13px] leading-[1.5] text-text-primary',
+              'placeholder:text-text-muted',
+              'px-3 py-2',
+              'min-h-[72px] max-h-[160px]',
+              'transition-[border-color] duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+              hasPrompt ? 'pr-10' : '',
+            ].join(' ')}
+            style={{ overflowY: 'auto' }}
+          />
+
+          {/* Clear button — only shown when prompt is non-empty */}
+          {hasPrompt && (
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label={`Clear system prompt for ${model.name}`}
+              title="Clear system prompt"
               className={[
-                'w-full resize-none rounded-md',
-                'bg-input border border-border',
-                'text-[13px] leading-[1.5] text-text-primary',
-                'placeholder:text-text-muted',
-                'px-3 py-2',
-                'min-h-[72px] max-h-[160px]',
-                'transition-[border-color] duration-fast',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-                hasPrompt ? 'pr-10' : '',
+                'absolute top-2 right-2',
+                'w-5 h-5 flex items-center justify-center',
+                'rounded text-text-muted',
+                'hover:text-text-primary hover:bg-hover',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               ].join(' ')}
-              style={{ overflowY: 'auto' }}
-            />
-
-            {/* Clear button — only shown when prompt is non-empty */}
-            {hasPrompt && (
-              <button
-                type="button"
-                onClick={handleClear}
-                aria-label={`Clear system prompt for ${model.name}`}
-                title="Clear system prompt"
-                className={[
-                  'absolute top-2 right-2',
-                  'w-5 h-5 flex items-center justify-center',
-                  'rounded text-text-muted',
-                  'hover:text-text-primary hover:bg-hover',
-                  'transition-colors duration-fast',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
-                ].join(' ')}
-              >
-                {/* Small close icon — shared icon (#147) */}
-                <SmallCloseIcon size={10} />
-              </button>
-            )}
-          </div>
-
-          {/* Character hint */}
-          <p className="mt-1 text-[11px] text-text-muted">
-            Sent as the system message before every reply from {model.name}.
-          </p>
+            >
+              {/* Small close icon — shared icon (#147) */}
+              <SmallCloseIcon size={10} />
+            </button>
+          )}
         </div>
-      )}
+
+        {/* Character hint */}
+        <p className="mt-1 text-[11px] text-text-muted">
+          Sent as the system message before every reply from {model.name}.
+        </p>
+      </div>
     </div>
   );
 }
