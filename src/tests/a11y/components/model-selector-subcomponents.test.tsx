@@ -315,23 +315,49 @@ describe('SystemPromptRow — ARIA semantics (WCAG 4.1.2)', () => {
     expect(controlsId).toContain('claude');
   });
 
-  it('aria-controls panel id is absent from the DOM when collapsed (ADVISORY #a11y-146-aria-controls)', () => {
-    // KNOWN FINDING: SystemPromptRow uses conditional rendering ({isExpanded && ...})
-    // so the panel element is not in the DOM when collapsed. This means the
-    // aria-controls attribute on the toggle button points to a non-existent id.
-    // Per WAI-ARIA 1.1, aria-controls SHOULD reference an element that is present
-    // in the DOM — the SessionTokenSection handles this correctly with hidden={!isExpanded}.
-    // Filed as advisory finding in the #146/#147 audit report.
-    // Aria should change SystemPromptRow to use hidden={!isExpanded} on an always-mounted panel.
+  it('aria-controls panel is ALWAYS in the DOM — collapsed or expanded (#255 fix)', () => {
+    // #255 fix: the expandable body <div id={rowId}> is now always mounted.
+    // hidden={!isExpanded} removes it from the accessibility tree when collapsed,
+    // but the element is present in the DOM so aria-controls always resolves.
+    // WAI-ARIA 1.1: aria-controls SHOULD reference an element present in the DOM.
     const { container } = render(
       <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
     );
     const btn = container.querySelector('button') as HTMLButtonElement;
     const controlsId = btn.getAttribute('aria-controls');
-    expect(controlsId).toBeTruthy(); // aria-controls attribute is present
-    // The panel element is NOT in the DOM when collapsed (conditional render)
+    expect(controlsId).toBeTruthy();
+
+    // Panel is in the DOM while collapsed
     const panel = container.querySelector(`#${controlsId}`);
-    expect(panel).toBeNull(); // documents current (pre-fix) behavior
+    expect(panel).not.toBeNull();
+  });
+
+  it('aria-controls panel carries hidden attribute when collapsed (removed from AT)', () => {
+    // The `hidden` HTML attribute removes an element from the accessibility tree,
+    // fulfilling the same role as conditional rendering for AT purposes, while
+    // keeping the DOM node present for aria-controls resolution.
+    const { container } = render(
+      <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
+    );
+    const btn = container.querySelector('button') as HTMLButtonElement;
+    const controlsId = btn.getAttribute('aria-controls');
+    const panel = container.querySelector(`#${controlsId}`) as HTMLElement;
+    expect(panel.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('aria-controls panel hidden attribute is removed when expanded (#255)', () => {
+    const { container } = render(
+      <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
+    );
+    const btn = container.querySelector('button') as HTMLButtonElement;
+    const controlsId = btn.getAttribute('aria-controls');
+
+    act(() => {
+      fireEvent.click(btn);
+    });
+
+    const panel = container.querySelector(`#${controlsId}`) as HTMLElement;
+    expect(panel.hasAttribute('hidden')).toBe(false);
   });
 
   it('textarea has aria-label naming the model', () => {
@@ -381,18 +407,20 @@ describe('SystemPromptRow — ARIA semantics (WCAG 4.1.2)', () => {
 
 // ─── SystemPromptRow — focus management on expand (WCAG 2.4.3) ───────────────
 
+// Stub requestAnimationFrame with a synchronous implementation so the rAF
+// callback fires immediately during the test. Used by handleToggle useEffect
+// (#254 fix) and by handleClear directly.
+function stubRafSync(): () => void {
+  const original = window.requestAnimationFrame;
+  window.requestAnimationFrame = (cb: FrameRequestCallback) => {
+    cb(performance.now());
+    return 0;
+  };
+  return () => { window.requestAnimationFrame = original; };
+}
+
 describe('SystemPromptRow — focus management (WCAG 2.4.3)', () => {
   it('textarea is present in the DOM after expand (focus destination exists)', () => {
-    // SystemPromptRow calls requestAnimationFrame(() => textareaRef.current?.focus())
-    // inside its setState updater when expanding. In a real browser the textarea
-    // is present in the DOM by the time rAF fires (after re-render). In jsdom,
-    // the rAF timing relative to React's re-render makes this assertion unreliable
-    // without a synchronous rAF stub — but the stub fires before the re-render,
-    // so textareaRef.current is null at call time. The important invariant is that
-    // (a) the textarea exists in the DOM after expanding, and (b) the focus code
-    // is present in the implementation (verified by code inspection in audit report).
-    // The BulkActionBar useEffect pattern avoids this jsdom limitation entirely —
-    // see the ADVISORY filing for the recommendation to switch to useEffect.
     const { container } = render(
       <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
     );
@@ -405,6 +433,80 @@ describe('SystemPromptRow — focus management (WCAG 2.4.3)', () => {
     // Verify the textarea exists (focus target is in the DOM after expand).
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     expect(textarea).not.toBeNull();
+  });
+
+  it('textarea receives focus after expand (#254 — rAF in useEffect)', () => {
+    // #254 fix: rAF moved from setState updater into useEffect([isExpanded]).
+    // The useEffect fires after the render triggered by setIsExpanded, so
+    // textareaRef.current is populated before rAF runs. Stub rAF synchronously
+    // so the focus call fires within act() and is assertable in jsdom.
+    const restoreRaf = stubRafSync();
+    try {
+      const { container } = render(
+        <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
+      );
+      const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+
+      act(() => {
+        fireEvent.click(toggleBtn);
+      });
+
+      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+      expect(textarea).not.toBeNull();
+      expect(document.activeElement).toBe(textarea);
+    } finally {
+      restoreRaf();
+    }
+  });
+
+  it('collapsing after expand does not trigger a second rAF focus call (#254 — useEffect guard)', () => {
+    // The useEffect only fires rAF when isExpanded is true (if (isExpanded) guard).
+    // Collapsing sets isExpanded=false, so the effect runs but skips the rAF.
+    // We verify this by counting rAF invocations: expand=1, collapse=0, total=1.
+    let rafCallCount = 0;
+    const original = window.requestAnimationFrame;
+    window.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      rafCallCount++;
+      cb(performance.now());
+      return 0;
+    };
+    try {
+      const { container } = render(
+        <SystemPromptRow model={CLAUDE_MODEL} onUpdate={vi.fn()} />,
+      );
+      const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+
+      // Expand — should call rAF once
+      act(() => { fireEvent.click(toggleBtn); });
+      expect(rafCallCount).toBe(1);
+
+      // Collapse — useEffect runs but if(isExpanded) guard skips rAF
+      act(() => { fireEvent.click(toggleBtn); });
+      expect(rafCallCount).toBe(1); // still 1, not 2
+    } finally {
+      window.requestAnimationFrame = original;
+    }
+  });
+
+  it('clear button returns focus to textarea (handleClear direct focus call)', () => {
+    // handleClear calls textareaRef.current.focus() directly — no rAF.
+    // No stub needed; the focus call is synchronous.
+    const { container } = render(
+      <SystemPromptRow model={CLAUDE_MODEL_WITH_PROMPT} onUpdate={vi.fn()} />,
+    );
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    act(() => { fireEvent.click(toggleBtn); });
+
+    const allButtons = Array.from(container.querySelectorAll('button'));
+    const clearBtn = allButtons.find((b) =>
+      b.getAttribute('aria-label')?.includes('Clear system prompt'),
+    ) as HTMLButtonElement;
+    expect(clearBtn).not.toBeUndefined();
+
+    act(() => { fireEvent.click(clearBtn); });
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(textarea);
   });
 });
 
