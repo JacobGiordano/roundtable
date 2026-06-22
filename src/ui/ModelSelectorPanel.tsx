@@ -110,6 +110,10 @@ export function ModelSelectorPanel({
   // Ref to the panel container div — used by the focus trap below.
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Ref to the trigger chip button — used to return focus after Escape close
+  // (WCAG 2.4.3 Focus Order: focus must return to the element that opened the panel).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   // Focus trap — WCAG 2.4.11 (Focus Not Obscured) / 2.1.2 (No Keyboard Trap).
   // When the panel is open it slides up and overlays the MessageThread area.
   // Without a trap, Tab can reach thread elements (copy/edit buttons on
@@ -124,6 +128,17 @@ export function ModelSelectorPanel({
     if (!panel) return;
 
     function handleFocusTrap(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        // WCAG 2.1.2 No Keyboard Trap: Escape must always close the panel.
+        // WCAG 2.4.3 Focus Order: return focus to the trigger chip that opened the panel.
+        e.preventDefault();
+        setIsClosing(true);
+        setIsOpen(false);
+        setOpenPickerModelId(null);
+        setPickerAnchorRect(null);
+        triggerRef.current?.focus();
+        return;
+      }
       if (e.key !== 'Tab') return;
       const focusable = Array.from(
         panel!.querySelectorAll<HTMLElement>(
@@ -415,6 +430,7 @@ export function ModelSelectorPanel({
 
       {/* Trigger chip */}
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={isOpen}
         aria-controls="model-selector-panel"
