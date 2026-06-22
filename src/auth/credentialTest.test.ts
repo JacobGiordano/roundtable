@@ -93,11 +93,28 @@ describe('testCredential — built-in providers', () => {
     });
   });
 
-  describe('network failure → error', () => {
-    it('returns error status on fetch throw', async () => {
+  describe('network failure → cors-or-network', () => {
+    it('returns cors-or-network on fetch throw (CORS or network error)', async () => {
       vi.stubGlobal('fetch', mockFetchThrow());
       const result = await testCredential('anthropic', 'sk-test');
-      expect(result.status).toBe('error');
+      expect(result.status).toBe('cors-or-network');
+    });
+
+    it('returns cors-or-network on fetch throw for all built-in providers', async () => {
+      const providers = ['anthropic', 'openai', 'google', 'xai', 'deepseek', 'mistral'] as const;
+      for (const key of providers) {
+        vi.unstubAllGlobals();
+        vi.stubGlobal('fetch', mockFetchThrow());
+        const result = await testCredential(key, 'sk-test');
+        expect(result.status).toBe('cors-or-network');
+      }
+    });
+
+    it('cors-or-network message mentions CORS or network', async () => {
+      vi.stubGlobal('fetch', mockFetchThrow());
+      const result = await testCredential('anthropic', 'sk-test');
+      expect(result.status).toBe('cors-or-network');
+      expect(result.message.toLowerCase()).toMatch(/cors|network/);
     });
   });
 
