@@ -45,9 +45,19 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
   const dropdownRef = useRef<HTMLDivElement>(null);
   // Viewport-relative position for the portal dropdown, captured on open.
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  // #253: Track active focus index without triggering an extra render on each
+  // arrow-key press. A ref is the right tool here — focus state is ephemeral
+  // and does not need to drive any rendering.
+  const activeFocusIndexRef = useRef<number>(-1);
 
   const DROPDOWN_WIDTH = 220;
   const VERTICAL_GAP = 4;
+
+  /** Returns the list of focusable menuitems from the portal dropdown. */
+  const getMenuItems = useCallback((): HTMLElement[] => {
+    if (!dropdownRef.current) return [];
+    return Array.from(dropdownRef.current.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+  }, []);
 
   const openDropdown = useCallback(() => {
     if (!buttonRef.current) return;
@@ -71,24 +81,93 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
     }
 
     setDropdownStyle(style);
+    activeFocusIndexRef.current = -1;
     setIsOpen(true);
   }, []);
 
-  const closeDropdown = useCallback(() => setIsOpen(false), []);
+  const closeDropdown = useCallback(() => {
+    activeFocusIndexRef.current = -1;
+    setIsOpen(false);
+  }, []);
+
+  /** Close menu and return focus to the trigger button (Escape / Tab). */
+  const closeAndReturn = useCallback(() => {
+    closeDropdown();
+    buttonRef.current?.focus();
+  }, [closeDropdown]);
 
   // Close on outside click — shared hook (#149). Pass both refs so clicking
   // either the trigger button or the portal dropdown does not close the menu.
   useClickOutside([buttonRef, dropdownRef], closeDropdown, isOpen);
 
-  // Close on Escape
+  // #253: When the menu opens, move focus to the first menuitem (WCAG 2.4.3).
+  // Items are already in the DOM when isOpen flips to true (portal is rendered
+  // synchronously), so a single rAF is sufficient — no double-rAF needed.
   useEffect(() => {
     if (!isOpen) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeDropdown();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, closeDropdown]);
+    requestAnimationFrame(() => {
+      const items = getMenuItems();
+      if (items.length > 0) {
+        activeFocusIndexRef.current = 0;
+        items[0].focus();
+      }
+    });
+  }, [isOpen, getMenuItems]);
+
+  // #253: WAI-ARIA Menu Button keyboard contract on the portal dropdown.
+  // Arrow keys move focus within the menu; Tab closes the menu naturally;
+  // Escape closes and returns focus to the trigger.
+  const handleMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const items = getMenuItems();
+      if (items.length === 0) return;
+
+      const currentIndex = activeFocusIndexRef.current;
+
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault();
+          const nextIndex = (currentIndex + 1) % items.length;
+          activeFocusIndexRef.current = nextIndex;
+          items[nextIndex].focus();
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          const prevIndex = (currentIndex - 1 + items.length) % items.length;
+          activeFocusIndexRef.current = prevIndex;
+          items[prevIndex].focus();
+          break;
+        }
+        case 'Home': {
+          e.preventDefault();
+          activeFocusIndexRef.current = 0;
+          items[0].focus();
+          break;
+        }
+        case 'End': {
+          e.preventDefault();
+          const lastIndex = items.length - 1;
+          activeFocusIndexRef.current = lastIndex;
+          items[lastIndex].focus();
+          break;
+        }
+        case 'Tab': {
+          // Tab closes the menu and lets focus move naturally — do NOT trap.
+          // Unlike Escape, we do not call e.preventDefault() here; the browser
+          // handles the natural Tab focus movement after closeDropdown().
+          closeDropdown();
+          break;
+        }
+        case 'Escape': {
+          e.preventDefault();
+          closeAndReturn();
+          break;
+        }
+      }
+    },
+    [getMenuItems, closeDropdown, closeAndReturn],
+  );
 
   if (availableModels.length === 0) return null;
 
@@ -99,6 +178,7 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
           role="menu"
           aria-label="Available models"
           style={dropdownStyle}
+          onKeyDown={handleMenuKeyDown}
           className={[
             'max-h-[240px] overflow-y-auto',
             'bg-card border border-border rounded-md shadow-md',
@@ -110,6 +190,9 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
               key={model.modelId}
               type="button"
               role="menuitem"
+              // tabIndex={-1}: keeps menuitems out of the page Tab order.
+              // Focus is managed programmatically via arrow keys (WAI-ARIA menu pattern).
+              tabIndex={-1}
               onClick={() => {
                 onAdd(model.modelId);
                 closeDropdown();
@@ -119,7 +202,9 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
                 'text-left cursor-pointer',
                 'hover:bg-hover',
                 'transition-colors duration-fast',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset focus-visible:bg-hover',
+                // tabIndex={-1} elements use focus:outline-none (not focus-visible:ring)
+                // — they are programmatic focus targets only, not in the Tab order.
+                'focus:outline-none focus:bg-hover',
               ].join(' ')}
             >
               <span
@@ -148,7 +233,7 @@ export function AddModelButton({ availableModels, onAdd }: AddModelButtonProps) 
         aria-label="Add model to conversation"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        onClick={() => (isOpen ? closeDropdown() : openDropdown())}
+        onClick={() => (isOpen ? closeAndReturn() : openDropdown())}
         className={[
           'inline-flex items-center gap-2 h-8 rounded-full',
           'px-3',
