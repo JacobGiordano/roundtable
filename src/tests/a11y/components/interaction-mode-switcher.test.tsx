@@ -2,36 +2,30 @@
  * InteractionModeSwitcher — Axe-core Accessibility Tests (#131, #199)
  *
  * Issue #131 changed Manual and Auto-chain mode buttons from interactive
- * `<button>` elements into non-interactive `<span>` elements with a
- * "coming soon" tooltip, while Parallel remains a functional `<button
- * role="radio">`.
+ * `<button>` elements into disabled radio items with a "coming soon" tooltip,
+ * while Parallel remains a functional `<button role="radio">`.
  *
- * Issue #199 added aria-owns on the radiogroup listing only the enabled
- * radio button IDs, so AT does not misinterpret the coming-soon spans as
- * owned radio children (which would violate aria-required-children for
- * role="radiogroup"). The spans live in the DOM as children but are excluded
- * from the ARIA ownership tree via the explicit aria-owns list.
- *
- * Note on axe-core and aria-owns (#199):
- *   axe-core v4 does not fire aria-required-children for radiogroups that
- *   contain non-radio DOM children WITHOUT aria-owns. The violation is an AT
- *   behavior issue (JAWS/NVDA may announce the spans as part of the group)
- *   rather than a markup parse error axe detects. The aria-owns fix is still
- *   correct and important for AT compatibility — the tests below verify the
- *   implementation contract even though axe does not catch the original problem.
+ * Issue #199 fixed the ARIA ownership model. The previous approach used
+ * aria-owns on the radiogroup to exclude coming-soon spans, but aria-owns
+ * cannot remove DOM children from the ARIA ownership tree — it only adds
+ * non-DOM children. The correct fix: give coming-soon items role="radio" +
+ * aria-disabled="true" so every owned child of the radiogroup is a valid
+ * radio member (satisfying aria-required-children). aria-disabled (not HTML
+ * disabled) keeps items tab-reachable so keyboard users can discover the
+ * "coming soon" tooltip.
  *
  * Audit targets:
- *   1. No axe violations in the mixed button/span state
- *   2. Disabled spans are NOT focusable (no tabIndex, no keyboard entry point)
- *   3. Tooltip role="tooltip" is present for the coming-soon spans
- *   4. The radiogroup contains at least one functional radio — ARIA integrity
- *   5. #199: aria-owns lists only enabled radio IDs (not coming-soon span IDs)
- *   6. #199: coming-soon spans have no id that could appear in aria-owns
- *   7. #199: the sr-only "coming soon" note is outside the radiogroup DOM
+ *   1. No axe violations with role="radio" + aria-disabled="true" on disabled items
+ *   2. Disabled radio items ARE focusable via Tab (tabIndex={0}, aria-disabled not HTML disabled)
+ *   3. Tooltip role="tooltip" is present for coming-soon items
+ *   4. All three items in the radiogroup have role="radio" — ARIA integrity satisfied
+ *   5. #199: disabled items carry aria-disabled="true" and aria-checked="false"
+ *   6. #199: radiogroup has no aria-owns (all DOM children are valid radio members)
+ *   7. sr-only "coming soon" note is outside the radiogroup DOM
  *
  * WCAG criteria:
- *   - 4.1.2 Name, Role, Value — interactive elements must have correct roles/names
- *   - 2.1.1 Keyboard — non-interactive elements must not be reachable by keyboard
+ *   - 4.1.2 Name, Role, Value — all radiogroup members have correct roles/names
+ *   - 2.1.1 Keyboard — disabled radios remain tab-reachable (aria-disabled, not disabled)
  *   - 1.3.1 Info and Relationships — role="tooltip" provides semantic structure
  *
  * axe-core assertion pattern:
@@ -61,7 +55,7 @@ function assertNoViolations(results: AxeResults): void {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('InteractionModeSwitcher — #131: disabled coming-soon spans (WCAG 4.1.2, 2.1.1)', () => {
+describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCAG 4.1.2, 2.1.1)', () => {
   it('has no axe violations in default state (parallel selected)', async () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
@@ -70,41 +64,59 @@ describe('InteractionModeSwitcher — #131: disabled coming-soon spans (WCAG 4.1
     assertNoViolations(results);
   });
 
-  it('disabled "Manual" span is not focusable — no tabIndex attribute', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    // The disabled spans must have no tabIndex (default -1 or unset means not in tab order).
-    // Spans are not focusable by default in HTML — verify no tabIndex was accidentally added.
-    const spans = container.querySelectorAll('span[aria-label*="coming soon"]');
-    for (const span of spans) {
-      // tabIndex >= 0 would make the span keyboard-reachable — that is the failure mode.
-      const tabIndex = span.getAttribute('tabindex');
-      expect(tabIndex === null || parseInt(tabIndex, 10) < 0).toBe(true);
-    }
-  });
-
-  it('disabled spans are not reachable by getByRole keyboard patterns', () => {
+  it('all three modes have role="radio" — radiogroup ownership model satisfied (#199)', () => {
     render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // Only one radio (Parallel) should be in the accessibility tree as interactive.
-    // Manual and Auto-chain are spans — they carry no interactive role.
+    // All three members of the radiogroup must carry role="radio" so aria-required-children
+    // is satisfied without an aria-owns workaround. Previously only Parallel had role="radio".
     const radios = screen.queryAllByRole('radio');
-    expect(radios).toHaveLength(1);
-    expect(radios[0].getAttribute('aria-label')).toMatch(/parallel/i);
+    expect(radios).toHaveLength(3);
+    const labels = radios.map((r) => r.getAttribute('aria-label') ?? '');
+    expect(labels.some((l) => /parallel/i.test(l))).toBe(true);
+    expect(labels.some((l) => /manual/i.test(l))).toBe(true);
+    expect(labels.some((l) => /auto-chain/i.test(l))).toBe(true);
   });
 
-  it('coming-soon spans have an accessible label describing their state', () => {
+  it('disabled radio items have aria-disabled="true" and aria-checked="false" (#199)', () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // Each disabled span carries aria-label="[Mode] — coming soon" to communicate
-    // non-availability to screen readers when the element is reached via reading mode.
-    const manualSpan = container.querySelector('span[aria-label="Manual — coming soon"]');
-    const autoChainSpan = container.querySelector('span[aria-label="Auto-chain — coming soon"]');
-    expect(manualSpan).not.toBeNull();
-    expect(autoChainSpan).not.toBeNull();
+    // aria-disabled (not HTML disabled) ensures keyboard users can Tab to the item
+    // and hear the "coming soon" tooltip — satisfying WCAG 2.1.1.
+    const disabledRadios = container.querySelectorAll('[role="radio"][aria-disabled="true"]');
+    expect(disabledRadios.length).toBe(2);
+    for (const radio of disabledRadios) {
+      expect(radio.getAttribute('aria-checked')).toBe('false');
+    }
+  });
+
+  it('disabled radio items are Tab-reachable (tabIndex={0}, aria-disabled not HTML disabled)', () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    // aria-disabled keeps items in the tab order. tabIndex={0} is required because
+    // <span> is not natively focusable. This enables keyboard users to discover the
+    // "coming soon" tooltip — satisfying WCAG 4.1.2 Name, Role, Value.
+    const disabledRadios = container.querySelectorAll('[role="radio"][aria-disabled="true"]');
+    for (const radio of disabledRadios) {
+      const tabIndex = radio.getAttribute('tabindex');
+      expect(tabIndex).not.toBeNull();
+      expect(parseInt(tabIndex!, 10)).toBeGreaterThanOrEqual(0);
+      // Must NOT have HTML disabled attribute (which would remove from tab order)
+      expect(radio.hasAttribute('disabled')).toBe(false);
+    }
+  });
+
+  it('coming-soon radio items have an accessible label describing their state', () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    // Each disabled radio carries aria-label="[Mode] — coming soon"
+    const manualRadio = container.querySelector('[role="radio"][aria-label="Manual — coming soon"]');
+    const autoChainRadio = container.querySelector('[role="radio"][aria-label="Auto-chain — coming soon"]');
+    expect(manualRadio).not.toBeNull();
+    expect(autoChainRadio).not.toBeNull();
   });
 
   it('tooltip elements carry role="tooltip"', () => {
@@ -127,6 +139,17 @@ describe('InteractionModeSwitcher — #131: disabled coming-soon spans (WCAG 4.1
     expect(group.getAttribute('aria-label')).toBe('Interaction mode');
   });
 
+  it('radiogroup has no aria-owns — all DOM children are valid radio members (#199)', () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    // With role="radio" on all children, aria-owns is no longer needed.
+    // Its absence confirms the fix uses proper semantics rather than a workaround.
+    const radiogroup = container.querySelector('[role="radiogroup"]');
+    expect(radiogroup).not.toBeNull();
+    expect(radiogroup?.hasAttribute('aria-owns')).toBe(false);
+  });
+
   it('Parallel radio button is accessible and operable', () => {
     render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={vi.fn()} />
@@ -135,54 +158,8 @@ describe('InteractionModeSwitcher — #131: disabled coming-soon spans (WCAG 4.1
     expect(parallelRadio).toBeTruthy();
     expect(parallelRadio.getAttribute('aria-checked')).toBe('true');
     expect(parallelRadio.tagName.toLowerCase()).toBe('button');
-  });
-});
-
-// ─── #199: aria-owns radiogroup ownership contract ───────────────────────────
-
-describe('InteractionModeSwitcher — #199: aria-owns radiogroup ownership (WCAG 4.1.2)', () => {
-  it('radiogroup has aria-owns attribute', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    const radiogroup = container.querySelector('[role="radiogroup"]');
-    expect(radiogroup).not.toBeNull();
-    expect(radiogroup?.getAttribute('aria-owns')).toBeTruthy();
-  });
-
-  it('aria-owns contains only the enabled radio button id (interaction-mode-radio-parallel)', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    const radiogroup = container.querySelector('[role="radiogroup"]');
-    const ariaOwns = radiogroup?.getAttribute('aria-owns') ?? '';
-    // Must include the parallel radio id
-    expect(ariaOwns).toContain('interaction-mode-radio-parallel');
-    // Must NOT include any coming-soon mode ids (they have no ids in the DOM)
-    expect(ariaOwns).not.toContain('manual');
-    expect(ariaOwns).not.toContain('auto-chain');
-  });
-
-  it('the enabled Parallel radio button has the id referenced by aria-owns', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    const parallelBtn = container.querySelector('#interaction-mode-radio-parallel');
-    expect(parallelBtn).not.toBeNull();
-    expect(parallelBtn?.getAttribute('role')).toBe('radio');
-  });
-
-  it('coming-soon spans have no id attribute (cannot pollute aria-owns)', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    const comingSoonSpans = container.querySelectorAll('span[aria-label*="coming soon"]');
-    expect(comingSoonSpans.length).toBeGreaterThan(0);
-    for (const span of comingSoonSpans) {
-      // Spans must not have an id — if they did, a naive aria-owns could inadvertently
-      // include them, or AT could misidentify them as owned radio children.
-      expect(span.getAttribute('id')).toBeNull();
-    }
+    // Parallel is NOT aria-disabled — it is the one selectable mode
+    expect(parallelRadio.hasAttribute('aria-disabled')).toBe(false);
   });
 
   it('sr-only "coming soon" note is a sibling of the radiogroup, not inside it', () => {
@@ -200,7 +177,6 @@ describe('InteractionModeSwitcher — #199: aria-owns radiogroup ownership (WCAG
     // The note must NOT be a descendant of the radiogroup.
     expect(radiogroup?.contains(note)).toBe(false);
 
-    // The note must be a sibling or ancestor-level element (in the same fragment).
     // Verify it is referenced via aria-describedby from the radiogroup.
     expect(radiogroup?.getAttribute('aria-describedby')).toBe(
       'interaction-mode-coming-soon-note',
@@ -217,7 +193,7 @@ describe('InteractionModeSwitcher — #199: aria-owns radiogroup ownership (WCAG
     expect(note?.textContent).toMatch(/coming soon/i);
   });
 
-  it('has no axe violations with aria-owns in place', async () => {
+  it('has no axe violations with role="radio" + aria-disabled ownership model in place', async () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
