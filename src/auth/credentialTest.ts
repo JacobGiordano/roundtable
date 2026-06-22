@@ -25,8 +25,10 @@ export type TestResult =
    * indistinguishable at the browser level. The endpoint may still be valid;
    * the user should verify it directly.
    *
-   * Built-in providers use 'error' for this case (they always support CORS).
-   * Custom providers use 'cors-or-network' to surface the ambiguity clearly.
+   * Both built-in and custom providers return this status on fetch throw.
+   * Some built-in endpoints (e.g. Anthropic) do not return CORS headers on
+   * error responses, so an invalid key may surface as a fetch throw rather
+   * than a 401. The UI should guide the user to verify their key and network.
    */
   | { status: 'cors-or-network'; message: string };
 
@@ -143,10 +145,18 @@ export async function testCredential(
   try {
     response = await fetch(url, config.buildInit(value));
   } catch {
-    // Network failure — DNS lookup error, connection refused, CORS abort, etc.
-    // Built-in provider endpoints always support CORS, so this is a genuine
-    // network error rather than a CORS ambiguity.
-    return { status: 'error', message: 'Network error' };
+    // fetch() threw — network failure, DNS error, connection refused, or a
+    // CORS preflight rejection. These are indistinguishable at the browser API
+    // level. Some provider endpoints (e.g. Anthropic) do not return CORS
+    // headers on error responses, so an invalid key can surface as a fetch
+    // throw rather than a 401. Return 'cors-or-network' so the UI can surface
+    // an informative message rather than a misleading generic error.
+    return {
+      status: 'cors-or-network',
+      message:
+        'Cannot reach provider — CORS or network error. ' +
+        'Verify your API key and network connection.',
+    };
   }
 
   return interpretHttpStatus(response.status);
