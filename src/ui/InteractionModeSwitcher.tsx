@@ -57,11 +57,9 @@ interface ModeButtonProps {
   onSelect: (mode: InteractionMode) => void;
   /** Controls which edge the tooltip anchors to avoid viewport clipping. */
   tooltipAlign?: TooltipAlign;
-  /** id applied to the radio button element — used by the radiogroup's aria-owns (#199). */
-  radioId?: string;
 }
 
-function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', radioId }: ModeButtonProps) {
+function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: ModeButtonProps) {
   // Tooltip horizontal positioning classes — chosen to prevent right-edge clipping
   const tooltipPositionClass =
     tooltipAlign === 'right'
@@ -129,11 +127,12 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', rad
   );
 
   if (isDisabled) {
-    // Render as a non-interactive span inside the radiogroup.
-    // The radiogroup's aria-owns attribute (see InteractionModeSwitcher below)
-    // explicitly lists only the real radio buttons, making the coming-soon spans
-    // transparent to the ARIA ownership tree without requiring them to have
-    // role="radio" (#199). tabIndex is deliberately absent — keyboard-unreachable.
+    // Render as role="radio" + aria-disabled="true" so every ARIA-owned child of
+    // the radiogroup has role="radio", satisfying aria-required-children without
+    // an aria-owns workaround (#199). aria-disabled (not HTML disabled) keeps the
+    // element in the tab order — keyboard users can Tab to it and hear the "coming
+    // soon" tooltip, satisfying WCAG 4.1.2. tabIndex={0} is required because
+    // <span> is not natively focusable.
     return (
       <div
         className="relative"
@@ -141,8 +140,15 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', rad
         onMouseLeave={handleMouseLeave}
       >
         <span
+          role="radio"
+          aria-checked={false}
+          aria-disabled="true"
           aria-label={`${config.label} — coming soon`}
           aria-describedby={tooltipId}
+          tabIndex={0}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className={[
             'relative h-7 px-3 rounded-full',
             'text-[12px] font-medium whitespace-nowrap',
@@ -151,6 +157,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', rad
             'text-text-muted opacity-50',
             'cursor-not-allowed select-none',
             'inline-flex items-center',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           ].join(' ')}
         >
           {config.label}
@@ -192,7 +199,6 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center', rad
     >
       <button
         type="button"
-        id={radioId}
         role="radio"
         aria-checked={isSelected}
         aria-label={`${config.label} — ${config.description}`}
@@ -265,10 +271,12 @@ export interface InteractionModeSwitcherProps {
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
  * middle item centers — preventing right-edge clipping for Auto-chain.
  *
- * Non-interactive modes: Manual and Auto-chain are rendered as non-interactive
- * spans with a "coming soon" tooltip. They cannot be selected. Only Parallel
- * is selectable. This reflects that App.tsx:handleSend always broadcasts in
- * parallel — the UI must not imply otherwise. (#131)
+ * Non-interactive modes: Manual and Auto-chain are rendered as `role="radio"`
+ * + `aria-disabled="true"` elements with a "coming soon" tooltip. They cannot
+ * be selected but are Tab-reachable so keyboard users can discover the tooltip.
+ * Every child of the radiogroup has role="radio", satisfying aria-required-children
+ * without an aria-owns workaround (#199). Only Parallel is selectable, reflecting
+ * that App.tsx:handleSend always broadcasts in parallel. (#131)
  *
  * Tooltip delay: all tooltips in this component use the 600ms hover
  * intentionality filter per tooltip.md §1 (#211).
@@ -278,15 +286,6 @@ export function InteractionModeSwitcher({
   onModeChange,
 }: InteractionModeSwitcherProps) {
   const lastIndex = INTERACTION_MODES.length - 1;
-
-  // #199: aria-owns lists only the enabled radio button IDs. This satisfies the
-  // ARIA aria-required-children rule for role="radiogroup", which requires all
-  // owned children to have role="radio". The coming-soon spans are DOM children
-  // of the radiogroup but are excluded from ARIA ownership via this explicit list.
-  // Only enabled (non-comingSoon) modes get radio IDs.
-  const enabledRadioIds = INTERACTION_MODES
-    .filter((c) => !c.comingSoon)
-    .map((c) => `interaction-mode-radio-${c.mode}`);
 
   // #221: sr-only span is a sibling of the radiogroup (not inside it) to prevent
   // double-read on older AT (JAWS ≤ 2022, some NVDA browse modes). The
@@ -298,15 +297,11 @@ export function InteractionModeSwitcher({
         role="radiogroup"
         aria-label="Interaction mode"
         aria-describedby="interaction-mode-coming-soon-note"
-        aria-owns={enabledRadioIds.join(' ')}
         className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
       >
         {INTERACTION_MODES.map((config, index) => {
           const tooltipAlign: TooltipAlign =
             index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
-          const radioId = config.comingSoon
-            ? undefined
-            : `interaction-mode-radio-${config.mode}`;
           return (
             <ModeButton
               key={config.mode}
@@ -314,7 +309,6 @@ export function InteractionModeSwitcher({
               isSelected={activeMode === config.mode}
               onSelect={onModeChange}
               tooltipAlign={tooltipAlign}
-              radioId={radioId}
             />
           );
         })}
