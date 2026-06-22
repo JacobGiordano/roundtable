@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 // #150: shared ChevronIcon replaces the local copy.
 import { ChevronIcon } from './components/ChevronIcon';
 // #147: shared icon system — GearIcon and PlusIcon replace inline SVGs.
@@ -106,6 +106,55 @@ export function ModelSelectorPanel({
   // WCAG 2.1 SC 2.4.3: store the element that had focus before the picker
   // opened so we can return focus to it when the picker closes.
   const pickerTriggerRef = useRef<Element | null>(null);
+
+  // Ref to the panel container div — used by the focus trap below.
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap — WCAG 2.4.11 (Focus Not Obscured) / 2.1.2 (No Keyboard Trap).
+  // When the panel is open it slides up and overlays the MessageThread area.
+  // Without a trap, Tab can reach thread elements (copy/edit buttons on
+  // MessageBubble) that are entirely covered by the panel. This effect intercepts
+  // Tab and Shift+Tab to keep focus cycling within the panel while it is open.
+  // The AccentColorPicker has its own independent focus trap (it renders in a
+  // fixed portal and uses aria-modal) — we exclude elements inside it here via
+  // the aria-hidden filter to avoid double-trapping.
+  useEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    function handleFocusTrap(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        panel!.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.closest('[aria-hidden="true"]'));
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        // Shift+Tab at or before the first element — wrap to last.
+        if (active === first || !panel!.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        // Tab at the last element — wrap to first.
+        if (active === last || !panel!.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleFocusTrap);
+    return () => document.removeEventListener('keydown', handleFocusTrap);
+  }, [isOpen]);
 
   const handleOpenColorPicker = useCallback(
     (modelId: ModelId, anchorRect: DOMRect) => {
@@ -219,8 +268,11 @@ export function ModelSelectorPanel({
 
   return (
     <div className="w-full">
-      {/* Slide-up panel — appears between thread and trigger */}
+      {/* Slide-up panel — appears between thread and trigger.
+          panelRef is attached here so the focus trap useEffect can query
+          focusable descendants. The trap activates only when isOpen is true. */}
       <div
+        ref={panelRef}
         id="model-selector-panel"
         className={panelClass}
         onTransitionEnd={handleTransitionEnd}
