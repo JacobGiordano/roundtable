@@ -8,9 +8,8 @@
  * Every icon sets aria-hidden="true" — they are decorative and paired with an
  * accessible label on their parent element (button aria-label, etc.).
  *
- * Follow-up (#147-followup): icons for MessageBubble, OnboardingEmptyState,
- * and ProviderSettingsPanel are still inline — migrate in a future session
- * once the foundation is stable.
+ * MessageBubble and OnboardingEmptyState icons remain inline — their SVGs are
+ * single-use with no cross-file duplication.
  */
 
 import type { SVGProps } from 'react';
@@ -191,4 +190,123 @@ export function RightChevronIcon({
       />
     </svg>
   );
+}
+
+// ─── MenuIcon ─────────────────────────────────────────────────────────────────
+/** Three-line hamburger icon. Used in the mobile navigation toggle. */
+export function MenuIcon({ size = 18, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 18 18' }, (
+    <path
+      d="M2 4h14M2 9h14M2 14h14"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  ));
+}
+
+// ─── EyeIcon ──────────────────────────────────────────────────────────────────
+/** Eye (visible) icon. Used in API key visibility toggle. */
+export function EyeIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <>
+      <path
+        d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
+    </>
+  ));
+}
+
+// ─── EyeOffIcon ───────────────────────────────────────────────────────────────
+/** Eye with slash (hidden) icon. Used in API key visibility toggle. */
+export function EyeOffIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <path
+      d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+  ));
+}
+
+// ─── EditIcon ─────────────────────────────────────────────────────────────────
+/** Pencil/edit icon. Used in the custom provider edit button. */
+export function EditIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <>
+      <path
+        d="M9.5 2.5l2 2-7 7H2.5v-2l7-7z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 4l2 2"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </>
+  ));
+}
+
+// ─── TrashIcon ────────────────────────────────────────────────────────────────
+/** Trash/delete icon. Used in the custom provider remove button. */
+export function TrashIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <path
+      d="M2 3.5h10M5.5 3.5V2.5h3V3.5M3.5 3.5l.5 8h6l.5-8"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ));
+}
+
+// ─── StopIcon ─────────────────────────────────────────────────────────────────
+/** Filled square stop icon. Used in the InputBar stop-streaming button. */
+export function StopIcon({ size = 16, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 16 16' }, (
+    <rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" />
+  ));
+}
+
+// ─── SendIcon ─────────────────────────────────────────────────────────────────
+/**
+ * Send arrow icon. Right-pointing arrow. Used in the InputBar send button.
+ * The `disabled` prop switches the stroke class for correct opacity.
+ */
+export function SendIcon({ size = 16, className, disabled = false }: IconProps & { disabled?: boolean }) {
+  return iconSvg(size, className, { viewBox: '0 0 16 16' }, (
+    <path
+      d="M2 8h12M9 3l5 5-5 5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={disabled ? 'text-text-muted' : 'text-text-inverse'}
+    />
+  ));
+}
+
+// ─── SmallCloseIcon ───────────────────────────────────────────────────────────
+/**
+ * Small × icon for inline clear/dismiss buttons (search clear, input clear).
+ * Distinct from CloseIcon (16px panel close) — this renders at 8px default.
+ */
+export function SmallCloseIcon({ size = 8, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 8 8' }, (
+    <path
+      d="M1 1l6 6M7 1L1 7"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+    />
+  ));
 }

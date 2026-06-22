@@ -12,6 +12,8 @@
  */
 
 import { useRef, useCallback } from 'react';
+// #147: shared icon system — SmallCloseIcon replaces the inline × SVG.
+import { SmallCloseIcon } from '@/ui/icons';
 
 export interface SearchBarProps {
   value: string;
@@ -98,9 +100,8 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-              <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
+            {/* Small close icon — shared icon (#147) */}
+            <SmallCloseIcon />
           </button>
         )}
       </div>

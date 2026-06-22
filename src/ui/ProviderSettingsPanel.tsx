@@ -19,6 +19,9 @@ import {
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
 // Replaces the inline getProviderDotColor function in this file.
 import { getModelAccentCssValue } from './utils/modelColor';
+// #147: shared icon system — CloseIcon, EditIcon, TrashIcon, EyeIcon, EyeOffIcon
+// replace the inline SVGs throughout this file.
+import { CloseIcon, EditIcon, TrashIcon, EyeIcon, EyeOffIcon } from './icons';
 
 // ─── Credential-test support ──────────────────────────────────────────────────
 
@@ -497,11 +500,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 ].join(' ')}
               >
-                {/* Pencil icon — 14px stroke-based */}
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M9.5 2.5l2 2-7 7H2.5v-2l7-7z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M8 4l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
+                {/* Edit icon — shared icon (#147) */}
+                <EditIcon />
               </button>
             )}
             <button
@@ -516,10 +516,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
             >
-              {/* Trash icon — 14px */}
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M2 3.5h10M5.5 3.5V2.5h3V3.5M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {/* Trash icon — shared icon (#147) */}
+              <TrashIcon />
             </button>
           </div>
 
@@ -543,16 +541,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   tabIndex={-1}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors duration-fast focus:outline-none"
                 >
-                  {keyRevealed ? (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z" stroke="currentColor" strokeWidth="1.2" />
-                      <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
-                    </svg>
-                  )}
+                  {/* Eye icons — shared icon system (#147) */}
+                  {keyRevealed ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
               {/* Test / Edit / Clear buttons — each on their own stable row */}
@@ -804,16 +794,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
                   ].join(' ')}
                 >
-                  {showKeyInput ? (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z" stroke="currentColor" strokeWidth="1.2" />
-                      <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
-                    </svg>
-                  )}
+                  {/* Eye icons — shared icon system (#147) */}
+                  {showKeyInput ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
 
@@ -1162,18 +1144,8 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
                 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
               ].join(' ')}
             >
-              {showApiKey ? (
-                /* Eye-slash icon */
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M1.5 1.5l11 11M6.07 6.08A2 2 0 0 0 7 9a2 2 0 0 0 1.93-1.93M2.5 4.5A9.7 9.7 0 0 0 1 7c1.2 2.8 3.6 4.5 6 4.5 1.1 0 2.1-.3 3-.9M11.5 9.5A9.7 9.7 0 0 0 13 7c-1.2-2.8-3.6-4.5-6-4.5-.5 0-1 .07-1.5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              ) : (
-                /* Eye icon */
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M1 7c1.2-2.8 3.6-4.5 6-4.5S11.8 4.2 13 7c-1.2 2.8-3.6 4.5-6 4.5S2.2 9.8 1 7Z" stroke="currentColor" strokeWidth="1.2" />
-                  <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
-                </svg>
-              )}
+              {/* Eye icons — shared icon system (#147) */}
+              {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
           <p className="mt-1 text-[11px] text-text-muted">
@@ -1459,9 +1431,8 @@ export function ProviderSettingsPanel({
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           ].join(' ')}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          {/* Close icon — shared icon (#147) */}
+          <CloseIcon />
         </button>
       </header>
 

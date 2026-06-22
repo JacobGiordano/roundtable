@@ -11,6 +11,8 @@ import { useState, useRef, useCallback } from 'react';
 import type { ModelConfig, ModelId } from '@/types';
 // #150: shared ChevronIcon replaces the local copy.
 import { ChevronIcon } from '../ChevronIcon';
+// #147: shared icon system — SmallCloseIcon replaces the inline × SVG.
+import { SmallCloseIcon } from '@/ui/icons';
 // #148: getModelDotStyle is the shared utility for model identity dot colors.
 import { getModelDotStyle } from '@/ui/utils/modelColor';
 
@@ -150,15 +152,8 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 ].join(' ')}
               >
-                {/* × icon */}
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                  <path
-                    d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                {/* Small close icon — shared icon (#147) */}
+                <SmallCloseIcon size={10} />
               </button>
             )}
           </div>

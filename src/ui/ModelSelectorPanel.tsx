@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 // #150: shared ChevronIcon replaces the local copy.
 import { ChevronIcon } from './components/ChevronIcon';
-// #147: shared icon system — GearIcon replaces the inline gear SVG in the settings shortcut.
-import { GearIcon } from './icons';
+// #147: shared icon system — GearIcon and PlusIcon replace inline SVGs.
+import { GearIcon, PlusIcon } from './icons';
 import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
 // read-only registry of all model display metadata including providerName and
@@ -190,10 +190,8 @@ export function ModelSelectorPanel({
         ].join(' ')}
         aria-label="Add providers to get started"
       >
-        {/* + icon, 12px, per §3.4 spec */}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        {/* Plus icon — shared icon (#147), 12px per §3.4 spec */}
+        <PlusIcon size={12} />
         Add providers
       </button>
     );

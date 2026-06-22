@@ -8,6 +8,8 @@ import { RoundtableLogo } from './RoundtableLogo';
 import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 import { OnboardingEmptyState } from './OnboardingEmptyState';
 import { useRoundtable } from './RoundtableContext';
+// #147: shared icon system — MenuIcon, GearIcon, PlusIcon replace inline SVGs.
+import { MenuIcon, GearIcon, PlusIcon } from './icons';
 
 // Module-level constant — safe for SSR/test environments (navigator may be undefined).
 // Used to show platform-appropriate keyboard shortcut hint in button labels and tooltips.
@@ -257,10 +259,8 @@ export function AppLayout({ onSend }: AppLayoutProps) {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            {/* Three-line hamburger icon */}
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            {/* Three-line hamburger icon — shared icon (#147) */}
+            <MenuIcon />
           </button>
 
           {/* Logo — symbol only on very small screens, wordmark appears at sm (640px) */}
@@ -288,19 +288,8 @@ export function AppLayout({ onSend }: AppLayoutProps) {
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                />
-                <path
-                  d="M13.5 8c0-.34-.03-.67-.09-.99l1.59-1.24-1.5-2.6-1.9.76a5.5 5.5 0 0 0-1.71-.99L9.5 1h-3l-.39 1.94c-.62.26-1.19.58-1.71.99l-1.9-.76-1.5 2.6 1.59 1.24A5.6 5.6 0 0 0 2.5 8c0 .34.03.67.09.99L1 10.23l1.5 2.6 1.9-.76c.52.41 1.09.73 1.71.99L6.5 15h3l.39-1.94c.62-.26 1.19-.58 1.71-.99l1.9.76 1.5-2.6-1.59-1.24c.06-.32.09-.65.09-.99Z"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              {/* Gear icon — shared icon (#147) */}
+              <GearIcon size={16} />
             </button>
 
             {/* New conversation button (#166: tooltip + keyboard shortcut hint) */}
@@ -325,14 +314,8 @@ export function AppLayout({ onSend }: AppLayoutProps) {
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 ].join(' ')}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M8 2v12M2 8h12"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                {/* Plus icon — shared icon (#147) */}
+                <PlusIcon />
               </button>
               {/* Tooltip — 600ms hover delay, immediate on focus (#166).
                   id="new-conv-tooltip" + aria-describedby on button satisfies
