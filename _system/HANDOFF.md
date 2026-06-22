@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: #247 ThreadActionMenu closeAndReturnFocus + #248 SearchBar SVG doc)
+Last updated: 2026-06-22 (ship: #199 InteractionModeSwitcher radiogroup + #181 WCAG 2.2 upgrade plan)
 
 ## Current phase
 
@@ -6,23 +6,25 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#247 (Aria)**: ThreadActionMenu confirm-delete and group-suggestion handlers now call `closeAndReturnFocus()` instead of bare `onClose()`. Focus returns to `triggerRef.current` via double-rAF pattern. WCAG 2.4.3 satisfied. Ada PASS (43/43). Flint PASS.
+**#199 (Aria)**: InteractionModeSwitcher coming-soon spans promoted to `role="radio" aria-disabled="true" tabIndex={0}`. `aria-owns` removed from radiogroup container. WCAG 2.4.3 and ARIA required-children satisfied. Ada PASS (12/12 component tests). Flint PASS.
 
-**#248 (Aria)**: icons/index.tsx header comment now documents SearchBar's magnifying glass SVG as the named inline exception — intentionally inline because it applies Tailwind classes directly on path elements, incompatible with the fixed-size `IconProps` contract.
+**#181 (Ada)**: WCAG 2.2 upgrade path plan written to `/src/tests/a11y/wcag22-upgrade-plan.md`. 4 confirmed blockers (2.5.8 target size) and 3 moderate risks (2.4.11 focus not obscured) identified with file/line references and actionable Tailwind fixes. Flint PASS.
+
+**Ada profile update**: Stopping protocol added — baseline run is now conditional on writing new tests; explicit "run once, evaluate, report, stop" rule added to prevent looping.
 
 ## Open bugs / known issues
 
-- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent. Separate component from AddModelButton/ThreadActionMenu.
+- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
-- `closeAndReturnFocus()` via double-rAF is the canonical focus-restoration pattern for all menu close actions — confirm-delete, group-set, escape, trigger re-click.
-- SearchBar inline SVG is documented as the one named exception to the icon system.
+- `role="radio" aria-disabled="true" tabIndex={0}` is the correct pattern for disabled radiogroup members — they must be valid radio children, not unstyled spans.
+- `aria-owns` cannot remove DOM children from ARIA ownership tree (ARIA 1.2) — do not use it as an exclusion mechanism.
 
 ## Open advisories
 
-- #199 (Ada/Aria) — InteractionModeSwitcher coming-soon spans break radiogroup ownership model
-- #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
+- #181 blockers (Aria): 4 WCAG 2.5.8 target-size failures need Tailwind sizing fixes — directed-reply clear button, thread row checkbox, bulk action checkbox, archive toggle
+- #181 moderate risks (Aria): mobile sidebar + ModelSelectorPanel focus traps missing (2.4.11)
 - #180 (Ada) — Live browser keyboard audit
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
@@ -31,8 +33,9 @@ Phase 4+ — Full gate process active.
 
 ## What's next
 
-1. **Ada/Aria: #199** — InteractionModeSwitcher radiogroup ownership fix
-2. **Ada: #180** — Live browser keyboard audit
+1. **Aria: #181 blockers** — WCAG 2.5.8 target-size fixes (4 confirmed + 4 serious; see `/src/tests/a11y/wcag22-upgrade-plan.md`)
+2. **Aria: #181 moderate** — mobile sidebar + MSP focus trap fixes (2.4.11)
+3. **Ada: #180** — Live browser keyboard audit
 
 ## Gotchas
 
@@ -60,6 +63,8 @@ Phase 4+ — Full gate process active.
 - `hidden` attribute (not `aria-hidden`) is the correct pattern for `aria-controls` progressive disclosure targets
 - Absolutely-positioned children inside a `hidden` parent can go invisible on reveal due to GPU compositing — fix with `isolate` on the wrapper + `z-10` on the child
 - `TESTABLE_CREDENTIAL_KEYS` in ProviderSettingsPanel must stay in sync with Gate's `PROVIDER_TEST_CONFIGS`
-- MessageBubble + OnboardingEmptyState + SearchBar magnifying glass SVGs remain inline (#248 documented SearchBar as named exception)
+- MessageBubble + OnboardingEmptyState + SearchBar magnifying glass SVGs remain inline (SearchBar documented as named exception in icons/index.tsx)
 - AddModelButton dropdown: uses `createPortal` into `document.body` with fixed positioning from `getBoundingClientRect()`
 - `activeFocusIndexRef` (useRef) for menu keyboard nav — not useState; avoids re-render per keypress
+- `aria-owns` cannot remove DOM children from ARIA ownership tree — do not use as exclusion mechanism
+- WCAG 2.5.8 blockers documented in `/src/tests/a11y/wcag22-upgrade-plan.md` — 4 confirmed, 4 serious
