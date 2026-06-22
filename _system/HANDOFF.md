@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: #260 — sidebar closed-inert + Escape)
+Last updated: 2026-06-22 (ship: #261 — closed-panel inert sweep)
 
 ## Current phase
 
@@ -6,23 +6,24 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#260 (Aria + Ada)**: WCAG 2.4.3 + 2.1.2 — mobile sidebar closed-state `inert` + Escape to close. `isMobile` reactive state in `Sidebar.tsx`; `inert=""` on `<aside>` when `isMobile && !isMobileOpen`. `mobileMenuTriggerRef` prop threaded from `AppLayout.tsx` hamburger button; Escape handler double-rAFs focus back to trigger. Ada: 15/15 (10 new, 5 #258 regressions). Flint PASS.
+**#260 (Aria + Ada)**: WCAG 2.4.3 + 2.1.2 — mobile sidebar closed-state `inert` + Escape to close. `isMobile` reactive state in `Sidebar.tsx`; `inert=""` on `<aside>` when `isMobile && !isMobileOpen`. `mobileMenuTriggerRef` prop threaded from `AppLayout.tsx` hamburger button; Escape handler double-rAFs focus back to trigger. Ada: 15/15. Flint PASS.
+
+**#261 (Aria + Ada)**: WCAG 2.4.3 — closed-panel inert sweep. ModelSelectorPanel `<div id="model-selector-panel">` now carries `inert=""` when `!isOpen && !isClosing`, synced with existing `aria-hidden`. ProviderSettingsPanel already had `inert` from a prior session. AddModelButton portal renders `null` when closed — no fix needed. Ada: 521/521 (13 new). Flint PASS.
 
 ## Open bugs / known issues
 
 - **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent.
-- **#261 (Aria)** — Settings drawer + model selector popover closed-state tabbable (WCAG 2.4.3). Same class as #260 sidebar fix. Aria queued.
 
 ## Key decisions
 
-- Closed-panel `inert` pattern: `isClosed ? '' : undefined` spread onto the panel element. Desktop panels exempt if always-visible.
-- Focus trap Escape must always close panel + return focus to trigger (WCAG 2.1.2 + 2.4.3).
-- `inert=""` on `<main>` (not a child) is the canonical mobile sidebar focus guard pattern.
-- Checkbox 24px target: wrapper div approach — no ARIA role on wrapper, label association intact.
+- Closed-panel `inert` pattern: `isClosed ? '' : undefined` spread onto the panel element.
+- `inert` and `aria-hidden` must be controlled by the same boolean expression — cannot drift apart.
+- AddModelButton dropdown uses conditional render (`null` on close) — inert not needed, DOM element absent.
+- Desktop panels that are always-visible are exempt from closed-state inert.
 
 ## Open advisories
 
-- #180 (Ada) — Live browser keyboard audit — unblock after #261 ships
+- #180 (Ada) — Live browser keyboard audit — now unblocked
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
 - #170 (Gate/Aria) — Backend auth UI
@@ -30,9 +31,8 @@ Phase 4+ — Full gate process active.
 
 ## What's next
 
-1. **Aria: #261** — Settings drawer + model selector popover closed-state `inert` (queued)
-2. **Ada: #180** — Live browser keyboard audit (after #261 ships)
-3. Delight wave: #178 + #179 (Spark → Aria/Atlas)
+1. **Ada: #180** — Live browser keyboard audit (now unblocked)
+2. Delight wave: #178 + #179 (Spark → Aria/Atlas)
 
 ## Gotchas
 
@@ -41,6 +41,7 @@ Phase 4+ — Full gate process active.
 - `focus-visible:` directly on interactive elements; `focus-within:` on wrapper divs
 - Double-rAF for focus restoration after React unmount; single rAF for conditional mount
 - `inert` attribute: `isClosed ? '' : undefined`
+- `inert` and `aria-hidden` must always be controlled by the same boolean — keep in sync
 - Bash tool CWD can drift into a worktree — always use `git -C /workspace`
 - InteractionModeSwitcher: Manual + Auto-chain intentionally disabled (#131)
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
