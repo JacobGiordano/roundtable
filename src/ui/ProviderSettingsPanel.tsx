@@ -1378,7 +1378,13 @@ export function ProviderSettingsPanel({
 
   // Focus trap — intercept Tab and Shift+Tab while the drawer is open so
   // keyboard focus cycles within the drawer rather than escaping to content
-  // behind the backdrop (WCAG 2.1.2 / 2.4.3, #116).
+  // behind the backdrop (WCAG 2.1.2 / 2.4.3, #116; verified for 2.4.11, #258).
+  // 2.4.11 compliance summary: panel is fixed z-40 with backdrop z-30. When open,
+  // the main content area is visually obscured. This trap prevents Tab from
+  // reaching obscured elements. Combined with inert={!isOpen} on the drawer itself
+  // (prevents AT interaction when off-screen), aria-modal="true", Escape close,
+  // focus-on-open (close button), and focus-return-on-close (triggerRef), the
+  // panel satisfies the full modal dialog keyboard contract.
   useEffect(() => {
     if (!isOpen) return;
     const drawer = drawerRef.current;

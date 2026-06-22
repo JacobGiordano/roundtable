@@ -237,8 +237,20 @@ export function AppLayout({ onSend }: AppLayoutProps) {
 
       {/* Main area — flex-1.
           id="main-content" is the skip-link target (WCAG 2.4.1).
-          tabIndex={-1} allows programmatic focus without inserting a tab stop. */}
-      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col overflow-hidden min-w-0 focus:outline-none">
+          tabIndex={-1} allows programmatic focus without inserting a tab stop.
+          inert: when the mobile sidebar drawer is open the entire main content
+          area is visually covered by the sidebar (z-50) and its backdrop (z-40).
+          Without inert, a keyboard user tabbing past the sidebar's last focusable
+          element can reach elements in the main area that are entirely obscured —
+          a WCAG 2.4.11 (Focus Not Obscured) violation.
+          inert removes all descendants from the tab order and AT tree while the
+          drawer is open. Pattern: isMobileMenuOpen ? '' : undefined (HANDOFF gotcha). */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col overflow-hidden min-w-0 focus:outline-none"
+        {...({ inert: isMobileMenuOpen ? '' : undefined } as React.HTMLAttributes<HTMLElement>)}
+      >
         <h1 className="sr-only">Roundtable Conversation</h1>
         {/* Mobile top header bar — visible only on small screens (below md breakpoint).
             Contains: hamburger (opens sidebar) | logo | new-conversation button.
