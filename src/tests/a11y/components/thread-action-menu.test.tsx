@@ -435,3 +435,74 @@ describe('ThreadActionMenu — sub-state group labels (WCAG 4.1.2)', () => {
     expect(input).not.toBeNull();
   });
 });
+
+// ─── group-input aria-label regression — #246 / WCAG 4.1.2 ──────────────────
+//
+// #241 fix: the group-input <input> received aria-label="Group name" to provide
+// a persistent programmatic label. Without it, the only labelling mechanism was
+// placeholder="Enter group name", which WCAG 4.1.2 does not accept as an
+// accessible name (placeholders disappear when the user types, and some AT never
+// expose them as the name at all).
+//
+// These regression tests prevent the aria-label from being silently removed.
+
+describe('ThreadActionMenu — group-input aria-label regression (#246, WCAG 4.1.2)', () => {
+  it('group-input <input> has aria-label="Group name"', () => {
+    const triggerRef = makeTriggerRef();
+    render(<ThreadActionMenu {...BASE_PROPS} triggerRef={triggerRef} />);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /move to group/i }));
+
+    // getByRole matches on accessible name — this fails if aria-label is absent.
+    const input = screen.getByRole('textbox', { name: 'Group name' });
+    expect(input).toBeTruthy();
+    expect(input.getAttribute('aria-label')).toBe('Group name');
+  });
+
+  it('group-input accessible name persists when the field has a value (label is not placeholder)', () => {
+    const triggerRef = makeTriggerRef();
+    render(<ThreadActionMenu {...BASE_PROPS} triggerRef={triggerRef} />);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /move to group/i }));
+
+    const input = screen.getByRole('textbox', { name: 'Group name' });
+
+    // Type a value — the placeholder vanishes, but aria-label must remain.
+    fireEvent.change(input, { target: { value: 'Project Alpha' } });
+
+    // The accessible name must still be "Group name" (from aria-label, not placeholder).
+    expect(input.getAttribute('aria-label')).toBe('Group name');
+    // The placeholder attribute is still in the DOM but is NOT the accessible name.
+    expect(input.getAttribute('placeholder')).toBe('Enter group name');
+    // Confirm the input now contains the typed value.
+    expect((input as HTMLInputElement).value).toBe('Project Alpha');
+  });
+
+  it('group-input accessible name is not sourced from placeholder alone', () => {
+    const triggerRef = makeTriggerRef();
+    render(<ThreadActionMenu {...BASE_PROPS} triggerRef={triggerRef} />);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /move to group/i }));
+
+    // getByRole with name "Group name" succeeds. If the accessible name came only
+    // from the placeholder, this query would fail because placeholder text is
+    // "Enter group name", not "Group name". The aria-label is the actual source.
+    const input = screen.getByRole('textbox', { name: 'Group name' });
+    expect(input.getAttribute('aria-label')).toBe('Group name');
+    expect(input.getAttribute('placeholder')).not.toBe('Group name');
+  });
+
+  it('group-input axe scan passes with aria-label present (WCAG 4.1.2)', async () => {
+    const triggerRef = makeTriggerRef();
+    const { container } = render(
+      <ThreadActionMenu {...BASE_PROPS} triggerRef={triggerRef} />,
+    );
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /move to group/i }));
+
+    // axe validates that the input has a valid accessible name — this would fail
+    // if aria-label were absent and only placeholder were present.
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
