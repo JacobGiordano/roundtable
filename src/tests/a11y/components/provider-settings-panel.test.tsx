@@ -492,3 +492,229 @@ describe('ProviderRow edit form — accent color label association (#237, WCAG 1
     assertNoViolations(results);
   });
 });
+
+// ─── TestButton wiring (#249) + button layout (#250) ─────────────────────────
+//
+// #249: TestButton now has live test logic. New states: idle, testing, valid,
+//   rate-limited, invalid, error, cors-or-network. Sr-only live region added.
+// #250: Test/Edit/Clear buttons consolidated into a single flex row.
+//
+// Checks:
+//   1. axe: no violations in key-set state (TestButton visible).
+//   2. TestButton has aria-label="Test <providerName> API key" in idle state.
+//   3. disabled={true} on testing state removes button from tab order (verified statically).
+//   4. keyless provider: no TestButton rendered (section gated by credentialKey).
+//   5. sr-only live region (role="status" aria-live="polite") present for canTest providers.
+//   6. Live region absent for keyless providers (no credentialKey).
+//
+// WCAG: 4.1.2 Name, Role, Value; 4.1.3 Status Messages; 2.1.1 Keyboard.
+
+describe('TestButton (#249) — axe violations (WCAG 4.1.2 / 4.1.3)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  const CLAUDE_ROSTER_WITH_KEY = [
+    {
+      kind: 'builtin' as const,
+      modelId: 'claude' as const,
+      credentialKey: 'anthropic',
+      isVisible: true,
+    },
+  ];
+
+  it('has no axe violations when key is set (TestButton visible in idle state)', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
+describe('TestButton (#249) — aria-label and disabled semantics (WCAG 4.1.2 / 2.1.1)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  const CLAUDE_ROSTER_WITH_KEY = [
+    {
+      kind: 'builtin' as const,
+      modelId: 'claude' as const,
+      credentialKey: 'anthropic',
+      isVisible: true,
+    },
+  ];
+
+  const KEYLESS_CUSTOM_ROSTER = [
+    {
+      kind: 'custom' as const,
+      id: 'my-ollama',
+      displayName: 'My Ollama',
+      endpointUrl: 'http://localhost:11434/v1',
+      modelString: 'llama3.2:latest',
+      credentialKey: undefined,
+      isVisible: true,
+    },
+  ];
+
+  it('Test button has static aria-label="Test Claude API key" in idle state', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const btn = document.querySelector(
+      'button[aria-label="Test Claude API key"]',
+    ) as HTMLButtonElement | null;
+    expect(btn).not.toBeNull();
+    expect(btn?.type).toBe('button');
+  });
+
+  it('keyless custom provider — no Test button rendered (no credentialKey)', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      KEYLESS_CUSTOM_ROSTER as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(false);
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const testBtn = document.querySelector('button[aria-label="Test My Ollama API key"]');
+    expect(testBtn).toBeNull();
+  });
+
+  it('sr-only live region (role=status aria-live=polite) is present for built-in provider with a key', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const liveRegion = container.querySelector('[role="status"][aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+  });
+
+  it('sr-only live region is absent when there is no credentialKey (keyless provider)', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      KEYLESS_CUSTOM_ROSTER as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(false);
+
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const liveRegion = container.querySelector('[role="status"][aria-live="polite"]');
+    expect(liveRegion).toBeNull();
+  });
+});
+
+describe('Button row layout (#250) — Edit and Clear buttons retain accessible names', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  const CLAUDE_ROSTER_WITH_KEY = [
+    {
+      kind: 'builtin' as const,
+      modelId: 'claude' as const,
+      credentialKey: 'anthropic',
+      isVisible: true,
+    },
+  ];
+
+  it('Edit API key button has correct aria-label after layout consolidation', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const editBtn = document.querySelector(
+      'button[aria-label="Edit API key for Claude"]',
+    ) as HTMLButtonElement | null;
+    expect(editBtn).not.toBeNull();
+    expect(editBtn?.type).toBe('button');
+  });
+
+  it('Clear API key button has correct aria-label after layout consolidation', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+
+    const clearBtn = document.querySelector(
+      'button[aria-label="Clear API key for Claude"]',
+    ) as HTMLButtonElement | null;
+    expect(clearBtn).not.toBeNull();
+    expect(clearBtn?.type).toBe('button');
+  });
+
+  it('has no axe violations in key-set state with Test/Edit/Clear in single row', async () => {
+    const { getProviderRoster, hasCredential } = await import('@/auth');
+    vi.mocked(getProviderRoster).mockReturnValue(
+      CLAUDE_ROSTER_WITH_KEY as ReturnType<typeof getProviderRoster>,
+    );
+    vi.mocked(hasCredential).mockReturnValue(true);
+
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
