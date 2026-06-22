@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: #199 InteractionModeSwitcher radiogroup + #181 WCAG 2.2 upgrade plan)
+Last updated: 2026-06-22 (ship: #257/#258/#259 — WCAG 2.2 upgrade blockers)
 
 ## Current phase
 
@@ -6,11 +6,11 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#199 (Aria)**: InteractionModeSwitcher coming-soon spans promoted to `role="radio" aria-disabled="true" tabIndex={0}`. `aria-owns` removed from radiogroup container. WCAG 2.4.3 and ARIA required-children satisfied. Ada PASS (12/12 component tests). Flint PASS.
+**#257 (Aria)**: 12 WCAG 2.5.8 target-size fixes across 8 files — directed-reply clear button, thread row + bulk action bar checkbox 24px wrappers, ArchiveToggle h-8, Reset/Provider-settings/ModelVisibilityBar/BulkActionBar action button padding bumps, copy/edit/three-dot w-7, MSP trigger chips h-7. Lint/build/tests clean.
 
-**#181 (Ada)**: WCAG 2.2 upgrade path plan written to `/src/tests/a11y/wcag22-upgrade-plan.md`. 4 confirmed blockers (2.5.8 target size) and 3 moderate risks (2.4.11 focus not obscured) identified with file/line references and actionable Tailwind fixes. Flint PASS.
+**#258 (Aria)**: 3 WCAG 2.4.11 focus-not-obscured fixes — `inert` on `<main>` when mobile sidebar is open, Tab/Shift+Tab focus trap in ModelSelectorPanel, ProviderSettingsPanel already had a trap (comment-only update). Lint/build/tests clean.
 
-**Ada profile update**: Stopping protocol added — baseline run is now conditional on writing new tests; explicit "run once, evaluate, report, stop" rule added to prevent looping.
+**#259 (Aria + Ada)**: Ada caught WCAG 2.1.2 blocker — MSP focus trap had no Escape exit. Aria added `triggerRef` + Escape handler in `handleFocusTrap`. Ada wrote 11 new a11y tests (6 MSP focus-trap, 5 mobile-sidebar-inert) — all pass. Flint PASS (inline gate).
 
 ## Open bugs / known issues
 
@@ -18,24 +18,28 @@ Phase 4+ — Full gate process active.
 
 ## Key decisions
 
-- `role="radio" aria-disabled="true" tabIndex={0}` is the correct pattern for disabled radiogroup members — they must be valid radio children, not unstyled spans.
-- `aria-owns` cannot remove DOM children from ARIA ownership tree (ARIA 1.2) — do not use it as an exclusion mechanism.
+- Checkbox 24px target: wrapper div (`min-w-[24px] min-h-[24px] flex items-center justify-center`) is the correct approach for native `<input type="checkbox">` — no ARIA role on wrapper, label association intact.
+- Focus trap Escape must always close the panel and return focus to trigger (WCAG 2.1.2 + 2.4.3).
+- `inert=""` on `<main>` (not a child) is the canonical mobile sidebar focus guard pattern.
 
 ## Open advisories
 
-- #181 blockers (Aria): 4 WCAG 2.5.8 target-size failures need Tailwind sizing fixes — directed-reply clear button, thread row checkbox, bulk action checkbox, archive toggle
-- #181 moderate risks (Aria): mobile sidebar + ModelSelectorPanel focus traps missing (2.4.11)
-- #180 (Ada) — Live browser keyboard audit
+- #180 (Ada) — Live browser keyboard audit — needs narrow viewport dev-server run
 - #179 (Spark/Atlas) — Chunk fade-in wiring
 - #178 (Spark) — Outrun entry flash
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
 
+## Visual review needed
+
+- **Mobile sidebar inert**: open drawer on narrow viewport, Tab through sidebar, confirm focus does not escape to main content.
+- **ModelSelectorPanel focus trap**: open panel, Tab to last element (Provider settings button), confirm Tab wraps to first; press Escape, confirm panel closes and focus returns to trigger chip.
+
 ## What's next
 
-1. **Aria: #181 blockers** — WCAG 2.5.8 target-size fixes (4 confirmed + 4 serious; see `/src/tests/a11y/wcag22-upgrade-plan.md`)
-2. **Aria: #181 moderate** — mobile sidebar + MSP focus trap fixes (2.4.11)
-3. **Ada: #180** — Live browser keyboard audit
+1. **Dev-server visual review** — mobile sidebar inert + MSP focus trap (see above)
+2. **Ada: #180** — Live browser keyboard audit (after visual review passes)
+3. **Flint reliability** — stopping protocol (mirrors Ada's — see conversation)
 
 ## Gotchas
 
@@ -67,4 +71,5 @@ Phase 4+ — Full gate process active.
 - AddModelButton dropdown: uses `createPortal` into `document.body` with fixed positioning from `getBoundingClientRect()`
 - `activeFocusIndexRef` (useRef) for menu keyboard nav — not useState; avoids re-render per keypress
 - `aria-owns` cannot remove DOM children from ARIA ownership tree — do not use as exclusion mechanism
-- WCAG 2.5.8 blockers documented in `/src/tests/a11y/wcag22-upgrade-plan.md` — 4 confirmed, 4 serious
+- WCAG 2.5.8 blockers resolved in #257; WCAG 2.4.11 focus-not-obscured resolved in #258/#259
+- MSP focus trap Escape handler is in `handleFocusTrap` useEffect listener — cleanup removes it; `triggerRef` on trigger chip for focus return
