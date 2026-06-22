@@ -381,7 +381,7 @@ export function ThreadActionMenu({
             <button
               type="button"
               data-confirm="true"
-              onClick={() => { onDelete(); onClose(); }}
+              onClick={() => { onDelete(); closeAndReturnFocus(); }}
               className={[
                 'flex-1 px-2 py-1 rounded text-white bg-error-bg hover:opacity-90 transition-opacity duration-fast text-[11px]',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
@@ -418,7 +418,7 @@ export function ThreadActionMenu({
                 <li key={g}>
                   <button
                     type="button"
-                    onClick={() => { onSetGroup(g); onClose(); }}
+                    onClick={() => { onSetGroup(g); closeAndReturnFocus(); }}
                     className={[
                       'w-full text-left px-2 py-1 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast text-[11px] rounded',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
