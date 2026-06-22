@@ -117,7 +117,10 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
         hidden={!isExpanded}
         className="pb-3 pt-1 px-1"
       >
-        <div className="relative">
+        {/* isolate creates a new stacking context so the absolutely-positioned clear
+            button always paints above the textarea regardless of ancestor overflow.
+            #256: defensive stacking context fix after the hidden-attribute regression. */}
+        <div className="relative isolate">
           <textarea
             ref={textareaRef}
             value={model.systemPrompt ?? ''}
@@ -147,7 +150,7 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
               aria-label={`Clear system prompt for ${model.name}`}
               title="Clear system prompt"
               className={[
-                'absolute top-2 right-2',
+                'absolute top-2 right-2 z-10',
                 'w-5 h-5 flex items-center justify-center',
                 'rounded text-text-muted',
                 'hover:text-text-primary hover:bg-hover',
