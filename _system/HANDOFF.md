@@ -1,4 +1,4 @@
-Last updated: 2026-06-21 (ship: wave — Aria #146 file splits + #147 icon system + Ada #246 regression test)
+Last updated: 2026-06-21 (ship: wave — Aria #249 TestButton wiring + #250 layout fix)
 
 ## Current phase
 
@@ -6,16 +6,18 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Wave: Aria #146 + #147 (batched) + Ada #246 (parallel)**
+**Wave: Aria #249 + #250 (batched) — ProviderSettingsPanel test button fixes**
 
-- **#146 (Aria)** — Sidebar.tsx 1379→813 lines (41% reduction); ModelSelectorPanel.tsx 1138→402 lines (65% reduction). Sub-components extracted:
-  - sidebar/: ThreadRow, BulkActionBar, SearchBar, SidebarChrome
-  - model-selector/: ModelPill, AddModelButton, SystemPromptRow, ModelVersionRow, SessionTokenSection
-  Pure refactor — no behavior changes.
-- **#147 (Aria)** — 8 new icons in /src/ui/icons/index.tsx: MenuIcon, EyeIcon, EyeOffIcon, EditIcon, TrashIcon, StopIcon, SendIcon, SmallCloseIcon. Consumers migrated: AppLayout, InputBar, SearchBar, SystemPromptRow, ModelSelectorPanel, ProviderSettingsPanel. MessageBubble + OnboardingEmptyState remain inline (no cross-file duplication).
-- **#246 (Ada)** — 4 regression tests added to thread-action-menu.test.tsx verifying group-input aria-label="Group name" persists and is not sourced from placeholder.
-- **Ada audit (Aria session)**: PASS — 3 advisories filed (see below). 75 new a11y tests.
-- **Flint**: PASS — 1327/1328 green (pre-existing ExportButton Escape failure only).
+- **#250 (Aria)** — Layout fix: Test, Edit, Clear buttons consolidated into a single flex row in ProviderRow. Previously Test was stranded on its own line. Matches ApiKeyPanel.tsx pattern.
+- **#249 (Aria)** — TestButton wired: `testCredential` / `testCustomCredential` / `TestResult` imported from `@/auth`. Full `TestState` lifecycle (idle → testing → result → auto-clear after 5s). Built-in providers use `testCredential`; custom keyed use `testCustomCredential`; keyless remain disabled (tooltip unchanged). `endpointUrl` prop threaded through ProviderRowProps. Live region `role="status"` added for AT. `TESTABLE_CREDENTIAL_KEYS` = {anthropic, openai, google, xai, deepseek, mistral}.
+- **Ada audit**: PASS — 8 new axe tests in provider-settings-panel.test.tsx.
+- **Flint**: PASS — 1335/1336 green (pre-existing ExportButton Escape failure only).
+
+## Open bugs (reported during visual check, not yet fixed)
+
+- **Claude credential test returns "Network Error"** (Gate) — `api.anthropic.com/v1/models` may not return CORS headers on error responses; browser can't read 4xx, throws as network error. Built-in providers should return `cors-or-network` on fetch throw, not `error`. Gate issue to file.
+- **Claude messages not working** — related to above, or the user's new key may not be valid yet. Needs confirmation (does platform.anthropic.com accept the key?).
+- **Selected models wiped on page reload** — reported after container rebuild. UNCONFIRMED whether plain page reload also wipes. If yes, this is a Vault/session regression — potentially introduced by #146 file split changing Sidebar component mount behavior. Needs immediate investigation before next wave.
 
 ## Key decisions
 
@@ -23,17 +25,18 @@ Phase 4+ — Full gate process active.
 - Migration shims live in place for one release cycle, then get removed.
 - ThreadActionMenu backdrop pattern is intentional — backdrop blocks hover bleed; `useClickOutside` is for non-modal dropdowns only.
 - `cors-or-network` is a distinct TestResult status — allows UI to surface informative message for custom endpoints.
-- `MODEL_REGISTRY` from `@/models` is a permitted Aria import (read-only data) — document with comment at import site.
-- MessageBubble + OnboardingEmptyState SVGs remain inline — no cross-file duplication, no extraction needed.
-- SearchBar magnifying glass SVG remains inline — single-use, not a duplicate; inline-exception rationale in icons/index.tsx header should document it (#248 filed).
+- `MODEL_REGISTRY` from `@/models` and `BUILTIN_MODEL_IDS`, `getModelAccentCssValue` from `@/auth` are permitted Aria imports (read-only/shared utils) — document with comment at import site.
+- MessageBubble + OnboardingEmptyState SVGs remain inline — no cross-file duplication.
+- SearchBar magnifying glass SVG remains inline — single-use (#248 filed to document as inline exception).
+- TestButton in ProviderSettingsPanel now calls real testCredential; `TESTABLE_CREDENTIAL_KEYS` mirrors Gate's PROVIDER_TEST_CONFIGS (update both together if providers change).
 
 ## Open advisories
 
 - #248 (Aria) — Document SearchBar magnifying glass as inline exception in icons/index.tsx header
 - #247 (Aria) — Focus-return on group-suggestion buttons; UX decision needed for post-delete focus target
-- #245 (Ada/Aria) — SystemPromptRow: aria-controls references conditionally rendered element — use hidden={!isExpanded} pattern
+- #245 (Ada/Aria) — SystemPromptRow: aria-controls references conditionally rendered element
 - #244 (Aria) — SystemPromptRow: requestAnimationFrame in setState callback — refactor to useEffect
-- #243 (Ada/Aria) — AddModelButton: role="menu" lacks ArrowDown/Up keyboard navigation — use ExportButton pattern
+- #243 (Ada/Aria) — AddModelButton: role="menu" lacks ArrowDown/Up keyboard navigation
 - #199 (Ada/Aria) — InteractionModeSwitcher coming-soon spans break radiogroup ownership model
 - #181 (Ada) — WCAG 2.1 → 2.2 upgrade path
 - #180 (Ada) — Live browser keyboard audit
@@ -42,18 +45,19 @@ Phase 4+ — Full gate process active.
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
 
-## What's next (visual check pending)
+## What's next
 
-**Before starting the next wave:** run dev server and verify:
-1. ApiKeyPanel custom provider UI (KeylessEndpointRow, test button, `? CORS / network` warning) — from Gate #238 last wave
-2. Sidebar sub-components render correctly (ThreadRow, BulkActionBar, SearchBar, SidebarChrome)
-3. ModelSelectorPanel sub-components render correctly (ModelPill, AddModelButton, SystemPromptRow)
-4. Icon consumer pages show correct icons (AppLayout hamburger/gear, InputBar stop/send, ProviderSettingsPanel eye/edit/trash)
+**Before kicking off next wave:** confirm whether plain page reload (no container rebuild) also wipes selected models. If yes, Vault/Aria regression — investigate before any other wave.
 
-**Next issues:**
-- **Aria: #247** — Focus-return on group-suggestion buttons (UX decision needed first)
-- **Aria: #243** — AddModelButton ArrowDown/Up keyboard nav (a11y blocker-adjacent)
+- **Gate: credential test CORS fix** — built-in providers should return `cors-or-network` on fetch throw
+- **Aria: #243** — AddModelButton keyboard nav (a11y blocker-adjacent)
 - **Aria: #245** — SystemPromptRow aria-controls fix
+- **Aria: #247** — Group-suggestion focus-return (UX decision needed)
+
+## Visual check needed
+
+- ProviderSettingsPanel: provider row with saved key → Test | Edit | Clear should be on one horizontal row
+- Clicking Test should cycle through "Testing…" → result label → auto-reset after 5s
 
 ## Gotchas
 
@@ -72,10 +76,10 @@ Phase 4+ — Full gate process active.
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
 - jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
 - Vault cache is in `LocalStorageProvider` instance scope — tests that create fresh instances always start cold
-- ExportButton: WAI-ARIA menu pattern requires ArrowDown/Up wiring alongside `tabIndex={-1}` — pre-existing test failure in ExportButton Escape (unrelated to recent waves)
-- `BUILTIN_MODEL_IDS` from `@/auth` is the only Gate import Aria is normally permitted; `MODEL_REGISTRY` from `@/models` is also permitted (read-only data) — both require comment at import site
+- ExportButton: WAI-ARIA menu pattern requires ArrowDown/Up wiring alongside `tabIndex={-1}` — pre-existing test failure in ExportButton Escape
+- `BUILTIN_MODEL_IDS` from `@/auth` is the only Gate import Aria is normally permitted; `MODEL_REGISTRY` from `@/models` also permitted (read-only data) — both require comment at import site
 - localStorage migration shims: `rt_key_` / `roundtable_user_preferences` / `rt-ui-sidebar-width` shims in place — remove after one release cycle
-- `useClickOutside` uses `mousedown`; ThreadActionMenu uses backdrop instead — not a regression
-- `testCustomCredential` (Gate): `cors-or-network` = CORS blocked or network error, not a bad key; built-in providers return `error` on network failure
+- `testCustomCredential` (Gate): `cors-or-network` = CORS blocked or network error — built-in providers still return `error` on network failure (fix pending)
 - `TestResult` type lives in `credentialTest.ts`, exported via `@/auth` index — do not re-export from `/src/types/index.ts`
-- Sub-component directories: sidebar/ and model-selector/ under /src/ui/components/ — new in this wave
+- `TESTABLE_CREDENTIAL_KEYS` in ProviderSettingsPanel must stay in sync with Gate's `PROVIDER_TEST_CONFIGS` — update both together
+- Sub-component directories: sidebar/ and model-selector/ under /src/ui/components/ — added in #146 wave
