@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: wave #252 Gate CORS fix + #254/#255 Aria SystemPromptRow fixes)
+Last updated: 2026-06-22 (ship: hotfix #256 SystemPromptRow clear button + wave #252/#254/#255)
 
 ## Current phase
 
@@ -6,36 +6,29 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**Gate #252 — testCredential cors-or-network**
-- `testCredential` catch block now returns `cors-or-network` instead of `error` on fetch throw.
-- HTTP error paths (through `interpretHttpStatus()`) still return `error` — only the throw path changed.
-- 42/42 tests pass; stale jsdoc comment on `TestResult` corrected.
+**Wave: Gate #252 + Aria #254/#255 + hotfix #256**
 
-**Aria #254 — SystemPromptRow: rAF out of setState updater**
-- `handleToggle` is now a pure updater. rAF focus call moved to `useEffect([isExpanded])`.
-- Eliminates Strict Mode double-invocation hazard.
+- **#252 (Gate)**: `testCredential` catch block now returns `cors-or-network` on fetch throw. `testCredential` and `testCustomCredential` now behave consistently. 42/42 tests pass.
+- **#254 (Aria)**: `handleToggle` is a pure updater. rAF focus moved to `useEffect([isExpanded])`. Eliminates Strict Mode double-invocation hazard.
+- **#255 (Aria)**: Expandable body always in DOM; `hidden={!isExpanded}` controls AT visibility. `aria-controls` always resolves.
+- **#256 (Aria hotfix)**: Clear button invisible after #255 — GPU compositing stale layer on `display:none` → visible transition. Fix: `isolate` on `relative` wrapper + `z-10` on clear button.
 
-**Aria #255 — SystemPromptRow: aria-controls always resolves**
-- Expandable body div always rendered; `hidden={!isExpanded}` controls AT visibility.
-- `aria-controls` on toggle button now always points at a live DOM node.
-
-**Ada + Flint**: PASS — 1342/1342 + 7 skipped + 1 pre-existing ExportButton Escape.
+**Flint**: PASS all four — 1342/1342 + 7 skipped + 1 pre-existing ExportButton Escape.
 
 ## Open bugs / known issues
 
-- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu pattern ArrowDown/Up wiring absent. Tracked as part of #253 scope.
+- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent. Related to #253 scope.
 
 ## Key decisions
 
-- `cors-or-network` is now consistent across both `testCredential` (built-in) and `testCustomCredential` (custom) — both return it on fetch throw.
-- `hidden` attribute (not `aria-hidden`, not CSS `hidden` class) is the correct pattern for progressive disclosure bodies that use `aria-controls`.
+- `cors-or-network` is now consistent across both `testCredential` and `testCustomCredential` — both return it on fetch throw.
+- `hidden` attribute (not `aria-hidden`) is the correct pattern for `aria-controls` progressive disclosure targets.
 - `useEffect([isExpanded])` is the correct place for post-mount focus side effects — not inside setState updaters.
+- `isolate` + `z-10` is the fix for absolutely-positioned children going invisible after a `hidden` → visible transition (GPU compositing stale layer).
 
 ## Open advisories
 
 - #253 (Ada/Aria) — AddModelButton: role="menu" lacks ArrowDown/Up keyboard navigation
-- #254 (Aria) — CLOSED this wave
-- #255 (Ada/Aria) — CLOSED this wave
 - #248 (Aria) — Document SearchBar magnifying glass as inline exception in icons/index.tsx
 - #247 (Aria) — ThreadActionMenu: group-suggestion and confirm-delete buttons skip closeAndReturnFocus (WCAG 2.4.3)
 - #199 (Ada/Aria) — InteractionModeSwitcher coming-soon spans break radiogroup ownership model
@@ -48,7 +41,7 @@ Phase 4+ — Full gate process active.
 
 ## What's next
 
-1. **Aria: #253** — AddModelButton ArrowDown/Up/Home/End keyboard nav (a11y, deferred from this wave)
+1. **Aria: #253** — AddModelButton ArrowDown/Up/Home/End keyboard nav (a11y, save for fresh window — meaty)
 2. **Aria: #247** — ThreadActionMenu closeAndReturnFocus (WCAG 2.4.3)
 3. **Aria: #248** — SearchBar inline SVG exception comment (tiny, batch with next Aria wave)
 
@@ -76,6 +69,7 @@ Phase 4+ — Full gate process active.
 - Model persistence: `handleToggleModel`/`handleAddModel` now persist to storage; `useEffect([store.isLoading, activeConversation?.id])` seeds `isActive` on load — do not remove these
 - `cors-or-network` is now consistent: both `testCredential` and `testCustomCredential` return it on fetch throw
 - `hidden` attribute (not `aria-hidden`) is the correct pattern for `aria-controls` progressive disclosure targets
+- Absolutely-positioned children inside a `hidden` parent can go invisible on reveal due to GPU compositing — fix with `isolate` on the wrapper + `z-10` on the child
 - `TESTABLE_CREDENTIAL_KEYS` in ProviderSettingsPanel must stay in sync with Gate's `PROVIDER_TEST_CONFIGS`
 - MessageBubble + OnboardingEmptyState + SearchBar magnifying glass SVGs remain inline (#248 to document SearchBar)
 - AddModelButton dropdown: uses `createPortal` into `document.body` with fixed positioning from `getBoundingClientRect()`
