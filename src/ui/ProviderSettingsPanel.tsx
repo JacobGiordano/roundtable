@@ -4,6 +4,8 @@ import type { BuiltInModelId, ProviderConfig, BuiltInProviderConfig } from '@/ty
 // helpers are pure Gate persistence utilities — permitted per CLAUDE.md.
 // BUILTIN_MODEL_IDS: Gate's canonical ReadonlySet<BuiltInModelId> — imported
 // per #151 so this file does not re-enumerate the union members locally.
+// testCredential, testCustomCredential, TestResult: Gate's live API-key test
+// utilities — wired into TestButton per #249 once Gate exported them in #238.
 import {
   getProviderRoster,
   addBuiltInProvider,
@@ -15,7 +17,10 @@ import {
   clearCredentials,
   getCredentials,
   BUILTIN_MODEL_IDS,
+  testCredential,
+  testCustomCredential,
 } from '@/auth';
+import type { TestResult } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
 // Replaces the inline getProviderDotColor function in this file.
 import { getModelAccentCssValue } from './utils/modelColor';
@@ -29,10 +34,7 @@ import { CloseIcon, EditIcon, TrashIcon, EyeIcon, EyeOffIcon } from './icons';
  * Credential keys for which live provider testing is available.
  * Derived from credentialTest.ts PROVIDER_TEST_CONFIGS (Gate owns that file;
  * this local set is the cross-agent contract boundary).
- *
- * When Gate exports testCredential from @/auth, wire the Test button handler
- * below to call it. Until then the enabled Test button shows a "not yet wired"
- * state. Issue #238 tracks full credential-test wiring.
+ * Wired to testCredential / testCustomCredential in TestButton per #249.
  */
 const TESTABLE_CREDENTIAL_KEYS = new Set([
   'anthropic',
@@ -125,23 +127,36 @@ function ApiKeyBadge({ state }: { state: BadgeState }) {
 interface TestButtonProps {
   credentialKey: string;
   providerName: string;
+  /**
+   * For custom providers: the endpoint base URL to pass to testCustomCredential.
+   * When present, testCustomCredential is used instead of testCredential.
+   * When absent, the provider is treated as built-in and testCredential is used.
+   */
+  endpointUrl?: string;
 }
 
 /**
  * Test button for verifying a stored API key against the provider's live endpoint.
  *
- * For unsupported providers (keyless custom endpoints), the button is disabled
- * and shows a tooltip explaining why and suggesting an alternative (#240).
+ * For supported built-in providers: calls testCredential(credentialKey, savedValue).
+ * For custom providers with a key: calls testCustomCredential(endpointUrl, savedValue).
+ * For keyless custom providers (canTest = false): disabled, shows tooltip (#240).
  *
- * For supported providers, the button is enabled. Full test call wiring
- * is pending Gate exporting testCredential from @/auth (#238).
+ * Test lifecycle state mirrors ApiKeyPanel.tsx: TestState union, testMessage,
+ * 5-second auto-clear timer. Wired per #249.
  *
  * Tooltip pattern: identical to InteractionModeSwitcher.tsx — 600ms hover
  * intentionality delay, immediate on focus, aria-describedby on the trigger.
  */
-function TestButton({ credentialKey, providerName }: TestButtonProps) {
+function TestButton({ credentialKey, providerName, endpointUrl }: TestButtonProps) {
   const canTest = isCredentialTestable(credentialKey);
   const tooltipId = `test-btn-tooltip-${credentialKey.replace(/[^a-z0-9]/gi, '-')}`;
+
+  // Test lifecycle state — mirrors ApiKeyPanel.tsx pattern.
+  type TestState = 'idle' | 'testing' | TestResult['status'];
+  const [testState, setTestState] = useState<TestState>('idle');
+  const [testMessage, setTestMessage] = useState('');
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Tooltip show/hide with 600ms hover delay (tooltip.md §1).
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
@@ -177,12 +192,60 @@ function TestButton({ credentialKey, providerName }: TestButtonProps) {
     if (e.key === 'Escape') setIsTooltipVisible(false);
   }, []);
 
-  // Cleanup timer on unmount.
+  const handleTest = useCallback(async () => {
+    if (!canTest) return;
+    if (testState === 'testing') return;
+    // Cancel any in-flight auto-clear before starting a new test.
+    if (clearTimerRef.current !== null) clearTimeout(clearTimerRef.current);
+    setTestState('testing');
+    setTestMessage('');
+    const savedValue = getCredentials(credentialKey);
+    let result: TestResult;
+    if (endpointUrl) {
+      // Custom provider with a key: test via testCustomCredential.
+      result = await testCustomCredential(endpointUrl, savedValue ?? undefined);
+    } else {
+      // Built-in provider: test via testCredential.
+      result = await testCredential(credentialKey, savedValue ?? '');
+    }
+    setTestState(result.status);
+    setTestMessage(result.message);
+    // Auto-clear after 5 seconds; store handle for cleanup on unmount.
+    clearTimerRef.current = setTimeout(() => {
+      setTestState('idle');
+      setTestMessage('');
+    }, 5000);
+  }, [canTest, testState, credentialKey, endpointUrl]);
+
+  // Cleanup timers on unmount.
   useEffect(() => {
     return () => {
       if (hoverTimerRef.current !== null) clearTimeout(hoverTimerRef.current);
+      if (clearTimerRef.current !== null) clearTimeout(clearTimerRef.current);
     };
   }, []);
+
+  // Derive button label from current test state.
+  let label: string;
+  if (testState === 'idle') label = 'Test';
+  else if (testState === 'testing') label = 'Testing…';
+  else if (testState === 'valid') label = '✓ Valid';
+  else if (testState === 'rate-limited') label = '✓ Valid (rate limited)';
+  else if (testState === 'invalid') label = '✗ Invalid key';
+  else if (testState === 'error') label = `✗ ${testMessage}`;
+  else label = '? CORS / network'; // cors-or-network
+
+  // Derive button color from test state.
+  const stateColorClass =
+    testState === 'valid' || testState === 'rate-limited'
+      ? 'text-success'
+      : testState === 'cors-or-network'
+        ? 'text-warning'
+        : testState === 'invalid' || testState === 'error'
+          ? 'text-error'
+          : testState === 'testing'
+            ? 'text-text-secondary opacity-50 cursor-not-allowed'
+            : 'text-text-secondary hover:text-text-primary hover:border-border-strong';
 
   return (
     // Wrapper div carries mouse events so tooltip shows when hovering the
@@ -195,12 +258,10 @@ function TestButton({ credentialKey, providerName }: TestButtonProps) {
       <button
         type="button"
         aria-disabled={!canTest ? true : undefined}
+        disabled={testState === 'testing'}
         aria-label={`Test ${providerName} API key`}
         aria-describedby={!canTest ? tooltipId : undefined}
-        onClick={() => {
-          if (!canTest) return;
-          // Future: call testCredential() once Gate exports it from @/auth (#238).
-        }}
+        onClick={handleTest}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
@@ -210,8 +271,7 @@ function TestButton({ credentialKey, providerName }: TestButtonProps) {
           'transition-colors duration-fast',
           canTest
             ? [
-                'text-text-secondary',
-                'hover:text-text-primary hover:border-border-strong',
+                stateColorClass,
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')
             : [
@@ -220,10 +280,17 @@ function TestButton({ credentialKey, providerName }: TestButtonProps) {
               ].join(' '),
         ].join(' ')}
       >
-        Test
+        {label}
       </button>
 
-      {/* Tooltip — shown for unsupported providers only */}
+      {/* Visually-hidden live region for screen reader announcements */}
+      {canTest && (
+        <span role="status" aria-live="polite" className="sr-only">
+          {testMessage}
+        </span>
+      )}
+
+      {/* Tooltip — shown for unsupported (keyless) providers only */}
       {!canTest && (
         <div
           id={tooltipId}
@@ -261,9 +328,14 @@ interface ProviderRowProps {
   onRemoved: () => void;
   onUpdated?: () => void;
   isNew?: boolean;
+  /**
+   * Endpoint URL for custom providers with a credential key — threaded through
+   * to TestButton so it can route to testCustomCredential (#249).
+   */
+  endpointUrl?: string;
 }
 
-function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: ProviderRowProps) {
+function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, endpointUrl }: ProviderRowProps) {
   const [confirmState, setConfirmState] = useState<RowConfirmState>('idle');
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -545,9 +617,9 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false }: 
                   {keyRevealed ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {/* Test / Edit / Clear buttons — each on their own stable row */}
-              <TestButton credentialKey={credentialKey} providerName={name} />
+              {/* Test | Edit | Clear — single row, consistent with ApiKeyPanel.tsx */}
               <div className="flex items-center gap-1.5">
+                <TestButton credentialKey={credentialKey} providerName={name} endpointUrl={endpointUrl} />
                 <button
                   type="button"
                   aria-label={`Edit API key for ${name}`}
@@ -1470,6 +1542,7 @@ export function ProviderSettingsPanel({
                       onRemoved={handleProviderRemoved}
                       onUpdated={refreshRoster}
                       isNew={isNew}
+                      endpointUrl={provider.kind === 'custom' && provider.credentialKey ? provider.endpointUrl : undefined}
                     />
                   </div>
                 );
