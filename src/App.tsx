@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
@@ -168,6 +168,26 @@ export default function App() {
 
   // Derive active models from the shared models array
   const activeModels = models.filter((m) => m.isActive);
+
+  // Seed isActive from the active conversation's stored models when the store
+  // finishes loading, or when the user switches to a different conversation.
+  // This fixes the reload regression: rosterToModelConfigs() always initialises
+  // isActive to false; this effect restores the persisted selection afterwards.
+  // Dependency on activeConversation?.id (not the full object) prevents
+  // re-seeding on every message update.
+  useEffect(() => {
+    if (store.isLoading) return;
+    if (!activeConversation) return;
+
+    setModels((prev) =>
+      prev.map((m) => {
+        const savedModel = activeConversation.models.find((sm) => sm.modelId === m.modelId);
+        if (!savedModel) return m;
+        return { ...m, isActive: savedModel.isActive };
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.isLoading, activeConversation?.id]);
 
   // Resolve ModelConfig for the pending directed-reply target (for pill display).
   const directedReplyTarget = pendingTargetModelId
@@ -388,19 +408,45 @@ export default function App() {
   const handleToggleModel = (modelId: ModelId) => {
     setModels((prev) => {
       const activeCount = prev.filter((m) => m.isActive).length;
-      return prev.map((m) => {
+      const next = prev.map((m) => {
         if (m.modelId !== modelId) return m;
         // Guard: cannot deactivate the last active model
         if (m.isActive && activeCount === 1) return m;
         return { ...m, isActive: !m.isActive };
       });
+
+      // Persist the updated models to the active conversation.
+      // Ghost-mode guard: skip storage writes for ghost conversations.
+      const conv = store.getActiveConversation();
+      if (conv && !conv.isGhost) {
+        void store.updateConversation({
+          ...conv,
+          models: next,
+          updatedAt: Date.now(),
+        });
+      }
+
+      return next;
     });
   };
 
   const handleAddModel = (modelId: ModelId) => {
-    setModels((prev) =>
-      prev.map((m) => (m.modelId === modelId ? { ...m, isActive: true } : m)),
-    );
+    setModels((prev) => {
+      const next = prev.map((m) => (m.modelId === modelId ? { ...m, isActive: true } : m));
+
+      // Persist the updated models to the active conversation.
+      // Ghost-mode guard: skip storage writes for ghost conversations.
+      const conv = store.getActiveConversation();
+      if (conv && !conv.isGhost) {
+        void store.updateConversation({
+          ...conv,
+          models: next,
+          updatedAt: Date.now(),
+        });
+      }
+
+      return next;
+    });
   };
 
   /** Persists the chosen interaction mode on the active conversation. */
