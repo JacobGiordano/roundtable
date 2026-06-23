@@ -26,6 +26,29 @@ body {
 
 /* ─── Keyframe Animations ──────────────────────────────────────────────────── */
 
+/**
+ * Outrun entry flash — full-viewport #FF00AA overlay at 20% opacity.
+ * Phase 1 (0–33%): hold at 0.2 opacity for 100ms (fast).
+ * Phase 2 (33–100%): fade from 0.2 → 0 over 200ms (medium).
+ * Total duration: 300ms. Spec: _design/specs/motion.md §4.
+ */
+@keyframes outrunFlash {
+  0%      { opacity: 0.2; }
+  33.333% { opacity: 0.2; }
+  100%    { opacity: 0; }
+}
+
+.outrun-flash {
+  background-color: #FF00AA;
+  animation: outrunFlash 300ms linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outrun-flash {
+    display: none;
+  }
+}
+
 @keyframes provider-enter {
   from {
     opacity: 0;

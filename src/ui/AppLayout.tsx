@@ -10,6 +10,8 @@ import { OnboardingEmptyState } from './OnboardingEmptyState';
 import { useRoundtable } from './RoundtableContext';
 // #147: shared icon system — MenuIcon, GearIcon, PlusIcon replace inline SVGs.
 import { MenuIcon, GearIcon, PlusIcon } from './icons';
+// #178: Outrun entry flash — full-viewport overlay triggered on Outrun theme activation.
+import { OutrunFlash } from './OutrunFlash';
 
 // Module-level constant — safe for SSR/test environments (navigator may be undefined).
 // Used to show platform-appropriate keyboard shortcut hint in button labels and tooltips.
@@ -158,6 +160,12 @@ export function AppLayout({ onSend }: AppLayoutProps) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">
+      {/* #178: Outrun entry flash — self-contained; listens for data-theme="outrun"
+          via MutationObserver. Renders via createPortal into document.body to
+          escape any ancestor stacking/transform contexts. No-op on all other themes
+          and on initial page load. Skipped entirely for prefers-reduced-motion users. */}
+      <OutrunFlash />
+
       {/* Skip-to-main-content link — WCAG 2.4.1 bypass block requirement.
           Visually hidden at rest (sr-only); becomes visible on keyboard focus
           so keyboard users can jump past the sidebar nav directly to the main
