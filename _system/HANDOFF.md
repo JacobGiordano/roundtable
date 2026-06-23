@@ -1,4 +1,4 @@
-Last updated: 2026-06-23 (ship: #263 tooltip Ctrl+N + #179 chunk fade-in)
+Last updated: 2026-06-23 (ship: #170 backend auth UI + #169 custom theme import UI)
 
 ## Current phase
 
@@ -6,23 +6,28 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#263 (Aria)**: Tooltip and aria-label on new conversation button unconditionally show `Ctrl+N`. Removed `isMac` from `Sidebar.tsx` and `AppLayout.tsx`. Handler (`e.metaKey || e.ctrlKey`) untouched.
+**#170 (Gate → Aria)**: Backend server panel. Gate exposed `getBackendConfig`, `saveBackendConfig`, `clearBackendConfig` in `backendConfig.ts`. Aria built `BackendServerPanel.tsx` (URL input, login/logout form, connection status badge) mounted in `Sidebar.tsx`. Ada clean.
 
-**#179 (Aria)**: `MessageContent` in `MessageBubble.tsx` uses `prevLengthRef` (useRef) to diff content length per render. New text wraps in `<span className="chunk-entering">` so the existing `chunkFadeIn` CSS animation fires. `prevLengthRef` resets to 0 via `useEffect` when `isStreaming` becomes false. Aria-only — no Atlas change, no types PR.
+**#169 (Gate + Luma + Arch + Aria)**: Custom theme import UI. Gate implemented `validateCustomTheme` (themeValidation.ts), `saveCustomTheme` + `getActiveTheme` (theme.ts). Arch expanded `CustomThemeJSON.prose` to all 7 schema fields and added `ActiveTheme` to `/src/types/index.ts`. Luma specced the component (`/_design/specs/custom-theme-import.md`). Aria built `CustomThemeImport.tsx` (4-state machine: Idle/Validating/Rejected/Applied) as Section 4 in `ProviderSettingsPanel.tsx`. Also wired 5 missing prose CSS vars in `applyTheme()`. Ada clean.
 
 ## Open bugs / known issues
 
 - **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent.
+- **#264** — No model replies in dev app. Deferred diagnostic; investigate when usage resets.
 
 ## Key decisions
 
-- #263: `isMac` removed — tooltip always shows `Ctrl+N`; handler still accepts `metaKey || ctrlKey` so Cmd+N continues to work on Mac.
-- #179 pattern: `prevLengthRef` in `MessageContent`; resets on `isStreaming` false; do not convert to useState (avoids re-render per chunk).
+- `BackendConfig` type lives in `/src/auth/backendConfig.ts` — promote to `/src/types/index.ts` via Arch if a third agent ever needs it directly.
+- `ValidationResult` exported from `@/auth` (same promotion note as above).
+- `ActiveTheme` and expanded `CustomThemeJSON.prose` are in `/src/types/index.ts`.
+- Gate's `customThemeActive` flag is a Gate-internal field in `roundtable:theme` localStorage key — opaque to other agents.
+- `applyTheme()` is in `/src/ui/theme.ts` (Aria's directory) — confirmed by Arch during #169.
 
 ## What's next
 
-1. **Gate → Aria: #170** — Backend auth UI (Gate first: server URL / login API surface; Aria second: UI; must sequence)
-2. **Gate + Luma: #169** — Custom theme validation UI (Gate: schema validator; Luma: spec; can parallelize)
+1. **#264** — Investigate silently non-responsive models in dev app (Atlas/Gate). Low-cost diagnostic; good first issue after usage reset.
+2. **Follow-up (filed)** — `onBackendConnectionChange` not wired in `App.tsx`; live storage provider switching deferred to next page load. File as a new issue.
+3. **Phase transition** — #169 and #170 were the last planned Phase 4+ features. Assess whether Phase 5 kickoff is warranted or if #264 + follow-ups close out Phase 4+.
 
 ## Gotchas
 
@@ -62,3 +67,5 @@ Phase 4+ — Full gate process active.
 - Playwright a11y tests: `npx playwright test --config playwright.a11y.config.ts` (separate from main e2e config)
 - `OutrunFlash` MutationObserver: fires only on `data-theme` mutations, not initial value — page-load with Outrun active produces no flash by design
 - `chunk-entering` / `chunkFadeIn`: animation fires on new-text spans only; `prevLengthRef` tracks stable offset — do not convert to useState
+- `CustomThemeImport` 4-state machine: rAF deferral before validation so spinner renders; error list scrolls at 17+; `saveCustomTheme` called only on valid path — never on rejection
+- `customThemeActive` in `roundtable:theme` localStorage is Gate-internal; `setActiveTheme(id)` clears it when switching back to built-in
