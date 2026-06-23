@@ -837,22 +837,64 @@ export interface CustomThemeJSON {
     slow: string;
   };
   /**
-   * Prose link colors. Applied as `--prose-link` and `--prose-link-hover` CSS
-   * variables by `applyTheme()` in `/src/ui/theme.ts`. All built-in themes
-   * supply these values; custom themes must also supply both.
+   * Prose typography colors. Applied as CSS custom properties by `applyTheme()`
+   * in `/src/ui/theme.ts`. All 7 fields are required — Gate's `validateCustomTheme`
+   * is fail-closed and rejects any custom theme JSON missing any of these.
    *
-   * Aria reads: `theme.prose.link` and `theme.prose['link-hover']`.
-   * Gate validates: both fields required when accepting a custom theme JSON upload.
+   * CSS variable mapping:
+   *   code-bg            → --prose-code-bg
+   *   code-border        → --prose-code-border
+   *   code-text          → --prose-code-text
+   *   block-bg           → --prose-block-bg
+   *   link               → --prose-link
+   *   link-hover         → --prose-link-hover
+   *   blockquote-border  → --prose-blockquote-border
+   *
+   * Aria reads all 7 fields when rendering markdown prose content.
+   * Gate validates all 7 fields as required 6-digit hex strings.
+   * All built-in themes must supply all 7 values.
    */
   prose: {
+    'code-bg': string;
+    'code-border': string;
+    'code-text': string;
+    'block-bg': string;
     link: string;
     'link-hover': string;
+    'blockquote-border': string;
   };
 }
 
 export interface ThemePreferences {
   activeThemeId: ThemeId;
   customTheme?: CustomThemeJSON;
+}
+
+/**
+ * Identifies the currently active theme and its origin.
+ *
+ * `name` is the display name of the active theme:
+ *   - For built-in themes: the human-readable label (e.g. "Slate", "Outrun").
+ *   - For custom themes: the value of `CustomThemeJSON.name` as supplied by
+ *     the user in their uploaded theme file.
+ *
+ * `source` discriminates the theme's origin:
+ *   - 'builtin'  — one of the 7 `ThemeId` themes shipped with Roundtable.
+ *   - 'custom'   — a user-uploaded `CustomThemeJSON` currently in
+ *                  `ThemePreferences.customTheme`.
+ *
+ * Aria uses this in the theme import UI (#169) to show which theme is active
+ * and label the "Replace with imported theme" confirmation flow. Gate computes
+ * this from the current `ThemePreferences` at read time — it is never persisted
+ * separately.
+ *
+ * Note: there is no separate `ThemeJSON` alias. `CustomThemeJSON` is the sole
+ * type for the full validated theme JSON shape. This type (`ActiveTheme`) is
+ * metadata about which theme is in use, not a container for the token values.
+ */
+export interface ActiveTheme {
+  name: string;
+  source: 'builtin' | 'custom';
 }
 
 // ─── Credentials — Gate implements ───────────────────────────────────────────

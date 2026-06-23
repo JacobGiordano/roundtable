@@ -51,6 +51,9 @@ import { ThreadRow, AnimatedListItem } from './components/sidebar/ThreadRow';
 import { BulkActionBar } from './components/sidebar/BulkActionBar';
 import { SearchBar } from './components/sidebar/SearchBar';
 import { ArchiveToggle, GroupHeader, ThreadSkeleton } from './components/sidebar/SidebarChrome';
+// #170: BackendServerPanel — Backend Server section in the settings panel.
+// Aria owns this component; it imports Gate functions via the sanctioned exception path.
+import { BackendServerPanel } from './BackendServerPanel';
 
 // #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
 // Cmd+N / ⌘N is a reserved system/browser shortcut on Mac that cannot be reliably
@@ -126,6 +129,13 @@ interface SidebarProps {
    * App handles the toggle logic via useGhostMode.
    */
   onToggleGhostMode?: () => void;
+  /**
+   * Called after a successful backend login or logout so App can re-initialize
+   * the active storage provider (#170).
+   * Optional — if absent, BackendServerPanel still works but the storage
+   * provider won't switch until the next page load.
+   */
+  onBackendConnectionChange?: () => void;
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -153,6 +163,7 @@ export function Sidebar({
   providerSettingsTriggerRef,
   isGhostMode = false,
   onToggleGhostMode,
+  onBackendConnectionChange,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -811,6 +822,9 @@ export function Sidebar({
 
             {/* Token count visibility preference — Gate component, self-contained */}
             <TokenCountControl />
+
+            {/* Backend Server — login/logout for self-hosted backend (#170) */}
+            <BackendServerPanel onConnectionChange={onBackendConnectionChange} />
 
             {/* Theme switcher — 7 themes rendered as a grid of labeled buttons */}
             <div>
