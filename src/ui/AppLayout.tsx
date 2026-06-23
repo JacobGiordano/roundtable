@@ -13,9 +13,9 @@ import { MenuIcon, GearIcon, PlusIcon } from './icons';
 // #178: Outrun entry flash — full-viewport overlay triggered on Outrun theme activation.
 import { OutrunFlash } from './OutrunFlash';
 
-// Module-level constant — safe for SSR/test environments (navigator may be undefined).
-// Used to show platform-appropriate keyboard shortcut hint in button labels and tooltips.
-const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+// #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
+// Cmd+N / ⌘N is a reserved system/browser shortcut on Mac; the handler
+// intentionally uses Ctrl+N on all platforms to avoid that conflict.
 
 /**
  * AppLayoutProps: only props that AppLayout owns locally.
@@ -155,8 +155,8 @@ export function AppLayout({ onSend }: AppLayoutProps) {
 
   const handleNewConvBlur = useCallback(() => setIsNewConvTooltipVisible(false), []);
 
-  // Platform-appropriate shortcut label.
-  const newConvShortcut = isMac ? '⌘N' : 'Ctrl+N';
+  // #263: Fixed shortcut label — always Ctrl+N to match the handler.
+  const newConvShortcut = 'Ctrl+N';
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg">

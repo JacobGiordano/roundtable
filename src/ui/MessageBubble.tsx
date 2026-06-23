@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
@@ -258,14 +258,32 @@ interface MessageContentProps {
 }
 
 function MessageContent({ message, isStreaming, hasError }: MessageContentProps) {
+  // #179 — chunk fade-in wiring.
+  // Tracks the content length rendered at the end of the previous render cycle.
+  // On each streaming render, text after this offset is "new" and gets wrapped in
+  // a .chunk-entering span so the chunkFadeIn CSS animation fires. The ref is reset
+  // to 0 when streaming ends so a subsequent stream on the same message component
+  // (shouldn't happen in practice) starts fresh.
+  const prevLengthRef = useRef(0);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      // Reset when streaming finishes so the ref doesn't carry stale state.
+      prevLengthRef.current = 0;
+    }
+  }, [isStreaming]);
+
+  const content = message.content ?? '';
+
   if (message.role === 'user') {
-    // User messages: plain text, preserve whitespace (no markdown rendering)
+    // User messages: plain text, preserve whitespace (no markdown rendering).
+    // User messages do not stream, so chunk fade-in is not applied here.
     return (
       <div
         className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words"
         aria-live="off"
       >
-        {message.content}
+        {content}
         {isStreaming && !hasError && (
           <span className="cursor-blink select-none" aria-hidden="true">|</span>
         )}
@@ -273,22 +291,61 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
     );
   }
 
-  // Assistant messages: render with react-markdown + rehype-sanitize
+  // Assistant messages: render with react-markdown + rehype-sanitize.
+  // During streaming, split at prevLengthRef.current:
+  //   stableContent — already-seen text, rendered via ReactMarkdown
+  //   newChunk      — text that arrived this render, wrapped in .chunk-entering
+  //
+  // The new chunk is rendered as plain text during the ~100ms fade-in animation.
+  // On the following render it becomes part of stableContent and is markdown-rendered.
+  // This brief plain-text window is imperceptible during active streaming and is the
+  // accepted trade-off for the Aria-only approach (no Atlas changes required).
+  if (isStreaming) {
+    const stableContent = content.slice(0, prevLengthRef.current);
+    const newChunk = content.slice(prevLengthRef.current);
+
+    // Advance the ref synchronously before React commits. Using a ref (not state)
+    // avoids a re-render cycle; the value is read on the next render.
+    prevLengthRef.current = content.length;
+
+    return (
+      <div
+        className="text-[15px] font-normal leading-[1.6] text-text-primary break-words"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {stableContent && (
+          <ReactMarkdown
+            rehypePlugins={[rehypeSanitize]}
+            components={markdownComponents}
+          >
+            {stableContent}
+          </ReactMarkdown>
+        )}
+        {newChunk && (
+          <span className="chunk-entering whitespace-pre-wrap">
+            {newChunk}
+          </span>
+        )}
+        {!hasError && (
+          <span className="cursor-blink select-none" aria-hidden="true">|</span>
+        )}
+      </div>
+    );
+  }
+
+  // Streaming done (or never streaming) — render full content via react-markdown.
   return (
     <div
       className="text-[15px] font-normal leading-[1.6] text-text-primary break-words"
-      aria-live={isStreaming ? 'polite' : 'off'}
-      aria-atomic={isStreaming ? 'false' : undefined}
+      aria-live="off"
     >
       <ReactMarkdown
         rehypePlugins={[rehypeSanitize]}
         components={markdownComponents}
       >
-        {message.content ?? ''}
+        {content}
       </ReactMarkdown>
-      {isStreaming && !hasError && (
-        <span className="cursor-blink select-none" aria-hidden="true">|</span>
-      )}
     </div>
   );
 }
