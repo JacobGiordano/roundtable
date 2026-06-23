@@ -1,4 +1,4 @@
-Last updated: 2026-06-23 (ship: #170 backend auth UI + #169 custom theme import UI)
+Last updated: 2026-06-23 (ship: #170 + #169 + #170 empty-field validation fix)
 
 ## Current phase
 
@@ -6,7 +6,7 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#170 (Gate → Aria)**: Backend server panel. Gate exposed `getBackendConfig`, `saveBackendConfig`, `clearBackendConfig` in `backendConfig.ts`. Aria built `BackendServerPanel.tsx` (URL input, login/logout form, connection status badge) mounted in `Sidebar.tsx`. Ada clean.
+**#170 (Gate → Aria)**: Backend server panel. Gate exposed `getBackendConfig`, `saveBackendConfig`, `clearBackendConfig` in `backendConfig.ts`. Aria built `BackendServerPanel.tsx` (URL input, login/logout form, connection status badge) mounted in `Sidebar.tsx`. Ada clean. Follow-up: empty username/password validation added post-dev-server review — inline required-field errors, `aria-invalid`/`aria-describedby`, focus on offending field. Ada clean.
 
 **#169 (Gate + Luma + Arch + Aria)**: Custom theme import UI. Gate implemented `validateCustomTheme` (themeValidation.ts), `saveCustomTheme` + `getActiveTheme` (theme.ts). Arch expanded `CustomThemeJSON.prose` to all 7 schema fields and added `ActiveTheme` to `/src/types/index.ts`. Luma specced the component (`/_design/specs/custom-theme-import.md`). Aria built `CustomThemeImport.tsx` (4-state machine: Idle/Validating/Rejected/Applied) as Section 4 in `ProviderSettingsPanel.tsx`. Also wired 5 missing prose CSS vars in `applyTheme()`. Ada clean.
 
