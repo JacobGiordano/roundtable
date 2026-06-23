@@ -52,9 +52,9 @@ import { BulkActionBar } from './components/sidebar/BulkActionBar';
 import { SearchBar } from './components/sidebar/SearchBar';
 import { ArchiveToggle, GroupHeader, ThreadSkeleton } from './components/sidebar/SidebarChrome';
 
-// #166: Platform detection for keyboard shortcut hint in button aria-labels.
-// Module-level constant — navigator may be undefined in SSR/test environments.
-const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
+// #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
+// Cmd+N / ⌘N is a reserved system/browser shortcut on Mac that cannot be reliably
+// intercepted; the handler intentionally uses Ctrl+N on all platforms.
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -564,7 +564,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={onNewConversation}
-                aria-label={`New conversation (${isMac ? '⌘N' : 'Ctrl+N'})`}
+                aria-label="New conversation (Ctrl+N)"
                 aria-describedby="sidebar-new-conv-tooltip"
                 onFocus={handleNewConvFocus}
                 onBlur={handleNewConvBlur}
@@ -593,7 +593,7 @@ export function Sidebar({
                 ].join(' ')}
               >
                 New conversation
-                <span className="ml-1.5 font-mono text-text-muted">{isMac ? '⌘N' : 'Ctrl+N'}</span>
+                <span className="ml-1.5 font-mono text-text-muted">Ctrl+N</span>
                 <span
                   className="absolute bottom-full right-3 -mb-px block border-l-[5px] border-r-[5px] border-b-[5px] border-l-transparent border-r-transparent border-b-border"
                   aria-hidden="true"
