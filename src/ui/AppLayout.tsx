@@ -32,9 +32,11 @@ import { OutrunFlash } from './OutrunFlash';
  */
 interface AppLayoutProps {
   onSend: (content: string) => void;
+  /** Called after the user logs in or out of a backend server — refreshes the active storage provider. */
+  onBackendConnectionChange?: () => void;
 }
 
-export function AppLayout({ onSend }: AppLayoutProps) {
+export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps) {
   const {
     conversations,
     activeConversationId,
@@ -222,6 +224,7 @@ export function AppLayout({ onSend }: AppLayoutProps) {
         providerSettingsTriggerRef={providerSettingsTriggerRef}
         isGhostMode={isGhostMode}
         onToggleGhostMode={onToggleGhostMode}
+        onBackendConnectionChange={onBackendConnectionChange}
       />
 
       {/* Provider settings backdrop — covers main content area when the settings drawer is

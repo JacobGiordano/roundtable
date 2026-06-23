@@ -27,7 +27,6 @@
  *   avoids vitest-axe strict-mode type export issue. Violations printed in full.
  */
 
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
