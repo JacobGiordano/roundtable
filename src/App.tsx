@@ -157,6 +157,28 @@ export default function App() {
     setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev));
   }, []);
 
+  // ── Backend connection change (#265) ───────────────────────────────────────
+  // Called by BackendServerPanel (via Sidebar → AppLayout) whenever the user
+  // logs in or out of a self-hosted backend server.
+  //
+  // Two things to refresh:
+  //   1. storageProviderRef.current — useGhostMode holds a direct reference to
+  //      the StorageProvider; updating the ref here ensures ghost-mode promote/
+  //      demote operations use the correct provider (local ↔ server) immediately
+  //      without requiring a page reload.
+  //   2. handleRosterChange() — re-reads getProviderRoster() so the model
+  //      selector reflects any roster changes that took effect with the new
+  //      backend session.
+  //
+  // Note: useConversationStore's internal provider is init-once (a Vault design
+  // constraint). Full conversation-store switching still requires a page reload.
+  // This handler covers the ghost-mode and roster cases; a Vault-side
+  // setProvider() API would be needed to eliminate the reload requirement entirely.
+  const handleBackendConnectionChange = useCallback(() => {
+    storageProviderRef.current = getActiveStorageProvider();
+    handleRosterChange();
+  }, [handleRosterChange]);
+
   // Derive the active conversation from either the persisted store (normal
   // conversations) or the in-memory GhostModeManager (ghost conversations).
   // Ghost conversations are not in store.conversations, so getActiveConversation()
@@ -649,7 +671,7 @@ export default function App() {
         onRosterChange: handleRosterChange,
       }}
     >
-      <AppLayout onSend={handleSend} />
+      <AppLayout onSend={handleSend} onBackendConnectionChange={handleBackendConnectionChange} />
     </RoundtableContext.Provider>
   );
 }
