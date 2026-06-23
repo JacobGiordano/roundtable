@@ -173,7 +173,9 @@ export function CustomThemeImport() {
   const stateContainerRef = useRef<HTMLDivElement>(null);
   const rejectedHeadingRef = useRef<HTMLParagraphElement>(null);
   const appliedHeadingRef = useRef<HTMLParagraphElement>(null);
-  const chooseFileBtnRef = useRef<HTMLButtonElement>(null);
+  // Drop zone is a role="button" div per spec §6 + WCAG nested-interactive constraint.
+  // Ref is on the div element; focus() is called on it for state-transition focus management.
+  const chooseFileBtnRef = useRef<HTMLDivElement>(null);
 
   // ── File processing ─────────────────────────────────────────────────────────
 
@@ -383,14 +385,17 @@ export function CustomThemeImport() {
       />
 
       {/*
-        Visually-hidden live region for screen reader announcements
-        (spec §6 — ARIA Roles and Live Regions). Using aria-live="polite"
-        without role="status" to avoid query conflicts with the TestButton
-        sr-only live region in the existing Ada test suite. aria-atomic="true"
-        ensures the whole announcement text is read together.
+        sr-only status live region for screen reader announcements
+        (spec §6 — ARIA Roles and Live Regions). role="status" has an implicit
+        aria-live="polite" per WAI-ARIA 1.1 — the explicit attribute is omitted
+        here intentionally so the TestButton's <span role="status" aria-live="polite">
+        remains uniquely queryable by Ada's existing test suite. Functionally
+        equivalent: screen readers treat role="status" as polite-live regardless
+        of whether aria-live is present explicitly. aria-atomic="true" ensures the
+        full announcement text is read as a unit.
       */}
       <div
-        aria-live="polite"
+        role="status"
         aria-atomic="true"
         className="sr-only"
       >
@@ -413,44 +418,49 @@ export function CustomThemeImport() {
         {/* ── Idle State ───────────────────────────────────────────────────── */}
         {importState === 'idle' && (
           /*
-           * Drop zone: drag events handled here, but NOT role="button" to avoid
-           * WCAG "nested-interactive" violation — the <button> inside is the sole
-           * interactive element in the tab order. The zone is a visual affordance
-           * only; drag-and-drop semantics don't require role="button" on the wrapper.
+           * Drop zone: role="button" + tabIndex={0} per spec §6 ("Drop Zone")
+           * which requires these when drag-and-drop is implemented. The zone is
+           * the sole interactive element — the "Choose a file" text inside is a
+           * styled <span>, not a <button>, to avoid WCAG "nested-interactive".
+           * Enter/Space on the container opens the file picker (same as click).
+           * Ref forwarded to chooseFileBtnRef for focus management.
            */
           <div
-            aria-label="Drop zone for theme JSON file. Drag a file here or use the button below."
+            ref={chooseFileBtnRef}
+            role="button"
+            tabIndex={0}
+            aria-label="Drop zone for theme JSON file. Activate to open file picker."
+            aria-controls="theme-file-input"
+            onClick={handleChooseFile}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleChooseFile();
+              }
+            }}
             onDrop={handleDropZoneDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDragEnd={handleDragLeave}
             className={[
               'w-full h-[120px] flex flex-col items-center justify-center gap-2',
-              'rounded-md border border-dashed',
+              'rounded-md border border-dashed cursor-pointer',
               `transition-colors ${transitionDuration}`,
               isDragOver
                 ? 'bg-hover border-border-strong border-solid'
                 : 'bg-input border-border',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
             ].join(' ')}
           >
             <span className="text-text-muted pointer-events-none">
               <UploadIcon />
             </span>
 
-            {/* "Choose a file" — the sole interactive element in this zone */}
-            <button
-              ref={chooseFileBtnRef}
-              type="button"
-              aria-controls="theme-file-input"
-              onClick={handleChooseFile}
-              className={[
-                'text-[13px] font-medium text-text-secondary bg-transparent border-0 p-0 cursor-pointer',
-                `hover:text-text-primary hover:underline transition-colors ${transitionDuration}`,
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 rounded-sm',
-              ].join(' ')}
-            >
+            {/* "Choose a file" — visual affordance text; interaction is on the container */}
+            <span className="text-[13px] font-medium text-text-secondary pointer-events-none underline">
+
               Choose a file
-            </button>
+            </span>
 
             <p className="text-[12px] font-normal text-text-muted pointer-events-none">
               or drag and drop a JSON file here
