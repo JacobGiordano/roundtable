@@ -48,6 +48,11 @@ vi.mock('@/auth', () => ({
   // #151: BUILTIN_MODEL_IDS now consumed by ProviderSettingsPanel — include in mock
   // so the component can call [...BUILTIN_MODEL_IDS].filter() without error.
   BUILTIN_MODEL_IDS: new Set(['claude', 'gpt-5.5', 'gemini', 'grok', 'deepseek', 'mistral']),
+  // #169: CustomThemeImport (Appearance section) calls these on mount.
+  // Default to builtin so the component initializes in Idle state.
+  getActiveTheme: vi.fn(() => ({ source: 'builtin', name: 'slate' })),
+  validateCustomTheme: vi.fn(() => ({ valid: true, errors: [] })),
+  saveCustomTheme: vi.fn(),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────

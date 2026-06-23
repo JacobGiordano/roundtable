@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { BuiltInModelId, ProviderConfig, BuiltInProviderConfig } from '@/types';
+// CustomThemeImport — Appearance section (Section 4) added per #169.
+import { CustomThemeImport } from './CustomThemeImport';
 // Gate cross-agent exception: provider roster CRUD functions and credential
 // helpers are pure Gate persistence utilities — permitted per CLAUDE.md.
 // BUILTIN_MODEL_IDS: Gate's canonical ReadonlySet<BuiltInModelId> — imported
@@ -1602,8 +1604,23 @@ export function ProviderSettingsPanel({
         </section>
 
         {/* ── Section 3: Add Custom Endpoint ───────────────────────────── */}
-        <section className="border-t border-border pt-8">
+        <section className="border-t border-border pt-8 mb-8">
           <AddCustomForm onAdded={handleCustomAdded} />
+        </section>
+
+        {/* ── Section 4: Appearance ─────────────────────────────────────── */}
+        {/* Custom theme import — spec: /_design/specs/custom-theme-import.md */}
+        <section className="border-t border-border pt-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
+            Appearance
+          </p>
+          <p className="text-[12px] font-medium text-text-secondary mb-2">
+            Custom theme
+          </p>
+          <p className="text-[12px] font-normal text-text-muted mb-4">
+            Import a theme JSON file conforming to the Roundtable token schema.
+          </p>
+          <CustomThemeImport />
         </section>
       </div>
     </div>

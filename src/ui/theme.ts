@@ -96,8 +96,14 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--timing-slow',    theme.timing.slow);
 
   // Prose markdown tokens (Luma spec: _design/specs/markdown.md)
-  root.style.setProperty('--prose-link',       theme.prose.link);
-  root.style.setProperty('--prose-link-hover', theme.prose['link-hover']);
+  // All 7 prose fields wired here per #169 (previously only link and link-hover were set).
+  root.style.setProperty('--prose-code-bg',           theme.prose['code-bg']);
+  root.style.setProperty('--prose-code-border',       theme.prose['code-border']);
+  root.style.setProperty('--prose-code-text',         theme.prose['code-text']);
+  root.style.setProperty('--prose-block-bg',          theme.prose['block-bg']);
+  root.style.setProperty('--prose-link',              theme.prose.link);
+  root.style.setProperty('--prose-link-hover',        theme.prose['link-hover']);
+  root.style.setProperty('--prose-blockquote-border', theme.prose['blockquote-border']);
 
   // Data attributes for CSS selectors that need mode-awareness
   root.setAttribute('data-theme', theme.name.toLowerCase());
