@@ -61,3 +61,5 @@ export {
 } from './providerRoster';
 export { testCredential, testCustomCredential } from './credentialTest';
 export type { TestResult } from './credentialTest';
+export { getBackendConfig, saveBackendConfig, clearBackendConfig } from './backendConfig';
+export type { BackendConfig } from './backendConfig';
