@@ -133,21 +133,11 @@ test.describe('AccentColorPicker — real browser focus trap (WCAG 2.1.2, #180)'
     expect(isInsideDialog, 'focus should land inside AccentColorPicker dialog on open').toBe(true);
   });
 
-  test.fail('Tab key cycles through all elements without escaping the dialog — KNOWN BUG #262', async ({ page }) => {
-    // BUG: Tab immediately escapes the AccentColorPicker dialog on press 1.
-    // Root cause: AccentColorPicker's focus trap is an onKeyDown handler on the dialog div.
-    // It only wraps at boundaries (first ↔ last). For non-boundary presses, Tab moves
-    // natively — but the ModelSelectorPanel has a document-level keydown trap that
-    // intercepts Tab before it can settle within the AccentColorPicker. The two traps
-    // conflict: MSP's document listener fires first and redirects focus to the MSP's
-    // first focusable element (Claude chip), bypassing the AccentColorPicker entirely.
-    //
-    // Expected fix (for Aria): the AccentColorPicker trap should use document.addEventListener
-    // with stopPropagation, or the MSP trap should detect when AccentColorPicker is open
-    // and yield control to it. Filed as GitHub issue #262.
-    //
-    // This test.fail() documents the gap — it will start PASSING once the bug is fixed,
-    // at which point test.fail() must be removed.
+  test('Tab key cycles through all elements without escaping the dialog — fixed in #262', async ({ page }) => {
+    // Fix (#262): AccentColorPicker now uses a document capture-phase keydown listener
+    // that calls stopPropagation() on all Tab presses while focus is inside the dialog.
+    // This prevents ModelSelectorPanel's bubble-phase document listener from intercepting
+    // Tab and redirecting focus to MSP's first element.
     await openAccentColorPicker(page);
 
     const dialogSelector = '[role="dialog"][aria-label*="Accent color picker"]';
@@ -166,9 +156,9 @@ test.describe('AccentColorPicker — real browser focus trap (WCAG 2.1.2, #180)'
     }
   });
 
-  test.fail('Shift+Tab from first focusable element wraps to last (no escape) — KNOWN BUG #262', async ({ page }) => {
-    // BUG: same root cause as the Tab test above. See comment there.
-    // This test.fail() documents the gap and will start PASSING once #262 is fixed.
+  test('Shift+Tab from first focusable element wraps to last (no escape) — fixed in #262', async ({ page }) => {
+    // Fix (#262): same capture-phase listener fix. Shift+Tab from the first element
+    // now wraps to last within the dialog rather than escaping to MSP.
     await openAccentColorPicker(page);
 
     const dialogSelector = '[role="dialog"][aria-label*="Accent color picker"]';
