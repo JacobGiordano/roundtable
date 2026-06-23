@@ -114,14 +114,21 @@ export function ModelSelectorPanel({
   // (WCAG 2.4.3 Focus Order: focus must return to the element that opened the panel).
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  // Ref that mirrors openPickerModelId for the focus trap closure.
+  // Using a ref avoids re-registering the document listener on every picker open/close.
+  const openPickerModelIdRef = useRef<ModelId | null>(null);
+
   // Focus trap — WCAG 2.4.11 (Focus Not Obscured) / 2.1.2 (No Keyboard Trap).
   // When the panel is open it slides up and overlays the MessageThread area.
   // Without a trap, Tab can reach thread elements (copy/edit buttons on
   // MessageBubble) that are entirely covered by the panel. This effect intercepts
   // Tab and Shift+Tab to keep focus cycling within the panel while it is open.
-  // The AccentColorPicker has its own independent focus trap (it renders in a
-  // fixed portal and uses aria-modal) — we exclude elements inside it here via
-  // the aria-hidden filter to avoid double-trapping.
+  //
+  // AccentColorPicker exclusion (#262): ACP renders as a sibling of #model-selector-panel
+  // (not a DOM descendant), so panel.contains(activeElement) returns false when focus is
+  // on an ACP swatch. MSP's trap previously misidentified ACP-focus as "escaped" and
+  // redirected to the last MSP element. Fix: skip all Tab handling when ACP is open —
+  // ACP manages its own focus trap via its own document listener.
   useEffect(() => {
     if (!isOpen) return;
     const panel = panelRef.current;
@@ -140,6 +147,12 @@ export function ModelSelectorPanel({
         return;
       }
       if (e.key !== 'Tab') return;
+      // #262: when AccentColorPicker is open, ACP owns the focus trap.
+      // MSP must yield — ACP is a DOM sibling of #model-selector-panel so
+      // panel.contains(activeElement) returns false when focus is in ACP,
+      // causing MSP to incorrectly "rescue" focus to its last element.
+      if (openPickerModelIdRef.current !== null) return;
+
       const focusable = Array.from(
         panel!.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -175,6 +188,7 @@ export function ModelSelectorPanel({
     (modelId: ModelId, anchorRect: DOMRect) => {
       // Capture focus owner before the picker mounts and steals focus.
       pickerTriggerRef.current = document.activeElement;
+      openPickerModelIdRef.current = modelId; // keep ref in sync for focus trap (#262)
       setOpenPickerModelId(modelId);
       setPickerAnchorRect(anchorRect);
     },
@@ -182,6 +196,7 @@ export function ModelSelectorPanel({
   );
 
   const handleCloseColorPicker = useCallback(() => {
+    openPickerModelIdRef.current = null; // keep ref in sync for focus trap (#262)
     setOpenPickerModelId(null);
     setPickerAnchorRect(null);
     // Refresh the accent color snapshot so pill icons reflect any changes.
@@ -201,6 +216,7 @@ export function ModelSelectorPanel({
       setIsClosing(true);
       setIsOpen(false);
       // Close any open color picker when the panel closes.
+      openPickerModelIdRef.current = null; // keep ref in sync for focus trap (#262)
       setOpenPickerModelId(null);
       setPickerAnchorRect(null);
     } else {
@@ -223,6 +239,7 @@ export function ModelSelectorPanel({
     if (isOpen) {
       setIsClosing(true);
       setIsOpen(false);
+      openPickerModelIdRef.current = null; // keep ref in sync for focus trap (#262)
       setOpenPickerModelId(null);
       setPickerAnchorRect(null);
     }

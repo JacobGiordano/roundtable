@@ -203,15 +203,63 @@ export function AccentColorPicker({
   // Close on click outside — shared hook (#149).
   useClickOutside([popoverRef], onClose);
 
-  // Close on Escape.
+  // ── Focus trap + Escape — document capture listener (WCAG 2.1.2, fix for #262) ──
+  // ACP renders inside #model-selector-panel, which owns a document bubble-phase
+  // keydown listener for its own Tab trap. Because bubble-phase listeners fire in
+  // registration order, MSP's listener fires BEFORE ACP's onKeyDown handler, so
+  // every Tab press is intercepted by MSP and redirected to its first element.
+  //
+  // Fix: register in the CAPTURE phase (third arg true). Capture fires before
+  // bubble, so ACP always wins over MSP's listener. For every Tab while focus is
+  // inside the popover: call stopPropagation() (block MSP) + preventDefault()
+  // (block native Tab, which would also escape the dialog) and manually advance
+  // focus to the next/previous element within the dialog.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const popover = popoverRef.current;
+      if (!popover) return;
+      // Only intercept if focus is currently inside the popover.
+      if (!popover.contains(document.activeElement)) return;
+
+      const focusable = Array.from(
+        popover.querySelectorAll<HTMLElement>(
+          'button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      // Always stop propagation so MSP's bubble-phase listener never sees this Tab.
+      e.stopPropagation();
+      e.preventDefault();
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+
+      if (e.shiftKey) {
+        // Shift+Tab: move to previous, wrapping from first to last.
+        if (currentIndex <= 0) {
+          last.focus();
+        } else {
+          focusable[currentIndex - 1].focus();
+        }
+      } else {
+        // Tab: move to next, wrapping from last to first.
+        if (currentIndex === -1 || currentIndex >= focusable.length - 1) {
+          first.focus();
+        } else {
+          focusable[currentIndex + 1].focus();
+        }
       }
     }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    // Capture phase: fires before any bubble-phase listener (including MSP's trap).
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
   // ── Save helpers ─────────────────────────────────────────────────────────
@@ -319,30 +367,6 @@ export function AccentColorPicker({
     onClose();
   }, [modelId, onClose]);
 
-  // ── Focus trap (WCAG 2.1.2, issue #79) ───────────────────────────────────
-  // Wraps Tab / Shift+Tab within the dialog's focusable elements.
-  // Excludes elements with tabindex="-1" (the hidden <input type="color">).
-
-  const handleDialogKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (e.key !== 'Tab') return;
-      const focusable = popoverRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"])',
-      );
-      if (!focusable || focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    },
-    [],
-  );
-
   // ── Check whether a custom color is stored for this model ─────────────────
 
   // We check getModelAccentColors() at render time to know if Reset should show.
@@ -364,7 +388,6 @@ export function AccentColorPicker({
       role="dialog"
       aria-label={`Accent color picker for ${modelName}`}
       aria-modal="true"
-      onKeyDown={handleDialogKeyDown}
       style={popoverStyle}
       className="bg-card border border-border rounded-[12px] shadow-lg overflow-hidden"
     >
