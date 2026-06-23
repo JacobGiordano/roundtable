@@ -91,14 +91,17 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [usernameError, setUsernameError] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
 
   // ── Login lifecycle ────────────────────────────────────────────────────────
   type LoginState = 'idle' | 'loading' | 'error';
   const [loginState, setLoginState] = useState<LoginState>('idle');
   const [loginError, setLoginError] = useState<string>('');
 
-  // Focus target for post-error keyboard recovery.
+  // Focus targets for validation error recovery.
   const usernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   // ── URL validation ─────────────────────────────────────────────────────────
   const validateUrl = useCallback((url: string): boolean => {
@@ -128,8 +131,26 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
   // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = useCallback(async () => {
     if (!validateUrl(serverUrl)) return;
-    if (!username.trim()) return;
-    if (!password) return;
+
+    // Validate username and password before hitting the network.
+    const usernameMissing = !username.trim();
+    const passwordMissing = !password;
+
+    if (usernameMissing) setUsernameError('Username is required.');
+    if (passwordMissing) setPasswordError('Password is required.');
+
+    if (usernameMissing) {
+      requestAnimationFrame(() => {
+        usernameInputRef.current?.focus();
+      });
+      return;
+    }
+    if (passwordMissing) {
+      requestAnimationFrame(() => {
+        passwordInputRef.current?.focus();
+      });
+      return;
+    }
 
     setLoginState('loading');
     setLoginError('');
@@ -138,9 +159,11 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
       await login(serverUrl.trim(), username.trim(), password);
       setIsConnected(true);
       setLoginState('idle');
-      // Clear sensitive fields on success.
+      // Clear sensitive fields and any validation errors on success.
       setUsername('');
       setPassword('');
+      setUsernameError('');
+      setPasswordError('');
       onConnectionChange?.();
     } catch (err: unknown) {
       setLoginState('error');
@@ -169,6 +192,8 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
     setLoginState('idle');
     setUsername('');
     setPassword('');
+    setUsernameError('');
+    setPasswordError('');
     onConnectionChange?.();
   }, [onConnectionChange]);
 
@@ -288,11 +313,21 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
               id="backend-username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (usernameError) setUsernameError('');
+              }}
               placeholder="Username"
               autoComplete="username"
-              className={[inputBase, 'border-border'].join(' ')}
+              aria-describedby={usernameError ? 'backend-username-error' : undefined}
+              aria-invalid={usernameError ? true : undefined}
+              className={[inputBase, usernameError ? 'border-error' : 'border-border'].join(' ')}
             />
+            {usernameError && (
+              <p id="backend-username-error" role="alert" className="mt-1 text-[11px] text-error">
+                {usernameError}
+              </p>
+            )}
           </div>
 
           {/* Password */}
@@ -305,14 +340,20 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
             </label>
             <div className="relative">
               <input
+                ref={passwordInputRef}
                 id="backend-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (passwordError) setPasswordError('');
+                }}
                 placeholder="Password"
                 autoComplete="current-password"
+                aria-describedby={passwordError ? 'backend-password-error' : undefined}
+                aria-invalid={passwordError ? true : undefined}
                 style={{ paddingRight: '36px' }}
-                className={[inputBase, 'border-border'].join(' ')}
+                className={[inputBase, passwordError ? 'border-error' : 'border-border'].join(' ')}
               />
               <button
                 type="button"
@@ -324,6 +365,11 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
+            {passwordError && (
+              <p id="backend-password-error" role="alert" className="mt-1 text-[11px] text-error">
+                {passwordError}
+              </p>
+            )}
           </div>
 
           {/* Inline auth error */}
