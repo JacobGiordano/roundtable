@@ -1,4 +1,4 @@
-Last updated: 2026-06-22 (ship: #261 — closed-panel inert sweep)
+Last updated: 2026-06-23 (ship: #178 Outrun flash + #180 live keyboard audit)
 
 ## Current phase
 
@@ -6,33 +6,32 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#260 (Aria + Ada)**: WCAG 2.4.3 + 2.1.2 — mobile sidebar closed-state `inert` + Escape to close. `isMobile` reactive state in `Sidebar.tsx`; `inert=""` on `<aside>` when `isMobile && !isMobileOpen`. `mobileMenuTriggerRef` prop threaded from `AppLayout.tsx` hamburger button; Escape handler double-rAFs focus back to trigger. Ada: 15/15. Flint PASS.
+**#178 (Aria + Ada)**: Outrun entry flash. `OutrunFlash` component in `/src/ui/OutrunFlash.tsx` — `createPortal` into `document.body`, `MutationObserver` on `data-theme`. Fires on theme activation, not page load. 300ms total (100ms hold + 200ms fade-out). Reduced-motion guard: observer never registers. Ada: 4/4. Flint PASS.
 
-**#261 (Aria + Ada)**: WCAG 2.4.3 — closed-panel inert sweep. ModelSelectorPanel `<div id="model-selector-panel">` now carries `inert=""` when `!isOpen && !isClosing`, synced with existing `aria-hidden`. ProviderSettingsPanel already had `inert` from a prior session. AddModelButton portal renders `null` when closed — no fix needed. Ada: 521/521 (13 new). Flint PASS.
+**#180 (Ada)**: Live browser Playwright keyboard audit of focus traps. 21 tests, new `playwright.a11y.config.ts`, audit report at `/src/tests/a11y/audit-reports/keyboard-focus-trap-audit-2026-06-22.md`. Found: AccentColorPicker Tab containment broken in Chromium (WCAG 2.1.2 Level A) → filed #262.
 
 ## Open bugs / known issues
 
+- **#262 (Aria)** — AccentColorPicker Tab trap broken in Chromium. ACP renders inside `#model-selector-panel` DOM; MSP's `document.addEventListener` intercepts Tab before ACP's `onKeyDown`. Fix options in #262. Two `test.fail()` guards in `focus-trap-browser.spec.ts`. **Priority — fix before delight work.**
 - **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
-- Closed-panel `inert` pattern: `isClosed ? '' : undefined` spread onto the panel element.
-- `inert` and `aria-hidden` must be controlled by the same boolean expression — cannot drift apart.
-- AddModelButton dropdown uses conditional render (`null` on close) — inert not needed, DOM element absent.
-- Desktop panels that are always-visible are exempt from closed-state inert.
+- #179 approach: **Approach 2 (Aria-only)** — MessageBubble diffs prev/next content, wraps new text in `.chunk-entering` spans. No Atlas change, no types PR.
+- `OutrunFlash` MutationObserver pattern: self-contained, no prop threading, no context.
+- `createPortal` into `document.body` for OutrunFlash: avoids `position: fixed` clipping inside transformed ancestors (sidebar slide animation).
 
 ## Open advisories
 
-- #180 (Ada) — Live browser keyboard audit — now unblocked
-- #179 (Spark/Atlas) — Chunk fade-in wiring
-- #178 (Spark) — Outrun entry flash
+- #179 (Spark/Atlas) — Chunk fade-in wiring (Aria-only approach confirmed)
 - #170 (Gate/Aria) — Backend auth UI
 - #169 (Gate/Luma) — Custom theme validation UI
+- #178 delight timing: 300ms total; if too long, adjust `outrunFlash` keyframe in `index.css`
 
 ## What's next
 
-1. **Ada: #180** — Live browser keyboard audit (now unblocked)
-2. Delight wave: #178 + #179 (Spark → Aria/Atlas)
+1. **Aria: #262** — Fix AccentColorPicker Tab trap (WCAG 2.1.2 Level A) — remove `test.fail()` when fixed
+2. **Aria: #179** — Chunk fade-in wiring (Approach 2, Aria-only)
 
 ## Gotchas
 
@@ -68,3 +67,6 @@ Phase 4+ — Full gate process active.
 - WCAG 2.5.8 blockers resolved in #257; WCAG 2.4.11 focus-not-obscured resolved in #258/#259
 - MSP focus trap Escape handler is in `handleFocusTrap` useEffect listener — cleanup removes it; `triggerRef` on trigger chip for focus return
 - Sidebar closed-inert: `isMobile` reactive state (matchMedia listener) guards `inert` so desktop sidebar is never inert
+- AccentColorPicker Tab trap: ACP renders inside `#model-selector-panel` DOM — MSP document listener intercepts Tab before ACP onKeyDown; fix per #262 options (stopPropagation preferred)
+- Playwright a11y tests: `npx playwright test --config playwright.a11y.config.ts` (separate from main e2e config)
+- `OutrunFlash` MutationObserver: fires only on `data-theme` mutations, not initial value — page-load with Outrun active produces no flash by design
