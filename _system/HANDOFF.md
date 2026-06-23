@@ -1,4 +1,4 @@
-Last updated: 2026-06-23 (ship: #262 — AccentColorPicker Tab trap fix)
+Last updated: 2026-06-23 (ship: #263 tooltip Ctrl+N + #179 chunk fade-in)
 
 ## Current phase
 
@@ -6,7 +6,9 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#262 (Aria + Ada)**: WCAG 2.1.2 — AccentColorPicker Tab trap broken in Chromium. Two-part fix: (1) ACP swapped `onKeyDown` prop for `document.addEventListener('keydown', handler, true)` (capture-phase) with `stopPropagation()` on all Tab presses while ACP open; (2) MSP added `openPickerModelIdRef` (useRef), `handleFocusTrap` yields on Tab when ref non-null. Playwright a11y suite: 21/21 — two former `test.fail()` guards now pass clean. Ada PASS. Flint PASS.
+**#263 (Aria)**: Tooltip and aria-label on new conversation button unconditionally show `Ctrl+N`. Removed `isMac` from `Sidebar.tsx` and `AppLayout.tsx`. Handler (`e.metaKey || e.ctrlKey`) untouched.
+
+**#179 (Aria)**: `MessageContent` in `MessageBubble.tsx` uses `prevLengthRef` (useRef) to diff content length per render. New text wraps in `<span className="chunk-entering">` so the existing `chunkFadeIn` CSS animation fires. `prevLengthRef` resets to 0 via `useEffect` when `isStreaming` becomes false. Aria-only — no Atlas change, no types PR.
 
 ## Open bugs / known issues
 
@@ -14,15 +16,13 @@ Phase 4+ — Full gate process active.
 
 ## Key decisions
 
-- #179 approach: **Approach 2 (Aria-only)** — MessageBubble diffs prev/next content, wraps new text in `.chunk-entering` spans. No Atlas change, no types PR.
-- ACP capture-phase trap pattern: `document.addEventListener('keydown', handler, true)` + `stopPropagation()` on all Tab while open; MSP yields via `openPickerModelIdRef`.
+- #263: `isMac` removed — tooltip always shows `Ctrl+N`; handler still accepts `metaKey || ctrlKey` so Cmd+N continues to work on Mac.
+- #179 pattern: `prevLengthRef` in `MessageContent`; resets on `isStreaming` false; do not convert to useState (avoids re-render per chunk).
 
 ## What's next
 
-1. **Aria: #263** — Tooltip shows Cmd+N but handler uses Ctrl+N (tiny label fix)
-2. **Aria: #179** — Chunk fade-in wiring (Approach 2, Aria-only)
-3. **Gate/Aria: #170** — Backend auth UI
-4. **Gate/Luma: #169** — Custom theme validation UI
+1. **Gate → Aria: #170** — Backend auth UI (Gate first: server URL / login API surface; Aria second: UI; must sequence)
+2. **Gate + Luma: #169** — Custom theme validation UI (Gate: schema validator; Luma: spec; can parallelize)
 
 ## Gotchas
 
@@ -61,3 +61,4 @@ Phase 4+ — Full gate process active.
 - ACP Tab trap: capture-phase document listener + MSP `openPickerModelIdRef` yield — do not revert to bubble-phase onKeyDown
 - Playwright a11y tests: `npx playwright test --config playwright.a11y.config.ts` (separate from main e2e config)
 - `OutrunFlash` MutationObserver: fires only on `data-theme` mutations, not initial value — page-load with Outrun active produces no flash by design
+- `chunk-entering` / `chunkFadeIn`: animation fires on new-text spans only; `prevLengthRef` tracks stable offset — do not convert to useState
