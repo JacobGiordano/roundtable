@@ -25,7 +25,6 @@
 import type {
   SendMessageOptions,
   StreamHandler,
-  StreamChunk,
   Conversation,
   Message,
   ModelId,
@@ -34,6 +33,7 @@ import type {
 import { getProviderRoster } from '@/auth';
 import { PROVIDERS } from './registry';
 import { createCustomProvider } from './generic';
+import { emitErrorChunk, buildModelError } from './openai-sse';
 
 // Internal provider type alias for clarity
 type Provider = typeof PROVIDERS[number];
@@ -143,17 +143,8 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
  */
 function emitMissingProviderErrors(missing: ModelId[], onChunk: StreamHandler): void {
   for (const modelId of missing) {
-    const chunk: StreamChunk = {
-      modelId,
-      content: '',
-      isDone: true,
-      error: {
-        code: 'auth_failure',
-        message: `Provider not found in roster: ${modelId}`,
-        source: 'model' as const,
-      },
-    };
-    onChunk(chunk);
+    const error = buildModelError('auth_failure', `Provider not found in roster: ${modelId}`);
+    emitErrorChunk(modelId, error, onChunk);
   }
 }
 
@@ -207,20 +198,14 @@ async function runProviderIsolated(
     }
     // Unexpected throw from a provider (shouldn't happen given the providers'
     // own try/catch, but we guard here for robustness).
-    const errorChunk: StreamChunk = {
-      modelId: provider.config.modelId as ModelId,
-      content: '',
-      isDone: true,
-      error: {
-        code: 'unknown',
-        message:
-          err instanceof Error
-            ? err.message
-            : `Unexpected error from ${provider.config.name}`,
-        source: 'model' as const,
-      },
-    };
-    onChunk(errorChunk);
+    const modelId = provider.config.modelId as ModelId;
+    const error = buildModelError(
+      'unknown',
+      err instanceof Error
+        ? err.message
+        : `Unexpected error from ${provider.config.name}`,
+    );
+    emitErrorChunk(modelId, error, onChunk);
   }
 }
 
@@ -295,17 +280,8 @@ async function runDirected(
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
   if (!target) {
-    const errorChunk: StreamChunk = {
-      modelId: targetModelId,
-      content: '',
-      isDone: true,
-      error: {
-        code: 'unknown',
-        message: `Model "${targetModelId}" is not active in this conversation.`,
-        source: 'model' as const,
-      },
-    };
-    onChunk(errorChunk);
+    const error = buildModelError('unknown', `Model "${targetModelId}" is not active in this conversation.`);
+    emitErrorChunk(targetModelId, error, onChunk);
     return;
   }
 
@@ -370,17 +346,11 @@ async function runAutoChain(
 
       if (!provider) {
         // Model not in the active provider list (inactive in conversation).
-        const errorChunk: StreamChunk = {
-          modelId: step.modelId,
-          content: '',
-          isDone: true,
-          error: {
-            code: 'unknown',
-            message: `Chain step ${step.stepIndex}: model "${step.modelId}" is not active.`,
-            source: 'model' as const,
-          },
-        };
-        onChunk(errorChunk);
+        const error = buildModelError(
+          'unknown',
+          `Chain step ${step.stepIndex}: model "${step.modelId}" is not active.`,
+        );
+        emitErrorChunk(step.modelId, error, onChunk);
         continue;
       }
 
