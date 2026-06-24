@@ -127,7 +127,7 @@ iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 # These domains serve from large rotating IP pools (AWS CloudFront / ELB), so
 # IPs baked in at container start drift mid-session and block outbound requests.
 nohup bash -c '
-CDN_DOMAINS="hooks.slack.com api.openai.com"
+CDN_DOMAINS="hooks.slack.com api.openai.com api.anthropic.com"
 while true; do
   sleep 1800
   for domain in $CDN_DOMAINS; do
