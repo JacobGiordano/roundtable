@@ -1,4 +1,4 @@
-Last updated: 2026-06-23 (ship: #170 + #169 + #170 empty-field validation fix)
+Last updated: 2026-06-24 (session end — #264 partially fixed, CORS root cause identified)
 
 ## Current phase
 
@@ -6,28 +6,38 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#170 (Gate → Aria)**: Backend server panel. Gate exposed `getBackendConfig`, `saveBackendConfig`, `clearBackendConfig` in `backendConfig.ts`. Aria built `BackendServerPanel.tsx` (URL input, login/logout form, connection status badge) mounted in `Sidebar.tsx`. Ada clean. Follow-up: empty username/password validation added post-dev-server review — inline required-field errors, `aria-invalid`/`aria-describedby`, focus on offending field. Ada clean.
+**#264 (Atlas)**: Three fixes landed on local main — not shipped yet.
+1. `0d147bd` — double-user-message bug in `sendMessage.ts` (was causing HTTP 400 from Anthropic)
+2. `04c750e` — `emitErrorChunk` priming chunk across all 5 provider files (errors now surface in UI)
+3. `56034ea` — `emitErrorChunk` applied to 4 bare error sites in `sendMessage.ts` itself (`emitMissingProviderErrors`, `runProviderIsolated`, `runDirected`, `runAutoChain`)
 
-**#169 (Gate + Luma + Arch + Aria)**: Custom theme import UI. Gate implemented `validateCustomTheme` (themeValidation.ts), `saveCustomTheme` + `getActiveTheme` (theme.ts). Arch expanded `CustomThemeJSON.prose` to all 7 schema fields and added `ActiveTheme` to `/src/types/index.ts`. Luma specced the component (`/_design/specs/custom-theme-import.md`). Aria built `CustomThemeImport.tsx` (4-state machine: Idle/Validating/Rejected/Applied) as Section 4 in `ProviderSettingsPanel.tsx`. Also wired 5 missing prose CSS vars in `applyTheme()`. Ada clean.
+**devcontainer**: `9dcb4eb` — added `api.anthropic.com` to CDN IP refresh daemon in `init-firewall.sh`.
 
 ## Open bugs / known issues
 
-- **ExportButton Escape** — pre-existing test failure, 1 test. WAI-ARIA menu ArrowDown/Up wiring absent.
-- **#264** — No model replies in dev app. Deferred diagnostic; investigate when usage resets.
+- **#264 not fully resolved** — models still non-responsive despite the fixes. Root cause now identified: browser CORS preflight OPTIONS to `api.anthropic.com/v1/messages` returns 400 Bad Request from Anthropic's server. The actual POST never fires. Keys are correct (confirmed via localStorage and curl). This may mean direct browser-to-API calls aren't supported by Anthropic and a backend proxy is needed — Atlas to investigate.
+- **Llama silence** — still radio silence after hard refresh. Not a CORS issue (local endpoint). Separate dispatch/routing bug for Atlas.
+- **ExportButton Escape** — pre-existing test failure. WAI-ARIA menu ArrowDown/Up wiring absent.
+- **#266** — `useStreamingMessages` silently drops done+error chunks with no prior content (Aria)
+- **#267** — `useStreamingMessages` hook-level fix for same (Aria cleanup of Atlas workaround)
+- **#268** — `FakeErrorProvider` mock doesn't use `emitErrorChunk` (Scout)
+- **#269** — Ollama/no-auth custom providers hit `auth_failure` instead of connecting (Gate/Atlas)
 
 ## Key decisions
 
-- `BackendConfig` type lives in `/src/auth/backendConfig.ts` — promote to `/src/types/index.ts` via Arch if a third agent ever needs it directly.
-- `ValidationResult` exported from `@/auth` (same promotion note as above).
-- `ActiveTheme` and expanded `CustomThemeJSON.prose` are in `/src/types/index.ts`.
-- Gate's `customThemeActive` flag is a Gate-internal field in `roundtable:theme` localStorage key — opaque to other agents.
-- `applyTheme()` is in `/src/ui/theme.ts` (Aria's directory) — confirmed by Arch during #169.
+- `emitErrorChunk` is now the required pattern for all error emissions in `/src/models/` — never emit bare `{ isDone: true, error }` without a priming `{ isDone: false, content: '' }` first
+- `filterMessagesForApi` strips empty/error assistant messages before API calls — do not remove
+- `api.anthropic.com` added to CDN refresh daemon alongside `api.openai.com` and `hooks.slack.com`
 
 ## What's next
 
-1. **#264** — Investigate silently non-responsive models in dev app (Atlas/Gate). Low-cost diagnostic; good first issue after usage reset.
-2. **Follow-up (filed)** — `onBackendConnectionChange` not wired in `App.tsx`; live storage provider switching deferred to next page load. File as a new issue.
-3. **Phase transition** — #169 and #170 were the last planned Phase 4+ features. Assess whether Phase 5 kickoff is warranted or if #264 + follow-ups close out Phase 4+.
+1. **#264 CORS investigation (Atlas)** — determine if `api.anthropic.com` browser-direct calls are supported or if a proxy is needed. Check `dangerouslyAllowBrowser` SDK flag, fetch configuration, or whether the backend path is required for Anthropic.
+2. **Llama silence (Atlas)** — separate investigation; local endpoint, different failure mode.
+3. **Flint gate + ship #264** — once both are resolved.
+4. **#266/#267 (Aria)** — error display hook fix; can batch with other Aria work.
+5. **#268 (Scout)** — mock update; small, can batch.
+6. **#269 (Gate/Atlas)** — Ollama no-auth UX; design question before implementation.
+7. **Phase transition** — assess Phase 5 after #264 ships.
 
 ## Gotchas
 
@@ -69,3 +79,6 @@ Phase 4+ — Full gate process active.
 - `chunk-entering` / `chunkFadeIn`: animation fires on new-text spans only; `prevLengthRef` tracks stable offset — do not convert to useState
 - `CustomThemeImport` 4-state machine: rAF deferral before validation so spinner renders; error list scrolls at 17+; `saveCustomTheme` called only on valid path — never on rejection
 - `customThemeActive` in `roundtable:theme` localStorage is Gate-internal; `setActiveTheme(id)` clears it when switching back to built-in
+- **CORS preflight**: browser-direct fetch to `api.anthropic.com/v1/messages` returns 400 on OPTIONS — may need backend proxy; under investigation (#264)
+- **Never rebuild container while agents are running** — kills them mid-session with no commits
+- `emitErrorChunk` is mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages`
