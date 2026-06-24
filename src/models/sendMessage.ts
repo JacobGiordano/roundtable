@@ -476,18 +476,27 @@ export async function sendMessage(
     activeProviders = PROVIDERS;
   }
 
-  // Build message history from the conversation, if provided.
-  // The current user message is appended at the end.
-  const history = conversation?.messages ?? [];
-  const messages: Message[] = [
-    ...history,
-    {
-      id: crypto.randomUUID(),
-      role: 'user' as const,
-      content,
-      timestamp: Date.now(),
-    },
-  ];
+  // Build the message array to send to providers.
+  //
+  // When a conversation is provided, the caller (App.tsx handleSend) has ALREADY
+  // appended the current user message to conversation.messages before calling
+  // sendMessage. Using conversation.messages directly avoids double-appending
+  // the user message, which would produce two consecutive user-role messages at
+  // the tail of the history. Most providers (Anthropic in particular) reject
+  // requests with consecutive same-role messages with a 400 error.
+  //
+  // When no conversation is provided (legacy/test path), build the user message
+  // from `content` here — that is the only source of truth in that path.
+  const messages: Message[] = conversation
+    ? [...conversation.messages]
+    : [
+        {
+          id: crypto.randomUUID(),
+          role: 'user' as const,
+          content,
+          timestamp: Date.now(),
+        },
+      ];
 
   // ── Mode selection ──────────────────────────────────────────────────────────
 
