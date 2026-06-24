@@ -28,11 +28,16 @@ import type {
   ModelProviderConfig,
   Message,
   StreamHandler,
-  StreamChunk,
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
-import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
+import {
+  mapHttpStatusToErrorCode,
+  buildModelError,
+  parseSSEStream,
+  emitErrorChunk,
+  filterMessagesForApi,
+} from './openai-sse';
 
 // ─── SSE event types for the OpenAI Chat Completions streaming format ─────────
 // All four built-in OpenAI-compatible providers share this exact wire format.
@@ -97,15 +102,15 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', this.authErrorMessage);
-      const errChunk: StreamChunk = {
-        modelId: this.config.modelId,
-        content: '',
-        isDone: true,
-        error,
-      };
-      onChunk(errChunk);
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
+
+    // Filter error-only assistant messages from history before sending to the API.
+    // OpenAI-compatible APIs reject requests containing assistant messages with empty
+    // content. Such messages are produced when a previous turn failed before emitting
+    // any text. filterMessagesForApi strips them to prevent corrupt API calls.
+    const filteredMessages = filterMessagesForApi(messages);
 
     // Map Roundtable Message[] to OpenAI-compatible Chat API format.
     // Prepend the system prompt as a system message if provided.
@@ -115,7 +120,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       apiMessages.push({ role: 'system', content: systemPrompt });
     }
 
-    for (const msg of messages) {
+    for (const msg of filteredMessages) {
       apiMessages.push({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
@@ -152,7 +157,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
         'network_error',
         networkErr instanceof Error ? networkErr.message : 'Network request failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -166,7 +171,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
         // ignore JSON parse failure — use status code detail
       }
       const error = buildModelError(code, detail);
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -174,7 +179,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
 
     if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -229,7 +234,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
         'network_error',
         streamErr instanceof Error ? streamErr.message : 'Stream read failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
