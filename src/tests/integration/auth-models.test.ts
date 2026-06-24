@@ -121,14 +121,17 @@ describe('auth + models — missing API key produces auth_failure', () => {
 });
 
 describe('auth + models — done chunk structure on auth failure', () => {
-  it('auth failure chunk is the only chunk emitted (no content chunks)', async () => {
+  it('auth failure emits a priming chunk then a done error chunk', async () => {
     const provider = new ClaudeModelProvider();
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
 
-    // No partial content should be emitted — auth fails before any streaming.
-    expect(acc.contentChunks).toHaveLength(0);
+    // emitErrorChunk emits a non-done priming chunk (isDone:false, content:'') first so
+    // useStreamingMessages creates an accumulator entry, then the done error chunk.
+    // The priming chunk has empty content — it is not a partial model response.
+    expect(acc.contentChunks).toHaveLength(1);
+    expect(acc.contentChunks[0].content).toBe('');
     expect(acc.doneChunks).toHaveLength(1);
   });
 
