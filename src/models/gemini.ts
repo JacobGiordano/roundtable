@@ -16,12 +16,17 @@ import type {
   ModelProviderConfig,
   Message,
   StreamHandler,
-  StreamChunk,
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
 import { MAX_TOKENS_GEMINI } from './constants';
-import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
+import {
+  mapHttpStatusToErrorCode,
+  buildModelError,
+  parseSSEStream,
+  emitErrorChunk,
+  filterMessagesForApi,
+} from './openai-sse';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -134,17 +139,17 @@ export class GeminiModelProvider implements ModelProvider {
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Google API key is not set. Add it in Settings.');
-      const errChunk: StreamChunk = {
-        modelId: this.config.modelId,
-        content: '',
-        isDone: true,
-        error,
-      };
-      onChunk(errChunk);
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
-    const requestBody = buildGeminiRequest(messages, systemPrompt);
+    // Filter error-only assistant messages from history before sending to the Google API.
+    // The Gemini API rejects requests containing 'model' role turns with empty text parts.
+    // Such messages are produced when a previous turn failed before emitting any content.
+    // filterMessagesForApi strips them to prevent corrupt API calls.
+    const filteredMessages = filterMessagesForApi(messages);
+
+    const requestBody = buildGeminiRequest(filteredMessages, systemPrompt);
 
     // Google API key is passed as a query parameter (not a header) for the REST API.
     // The key is appended to the URL — never logged, never stored.
@@ -171,7 +176,7 @@ export class GeminiModelProvider implements ModelProvider {
         'network_error',
         networkErr instanceof Error ? networkErr.message : 'Network request failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -185,7 +190,7 @@ export class GeminiModelProvider implements ModelProvider {
         // ignore JSON parse failure — use status code detail
       }
       const error = buildModelError(code, detail);
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -196,7 +201,7 @@ export class GeminiModelProvider implements ModelProvider {
 
     if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -254,7 +259,7 @@ export class GeminiModelProvider implements ModelProvider {
         'network_error',
         streamErr instanceof Error ? streamErr.message : 'Stream read failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 

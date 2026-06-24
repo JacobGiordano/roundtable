@@ -16,12 +16,17 @@ import type {
   ModelProviderConfig,
   Message,
   StreamHandler,
-  StreamChunk,
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
 import { MAX_TOKENS_CLAUDE } from './constants';
-import { mapHttpStatusToErrorCode, buildModelError, parseSSEStream } from './openai-sse';
+import {
+  mapHttpStatusToErrorCode,
+  buildModelError,
+  parseSSEStream,
+  emitErrorChunk,
+  filterMessagesForApi,
+} from './openai-sse';
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -88,18 +93,18 @@ export class ClaudeModelProvider implements ModelProvider {
 
     if (!apiKey) {
       const error = buildModelError('auth_failure', 'Anthropic API key is not set. Add it in Settings.');
-      const errChunk: StreamChunk = {
-        modelId: this.config.modelId,
-        content: '',
-        isDone: true,
-        error,
-      };
-      onChunk(errChunk);
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
+    // Filter error-only assistant messages from history before sending to Anthropic.
+    // The Anthropic API rejects requests containing assistant messages with empty content.
+    // Such messages are produced when a previous turn failed before emitting any text.
+    // filterMessagesForApi strips them so they do not corrupt future API calls.
+    const filteredMessages = filterMessagesForApi(messages);
+
     // Map Roundtable Message[] to Anthropic API format
-    const anthropicMessages = messages.map((msg) => ({
+    const anthropicMessages = filteredMessages.map((msg) => ({
       role: msg.role as 'user' | 'assistant',
       content: msg.content,
     }));
@@ -137,7 +142,7 @@ export class ClaudeModelProvider implements ModelProvider {
         'network_error',
         networkErr instanceof Error ? networkErr.message : 'Network request failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -151,7 +156,7 @@ export class ClaudeModelProvider implements ModelProvider {
         // ignore JSON parse failure — use status code detail
       }
       const error = buildModelError(code, detail);
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -159,7 +164,7 @@ export class ClaudeModelProvider implements ModelProvider {
 
     if (!response.body) {
       const error = buildModelError('network_error', 'Response body is not readable');
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
@@ -214,7 +219,7 @@ export class ClaudeModelProvider implements ModelProvider {
         'network_error',
         streamErr instanceof Error ? streamErr.message : 'Stream read failed'
       );
-      onChunk({ modelId: this.config.modelId, content: '', isDone: true, error });
+      emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
     }
 
