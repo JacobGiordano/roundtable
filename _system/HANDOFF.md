@@ -1,4 +1,4 @@
-Last updated: 2026-06-24 (session end — #264 partially fixed, CORS root cause identified)
+Last updated: 2026-06-25 (ship — #264, #266, #267, #270 closed)
 
 ## Current phase
 
@@ -6,38 +6,35 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#264 (Atlas)**: Three fixes landed on local main — not shipped yet.
-1. `0d147bd` — double-user-message bug in `sendMessage.ts` (was causing HTTP 400 from Anthropic)
-2. `04c750e` — `emitErrorChunk` priming chunk across all 5 provider files (errors now surface in UI)
-3. `56034ea` — `emitErrorChunk` applied to 4 bare error sites in `sendMessage.ts` itself (`emitMissingProviderErrors`, `runProviderIsolated`, `runDirected`, `runAutoChain`)
+**#264 (Atlas)** — Models now responsive. Three-part fix:
+1. Vite dev proxy routes `/anthropic-proxy` → `https://api.anthropic.com` server-side (bypasses CORS)
+2. `anthropic-dangerous-direct-browser-access: true` header satisfies Anthropic's browser-origin check
+3. `generic.ts` no-auth fix: removed pre-flight auth block silencing Ollama/no-key providers
 
-**devcontainer**: `9dcb4eb` — added `api.anthropic.com` to CDN IP refresh daemon in `init-firewall.sh`.
+**#270 (Aria)** — User messages no longer disappear during streaming. Root cause: `handleMessageComplete` was reading from store before React flushed the `updateConversation` write, permanently dropping the user message. Fix: `sentConversationRef` set synchronously before `sendMessage()` fires.
+
+**#266/#267 (Aria)** — Error-first chunks now surface in UI. `useStreamingMessages` synthesizes a minimal error Message when done+error arrives with no prior accumulator entry.
 
 ## Open bugs / known issues
 
-- **#264 not fully resolved** — models still non-responsive despite the fixes. Root cause now identified: browser CORS preflight OPTIONS to `api.anthropic.com/v1/messages` returns 400 Bad Request from Anthropic's server. The actual POST never fires. Keys are correct (confirmed via localStorage and curl). This may mean direct browser-to-API calls aren't supported by Anthropic and a backend proxy is needed — Atlas to investigate.
-- **Llama silence** — still radio silence after hard refresh. Not a CORS issue (local endpoint). Separate dispatch/routing bug for Atlas.
-- **ExportButton Escape** — pre-existing test failure. WAI-ARIA menu ArrowDown/Up wiring absent.
-- **#266** — `useStreamingMessages` silently drops done+error chunks with no prior content (Aria)
-- **#267** — `useStreamingMessages` hook-level fix for same (Aria cleanup of Atlas workaround)
-- **#268** — `FakeErrorProvider` mock doesn't use `emitErrorChunk` (Scout)
-- **#269** — Ollama/no-auth custom providers hit `auth_failure` instead of connecting (Gate/Atlas)
+- **Gate credential Test button** — still hits `api.anthropic.com` directly (CORS error). Tracked as next Gate issue to open.
+- **Llama silence** — local Ollama endpoint still non-responsive; `generic.ts` no-auth fix was supposed to help but unconfirmed. Needs re-test.
+- **#271** — Live region announces empty snippet for synthesized error messages (Ada advisory, Aria).
+- **ExportButton Escape** — pre-existing WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
-- `emitErrorChunk` is now the required pattern for all error emissions in `/src/models/` — never emit bare `{ isDone: true, error }` without a priming `{ isDone: false, content: '' }` first
-- `filterMessagesForApi` strips empty/error assistant messages before API calls — do not remove
-- `api.anthropic.com` added to CDN refresh daemon alongside `api.openai.com` and `hooks.slack.com`
+- `anthropic-dangerous-direct-browser-access: true` is the required header for all browser-origin Anthropic requests going through the Vite proxy
+- `sentConversationRef` pattern: set synchronously before `sendMessage()`, advance after each `handleMessageComplete` — do not revert to `store.getActiveConversation()` in that callback
+- `emitErrorChunk` + belt-and-suspenders guard in `useStreamingMessages` is the permanent error pattern — both stay
+- Backend proxy at `/api/proxy/anthropic` is the production self-host path; set `VITE_ANTHROPIC_PROXY_URL` in frontend env
 
 ## What's next
 
-1. **#264 CORS investigation (Atlas)** — determine if `api.anthropic.com` browser-direct calls are supported or if a proxy is needed. Check `dangerouslyAllowBrowser` SDK flag, fetch configuration, or whether the backend path is required for Anthropic.
-2. **Llama silence (Atlas)** — separate investigation; local endpoint, different failure mode.
-3. **Flint gate + ship #264** — once both are resolved.
-4. **#266/#267 (Aria)** — error display hook fix; can batch with other Aria work.
-5. **#268 (Scout)** — mock update; small, can batch.
-6. **#269 (Gate/Atlas)** — Ollama no-auth UX; design question before implementation.
-7. **Phase transition** — assess Phase 5 after #264 ships.
+1. **Gate** — Fix credential Test button to use proxy URL (new issue to open)
+2. **Atlas** — Re-test Ollama with the no-auth fix; confirm or file new issue
+3. **#271 (Aria)** — Live region empty snippet; minor, future session
+4. **Phase 5 assessment** — after Ollama confirmed + Test button fixed
 
 ## Gotchas
 
@@ -79,6 +76,7 @@ Phase 4+ — Full gate process active.
 - `chunk-entering` / `chunkFadeIn`: animation fires on new-text spans only; `prevLengthRef` tracks stable offset — do not convert to useState
 - `CustomThemeImport` 4-state machine: rAF deferral before validation so spinner renders; error list scrolls at 17+; `saveCustomTheme` called only on valid path — never on rejection
 - `customThemeActive` in `roundtable:theme` localStorage is Gate-internal; `setActiveTheme(id)` clears it when switching back to built-in
-- **CORS preflight**: browser-direct fetch to `api.anthropic.com/v1/messages` returns 400 on OPTIONS — may need backend proxy; under investigation (#264)
 - **Never rebuild container while agents are running** — kills them mid-session with no commits
-- `emitErrorChunk` is mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages`
+- `emitErrorChunk` is mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages` (belt-and-suspenders guard now in hook too)
+- `sentConversationRef` in App.tsx: set synchronously before `sendMessage()`, read in `handleMessageComplete` — never replace with `store.getActiveConversation()` in that callback
+- Vite dev proxy `/anthropic-proxy` → `https://api.anthropic.com` handles CORS; `anthropic-dangerous-direct-browser-access: true` header required on the fetch
