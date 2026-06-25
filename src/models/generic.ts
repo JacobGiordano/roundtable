@@ -99,20 +99,17 @@ export class GenericOpenAIProvider implements ModelProvider {
     // providers, this resolves to that version rather than the config default.
     const resolvedModelString = selectedVersionId ?? defaultModelString;
 
-    // Retrieve API key at call-time — never store in state
+    // Retrieve API key at call-time — never store in state.
+    //
+    // No pre-flight auth failure check here. If credentialKey is present but no
+    // key is stored, we proceed with no Authorization header and let the endpoint
+    // respond. Local endpoints (Ollama, LM Studio) require no auth — blocking on
+    // a missing key would silence them entirely. Remote endpoints that genuinely
+    // need a key will respond with 401/403, which mapHttpStatusToErrorCode maps
+    // to auth_failure below. This approach correctly handles both cases:
+    //   - No-auth endpoint (Ollama): succeeds without a key.
+    //   - Auth-required endpoint (OpenRouter): server returns 401 → auth_failure error.
     const apiKey = credentialKey ? getCredentials(credentialKey) : undefined;
-
-    // A credentialKey is present but the key value is missing — auth failure.
-    // If credentialKey is absent the endpoint requires no authentication
-    // (e.g. local Ollama) — skip the auth check and send no Authorization header.
-    if (credentialKey && !apiKey) {
-      const error = buildModelError(
-        'auth_failure',
-        `API key for "${this.config.name}" is not set. Add it in Settings.`
-      );
-      emitErrorChunk(modelId, error, onChunk);
-      return {};
-    }
 
     // Filter error-only assistant messages from history before sending to the API.
     // OpenAI-compatible endpoints reject requests containing assistant messages with

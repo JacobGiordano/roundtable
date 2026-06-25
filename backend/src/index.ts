@@ -22,6 +22,7 @@ import { authRouter } from './auth';
 import { conversationsRouter } from './conversations';
 import { exportRouter } from './export';
 import { requireAuth } from './auth';
+import { anthropicProxyRouter } from './anthropicProxy';
 
 // ─── Startup checks ───────────────────────────────────────────────────────────
 
@@ -53,6 +54,13 @@ const corsOrigin = process.env.CORS_ORIGIN ?? '*';
 app.use(cors({ origin: corsOrigin }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+// Anthropic proxy — server-side pass-through for browser clients.
+// Anthropic blocks browser-direct calls (CORS 400). This route forwards
+// POST /api/proxy/anthropic/v1/messages → https://api.anthropic.com/v1/messages.
+// No authentication required on this route — the Anthropic API key is the
+// access credential. See anthropicProxy.ts for security notes.
+app.use('/api/proxy/anthropic', express.json({ limit: '2mb' }), anthropicProxyRouter);
 
 // Auth routes — unprotected.
 app.use('/auth', authRouter);
