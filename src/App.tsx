@@ -284,22 +284,55 @@ export default function App() {
     abortControllerRef.current?.abort();
   }, []);
 
+  // ── In-flight conversation ref (#270 root-cause fix) ─────────────────────
+  // sentConversationRef holds the conversation object that was passed to
+  // updateConversation / saveGhostConversation in handleSend. This ref is the
+  // canonical source of truth for handleMessageComplete — it includes the user
+  // message that was just sent, which React's batched state updates may not yet
+  // have propagated into store.getActiveConversation() when the first streaming
+  // chunk arrives.
+  //
+  // The race: store.updateConversation() calls replaceInState() → setConversations()
+  // (a batched React state update). The Atlas streaming promise resolves almost
+  // immediately (first chunk) before React flushes that state update. So
+  // store.getActiveConversation() reads the *old* conversations array — without
+  // the user message — and handleMessageComplete saves [oldMessages, assistantMsg],
+  // silently dropping the user message.
+  //
+  // Fix: set this ref synchronously in handleSend before the sendMessage() call.
+  // handleMessageComplete reads it instead of store.getActiveConversation(). After
+  // appending each completed assistant message, the ref is updated so parallel-
+  // model completions each start from the correct base (user msg + prior assistants).
+  //
+  // Ghost conversations: getGhostConversation() is already synchronous and correct;
+  // using the ref uniformly avoids divergence between ghost and normal paths.
+  const sentConversationRef = useRef<Conversation | null>(null);
+
   // ── Streaming state (useStreamingMessages hook, #158) ─────────────────────
   // Persistence callback supplied by App so the hook stays agnostic about
   // @/storage, ghost-mode, and conversation-store internals.
   const handleMessageComplete = useCallback(
     (sendingConversationId: string, finalMsg: Message) => {
-      // Read the current conversation from whichever backend it lives in.
-      // Must re-check here — another model may have finalized while this one streamed.
-      const currentConv =
-        store.getActiveConversation() ??
+      // Use sentConversationRef as the base — it always contains the user message
+      // because it is set synchronously in handleSend before the first chunk arrives.
+      // Falling back to store.getActiveConversation() here would re-introduce the
+      // race: React's batched state updates for setConversations may not have fired
+      // yet when the first streaming chunk resolves.
+      const baseConv =
+        (sentConversationRef.current?.id === sendingConversationId
+          ? sentConversationRef.current
+          : null) ??
         getGhostConversation(sendingConversationId);
-      if (currentConv && currentConv.id === sendingConversationId) {
+
+      if (baseConv && baseConv.id === sendingConversationId) {
         const updated: Conversation = {
-          ...currentConv,
-          messages: [...currentConv.messages, finalMsg],
+          ...baseConv,
+          messages: [...baseConv.messages, finalMsg],
           updatedAt: Date.now(),
         };
+        // Advance the ref so the next parallel model completion uses the correct
+        // base (includes this assistant message too, not just the user message).
+        sentConversationRef.current = updated;
         if (updated.isGhost) {
           saveGhostConversation(updated);
         } else {
@@ -402,6 +435,12 @@ export default function App() {
     } else {
       void store.updateConversation(updatedConversation);
     }
+
+    // Set the in-flight ref synchronously so handleMessageComplete has an
+    // immediately-correct base that includes the user message (#270 root-cause fix).
+    // This must happen before sendMessage() is called so the ref is ready by the
+    // time the first streaming chunk arrives and handleMessageComplete fires.
+    sentConversationRef.current = updatedConversation;
 
     // Clear the pending target after send — returns to broadcast mode.
     setPendingTargetModelId(null);
