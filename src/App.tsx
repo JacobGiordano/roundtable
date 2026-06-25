@@ -179,6 +179,19 @@ export default function App() {
     handleRosterChange();
   }, [handleRosterChange]);
 
+  // ── Pending user message (#270) ───────────────────────────────────────────
+  // Tracks a user message that has been sent but whose store update may not yet
+  // have propagated through the async persistence path. Without this, the user
+  // message disappears from the thread the moment streaming begins — because the
+  // first streaming chunk triggers a re-render before replaceInState() fires.
+  //
+  // Keyed by conversationId so switching conversations never shows a stale pending
+  // message. Cleared in the render path once the persisted messages array includes
+  // the pending message ID (meaning the store update landed).
+  const [pendingUserMessages, setPendingUserMessages] = useState<
+    Map<string, Message>
+  >(new Map());
+
   // Derive the active conversation from either the persisted store (normal
   // conversations) or the in-memory GhostModeManager (ghost conversations).
   // Ghost conversations are not in store.conversations, so getActiveConversation()
@@ -186,7 +199,41 @@ export default function App() {
   const activeConversation =
     store.getActiveConversation() ??
     (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
-  const messages = activeConversation?.messages ?? [];
+  // useMemo so the array reference is stable when contents are unchanged.
+  // This prevents the pendingUserMessages cleanup effect from re-running on every
+  // render — it should only run when the persisted messages actually change.
+  const persistedMessages = useMemo(() => activeConversation?.messages ?? [], [activeConversation?.messages]);
+
+  // Merge pending user message into the messages array if it isn't yet in the
+  // persisted list. Once the store update lands, the pending entry is dropped
+  // automatically because its ID already appears in persistedMessages.
+  const pendingMsg = store.activeConversationId
+    ? pendingUserMessages.get(store.activeConversationId)
+    : undefined;
+  const messages =
+    pendingMsg && !persistedMessages.some((m) => m.id === pendingMsg.id)
+      ? [...persistedMessages, pendingMsg]
+      : persistedMessages;
+
+  // Clean up stale pending entries after the store catches up (message ID found
+  // in persistedMessages). useEffect defers the cleanup until after paint so the
+  // render path above can still use the pendingMsg on that same render cycle.
+  // The effect fires whenever persistedMessages identity changes (i.e. after every
+  // store update) or the active conversation switches.
+  useEffect(() => {
+    if (!store.activeConversationId) return;
+    const convId = store.activeConversationId;
+    const pending = pendingUserMessages.get(convId);
+    if (!pending) return;
+    // If the pending message is now in the persisted list, remove the Map entry.
+    if (persistedMessages.some((m) => m.id === pending.id)) {
+      setPendingUserMessages((prev) => {
+        const next = new Map(prev);
+        next.delete(convId);
+        return next;
+      });
+    }
+  }, [persistedMessages, store.activeConversationId, pendingUserMessages]);
 
   // Derive active models from the shared models array
   const activeModels = models.filter((m) => m.isActive);
@@ -310,6 +357,14 @@ export default function App() {
 
       // 4. Clear edit state before persisting so UI snaps to normal mode immediately
       setEditingMessage(null);
+
+      // #270: Register the edited user message as pending so it stays visible
+      // while the async store update propagates. Same pattern as normal send path.
+      setPendingUserMessages((prev) => {
+        const next = new Map(prev);
+        next.set(conversationSnapshot.id, editedUserMessage);
+        return next;
+      });
     } else {
       // ── Normal send path ───────────────────────────────────────────────────
       const userMessage: Message = {
@@ -327,6 +382,15 @@ export default function App() {
         messages: [...conversationSnapshot.messages, userMessage],
         updatedAt: Date.now(),
       };
+
+      // #270: Register the user message as pending immediately so it stays
+      // visible in the thread even before the async store update lands.
+      // Cleared automatically in the render path once the store catches up.
+      setPendingUserMessages((prev) => {
+        const next = new Map(prev);
+        next.set(conversationSnapshot.id, userMessage);
+        return next;
+      });
     }
 
     // Persist the updated conversation to storage. updateConversation handles
