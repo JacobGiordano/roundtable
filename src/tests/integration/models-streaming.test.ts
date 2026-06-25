@@ -280,13 +280,19 @@ describe('chunk accumulation — FakeStreamingProvider (routing invariants)', ()
     expect(acc.textFor('gpt-5.5')).toBe('The answer is 42');
   });
 
-  it('FakeErrorProvider emits exactly one done chunk with the specified error', async () => {
+  it('FakeErrorProvider emits a priming non-done chunk then a done chunk with the specified error', async () => {
+    // emitErrorChunk (used by all real providers) always emits a priming non-done
+    // chunk before the done+error chunk. This creates the accumulator entry in
+    // useStreamingMessages so the error is not silently dropped by the
+    // belt-and-suspenders guard. FakeErrorProvider must match this behavior.
     const provider = new FakeErrorProvider('claude', 'rate_limit', 'Too many requests');
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage([], undefined, acc.onChunk);
 
-    expect(acc.contentChunks).toHaveLength(0);
+    // One priming non-done chunk (empty content) then one done+error chunk.
+    expect(acc.contentChunks).toHaveLength(1);
+    expect(acc.contentChunks[0].content).toBe('');
     expect(acc.doneChunks).toHaveLength(1);
 
     const error = acc.errorFor('claude');

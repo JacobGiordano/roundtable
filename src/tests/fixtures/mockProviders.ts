@@ -20,6 +20,7 @@ import type {
   ModelId,
   ModelErrorCode,
 } from '@/types/index';
+import { emitErrorChunk, buildModelError } from '@/models/openai-sse';
 
 // ─── Fake streaming provider ──────────────────────────────────────────────────
 
@@ -107,16 +108,12 @@ export class FakeErrorProvider implements ModelProvider {
     _systemPrompt: string | undefined,
     onChunk: StreamHandler,
   ): Promise<{ tokenUsage?: TokenUsage }> {
-    onChunk({
-      modelId: this.config.modelId,
-      content: '',
-      isDone: true,
-      error: {
-        code: this._errorCode,
-        message: this._errorMessage,
-        source: 'model' as const,
-      },
-    });
+    // Use emitErrorChunk so this mock matches real provider behavior exactly.
+    // emitErrorChunk emits a priming non-done chunk first (creating the accumulator
+    // entry in useStreamingMessages) then the done+error chunk. Bare done+error
+    // chunks without a prior non-done chunk are silently dropped by the belt-and-
+    // suspenders guard in useStreamingMessages.
+    emitErrorChunk(this.config.modelId, buildModelError(this._errorCode, this._errorMessage), onChunk);
     return {};
   }
 }
