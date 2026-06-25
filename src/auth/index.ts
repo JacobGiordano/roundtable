@@ -46,6 +46,11 @@ export {
   SIDEBAR_WIDTH_MAX,
 } from './sidebarWidth';
 export {
+  getSidebarOpen,
+  setSidebarOpen,
+  clearSidebarOpen,
+} from './sidebarOpen';
+export {
   getModelVersions,
   getModelVersion,
   setModelVersion,
