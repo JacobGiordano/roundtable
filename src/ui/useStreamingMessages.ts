@@ -99,7 +99,7 @@ export function useStreamingMessages({
                 id: `stream-${sendingConversationId}-${chunk.modelId}-${Date.now()}`,
                 role: 'assistant',
                 modelId: chunk.modelId,
-                content: '',
+                content: 'Error',
                 timestamp: Date.now(),
                 isStreaming: false,
                 error: chunk.error,
