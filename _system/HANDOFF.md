@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #275, #276, #278 closed)
+Last updated: 2026-06-25 (ship — #281 closed)
 
 ## Current phase
 
@@ -6,38 +6,33 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#275 (Aria/Ada)** — Closed. Custom provider `accentColor` now reaches `MessageBubble` via `rosterToModelConfigs()` → `ModelConfig.color` → context → prop → `resolveAccentCssColor()`. Applied to border, directed-to label, and reply button color sites.
-
-**#276 (Aria/Ada)** — Closed. Four dark themes (slate, midnight, ash, ember) lightened `text.muted` to clear 4.5:1 on the `interactive.hover` surface. Linen advisory (4.44:1) filed as #277 — pre-existing, deferred.
-
-**#278 (Aria)** — Closed. `rosterToModelConfigs()` now merges fresh `name`/`color` from the updated roster into the existing `ModelConfig` entry (preserving `isActive`, `systemPrompt`). Edit → close panel → real-time update in `MessageBubble` without page reload.
-
-Final merge: `5045ed1` (Flint caught a missing `ModelId` import; fixed before push).
+**#281 (Aria/Ada/Flint)** — Closed. ExportButton now implements the full WAI-ARIA Menu Button keyboard contract. Root cause was a bubble-phase `onKeyDown` on the menu div that never fired when focus was on the trigger during the double-rAF window. Replaced with a document-level capture listener. ArrowDown/ArrowUp wrap correctly; Escape returns focus to trigger; `handleSelect` uses `closeAndReturn()` (Ada caught bare `setIsOpen(false)` as a WCAG 2.4.3 blocker — focus was dropping to body after keyboard selection).
 
 ## Open bugs / known issues
 
 - **#277** — Linen `text.muted` on `interactive.hover`: 4.44:1, just below 4.5:1 threshold. Advisory; filed.
 - **#279 (Luma→Aria)** — User message bubble visual identity spec. `_design/specs/user-bubble-identity.md` was left untracked; Luma needs to commit that spec before Aria implements.
-- **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up wiring absent. Pre-existing; no GitHub issue yet — file before starting.
 
 ## Key decisions
 
 - `rosterToModelConfigs()` merges display metadata (`name`, `color`) over existing `ModelConfig` on every roster change — preserves runtime state.
 - `resolveAccentCssColor()` returns hex strings as-is and wraps CSS token suffixes in `var(--)`. Do not change this logic.
 - Linen contrast advisory (#277) is `it.fails()` in the contrast test suite — intentional, not a broken test.
+- ExportButton: document-level capture listener (not bubble-phase onKeyDown) for menu keyboard nav — same rationale as AddModelButton.
+- ExportButton: `handleSelect` must call `closeAndReturn()` (not bare `setIsOpen(false)`) so focus returns to trigger on keyboard selection.
 
 ## What's next
 
 1. **#279 (Luma)** — Commit `_design/specs/user-bubble-identity.md` and finalize the spec, then hand to Aria
 2. **#280 (Aria/Gate)** — Persistent sidebar open/close toggle on desktop
-3. **ExportButton Escape** — File issue, then Aria
-4. **Phase 5 assessment** — after #279/#280 land
+3. **Phase 5 assessment** — after #279/#280 land
 
 ## Gotchas
 
 - CI uses `npm run test:run` — `npm test` is watch mode and hangs
 - `ring-focus` = focus ring token; `ring-ring` does NOT exist
 - `focus-visible:` directly on interactive elements; `focus-within:` on wrapper divs
+- `tabIndex={-1}` elements: `focus:outline-none focus:bg-hover` only — no ring
 - Double-rAF for focus restoration after React unmount; single rAF for conditional mount
 - `inert` attribute: `isClosed ? '' : undefined`
 - `inert` and `aria-hidden` must always be controlled by the same boolean — keep in sync
@@ -51,7 +46,6 @@ Final merge: `5045ed1` (Flint caught a missing `ModelId` import; fixed before pu
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
 - jsdom `DOMException` does not extend `Error` — always duck-type AbortError: `err?.name === 'AbortError'`
 - Vault cache is in `LocalStorageProvider` instance scope — tests that create fresh instances always start cold
-- ExportButton: WAI-ARIA menu pattern requires ArrowDown/Up wiring — pre-existing test failure
 - localStorage migration shims: `rt_key_` / `roundtable_user_preferences` / `rt-ui-sidebar-width` — remove after one release cycle
 - `TestResult` lives in `credentialTest.ts`, exported via `@/auth` index — do not re-export from `/src/types/index.ts`
 - Sub-component directories: sidebar/ and model-selector/ under /src/ui/components/
@@ -81,3 +75,4 @@ Final merge: `5045ed1` (Flint caught a missing `ModelId` import; fixed before pu
 - `credentialTest.ts` `ANTHROPIC_TEST_BASE` must mirror `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback (`VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` → direct)
 - `content: 'Error'` sentinel on synthesized error Messages feeds the live region — do not revert; MessageBubble guards suppress the visual rendering when `hasError && content === 'Error'`
 - `isCustomProviderReady(config)` is the correct readiness check for custom providers — `hasCredential` alone returns false for intentionally keyless providers
+- `focus-trap-browser.spec.ts` in `/src/tests/a11y/keyboard/` is a Playwright spec collected by Vitest due to naming — pre-existing suite-level error, not a real test failure
