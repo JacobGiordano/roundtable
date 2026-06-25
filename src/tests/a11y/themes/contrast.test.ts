@@ -71,7 +71,7 @@ interface ThemeTokens {
 const THEMES: Record<string, ThemeTokens> = {
   slate: {
     bg: '#0F1117', card: '#1A1D26', sidebar: '#13151C', input: '#1F2230',
-    textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#7C84A2' /* #58 fix */,
+    textPrimary: '#E8EAF0', textSecondary: '#A0A8BC', textMuted: '#868EAC' /* #276 fix — was #7C84A2 (#58 fix) */,
     accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#AF5FF8' /* #60 fix */,
     accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#5A82E1' /* #60 fix */,
     accentMistral: '#E0568A', error: '#FF5252' /* #119/#120 fix */, errorBg: '#C53030' /* #119 fix */,
@@ -87,7 +87,7 @@ const THEMES: Record<string, ThemeTokens> = {
   },
   midnight: {
     bg: '#060B18', card: '#0D1525', sidebar: '#080D1E', input: '#111A2E',
-    textPrimary: '#F0F4FF', textSecondary: '#94A3C8', textMuted: '#6B82A5',
+    textPrimary: '#F0F4FF', textSecondary: '#94A3C8', textMuted: '#6F86A9' /* #276 fix — was #6B82A5 */,
     accentClaude: '#FBB034', accentGpt: '#00CDB8', accentGemini: '#B06EFF',
     accentOther: '#FF7A52', accentGrok: '#38B6F0', accentDeepseek: '#4A7FE8',
     accentMistral: '#F05090', error: '#F87171', errorBg: '#B82828' /* #119 fix */,
@@ -95,7 +95,7 @@ const THEMES: Record<string, ThemeTokens> = {
   },
   ash: {
     bg: '#181A1C', card: '#22252A', sidebar: '#1B1D20', input: '#272B31',
-    textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#838D96' /* #58 fix */,
+    textPrimary: '#D8DCDF', textSecondary: '#8E969E', textMuted: '#8C969F' /* #276 fix — was #838D96 (#58 fix) */,
     accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#A278E1' /* #60 fix */,
     accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#648ADC' /* #60 fix */,
     accentMistral: '#DC6294' /* #60 fix */, error: '#FF6060' /* #119/#120 fix */, errorBg: '#C03030' /* #119 fix */,
@@ -103,7 +103,7 @@ const THEMES: Record<string, ThemeTokens> = {
   },
   ember: {
     bg: '#110D09', card: '#1D1712', sidebar: '#140F0A', input: '#231B14',
-    textPrimary: '#EDE5D8', textSecondary: '#B09070', textMuted: '#987C6A' /* #58 fix */,
+    textPrimary: '#EDE5D8', textSecondary: '#B09070', textMuted: '#9E8270' /* #276 fix — was #987C6A (#58 fix) */,
     accentClaude: '#F5A623', accentGpt: '#2DB8A8', accentGemini: '#C080F0',
     accentOther: '#E06840', accentGrok: '#56AEE0', accentDeepseek: '#5080D0',
     accentMistral: '#D85C90', error: '#FF5555' /* #119/#120 fix */, errorBg: '#C83428' /* #119 fix */,
@@ -236,6 +236,52 @@ describe('theme contrast — text-muted on sidebar surface (4.5:1)', () => {
   });
   it('outrun: PASS', () => {
     expect(contrastRatio(THEMES.outrun.textMuted, THEMES.outrun.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// ─── text-muted on interactive.hover (#276 fix) ───────────────────────────────
+// interactive.hover is used as the solid background color on active thread rows
+// in the sidebar. text-muted content (timestamps, token counts, helper copy)
+// appears on these rows. This surface is the most constraining context for
+// text-muted in the 4 dark themes — it was the specific failure target for #276.
+//
+// #276 lightened text.muted in 4 dark themes to pass 4.5:1 on hover:
+//   slate:    #7C84A2 → #868EAC  (was 3.96:1 → now 4.51:1)
+//   midnight: #6B82A5 → #6F86A9  (was 4.31:1 → now 4.55:1)
+//   ash:      #838D96 → #8C969F  (was 4.04:1 → now 4.54:1)
+//   ember:    #987C6A → #9E8270  (was 4.16:1 → now 4.51:1)
+//
+// Pre-existing advisory finding — linen text.muted (#6D6863) on hover (#EDE6DA)
+// computes 4.44:1. This was not addressed in #276 (dark-themes-only scope).
+// Marked it.fails() so the failure is documented and will auto-promote when Luma
+// adjusts the linen hover or muted token. Filed as GitHub issue (see Ada report).
+//
+// chalk (4.54:1) and outrun (6.85:1) pass without modification.
+
+describe('theme contrast — text-muted on interactive.hover (4.5:1)', () => {
+  it('slate: PASS (fixed #276)', () => {
+    expect(contrastRatio(THEMES.slate.textMuted, THEMES.slate.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  // Pre-existing failure — linen hover is a warm near-white (#EDE6DA); text.muted
+  // (#6D6863) computes 4.44:1, just below threshold. Not part of #276 scope.
+  // Filed as advisory finding for Luma to resolve.
+  it.fails('linen: ADVISORY FAIL — text-muted 4.44:1 on hover (pre-existing, not #276)', () => {
+    expect(contrastRatio(THEMES.linen.textMuted, THEMES.linen.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('midnight: PASS (fixed #276)', () => {
+    expect(contrastRatio(THEMES.midnight.textMuted, THEMES.midnight.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ash: PASS (fixed #276)', () => {
+    expect(contrastRatio(THEMES.ash.textMuted, THEMES.ash.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ember: PASS (fixed #276)', () => {
+    expect(contrastRatio(THEMES.ember.textMuted, THEMES.ember.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('chalk: PASS', () => {
+    expect(contrastRatio(THEMES.chalk.textMuted, THEMES.chalk.hover)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('outrun: PASS', () => {
+    expect(contrastRatio(THEMES.outrun.textMuted, THEMES.outrun.hover)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

@@ -10,7 +10,7 @@
   "text": {
     "primary": "#D8DCDF",
     "secondary": "#8E969E",
-    "muted": "#838D96",
+    "muted": "#8C969F",
     "inverse": "#181A1C"
   },
   "borders": {
@@ -78,13 +78,14 @@
   },
   "_a11y": {
     "text.muted": {
-      "fix": "Lightened #7A848D \u2192 #838D96 (+9 per channel).",
+      "fix": "Lightened #838D96 \u2192 #8C969F (+9 per channel). Prior value failed 4.5:1 on hover surface (#2A2E33) at 4.04:1.",
       "ratios": {
-        "on-background-#191C20": "5.01:1 PASS",
-        "on-card-#22252A": "4.55:1 PASS",
-        "on-sidebar-#1B1E22": "4.84:1 PASS"
+        "on-hover-#2A2E33": "4.54:1 PASS",
+        "on-background-#181A1C": "5.80:1 PASS",
+        "on-card-#22252A": "5.11:1 PASS",
+        "on-sidebar-#1B1D20": "5.61:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass"
+      "wcag": "AA 4.5:1 normal text \u2014 all surfaces pass including hover"
     },
     "accents.model-deepseek": {
       "fix": "Lightened #4472C4 \u2192 #648ADC. Prior 3.26:1 on card.",

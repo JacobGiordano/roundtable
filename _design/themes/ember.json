@@ -10,7 +10,7 @@
   "text": {
     "primary": "#EDE5D8",
     "secondary": "#B09070",
-    "muted": "#987C6A",
+    "muted": "#9E8270",
     "inverse": "#110D09"
   },
   "borders": {
@@ -78,13 +78,14 @@
   },
   "_a11y": {
     "text.muted": {
-      "fix": "Lightened #8C7260 → #987C6A (+12/+10/+10 channels). Ember's card is the most constraining surface (near-black #1D1712). Value preserves warm terracotta character.",
+      "fix": "Lightened #987C6A → #9E8270 (+6 per channel). Prior value failed 4.5:1 on hover surface (#26201A) at 4.16:1.",
       "ratios": {
-        "on-background-#110D09": "5.00:1 PASS",
-        "on-card-#1D1712": "4.58:1 PASS",
-        "on-sidebar-#140F0A": "4.92:1 PASS"
+        "on-hover-#26201A": "4.51:1 PASS",
+        "on-background-#110D09": "5.42:1 PASS",
+        "on-card-#1D1712": "4.97:1 PASS",
+        "on-sidebar-#140F0A": "5.33:1 PASS"
       },
-      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+      "wcag": "AA 4.5:1 normal text — all surfaces pass including hover"
     },
     "semantic.error": {
       "fix": "#119/#120 — split token. error brightened #E05050 → #FF5555 for text-on-dark use; error-bg added #C83428 for bg-error button surfaces (white text on top). error-bg carries a slight orange-red tint (#34 in the G channel) to harmonize with Ember's amber accent palette.",

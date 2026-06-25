@@ -10,7 +10,7 @@
   "text": {
     "primary": "#F0F4FF",
     "secondary": "#94A3C8",
-    "muted": "#6B82A5",
+    "muted": "#6F86A9",
     "inverse": "#060B18"
   },
   "borders": {
@@ -77,6 +77,16 @@
     "blockquote-border": "#3A5280"
   },
   "_a11y": {
+    "text.muted": {
+      "fix": "Lightened #6B82A5 → #6F86A9 (+4 per channel). Prior value failed 4.5:1 on hover surface (#121D30) at 4.31:1.",
+      "ratios": {
+        "on-hover-#121D30": "4.55:1 PASS",
+        "on-background-#060B18": "5.29:1 PASS",
+        "on-card-#0D1525": "4.92:1 PASS",
+        "on-sidebar-#080D1E": "5.21:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass including hover"
+    },
     "semantic.error": {
       "fix": "#119 — error-bg added #B82828 for bg-error button surfaces (white text on top). semantic.error #F87171 unchanged — already passes 6.10:1 vs hover #121D30.",
       "ratios": {

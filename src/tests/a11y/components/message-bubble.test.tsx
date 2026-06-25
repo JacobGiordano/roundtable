@@ -506,3 +506,99 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
     expect(copyButton).toBeTruthy();
   });
 });
+
+// ─── Fix #275 — Custom provider hex accent color (WCAG 4.1.2, 1.4.3) ─────────
+//
+// resolveAccentCssColor() was added to handle ModelConfig.color values that are
+// raw hex strings (custom providers) rather than CSS var suffixes (built-ins).
+// Wrapping a hex string in var(--#9C6BCC) produces an invalid CSS declaration
+// and silently dropped the color, causing custom provider bubbles to show no accent.
+//
+// From an accessibility standpoint, the fix is purely cosmetic — the ARIA structure
+// of the three affected elements (border, directed-to label, reply button) is
+// identical regardless of which branch resolveAccentCssColor() takes. These tests
+// confirm that the hex-color path introduces no axe violations and that the
+// directed-to label and reply button retain their accessible names.
+//
+// WCAG criteria:
+//   4.1.2 — Name, Role, Value: interactive elements (reply button) retain accessible names
+//   1.4.3 — Contrast (Minimum): color changes are cosmetic; no contrast regression
+//            introduced (accent colors are pre-audited in contrast.test.ts)
+
+describe('MessageBubble — Fix #275: Custom provider hex color path (WCAG 4.1.2)', () => {
+  const CUSTOM_CONFIG: ModelConfig = {
+    modelId: 'custom-local' as ModelId,
+    name: 'Local LLM',
+    color: '#9C6BCC',   // hex string — exercises the hex branch in resolveAccentCssColor
+    isActive: true,
+  };
+
+  const COMPLETED_CUSTOM_MESSAGE: Message = {
+    id: 'msg-custom-1',
+    role: 'assistant',
+    content: 'Response from a custom provider.',
+    modelId: 'custom-local' as ModelId,
+    timestamp: 1_700_000_010_000,
+    isStreaming: false,
+  };
+
+  const USER_DIRECTED_MESSAGE: Message = {
+    id: 'msg-user-directed',
+    role: 'user',
+    content: 'Hello, Local LLM.',
+    timestamp: 1_700_000_011_000,
+  };
+
+  it('has no axe violations — completed assistant bubble with hex accent color', async () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_CUSTOM_MESSAGE}
+        modelConfig={CUSTOM_CONFIG}
+        onDirectedReply={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('Reply button has accessible name with hex accent color', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_CUSTOM_MESSAGE}
+        modelConfig={CUSTOM_CONFIG}
+        onDirectedReply={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    const replyButton = screen.getByRole('button', { name: /reply to local llm/i });
+    expect(replyButton).toBeTruthy();
+  });
+
+  it('has no axe violations — user message with directed-to hex accent color', async () => {
+    const { container } = render(
+      <MessageBubble
+        message={USER_DIRECTED_MESSAGE}
+        targetModelConfig={CUSTOM_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('directed-to label communicates model name with hex accent color', () => {
+    const { container } = render(
+      <MessageBubble
+        message={USER_DIRECTED_MESSAGE}
+        targetModelConfig={CUSTOM_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // The directed-to label div has aria-label="Directed to Local LLM" regardless
+    // of whether the accent color resolves via CSS var or raw hex.
+    const directedLabel = container.querySelector('[aria-label^="Directed to"]');
+    expect(directedLabel).not.toBeNull();
+    expect(directedLabel?.getAttribute('aria-label')).toBe('Directed to Local LLM');
+  });
+});

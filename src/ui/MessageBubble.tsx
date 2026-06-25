@@ -113,6 +113,22 @@ function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
 }
 
+/**
+ * Resolve an accent color token to a valid CSS color string. (#275)
+ *
+ * Custom providers may store a raw hex string (e.g. "#9C6BCC") in their
+ * `color` field. Built-in providers store a CSS custom property suffix
+ * (e.g. "accent-claude"). Wrapping a hex string in `var(--)` produces an
+ * invalid CSS declaration and silently drops the color. This function handles
+ * both cases:
+ *
+ *   - Hex strings  → returned as-is (valid CSS color value)
+ *   - Token suffix → wrapped in `var(--{token})`
+ */
+function resolveAccentCssColor(token: string): string {
+  return token.startsWith('#') ? token : `var(--${token})`;
+}
+
 // ─── Markdown component renderers ─────────────────────────────────────────────
 
 /**
@@ -397,7 +413,7 @@ export function MessageBubble({
   // Left border color: read from ModelConfig.color (CSS custom property), error overrides.
   // accent-other is only used when modelConfig is genuinely absent/unknown.
   const accentColor = modelConfig?.color ?? 'accent-other';
-  const borderLeftColor = hasError ? 'var(--error)' : `var(--${accentColor})`;
+  const borderLeftColor = hasError ? 'var(--error)' : resolveAccentCssColor(accentColor);
 
   // Only assistant messages from a model show the name header
   const showHeader = message.role === 'assistant' && modelConfig;
@@ -517,7 +533,7 @@ export function MessageBubble({
       {targetModelConfig && message.role === 'user' && (
         <div
           className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
-          style={{ color: `var(--${targetModelConfig.color ?? 'accent-other'})` }}
+          style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other') }}
           aria-label={`Directed to ${targetModelConfig.name}`}
         >
           <span aria-hidden="true">→</span>
@@ -584,7 +600,7 @@ export function MessageBubble({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 'rounded-sm',
               ].join(' ')}
-              style={{ color: `var(--${accentColor})` }}
+              style={{ color: resolveAccentCssColor(accentColor) }}
               aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
             >
               Reply to {modelConfig?.name ?? message.modelId}
