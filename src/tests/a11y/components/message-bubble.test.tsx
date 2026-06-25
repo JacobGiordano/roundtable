@@ -37,7 +37,7 @@ import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
 import { describe, it, expect } from 'vitest';
 import { MessageBubble } from '@/ui/MessageBubble';
-import type { Message, ModelConfig } from '@/types';
+import type { Message, ModelConfig, ModelId } from '@/types';
 
 // ─── Axe assertion helper ────────────────────────────────────────────────────
 // Formats axe violations into a readable string so test failure messages are
