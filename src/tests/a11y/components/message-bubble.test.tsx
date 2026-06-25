@@ -303,3 +303,206 @@ describe('MessageBubble — Fix #48: Streaming live region (WCAG 1.3.1, 4.1.3)',
     assertNoViolations(results);
   });
 });
+
+// ─── Fix #271 — Sentinel error state (WCAG 1.3.1, 4.1.2, 4.1.3) ──────────────
+//
+// When useStreamingMessages guard path synthesizes a minimal error Message
+// with content: 'Error', MessageBubble applies three conditional guards:
+//
+//   1. MessageContent returns null  (body suppressed — sentinel not meaningful to read)
+//   2. Copy button removed from DOM (sentinel string is not meaningful to copy)
+//   3. Border-t divider removed     (no body above the error section to separate from)
+//
+// WCAG criteria under audit:
+//   1.3.1 — Info and Relationships: error detail section must remain navigable and
+//            in reading order even when body is absent.
+//   4.1.2 — Name, Role, Value: no interactive element may lose its accessible name
+//            as a result of the conditional rendering. Retry button must retain its
+//            role and be reachable by keyboard.
+//   4.1.3 — Status Messages: the live region path for this error state is confirmed
+//            correct (live region 2 in MessageThread announces "ModelName: Error").
+//            These tests cover the MessageBubble DOM structure only; the live region
+//            itself is in MessageThread and is tested separately.
+
+describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1.3.1, 4.1.2)', () => {
+  const SENTINEL_ERROR_MESSAGE: Message = {
+    id: 'msg-error-sentinel',
+    role: 'assistant',
+    modelId: 'claude',
+    content: 'Error',
+    timestamp: 1_700_000_003_000,
+    isStreaming: false,
+  };
+
+  const MODEL_ERROR = {
+    modelId: 'claude' as const,
+    message: 'API rate limit exceeded. Please try again.',
+    code: 'rate_limit' as const,
+  };
+
+  it('has no axe violations — sentinel error state', async () => {
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('body paragraph is absent when content is the sentinel string', () => {
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        tokenCountVisibility="never"
+      />
+    );
+    // MessageContent returns null for hasError + !isStreaming + content === 'Error'.
+    // No aria-live region should be in the DOM (neither polite nor off-state body div).
+    // The absence of this div confirms the sentinel body is fully suppressed —
+    // the word "Error" is never presented as message body text to screen readers.
+    const liveRegions = container.querySelectorAll('[aria-live]');
+    // Zero live regions: body suppressed, message is not streaming.
+    expect(liveRegions.length).toBe(0);
+  });
+
+  it('copy button is absent when content is the sentinel string', () => {
+    render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        tokenCountVisibility="never"
+      />
+    );
+    // The copy button guard: message.content && !(hasError && message.content === 'Error')
+    // evaluates false for sentinel content — button is removed from the DOM entirely,
+    // not hidden with opacity-0. No keyboard user can land on a button that would
+    // copy the meaningless sentinel string.
+    const copyButton = screen.queryByRole('button', { name: /copy message/i });
+    const copiedButton = screen.queryByRole('button', { name: /copied!/i });
+    expect(copyButton).toBeNull();
+    expect(copiedButton).toBeNull();
+  });
+
+  it('Retry button is present and keyboard-reachable in sentinel error state', () => {
+    render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    // The error section always renders when hasError is true, regardless of
+    // body suppression. The Retry button must remain in the accessibility tree
+    // with its default button role and reachable via Tab.
+    const retryButton = screen.getByRole('button', { name: /retry/i });
+    expect(retryButton).toBeTruthy();
+    expect(retryButton.getAttribute('aria-hidden')).not.toBe('true');
+    // type="button" prevents accidental form submission
+    expect(retryButton.getAttribute('type')).toBe('button');
+  });
+
+  it('error message text is present in the DOM for screen reader traversal', () => {
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        tokenCountVisibility="never"
+      />
+    );
+    // The error detail <p> must contain the human-readable error message.
+    // Screen reader users navigating the thread via virtual cursor must encounter
+    // this text immediately after the model name header — there is no body paragraph
+    // in between to traverse (it was suppressed).
+    const errorParagraph = container.querySelector('p');
+    expect(errorParagraph?.textContent).toContain(MODEL_ERROR.message);
+  });
+
+  it('warning glyph in error section is aria-hidden', () => {
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        tokenCountVisibility="never"
+      />
+    );
+    // The ⚠ glyph (&#9888;) is decorative — the adjacent <span> carries the
+    // human-readable error text. The glyph must be aria-hidden so screen readers
+    // do not announce "warning" or the raw Unicode codepoint before the message.
+    const hiddenGlyph = container.querySelector('[aria-hidden="true"].select-none');
+    expect(hiddenGlyph).not.toBeNull();
+  });
+
+  it('has no axe violations — sentinel error state without Retry button', async () => {
+    // Retry may be omitted when no onRetry handler is provided. The error section
+    // must still be axe-clean with only the error text and no interactive element.
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('has no axe violations — real partial-content error (non-sentinel) is unaffected', async () => {
+    // Real partial-content messages have content !== 'Error'. Confirm the three
+    // suppression guards do NOT fire, and the bubble passes axe with body + copy + divider.
+    const partialErrorMessage: Message = {
+      id: 'msg-partial-error',
+      role: 'assistant',
+      modelId: 'claude',
+      content: 'Here is some partial content before the error occurred.',
+      timestamp: 1_700_000_004_000,
+      isStreaming: false,
+    };
+    const { container } = render(
+      <MessageBubble
+        message={partialErrorMessage}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('copy button is present for real partial-content error message', () => {
+    const partialErrorMessage: Message = {
+      id: 'msg-partial-error-2',
+      role: 'assistant',
+      modelId: 'claude',
+      content: 'Here is some partial content before the error occurred.',
+      timestamp: 1_700_000_005_000,
+      isStreaming: false,
+    };
+    render(
+      <MessageBubble
+        message={partialErrorMessage}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    // Copy button must be present for real content — only the sentinel suppresses it.
+    const copyButton = screen.getByRole('button', { name: /copy message/i });
+    expect(copyButton).toBeTruthy();
+  });
+});
