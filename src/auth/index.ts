@@ -71,3 +71,8 @@ export { getBackendConfig, saveBackendConfig, clearBackendConfig } from './backe
 export type { BackendConfig } from './backendConfig';
 export { validateCustomTheme } from './themeValidation';
 export type { ValidationResult } from './themeValidation';
+export {
+  getUserAccentColor,
+  setUserAccentColor,
+  clearUserAccentColor,
+} from './userAccentColor';

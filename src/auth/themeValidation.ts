@@ -175,10 +175,12 @@ export function validateCustomTheme(json: unknown): ValidationResult {
   );
 
   // ── accents ─────────────────────────────────────────────────────────────────
+  // 'user' added in #279 — accents.user is now part of Luma's schema and
+  // required in all valid custom theme files. Fail-closed: absent = error.
   validateSection(
     json.accents,
     'accents',
-    ['model-claude', 'model-gpt', 'model-gemini', 'model-other', 'model-grok', 'model-deepseek', 'model-mistral'],
+    ['model-claude', 'model-gpt', 'model-gemini', 'model-other', 'model-grok', 'model-deepseek', 'model-mistral', 'user'],
     isHexColor,
     'a 6-digit hex color',
     errors
