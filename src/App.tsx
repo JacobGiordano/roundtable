@@ -58,8 +58,10 @@ export function rosterToModelConfigs(
   return roster.map((config): ModelConfig => {
     const modelId = config.kind === 'builtin' ? config.modelId : config.id;
     const existing = prevMap.get(modelId);
-    if (existing) return existing;
     if (config.kind === 'builtin') {
+      // Built-in: name and color are static (MODEL_REGISTRY never changes at runtime).
+      // Return the existing ModelConfig unchanged to preserve all runtime state.
+      if (existing) return existing;
       const entry = registryMap.get(config.modelId);
       return {
         modelId: config.modelId,
@@ -71,10 +73,18 @@ export function rosterToModelConfigs(
       };
     } else {
       // Custom provider — no registry entry; use roster display metadata.
+      // Always refresh name and color from the roster so user edits propagate
+      // without a page reload. (#278: the former early-return was silently
+      // discarding color/name edits made to existing providers.) Runtime state
+      // (isActive, systemPrompt) is preserved from the existing ModelConfig.
+      const rosterColor = config.color ?? 'accent-other';
+      if (existing) {
+        return { ...existing, name: config.displayName, color: rosterColor };
+      }
       return {
         modelId: config.id,
         name: config.displayName,
-        color: config.color ?? 'accent-other',
+        color: rosterColor,
         isActive: false,
         systemPrompt: undefined,
         selectedVersionId: undefined,

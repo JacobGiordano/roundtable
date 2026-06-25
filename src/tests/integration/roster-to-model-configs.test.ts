@@ -339,6 +339,63 @@ describe('rosterToModelConfigs — new models start inactive even when prev has 
   });
 });
 
+describe('rosterToModelConfigs — custom provider color/name propagation (#278)', () => {
+  // Regression tests: the former early-return for existing ModelConfigs silently
+  // discarded color and displayName edits made to custom providers. Built-in
+  // providers intentionally still return the exact same object reference.
+
+  it('propagates an updated color to an existing custom provider', () => {
+    const prev: ModelConfig[] = [
+      { modelId: 'local-1', name: 'Local LLM', color: 'accent-other', isActive: true },
+    ];
+    const roster: ProviderRoster = [custom('local-1', 'Local LLM', '#FF5500')];
+    const [result] = rosterToModelConfigs(roster, prev);
+    expect(result.color).toBe('#FF5500');
+  });
+
+  it('propagates a cleared color (absent from roster) back to accent-other', () => {
+    const prev: ModelConfig[] = [
+      { modelId: 'local-1', name: 'Local LLM', color: '#FF5500', isActive: true },
+    ];
+    const roster: ProviderRoster = [custom('local-1', 'Local LLM')]; // no color
+    const [result] = rosterToModelConfigs(roster, prev);
+    expect(result.color).toBe('accent-other');
+  });
+
+  it('propagates an updated displayName to an existing custom provider', () => {
+    const prev: ModelConfig[] = [
+      { modelId: 'local-1', name: 'Old Name', color: 'accent-other', isActive: true },
+    ];
+    const roster: ProviderRoster = [custom('local-1', 'New Name')];
+    const [result] = rosterToModelConfigs(roster, prev);
+    expect(result.name).toBe('New Name');
+  });
+
+  it('preserves isActive for an existing custom provider when color changes', () => {
+    const prev: ModelConfig[] = [
+      { modelId: 'local-1', name: 'Local LLM', color: 'accent-other', isActive: true },
+    ];
+    const roster: ProviderRoster = [custom('local-1', 'Local LLM', '#FF5500')];
+    const [result] = rosterToModelConfigs(roster, prev);
+    expect(result.isActive).toBe(true);
+  });
+
+  it('preserves systemPrompt for an existing custom provider when color changes', () => {
+    const prev: ModelConfig[] = [
+      {
+        modelId: 'local-1',
+        name: 'Local LLM',
+        color: 'accent-other',
+        isActive: false,
+        systemPrompt: 'Be concise.',
+      },
+    ];
+    const roster: ProviderRoster = [custom('local-1', 'Local LLM', '#9966cc')];
+    const [result] = rosterToModelConfigs(roster, prev);
+    expect(result.systemPrompt).toBe('Be concise.');
+  });
+});
+
 describe('rosterToModelConfigs — output ordering', () => {
   it('output order matches roster order', () => {
     const roster: ProviderRoster = [
