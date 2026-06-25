@@ -291,6 +291,16 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
     );
   }
 
+  // When an error is present on a non-streaming message and the content is the
+  // synthesized sentinel 'Error' (set by useStreamingMessages guard path when no
+  // priming chunk created an accumulator entry), suppress the body text entirely.
+  // The error section in MessageBubble already renders the full error detail.
+  // Real partial-content + error messages (where the model streamed real text
+  // before erroring) have non-sentinel content and are NOT suppressed here.
+  if (hasError && !isStreaming && content === 'Error') {
+    return null;
+  }
+
   // Assistant messages: render with react-markdown + rehype-sanitize.
   // During streaming, split at prevLengthRef.current:
   //   stableContent — already-seen text, rendered via ReactMarkdown
@@ -458,8 +468,10 @@ export function MessageBubble({
           aria-label switches between "Copy message" and "Copied!" to announce the state
           change to screen readers without requiring a live region. The button stays in the
           accessibility tree at all times so keyboard users can reach it via Tab — only its
-          visual opacity is toggled, never its DOM presence. */}
-      {message.content && (
+          visual opacity is toggled, never its DOM presence.
+          Suppressed when content is the synthesized sentinel 'Error' — that string is only
+          present for the live-region announcement and is never meaningful to copy. */}
+      {message.content && !(hasError && message.content === 'Error') && (
         <button
           type="button"
           onClick={handleCopy}
@@ -513,9 +525,13 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Error state — terminal indicator rendered after any partial streamed content. */}
+      {/* Error state — terminal indicator rendered after any partial streamed content.
+          The divider (border-t) is only shown when there is visible body content above
+          the error. When content is the synthesized sentinel 'Error' (set by
+          useStreamingMessages guard path), MessageContent returns null and no body
+          is rendered — so the divider is suppressed too. */}
       {hasError && (
-        <div className={message.content ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
+        <div className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
           <p className="flex items-start gap-1.5 text-[13px] text-error">
             <span aria-hidden="true" className="select-none shrink-0">&#9888;</span>
             <span>{error!.message}</span>
