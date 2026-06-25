@@ -84,23 +84,47 @@ export function useStreamingMessages({
         if (chunk.isDone) {
           // Finalize: flip isStreaming off, attach usage / error metadata.
           const existing = accumulatorRef.current[key];
-          if (existing) {
-            const finalMsg: Message = {
-              ...existing,
-              isStreaming: false,
-              tokenUsage: chunk.tokenUsage,
-              ...(chunk.error ? { error: chunk.error } : {}),
-            };
-            // Remove from accumulator so it no longer appears as streaming.
-            const next = { ...accumulatorRef.current };
-            delete next[key];
-            accumulatorRef.current = next;
-            setStreamingMessages(next);
 
-            // Delegate persistence to the caller — this hook does not import
-            // from @/storage or touch ghost-mode logic directly.
-            onMessageComplete(sendingConversationId, finalMsg);
+          if (!existing) {
+            // #266/#267 — belt-and-suspenders guard: no prior non-done chunk
+            // created an accumulator entry. This normally shouldn't happen because
+            // Atlas providers emit a priming `{ isDone: false, content: '' }` chunk
+            // before every error chunk (the priming pattern remains in place).
+            // When the done chunk carries an error, synthesize a minimal Message so
+            // the error is surfaced rather than silently discarded. When there is no
+            // error and no prior content (e.g. a bare `{ isDone: true }` with no
+            // error), we treat it as a no-op — nothing meaningful to show the user.
+            if (chunk.error) {
+              const errorMsg: Message = {
+                id: `stream-${sendingConversationId}-${chunk.modelId}-${Date.now()}`,
+                role: 'assistant',
+                modelId: chunk.modelId,
+                content: '',
+                timestamp: Date.now(),
+                isStreaming: false,
+                error: chunk.error,
+              };
+              onMessageComplete(sendingConversationId, errorMsg);
+            }
+            // No error and no prior content — genuine no-op; nothing to finalize.
+            return;
           }
+
+          const finalMsg: Message = {
+            ...existing,
+            isStreaming: false,
+            tokenUsage: chunk.tokenUsage,
+            ...(chunk.error ? { error: chunk.error } : {}),
+          };
+          // Remove from accumulator so it no longer appears as streaming.
+          const next = { ...accumulatorRef.current };
+          delete next[key];
+          accumulatorRef.current = next;
+          setStreamingMessages(next);
+
+          // Delegate persistence to the caller — this hook does not import
+          // from @/storage or touch ghost-mode logic directly.
+          onMessageComplete(sendingConversationId, finalMsg);
         } else {
           // Non-done chunk: accumulate content onto the in-progress message.
           const existing = accumulatorRef.current[key];
