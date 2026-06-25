@@ -71,6 +71,7 @@ Full mapping below.
 | `accents.model-grok` | `--accent-grok` | `colors.accent-grok` | `bg-accent-grok`, `border-accent-grok`, `text-accent-grok` |
 | `accents.model-deepseek` | `--accent-deepseek` | `colors.accent-deepseek` | `bg-accent-deepseek`, `border-accent-deepseek`, `text-accent-deepseek` |
 | `accents.model-mistral` | `--accent-mistral` | `colors.accent-mistral` | `bg-accent-mistral`, `border-accent-mistral`, `text-accent-mistral` |
+| `accents.user` | `--accent-user` | `colors['accent-user']` | `border-accent-user`, `text-accent-user` |
 
 **Note**: These are the most heavily used tokens in the UI. The left border accent on message bubbles, the dot in pills, and the streaming indicator all use these. Because model identity is load-bearing, these values should never be hardcoded — always reference the token.
 
@@ -268,6 +269,7 @@ module.exports = {
         'accent-grok':      'var(--accent-grok)',
         'accent-deepseek':  'var(--accent-deepseek)',
         'accent-mistral':   'var(--accent-mistral)',
+        'accent-user':      'var(--accent-user)',
         // Interactive
         'hover':           'var(--interactive-hover)',
         'active':          'var(--interactive-active)',
@@ -347,6 +349,8 @@ function applyTheme(theme: ThemeTokens): void {
   root.style.setProperty('--accent-grok',      theme.accents['model-grok']);
   root.style.setProperty('--accent-deepseek',  theme.accents['model-deepseek']);
   root.style.setProperty('--accent-mistral',   theme.accents['model-mistral']);
+  // User identity accent
+  root.style.setProperty('--accent-user',      theme.accents['user']);
 
   // Interactive
   root.style.setProperty('--interactive-hover',  theme.interactive.hover);

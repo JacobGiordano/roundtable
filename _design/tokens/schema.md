@@ -37,7 +37,8 @@ Every field listed here is **required** in every theme file. No optional fields.
     "model-other": "hex — any other/unknown model identity color (coral family)",
     "model-grok": "hex — Grok (xAI) identity color (sky/electric blue family, ~210°)",
     "model-deepseek": "hex — DeepSeek identity color (cobalt/royal blue family, ~230–235°)",
-    "model-mistral": "hex — Mistral identity color (rose/hot pink family, ~340–350°)"
+    "model-mistral": "hex — Mistral identity color (rose/hot pink family, ~340–350°)",
+    "user": "hex — user/human message identity color (periwinkle/indigo family)"
   },
   "interactive": {
     "hover": "hex — background tint on hover states (buttons, list items)",
@@ -230,7 +231,7 @@ Markdown rendering tokens. Applied to markdown-rendered content inside message b
 A theme file is valid if:
 1. All top-level keys are present: `name`, `mode`, `surfaces`, `text`, `borders`, `accents`, `interactive`, `semantic`, `radius`, `spacing`, `shadow`, `timing`, `prose`
    - `semantic` must contain: `success`, `warning`, `error`, `error-bg`, `info`
-   - `accents` must contain: `model-claude`, `model-gpt`, `model-gemini`, `model-other`, `model-grok`, `model-deepseek`, `model-mistral`
+   - `accents` must contain: `model-claude`, `model-gpt`, `model-gemini`, `model-other`, `model-grok`, `model-deepseek`, `model-mistral`, `user`
    - `prose` must contain: `code-bg`, `code-border`, `code-text`, `block-bg`, `link`, `link-hover`, `blockquote-border`
 2. All nested keys within each category are present (no missing fields)
 3. `mode` is exactly `"dark"` or `"light"`

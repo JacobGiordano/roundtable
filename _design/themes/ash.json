@@ -25,7 +25,8 @@
     "model-other": "#E07060",
     "model-grok": "#4DA8D8",
     "model-deepseek": "#648ADC",
-    "model-mistral": "#DC6294"
+    "model-mistral": "#DC6294",
+    "user": "#A5B4FC"
   },
   "interactive": {
     "hover": "#2A2E33",
