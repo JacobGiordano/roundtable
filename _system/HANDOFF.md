@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #264, #266, #267, #270 closed)
+Last updated: 2026-06-25 (ship — #272, #268 closed)
 
 ## Current phase
 
@@ -6,35 +6,28 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#264 (Atlas)** — Models now responsive. Three-part fix:
-1. Vite dev proxy routes `/anthropic-proxy` → `https://api.anthropic.com` server-side (bypasses CORS)
-2. `anthropic-dangerous-direct-browser-access: true` header satisfies Anthropic's browser-origin check
-3. `generic.ts` no-auth fix: removed pre-flight auth block silencing Ollama/no-key providers
+**#272 (Gate)** — Credential Test button no longer hits `api.anthropic.com` directly. `ANTHROPIC_TEST_BASE` in `credentialTest.ts` now mirrors the three-tier fallback in `claude.ts`: `VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` (dev) → direct URL (prod fallback). `anthropic-dangerous-direct-browser-access: true` header added. Test assertions updated.
 
-**#270 (Aria)** — User messages no longer disappear during streaming. Root cause: `handleMessageComplete` was reading from store before React flushed the `updateConversation` write, permanently dropping the user message. Fix: `sentConversationRef` set synchronously before `sendMessage()` fires.
-
-**#266/#267 (Aria)** — Error-first chunks now surface in UI. `useStreamingMessages` synthesizes a minimal error Message when done+error arrives with no prior accumulator entry.
+**#268 (Scout)** — `FakeErrorProvider` now calls `emitErrorChunk` + `buildModelError` from `@/models/openai-sse`, emitting the correct two-chunk sequence (priming non-done chunk → done+error chunk) that real providers use. Mock previously emitted a bare `{ isDone: true, error }` chunk that the belt-and-suspenders guard in `useStreamingMessages` silently dropped.
 
 ## Open bugs / known issues
 
-- **Gate credential Test button** — still hits `api.anthropic.com` directly (CORS error). Tracked as next Gate issue to open.
-- **Llama silence** — local Ollama endpoint still non-responsive; `generic.ts` no-auth fix was supposed to help but unconfirmed. Needs re-test.
-- **#271** — Live region announces empty snippet for synthesized error messages (Ada advisory, Aria).
+- **#269 (Gate/Atlas)** — Ollama and no-auth custom providers hit auth_failure. Cross-agent; needs usage headroom before starting.
+- **#271 (Aria)** — Live region announces empty snippet for synthesized error messages (Ada advisory).
+- **#273 (Gate)** — Non-Anthropic credential test buttons (Google, xAI, Deepseek, Mistral) may hit external URLs directly — CORS risk. Same fix pattern as #272.
 - **ExportButton Escape** — pre-existing WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
-- `anthropic-dangerous-direct-browser-access: true` is the required header for all browser-origin Anthropic requests going through the Vite proxy
-- `sentConversationRef` pattern: set synchronously before `sendMessage()`, advance after each `handleMessageComplete` — do not revert to `store.getActiveConversation()` in that callback
-- `emitErrorChunk` + belt-and-suspenders guard in `useStreamingMessages` is the permanent error pattern — both stay
-- Backend proxy at `/api/proxy/anthropic` is the production self-host path; set `VITE_ANTHROPIC_PROXY_URL` in frontend env
+- `FakeErrorProvider` must use `emitErrorChunk` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages`. The priming non-done chunk is required to create the accumulator entry.
+- `credentialTest.ts` `ANTHROPIC_TEST_BASE` must stay in sync with `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback, same header.
 
 ## What's next
 
-1. **Gate** — Fix credential Test button to use proxy URL (new issue to open)
-2. **Atlas** — Re-test Ollama with the no-auth fix; confirm or file new issue
-3. **#271 (Aria)** — Live region empty snippet; minor, future session
-4. **Phase 5 assessment** — after Ollama confirmed + Test button fixed
+1. **#273 (Gate)** — CORS fix for remaining provider test buttons (Google, xAI, Deepseek, Mistral)
+2. **#269 (Gate/Atlas)** — Ollama / no-auth auth_failure; cross-agent, confirm usage before starting
+3. **#271 (Aria)** — Live region empty snippet; minor
+4. **Phase 5 assessment** — after #269 confirmed + #273 fixed
 
 ## Gotchas
 
@@ -77,6 +70,8 @@ Phase 4+ — Full gate process active.
 - `CustomThemeImport` 4-state machine: rAF deferral before validation so spinner renders; error list scrolls at 17+; `saveCustomTheme` called only on valid path — never on rejection
 - `customThemeActive` in `roundtable:theme` localStorage is Gate-internal; `setActiveTheme(id)` clears it when switching back to built-in
 - **Never rebuild container while agents are running** — kills them mid-session with no commits
-- `emitErrorChunk` is mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages` (belt-and-suspenders guard now in hook too)
+- `emitErrorChunk` is mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages`
+- `FakeErrorProvider` must use `emitErrorChunk` (priming non-done chunk required) — bare error chunks don't create an accumulator entry and get dropped
 - `sentConversationRef` in App.tsx: set synchronously before `sendMessage()`, read in `handleMessageComplete` — never replace with `store.getActiveConversation()` in that callback
 - Vite dev proxy `/anthropic-proxy` → `https://api.anthropic.com` handles CORS; `anthropic-dangerous-direct-browser-access: true` header required on the fetch
+- `credentialTest.ts` `ANTHROPIC_TEST_BASE` must mirror `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback (`VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` → direct)
