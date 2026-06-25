@@ -28,6 +28,36 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/anthropic-proxy/, ''),
         secure: true,
       },
+      // Google Gemini API does not reliably support browser-direct calls — CORS
+      // behavior on the generativelanguage.googleapis.com domain varies by
+      // endpoint and key type. Proxy for consistent dev behaviour.
+      '/google-proxy': {
+        target: 'https://generativelanguage.googleapis.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/google-proxy/, ''),
+        secure: true,
+      },
+      // xAI (Grok) — CORS stance undocumented; proxy conservatively.
+      '/xai-proxy': {
+        target: 'https://api.x.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/xai-proxy/, ''),
+        secure: true,
+      },
+      // DeepSeek — CORS stance undocumented; proxy conservatively.
+      '/deepseek-proxy': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/deepseek-proxy/, ''),
+        secure: true,
+      },
+      // Mistral — CORS stance undocumented; proxy conservatively.
+      '/mistral-proxy': {
+        target: 'https://api.mistral.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/mistral-proxy/, ''),
+        secure: true,
+      },
     },
   },
   test: {
