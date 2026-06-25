@@ -301,6 +301,20 @@ export interface CustomProviderConfig {
    * or 6-digit hex string (e.g. "#FF5500"). Aria applies 'accent-other' when absent.
    */
   color?: string;
+  /**
+   * Whether this provider requires an API key for authentication.
+   *
+   * When `false`, Gate skips the credential-present check before activating
+   * the provider, and Atlas omits the `Authorization` header on all requests
+   * to this provider's endpoint. Intended for no-auth providers such as Ollama
+   * or other locally-hosted LLM servers that accept unauthenticated connections.
+   *
+   * When `true` or absent (the default), Gate enforces that a credential value
+   * is stored for `credentialKey` before allowing the provider to be used.
+   * Absence preserves existing behavior — all providers configured before this
+   * field existed are treated as requiring a key.
+   */
+  requiresApiKey?: boolean;
 }
 
 /**
