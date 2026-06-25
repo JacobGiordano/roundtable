@@ -39,7 +39,28 @@ export const CLAUDE_CONFIG: ModelProviderConfig = {
 
 // ─── Anthropic API constants ──────────────────────────────────────────────────
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+/**
+ * Anthropic blocks browser-direct API calls — all Origins receive a 400
+ * "Disallowed CORS origin" on the OPTIONS preflight. We route through a local
+ * proxy instead:
+ *
+ *   - In development: Vite's server.proxy forwards /anthropic-proxy/* →
+ *     https://api.anthropic.com/* server-side, bypassing CORS entirely.
+ *     Configured in vite.config.ts.
+ *
+ *   - In production: the VITE_ANTHROPIC_PROXY_URL environment variable must be
+ *     set to the base URL of a compatible proxy (e.g. the self-hosted backend's
+ *     /api/proxy/anthropic route). When unset, this falls back to the direct
+ *     Anthropic URL — which will fail in browser contexts due to CORS; only safe
+ *     when the app is served from a backend that already handles the proxy.
+ *
+ * The proxy must forward the x-api-key, anthropic-version, and Content-Type
+ * headers to Anthropic unchanged.
+ */
+const ANTHROPIC_API_BASE =
+  import.meta.env.VITE_ANTHROPIC_PROXY_URL ??
+  (import.meta.env.DEV ? '/anthropic-proxy' : 'https://api.anthropic.com');
+const ANTHROPIC_API_URL = `${ANTHROPIC_API_BASE}/v1/messages`;
 const ANTHROPIC_API_VERSION = '2023-06-01';
 /**
  * Default model string sent to the Anthropic API when no version is selected.
