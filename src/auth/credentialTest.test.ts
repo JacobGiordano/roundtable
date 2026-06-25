@@ -128,14 +128,20 @@ describe('testCredential — built-in providers', () => {
   });
 
   describe('request shape — anthropic', () => {
-    it('sends x-api-key and anthropic-version headers', async () => {
+    it('sends x-api-key, anthropic-version, and browser-access headers', async () => {
       const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
       vi.stubGlobal('fetch', fetchMock);
       await testCredential('anthropic', 'sk-ant-test');
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toContain('api.anthropic.com');
+      // In test / dev mode the URL routes through the Vite proxy (/anthropic-proxy)
+      // or VITE_ANTHROPIC_PROXY_URL. The URL will NOT be the direct api.anthropic.com
+      // address — that's the whole point of the fix.
+      expect(url).toContain('/v1/models');
       expect((init.headers as Record<string, string>)['x-api-key']).toBe('sk-ant-test');
       expect((init.headers as Record<string, string>)['anthropic-version']).toBeTruthy();
+      expect(
+        (init.headers as Record<string, string>)['anthropic-dangerous-direct-browser-access'],
+      ).toBe('true');
     });
   });
 
