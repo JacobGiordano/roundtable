@@ -40,14 +40,31 @@ interface ProviderTestConfig {
   buildInit: (value: string) => RequestInit;
 }
 
+/**
+ * Anthropic blocks browser-direct API calls (CORS). Route through the Vite
+ * dev proxy in development — identical pattern to /src/models/claude.ts.
+ *
+ *   - Development: /anthropic-proxy → https://api.anthropic.com (Vite proxy,
+ *     configured in vite.config.ts)
+ *   - Production with self-hosted backend: VITE_ANTHROPIC_PROXY_URL env var
+ *   - Production fallback: direct URL (will fail in browser due to CORS)
+ *
+ * The `anthropic-dangerous-direct-browser-access: true` header satisfies
+ * Anthropic's browser-origin check on the proxied request.
+ */
+const ANTHROPIC_TEST_BASE =
+  import.meta.env.VITE_ANTHROPIC_PROXY_URL ??
+  (import.meta.env.DEV ? '/anthropic-proxy' : 'https://api.anthropic.com');
+
 const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
   anthropic: {
-    url: 'https://api.anthropic.com/v1/models',
+    url: `${ANTHROPIC_TEST_BASE}/v1/models`,
     buildInit: (value) => ({
       method: 'GET',
       headers: {
         'x-api-key': value,
         'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
     }),
   },
