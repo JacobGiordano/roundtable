@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #273, #271, #274 closed)
+Last updated: 2026-06-25 (ship — #269 closed)
 
 ## Current phase
 
@@ -6,30 +6,34 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#273 (Gate)** — Closed. Non-Anthropic credential test buttons (Google, xAI, Deepseek, Mistral) now route through the Vite proxy — same three-tier fallback as Anthropic. Commits `0337cc2` / `bc821c3`. Issue was already fixed; session just closed it.
+**#269 (Arch/Gate/Atlas/Aria/Scout)** — Closed. No-auth custom providers (Ollama, LM Studio, etc.) no longer hit `auth_failure`. Five-agent wave:
+- Arch: `requiresApiKey?: boolean` on `CustomProviderConfig` — absent = `true`, no migration
+- Gate: `isCustomProviderReady()` exported; `testCustomCredential()` short-circuits; `addCustomProvider`/`updateCustomProvider` store the flag
+- Atlas: credential lookup and `Authorization` header skipped when `requiresApiKey === false` in `generic.ts`
+- Aria: "No API key required" checkbox in Add and Edit forms; API key field removed from DOM when checked; badge shows "No key required"; Ada: 0 blockers
+- Scout: 40 new tests, all passing
 
-**#271 (Aria)** — Closed. Synthesized fallback Message in `useStreamingMessages` guard path now sets `content: 'Error'`, so live region announces "ModelName: Error" instead of silence. Fixed in `3aacc32`.
-
-**#274 (Aria)** — Closed. Three guards in `MessageBubble.tsx` suppress the sentinel "Error" string from rendering as visible body text: `MessageContent` returns null, copy button removed, border-t divider removed — all when `hasError && content === 'Error'`. Real partial-content messages unaffected. Ada: 23/23 pass, zero blockers.
-
-**Agent profiles** — Flint and Coda profiles updated: Flint now has explicit `SendMessage` prohibition when spawned by Coda; Coda's Phase Gate section includes required closing line for every Flint brief. Fixes dropped-notification pattern.
+Final merge: `f94ba92`.
 
 ## Open bugs / known issues
 
-- **#269 (Gate/Atlas)** — Ollama and no-auth custom providers hit auth_failure. Cross-agent; confirm usage headroom before starting.
+- **#275 (Aria)** — Custom provider accent color not applied in chat bubbles. Color shows in settings list but not in message bubbles.
+- **#276 (Aria/Luma/Ada)** — Dark theme text contrast failure. Body text and secondary text near-invisible in dark themes. WCAG AA fail.
 - **ExportButton Escape** — pre-existing WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
+- `requiresApiKey?: boolean` lives on `CustomProviderConfig` only — not `BuiltInProviderConfig`, not `ModelProviderConfig`. Built-ins always require credentials.
+- Absent-means-`true` semantics at every layer — Gate, Atlas, Aria all check `=== false` with strict equality.
+- `isCustomProviderReady(config)` is the correct function for any readiness check; `hasCredential` is for value-presence only.
 - `content: 'Error'` sentinel on synthesized error Messages is load-bearing for live region — do not revert.
-- MessageBubble guards key on `message.error` existence + sentinel string — real partial-content messages always unaffected.
-- Flint must never use SendMessage when spawned by Coda — report HOLD and stop; Coda routes fixes.
 
 ## What's next
 
-1. **#269 (Gate/Atlas)** — Ollama / no-auth auth_failure; cross-agent, confirm usage before starting
-2. **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up; Aria issue, file if not already open
-3. **Phase 5 assessment** — after #269 confirmed
+1. **#275 (Aria)** — Accent color not reaching chat bubbles; trace `accentColor` from roster → MessageBubble
+2. **#276 (Aria/Luma/Ada)** — Dark theme contrast; check `text-foreground` token resolution in dark theme scope
+3. **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up; file if not already open
+4. **Phase 5 assessment** — after contrast issues resolved
 
 ## Gotchas
 
@@ -78,3 +82,4 @@ Phase 4+ — Full gate process active.
 - Vite dev proxy `/anthropic-proxy` → `https://api.anthropic.com` handles CORS; `anthropic-dangerous-direct-browser-access: true` header required on the fetch
 - `credentialTest.ts` `ANTHROPIC_TEST_BASE` must mirror `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback (`VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` → direct)
 - `content: 'Error'` sentinel on synthesized error Messages feeds the live region — do not revert; MessageBubble guards suppress the visual rendering when `hasError && content === 'Error'`
+- `isCustomProviderReady(config)` is the correct readiness check for custom providers — `hasCredential` alone returns false for intentionally keyless providers
