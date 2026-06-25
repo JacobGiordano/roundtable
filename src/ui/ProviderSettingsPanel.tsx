@@ -98,6 +98,8 @@ function getBadgeState(provider: ProviderConfig): BadgeState {
   if (provider.kind === 'builtin') {
     return hasCredential(provider.credentialKey) ? 'key-set' : 'no-key';
   }
+  // requiresApiKey === false takes priority — provider is always ready without a key.
+  if (provider.requiresApiKey === false) return 'no-key-required';
   if (!provider.credentialKey) return 'no-key-required';
   return hasCredential(provider.credentialKey) ? 'key-set' : 'no-key';
 }
@@ -358,6 +360,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
   const [editEndpointUrl, setEditEndpointUrl] = useState('');
   const [editModelString, setEditModelString] = useState('');
   const [editAccentColor, setEditAccentColor] = useState('');
+  const [editRequiresApiKey, setEditRequiresApiKey] = useState(true);
   const [editErrors, setEditErrors] = useState<FormErrors>({});
   const [editSubmitAttempted, setEditSubmitAttempted] = useState(false);
   // Ref to the pencil button — focus returns here on Save or Cancel.
@@ -442,6 +445,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
     setEditEndpointUrl(provider.endpointUrl);
     setEditModelString(provider.modelString);
     setEditAccentColor(provider.color ?? '');
+    // requiresApiKey absent or true → key required; false → no key required.
+    setEditRequiresApiKey(provider.requiresApiKey !== false);
     setEditErrors({});
     setEditSubmitAttempted(false);
     setIsEditingProvider(true);
@@ -488,7 +493,22 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
       endpointUrl: editEndpointUrl.trim(),
       modelString: editModelString.trim(),
       ...(editAccentColor ? { color: editAccentColor } : {}),
+      // Pass requiresApiKey: false only when explicitly disabled; omit otherwise
+      // so Gate treats the provider as requiring a key (the default).
+      ...(editRequiresApiKey ? {} : { requiresApiKey: false }),
     });
+    // Refresh badge — the provider prop won't update until the parent re-renders
+    // from onUpdated(), but badgeState is local state and needs an explicit push.
+    // When requiresApiKey is toggled off, show no-key-required immediately.
+    if (!editRequiresApiKey) {
+      setBadgeState('no-key-required');
+    } else {
+      // Re-derive from the updated roster entry.
+      const fresh = provider.kind === 'custom'
+        ? { ...provider, requiresApiKey: true }
+        : provider;
+      setBadgeState(getBadgeState(fresh));
+    }
     onUpdated?.();
     setIsEditingProvider(false);
     setEditErrors({});
@@ -498,7 +518,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
         editPencilRef.current?.focus();
       });
     });
-  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, onUpdated]);
+  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, editRequiresApiKey, onUpdated]);
 
   // Move focus to the Cancel button when the row enters a confirm state so
   // keyboard users land on a usable control rather than body (WCAG 2.4.3, #115).
@@ -518,8 +538,9 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
     ? { animation: 'provider-enter 200ms ease-out' }
     : {};
 
-  // "Set key" button — only when no key is set yet and not in edit mode.
-  const showSetKeyButton = badgeState === 'no-key' && credentialKey !== undefined && !isEditingKey;
+  // "Set key" button — only when no key is set yet, not in edit mode, and the provider requires a key.
+  const providerRequiresApiKey = provider.kind !== 'custom' || provider.requiresApiKey !== false;
+  const showSetKeyButton = badgeState === 'no-key' && credentialKey !== undefined && !isEditingKey && providerRequiresApiKey;
 
   return (
     // aria-live="polite" lets screen readers announce confirmation message on row update.
@@ -595,8 +616,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
             </button>
           </div>
 
-          {/* ── Masked key display (when key is set and not editing) ───── */}
-          {badgeState === 'key-set' && !isEditingKey && credentialKey !== undefined && (
+          {/* ── Masked key display (when key is set and not editing, and key is required) ───── */}
+          {badgeState === 'key-set' && !isEditingKey && credentialKey !== undefined && providerRequiresApiKey && (
             <div className="pb-3 flex flex-col gap-2">
               {/* Masked/revealed key row with eye toggle */}
               <div
@@ -747,6 +768,37 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                   ) : null}
                 </div>
 
+                {/* No API key required toggle */}
+                <div>
+                  <label
+                    htmlFor={`edit-requires-api-key-${id}`}
+                    className="flex items-center gap-3 cursor-pointer select-none group"
+                  >
+                    {/* Visually styled checkbox */}
+                    <div className="relative flex-shrink-0">
+                      <input
+                        id={`edit-requires-api-key-${id}`}
+                        type="checkbox"
+                        checked={!editRequiresApiKey}
+                        onChange={(e) => setEditRequiresApiKey(!e.target.checked)}
+                        className={[
+                          'w-4 h-4 rounded cursor-pointer',
+                          'accent-[var(--accent-claude)]',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        ].join(' ')}
+                      />
+                    </div>
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                        No API key required
+                      </span>
+                      <span className="text-[11px] text-text-muted">
+                        For local providers like Ollama or LM Studio that don&apos;t need authentication
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
                 {/* Accent color */}
                 <div>
                   {/* htmlFor associates the label with the color swatch button (#237). */}
@@ -830,8 +882,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
             </div>
           )}
 
-          {/* ── Inline key editor (expands below row) ─────────────────── */}
-          {isEditingKey && (
+          {/* ── Inline key editor (expands below row, only when API key is required) ────── */}
+          {isEditingKey && providerRequiresApiKey && (
             <div className="mt-2 pb-3">
               {/* Password input — full-width, eye toggle overlaid absolutely */}
               <div className="relative w-full">
@@ -1039,6 +1091,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
   const [modelString, setModelString] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [noApiKeyRequired, setNoApiKeyRequired] = useState(false);
   const [accentColor, setAccentColor] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -1070,9 +1123,13 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
         endpointUrl: endpointUrl.trim(),
         modelString: modelString.trim(),
         ...(accentColor ? { color: accentColor } : {}),
+        // Pass requiresApiKey: false only when toggled on — omit otherwise so
+        // Gate treats the provider as requiring a key (the default behavior).
+        ...(noApiKeyRequired ? { requiresApiKey: false } : {}),
       });
 
-      if (apiKey.trim() && newConfig.credentialKey) {
+      // Save the API key only when the provider requires one and a key was entered.
+      if (!noApiKeyRequired && apiKey.trim() && newConfig.credentialKey) {
         saveCredentials(newConfig.credentialKey, apiKey.trim());
       }
 
@@ -1081,6 +1138,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
       setEndpointUrl('');
       setModelString('');
       setApiKey('');
+      setNoApiKeyRequired(false);
       setAccentColor('');
       setErrors({});
       setSubmitAttempted(false);
@@ -1088,7 +1146,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
 
       onAdded();
     },
-    [displayName, endpointUrl, modelString, apiKey, accentColor, onAdded],
+    [displayName, endpointUrl, modelString, apiKey, noApiKeyRequired, accentColor, onAdded],
   );
 
   const handleClear = useCallback(() => {
@@ -1096,6 +1154,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
     setEndpointUrl('');
     setModelString('');
     setApiKey('');
+    setNoApiKeyRequired(false);
     setAccentColor('');
     setErrors({});
     setSubmitAttempted(false);
@@ -1191,7 +1250,40 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
           )}
         </div>
 
-        {/* Field 4: API Key (optional) */}
+        {/* Field 4: No API key required toggle */}
+        <div>
+          <label
+            htmlFor="psp-no-api-key-required"
+            className="flex items-center gap-3 cursor-pointer select-none group"
+          >
+            <input
+              id="psp-no-api-key-required"
+              type="checkbox"
+              checked={noApiKeyRequired}
+              onChange={(e) => {
+                setNoApiKeyRequired(e.target.checked);
+                // Clear any stored key input when switching to keyless mode.
+                if (e.target.checked) setApiKey('');
+              }}
+              className={[
+                'w-4 h-4 rounded cursor-pointer',
+                'accent-[var(--accent-claude)]',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+              ].join(' ')}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                No API key required
+              </span>
+              <span className="text-[11px] text-text-muted">
+                For local providers like Ollama or LM Studio that don&apos;t need authentication
+              </span>
+            </span>
+          </label>
+        </div>
+
+        {/* Field 5: API Key (optional, hidden when no key required) */}
+        {!noApiKeyRequired && (
         <div>
           <label htmlFor="psp-api-key" className={`${labelClass} !mb-1.5 flex gap-1.5 items-baseline`}>
             API key
@@ -1226,6 +1318,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
             Never logged or transmitted except to your endpoint.
           </p>
         </div>
+        )}
 
         {/* Accent Color */}
         <div>
