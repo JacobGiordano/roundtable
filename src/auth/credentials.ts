@@ -11,7 +11,7 @@
  *   - localStorage is the sole persistence layer
  */
 
-import type { BuiltInCredentialKey, BuiltInModelId, CredentialKey, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn, ModelConfig } from '@/types';
+import type { BuiltInCredentialKey, BuiltInModelId, CredentialKey, CustomProviderConfig, GetCredentialsFn, SaveCredentialsFn, ClearCredentialsFn, ModelConfig } from '@/types';
 
 // ─── Storage key prefix ────────────────────────────────────────────────────────
 
@@ -90,6 +90,25 @@ export function hasCredential(key: CredentialKey): boolean {
   // Trigger migration by calling getCredentials — it will move the legacy value
   // to the canonical key if it exists.
   return getCredentials(key) !== undefined;
+}
+
+/**
+ * Returns true if a custom provider is ready to use — either because it does
+ * not require an API key (`requiresApiKey === false`) or because a credential
+ * value is stored for it.
+ *
+ * This is the canonical Gate-side check that Atlas should use before dispatching
+ * to a custom provider. Callers must NOT use `hasCredential(config.credentialKey)`
+ * directly for custom providers, because that check always returns false for
+ * keyless providers (they have no stored value by design).
+ *
+ * For built-in providers, `requiresApiKey` is always implicitly true — use
+ * `hasCredential(credentialKey)` for those.
+ */
+export function isCustomProviderReady(config: CustomProviderConfig): boolean {
+  if (config.requiresApiKey === false) return true;
+  if (!config.credentialKey) return false;
+  return hasCredential(config.credentialKey);
 }
 
 // ─── Model → credential mapping ───────────────────────────────────────────────
