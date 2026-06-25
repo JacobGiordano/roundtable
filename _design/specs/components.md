@@ -65,6 +65,16 @@ The message bubble is the primary content unit. Each model's response is one bub
 - **Retry affordance**: A small "Retry" text button (`12px`, `{text.secondary}`, underline on hover) appears below the error message. Clicking it resends the last prompt to this model. **Cross-agent dependency: Atlas must expose a retry method. Aria surfaces the button; Atlas handles the request.**
 - **Recovery**: When retry succeeds, the error state clears and the bubble returns to its normal streaming → complete flow.
 
+### User Message Bubble
+
+User message bubbles share all dimension, padding, background, shadow, and state specs from the main Message Bubble spec above. The only differences are the border accent and the absence of a model name header.
+
+- **Left border**: `3px solid var(--accent-user)` — fixed. Not determined by any model ID. The border color never changes to a model accent, even on error (user bubbles have no error state).
+- **No model name header.** User bubbles do not show a label above the content. The `var(--accent-user)` border is the sole identity signal. Do not add a "You" label or any other header text.
+- **Bug fix note for Aria:** If the current implementation falls through to `var(--accent-claude)` or any other model accent for user bubbles, the fix is to write `border-left: 3px solid var(--accent-user)` explicitly when rendering a user message. There is no `modelId` on a user message — the fallback must not chain to any model accent.
+- **Custom color override**: When the user has set a custom user accent color via `setUserAccentColor()` (Gate), `--accent-user` resolves to their chosen hex via the Pass 2 CSS override. No component-level change needed — the CSS variable handles it automatically.
+- **All other specs** (border-radius, background, shadow, shadow on hover, message body typography, streaming state, reduced-motion behavior) apply identically from the main Message Bubble spec.
+
 ### Ghost Mode State
 
 - **Ghost mode** means the conversation is not being persisted. The bubble itself has no visual difference.
