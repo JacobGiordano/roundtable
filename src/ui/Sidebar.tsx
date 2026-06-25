@@ -40,11 +40,13 @@ import { RoundtableLogo } from './RoundtableLogo';
 // #150: shared ChevronIcon replaces the down-chevron SVG in the settings toggle.
 import { ChevronIcon } from './components/ChevronIcon';
 // #147: shared icon system — PlusIcon, CloseIcon, GhostIcon, GearIcon replace inline SVGs.
+// #280: PanelLeftIcon — sidebar collapse/expand toggle (desktop only).
 import {
   PlusIcon,
   CloseIcon,
   GhostIcon,
   GearIcon,
+  PanelLeftIcon,
 } from './icons';
 // #146: sub-components extracted from Sidebar.tsx for maintainability.
 import { ThreadRow, AnimatedListItem } from './components/sidebar/ThreadRow';
@@ -136,6 +138,21 @@ interface SidebarProps {
    * provider won't switch until the next page load.
    */
   onBackendConnectionChange?: () => void;
+  /**
+   * Controls whether the sidebar is visible on desktop (≥ md breakpoint).
+   * On mobile the sidebar is always controlled by `isMobileOpen` instead —
+   * this prop has no effect below the md breakpoint.
+   * Default: true (sidebar open).
+   * #280: persistent sidebar toggle.
+   */
+  isDesktopOpen?: boolean;
+  /**
+   * Called when the user clicks the desktop collapse/expand button.
+   * AppLayout owns the toggle state and persistence via Gate's setSidebarOpen().
+   * Optional — collapse button is not rendered if absent.
+   * #280: persistent sidebar toggle.
+   */
+  onToggleDesktop?: () => void;
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -164,6 +181,8 @@ export function Sidebar({
   isGhostMode = false,
   onToggleGhostMode,
   onBackendConnectionChange,
+  isDesktopOpen = true,
+  onToggleDesktop,
 }: SidebarProps) {
   // ── Sidebar resize ─────────────────────────────────────────────────────────
   // Width is initialized from Gate-persisted preference (default 280px).
@@ -495,8 +514,11 @@ export function Sidebar({
         'fixed inset-y-0 left-0 z-50 h-full w-72',
         isMobileOpen ? 'translate-x-0' : '-translate-x-full',
         prefersReducedMotion.current ? '' : 'transition-transform duration-200 ease-in-out',
-        // Desktop: static, restores inline-style width, overrides fixed positioning
+        // Desktop: static, restores inline-style width, overrides fixed positioning.
+        // md:hidden when !isDesktopOpen: hides from layout and AT tree (display:none).
+        // Mobile drawer behavior is unaffected — md:hidden only fires at ≥768px.
         'md:static md:translate-x-0 md:z-auto md:h-full md:flex-shrink-0',
+        !isDesktopOpen ? 'md:hidden' : '',
         // Common layout classes — relative scoped to desktop only so it doesn't
         // override the mobile `fixed` class (Tailwind orders relative after fixed)
         'flex flex-col bg-sidebar border-r border-border overflow-hidden md:relative',
@@ -564,8 +586,26 @@ export function Sidebar({
               <GhostIcon filled={isGhostMode} />
             </button>
           )}
-          {/* Desktop-only controls: new conversation + provider-settings gear */}
+          {/* Desktop-only controls: sidebar collapse + new conversation + provider-settings gear */}
           <div className="hidden md:flex items-center gap-1">
+            {/* Sidebar collapse button (#280) — hides the sidebar on desktop.
+                AppLayout owns the open state; this calls onToggleDesktop to update it.
+                Only rendered when the parent provides the callback. */}
+            {onToggleDesktop && (
+              <button
+                type="button"
+                aria-label="Collapse sidebar"
+                onClick={onToggleDesktop}
+                className={[
+                  'w-8 h-8 rounded-md flex items-center justify-center',
+                  'text-text-muted hover:text-text-secondary hover:bg-hover',
+                  'transition-colors duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              >
+                <PanelLeftIcon size={16} />
+              </button>
+            )}
             {/* New conversation button (#166: tooltip + keyboard shortcut hint) */}
             <div
               className="relative"

@@ -299,6 +299,42 @@ export function SendIcon({ size = 16, className, disabled = false }: IconProps &
   ));
 }
 
+// ─── PanelLeftIcon ────────────────────────────────────────────────────────────
+/**
+ * Sidebar panel icon. Represents a two-pane layout with a left sidebar.
+ * Used for the desktop sidebar collapse/expand toggle button (#280).
+ *
+ * Visual: a rounded rectangle split by a vertical line near the left edge.
+ * Left strip = sidebar panel; wider right area = main content area.
+ * The same icon is used for both collapse and expand — button position and
+ * aria-label disambiguate the action.
+ */
+export function PanelLeftIcon({ size = 16, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 16 16' }, (
+    <>
+      {/* Outer rectangle representing the full application window */}
+      <rect
+        x="1.5"
+        y="1.5"
+        width="13"
+        height="13"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+      />
+      {/* Vertical divider — separates the sidebar from the content area */}
+      <line
+        x1="5.5"
+        y1="1.5"
+        x2="5.5"
+        y2="14.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+      />
+    </>
+  ));
+}
+
 // ─── SmallCloseIcon ───────────────────────────────────────────────────────────
 /**
  * Small × icon for inline clear/dismiss buttons (search clear, input clear).
