@@ -9,7 +9,11 @@ import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 import { OnboardingEmptyState } from './OnboardingEmptyState';
 import { useRoundtable } from './RoundtableContext';
 // #147: shared icon system — MenuIcon, GearIcon, PlusIcon replace inline SVGs.
-import { MenuIcon, GearIcon, PlusIcon } from './icons';
+// #280: PanelLeftIcon — desktop sidebar expand button (shown when sidebar is collapsed).
+import { MenuIcon, GearIcon, PlusIcon, PanelLeftIcon } from './icons';
+// #280: getSidebarOpen / setSidebarOpen — Gate persistence for desktop sidebar open state.
+// Pure Gate persistence functions — permitted exception per CLAUDE.md.
+import { getSidebarOpen, setSidebarOpen } from '@/auth';
 // #178: Outrun entry flash — full-viewport overlay triggered on Outrun theme activation.
 import { OutrunFlash } from './OutrunFlash';
 
@@ -79,6 +83,19 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
     isRosterEmpty,
     onRosterChange,
   } = useRoundtable();
+
+  // #280: Desktop sidebar open/close state — persisted via Gate's setSidebarOpen().
+  // Initialized from Gate's localStorage-backed getSidebarOpen() (default: true).
+  // Mobile sidebar drawer visibility is controlled separately by isMobileMenuOpen.
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => getSidebarOpen());
+
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => {
+      const next = !prev;
+      setSidebarOpen(next); // Persist to Gate (localStorage)
+      return next;
+    });
+  }, []);
 
   // Mobile drawer state — controls the Sidebar slide-in overlay on small screens.
   // On desktop (>= md) the sidebar is always visible and this state is irrelevant.
@@ -200,7 +217,10 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
         />
       )}
 
-      {/* Sidebar — static on desktop, fixed drawer on mobile */}
+      {/* Sidebar — static on desktop, fixed drawer on mobile.
+          #280: isDesktopOpen controls md:hidden on the <aside>; onToggleDesktop
+          persists the state change via Gate. Mobile behavior (isMobileOpen) is
+          entirely separate and unaffected by the desktop open state. */}
       <Sidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -225,6 +245,8 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
         isGhostMode={isGhostMode}
         onToggleGhostMode={onToggleGhostMode}
         onBackendConnectionChange={onBackendConnectionChange}
+        isDesktopOpen={isSidebarOpen}
+        onToggleDesktop={handleToggleSidebar}
       />
 
       {/* Provider settings backdrop — covers main content area when the settings drawer is
@@ -268,6 +290,32 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
         {...({ inert: isMobileMenuOpen ? '' : undefined } as React.HTMLAttributes<HTMLElement>)}
       >
         <h1 className="sr-only">Roundtable Conversation</h1>
+
+        {/* #280: Desktop sidebar expand bar — shown only on desktop (≥ md) when the
+            sidebar is collapsed. Provides a single button to re-open the sidebar.
+            On mobile this element is always hidden (the mobile hamburger handles that).
+            Conditional render (not CSS hide) so it takes no space when !isSidebarOpen. */}
+        {!isSidebarOpen && (
+          <div className="hidden md:flex h-10 items-center px-3 border-b border-border bg-bg flex-shrink-0">
+            <button
+              type="button"
+              aria-label="Expand sidebar"
+              aria-expanded={false}
+              onClick={handleToggleSidebar}
+              className={[
+                'flex items-center justify-center',
+                'w-8 h-8',
+                'text-text-muted hover:text-text-secondary',
+                'hover:bg-hover rounded-md',
+                'transition-colors duration-fast',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              <PanelLeftIcon size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Mobile top header bar — visible only on small screens (below md breakpoint).
             Contains: hamburger (opens sidebar) | logo | new-conversation button.
             Hidden on desktop where the sidebar is always visible. */}
