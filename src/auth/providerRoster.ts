@@ -85,7 +85,8 @@ function isValidCustomConfig(value: unknown): value is CustomProviderConfig {
     typeof v['modelString'] === 'string' &&
     (v['modelString'] as string).length > 0 &&
     (v['credentialKey'] === undefined || typeof v['credentialKey'] === 'string') &&
-    (v['color'] === undefined || typeof v['color'] === 'string')
+    (v['color'] === undefined || typeof v['color'] === 'string') &&
+    (v['requiresApiKey'] === undefined || typeof v['requiresApiKey'] === 'boolean')
   );
 }
 
@@ -232,6 +233,12 @@ export function addBuiltInProvider(modelId: BuiltInModelId): BuiltInProviderConf
  * Generates a collision-safe id (prefix "custom:" + slug from displayName).
  * If credentialKey is not supplied, generates it as "custom:<id>".
  *
+ * When `requiresApiKey` is `false`, the provider is treated as keyless (e.g.
+ * a local Ollama instance). The `credentialKey` is still generated and stored
+ * for forward-compatibility, but no credential value is required or checked.
+ * When absent, `requiresApiKey` defaults to `true` — all existing callers are
+ * unaffected.
+ *
  * Returns the new CustomProviderConfig entry.
  */
 export function addCustomProvider(input: {
@@ -240,6 +247,7 @@ export function addCustomProvider(input: {
   modelString: string;
   credentialKey?: string;
   color?: string;
+  requiresApiKey?: boolean;
 }): CustomProviderConfig {
   const roster = readRoster();
   const id = generateCustomId(input.displayName, roster);
@@ -252,6 +260,9 @@ export function addCustomProvider(input: {
     modelString: input.modelString,
     credentialKey: input.credentialKey ?? `custom:${id}`,
     ...(input.color !== undefined ? { color: input.color } : {}),
+    // Only store requiresApiKey when explicitly set to false. Absence and true
+    // are equivalent; storing true explicitly is unnecessary noise in localStorage.
+    ...(input.requiresApiKey === false ? { requiresApiKey: false } : {}),
   };
 
   writeRoster([...roster, newEntry]);
@@ -283,10 +294,13 @@ export function removeProvider(id: string): void {
 /**
  * Update the editable fields of an existing custom provider.
  *
- * Applies displayName, endpointUrl, modelString, and optionally color to the
- * matching custom entry in the roster. `credentialKey` and `id` are never
+ * Applies displayName, endpointUrl, modelString, color, and requiresApiKey to
+ * the matching custom entry in the roster. `credentialKey` and `id` are never
  * changed — they are stable identifiers; `credentialKey` in particular links
  * the provider to its stored API key and must survive edits.
+ *
+ * `requiresApiKey` defaults to `true` when not supplied. Pass `false` explicitly
+ * to mark a provider as keyless (e.g. a local Ollama instance).
  *
  * No-op if:
  *   - No provider with the given `id` exists in the roster.
@@ -299,6 +313,7 @@ export function updateCustomProvider(
     endpointUrl: string;
     modelString: string;
     color?: string;
+    requiresApiKey?: boolean;
   },
 ): void {
   const roster = readRoster();
@@ -317,6 +332,12 @@ export function updateCustomProvider(
       entry.color = input.color;
     } else {
       delete entry.color;
+    }
+    // Only store requiresApiKey when explicitly false; absence === true.
+    if (input.requiresApiKey === false) {
+      entry.requiresApiKey = false;
+    } else {
+      delete entry.requiresApiKey;
     }
     return entry;
   });

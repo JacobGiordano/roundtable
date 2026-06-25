@@ -272,6 +272,13 @@ export async function testCredential(
  *   The Authorization header is omitted entirely. A 2xx response confirms the
  *   endpoint is reachable; 401/403 indicates auth IS required.
  *
+ * No-auth providers (requiresApiKey === false):
+ *   Short-circuits immediately without making any network call. Returns
+ *   `{ status: 'valid', message: 'No API key required' }`. This prevents
+ *   surfacing a spurious auth_failure when the provider is intentionally keyless
+ *   (e.g. a local Ollama instance). The caller is still responsible for verifying
+ *   endpoint reachability through other means if desired.
+ *
  * URL normalisation:
  *   `endpointUrl` is the base URL the user configured — it should be the
  *   /chat/completions root (e.g. "http://localhost:11434/v1"). We probe
@@ -283,7 +290,15 @@ export async function testCredential(
 export async function testCustomCredential(
   endpointUrl: string,
   apiKey?: string,
+  requiresApiKey?: boolean,
 ): Promise<TestResult> {
+  // Short-circuit for explicitly keyless providers. No credential is needed
+  // and no credential check should be attempted. Return 'valid' — the provider
+  // is considered ready without auth.
+  if (requiresApiKey === false) {
+    return { status: 'valid', message: 'No API key required' };
+  }
+
   if (!endpointUrl || !endpointUrl.trim()) {
     return { status: 'error', message: 'No endpoint URL configured' };
   }
