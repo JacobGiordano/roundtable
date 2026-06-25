@@ -26,7 +26,7 @@ interface ExportButtonProps {
  *  - Enter/Space on trigger → opens menu, focuses first menuitem (WCAG 2.4.3).
  *  - ArrowDown / ArrowUp → move focus between menuitems (wrap at ends).
  *  - Escape → closes menu, returns focus to trigger.
- *  - Tab → closes menu, returns focus to trigger (Tab must not cycle in a menu).
+ *  - Tab → closes menu, lets focus move naturally past the trigger (no focus trap).
  *  - Enter/Space on a focused menuitem → activates it (native button behaviour).
  */
 export function ExportButton({ onExport, disabled = false }: ExportButtonProps) {
@@ -51,7 +51,10 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
 
   const handleSelect = (format: ExportFormat) => {
     onExport(format);
-    setIsOpen(false);
+    // closeAndReturn rather than bare setIsOpen: when the focused menuitem
+    // unmounts the browser moves focus to document.body. Explicitly returning
+    // focus to the trigger before unmount satisfies WCAG 2.4.3 — Focus Order.
+    closeAndReturn();
   };
 
   /** Returns the list of focusable menuitems from the menu container. */
