@@ -518,7 +518,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
         editPencilRef.current?.focus();
       });
     });
-  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, editRequiresApiKey, onUpdated]);
+  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, editRequiresApiKey, onUpdated, provider]);
 
   // Move focus to the Cancel button when the row enters a confirm state so
   // keyboard users land on a usable control rather than body (WCAG 2.4.3, #115).
