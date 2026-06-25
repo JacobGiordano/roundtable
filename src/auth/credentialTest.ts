@@ -41,6 +41,21 @@ interface ProviderTestConfig {
 }
 
 /**
+ * Three-tier proxy base URL helper.
+ *
+ * Resolution order (same pattern as /src/models/claude.ts and ANTHROPIC_TEST_BASE):
+ *   1. VITE_<PROVIDER>_PROXY_URL env var — set in production with a self-hosted backend
+ *   2. /<provider>-proxy path  — Vite dev proxy (active in `npm run dev` only)
+ *   3. Direct URL              — fallback for production builds without a backend proxy;
+ *                                will fail for providers that block CORS from browsers
+ */
+function proxyBase(envVar: string, devPath: string, directUrl: string): string {
+  const envValue = (import.meta.env as Record<string, string | undefined>)[envVar];
+  if (envValue) return envValue;
+  return import.meta.env.DEV ? devPath : directUrl;
+}
+
+/**
  * Anthropic blocks browser-direct API calls (CORS). Route through the Vite
  * dev proxy in development — identical pattern to /src/models/claude.ts.
  *
@@ -52,9 +67,60 @@ interface ProviderTestConfig {
  * The `anthropic-dangerous-direct-browser-access: true` header satisfies
  * Anthropic's browser-origin check on the proxied request.
  */
-const ANTHROPIC_TEST_BASE =
-  import.meta.env.VITE_ANTHROPIC_PROXY_URL ??
-  (import.meta.env.DEV ? '/anthropic-proxy' : 'https://api.anthropic.com');
+const ANTHROPIC_TEST_BASE = proxyBase(
+  'VITE_ANTHROPIC_PROXY_URL',
+  '/anthropic-proxy',
+  'https://api.anthropic.com',
+);
+
+/**
+ * Google Gemini — CORS behaviour varies by endpoint and key type; proxy for
+ * reliable dev-time testing.
+ *
+ *   - Development: /google-proxy → https://generativelanguage.googleapis.com
+ *   - Production with self-hosted backend: VITE_GOOGLE_PROXY_URL env var
+ *   - Production fallback: direct URL
+ */
+const GOOGLE_TEST_BASE = proxyBase(
+  'VITE_GOOGLE_PROXY_URL',
+  '/google-proxy',
+  'https://generativelanguage.googleapis.com',
+);
+
+/**
+ * xAI (Grok) — CORS stance is not publicly documented; proxy conservatively.
+ *
+ *   - Development: /xai-proxy → https://api.x.ai
+ *   - Production with self-hosted backend: VITE_XAI_PROXY_URL env var
+ *   - Production fallback: direct URL
+ */
+const XAI_TEST_BASE = proxyBase('VITE_XAI_PROXY_URL', '/xai-proxy', 'https://api.x.ai');
+
+/**
+ * DeepSeek — CORS stance is not publicly documented; proxy conservatively.
+ *
+ *   - Development: /deepseek-proxy → https://api.deepseek.com
+ *   - Production with self-hosted backend: VITE_DEEPSEEK_PROXY_URL env var
+ *   - Production fallback: direct URL
+ */
+const DEEPSEEK_TEST_BASE = proxyBase(
+  'VITE_DEEPSEEK_PROXY_URL',
+  '/deepseek-proxy',
+  'https://api.deepseek.com',
+);
+
+/**
+ * Mistral — CORS stance is not publicly documented; proxy conservatively.
+ *
+ *   - Development: /mistral-proxy → https://api.mistral.ai
+ *   - Production with self-hosted backend: VITE_MISTRAL_PROXY_URL env var
+ *   - Production fallback: direct URL
+ */
+const MISTRAL_TEST_BASE = proxyBase(
+  'VITE_MISTRAL_PROXY_URL',
+  '/mistral-proxy',
+  'https://api.mistral.ai',
+);
 
 const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
   anthropic: {
@@ -68,6 +134,11 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
       },
     }),
   },
+  /**
+   * OpenAI explicitly supports browser-direct API calls — their client SDK is
+   * designed for browser use and api.openai.com returns CORS headers that allow
+   * any origin. No proxy needed; hitting the URL directly is the correct approach.
+   */
   openai: {
     url: 'https://api.openai.com/v1/models',
     buildInit: (value) => ({
@@ -79,13 +150,14 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
   },
   google: {
     // Key is passed as a URL query parameter — no Authorization header needed.
-    url: `https://generativelanguage.googleapis.com/v1beta/models`,
+    // Proxied through /google-proxy in dev to avoid CORS preflight issues.
+    url: `${GOOGLE_TEST_BASE}/v1beta/models`,
     buildInit: () => ({
       method: 'GET',
     }),
   },
   xai: {
-    url: 'https://api.x.ai/v1/models',
+    url: `${XAI_TEST_BASE}/v1/models`,
     buildInit: (value) => ({
       method: 'GET',
       headers: {
@@ -94,7 +166,7 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
     }),
   },
   deepseek: {
-    url: 'https://api.deepseek.com/models',
+    url: `${DEEPSEEK_TEST_BASE}/models`,
     buildInit: (value) => ({
       method: 'GET',
       headers: {
@@ -103,7 +175,7 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
     }),
   },
   mistral: {
-    url: 'https://api.mistral.ai/v1/models',
+    url: `${MISTRAL_TEST_BASE}/v1/models`,
     buildInit: (value) => ({
       method: 'GET',
       headers: {
