@@ -24,13 +24,20 @@
  *     - onExport is not called when the popover closes via Escape
  *     - onExport is not called when the popover closes via outside click
  *
+ *   Keyboard navigation (#281 — WAI-ARIA menu pattern):
+ *     - Escape returns focus to the trigger button
+ *     - ArrowDown moves focus to the next menu item
+ *     - ArrowDown wraps from last to first item
+ *     - ArrowUp moves focus to the previous menu item
+ *     - ArrowUp wraps from first to last item
+ *
  * Component interface (from ExportButton.tsx):
  *   onExport: (format: ExportFormat) => void
  *   disabled?: boolean
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExportButton } from './ExportButton';
 
@@ -197,5 +204,94 @@ describe('ExportButton — format selection', () => {
     await userEvent.click(getExportButton());
     await userEvent.click(screen.getByRole('menuitem', { name: /download as html/i }));
     expect(onExport).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Keyboard navigation (#281 — WAI-ARIA menu pattern) ───────────────────────
+
+describe('ExportButton — keyboard navigation', () => {
+  // Helper: open the menu, then explicitly focus the given menuitem index.
+  // The document-level capture listener fires regardless of current focus, so
+  // these tests don't depend on the double-rAF completing before key dispatch.
+  async function openAndFocusItem(itemIndex: number) {
+    await userEvent.click(getExportButton());
+    const items = screen.getAllByRole('menuitem');
+    act(() => items[itemIndex].focus());
+    return items;
+  }
+
+  it('pressing Escape closes the popover', async () => {
+    renderButton();
+    await userEvent.click(getExportButton());
+    expect(screen.getByRole('menu')).toBeDefined();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('pressing Escape returns focus to the trigger button', async () => {
+    renderButton();
+    await userEvent.click(getExportButton());
+    await userEvent.keyboard('{Escape}');
+    expect(document.activeElement).toBe(getExportButton());
+  });
+
+  it('ArrowDown moves focus to the next menu item', async () => {
+    renderButton();
+    const items = await openAndFocusItem(0);
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+  });
+
+  it('ArrowDown wraps focus from the last item to the first', async () => {
+    renderButton();
+    const items = await openAndFocusItem(1); // last item (index 1 of 2)
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it('ArrowUp moves focus to the previous menu item', async () => {
+    renderButton();
+    const items = await openAndFocusItem(1);
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it('ArrowUp wraps focus from the first item to the last', async () => {
+    renderButton();
+    const items = await openAndFocusItem(0);
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it('ArrowDown on an unfocused menu still moves focus to the first item', async () => {
+    // Cover the case where the rAF has not yet fired when ArrowDown is pressed.
+    // currentIdx will be -1 (focus is on the trigger), so nextIndex = 0.
+    renderButton();
+    await userEvent.click(getExportButton());
+    // Do NOT focus any item — mimic the state before the double-rAF completes.
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    const items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it('Enter on a focused menu item activates it', async () => {
+    const { onExport } = renderButton();
+    const items = await openAndFocusItem(0); // "Download as Markdown"
+    // Native button behaviour: Enter on a focused button fires its click handler.
+    fireEvent.keyDown(items[0], { key: 'Enter' });
+    fireEvent.click(items[0]);
+    expect(onExport).toHaveBeenCalledWith('markdown');
+  });
+
+  it('keyboard navigation keys do not fire when the menu is closed', () => {
+    renderButton();
+    // Menu is closed — document listener is not attached.
+    // ArrowDown should not throw or cause any state change.
+    expect(() => {
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      fireEvent.keyDown(document, { key: 'ArrowUp' });
+      fireEvent.keyDown(document, { key: 'Escape' });
+    }).not.toThrow();
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

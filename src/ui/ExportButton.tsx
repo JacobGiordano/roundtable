@@ -27,20 +27,23 @@ interface ExportButtonProps {
  *  - ArrowDown / ArrowUp → move focus between menuitems (wrap at ends).
  *  - Escape → closes menu, returns focus to trigger.
  *  - Tab → closes menu, returns focus to trigger (Tab must not cycle in a menu).
- *  - Enter/Space on a focused menuitem → activates it.
+ *  - Enter/Space on a focused menuitem → activates it (native button behaviour).
  */
 export function ExportButton({ onExport, disabled = false }: ExportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // #281: Track active focus index without triggering a re-render per keypress.
+  // A ref is the correct tool — focus state is ephemeral and does not drive rendering.
+  const activeFocusIndexRef = useRef<number>(-1);
 
   const close = useCallback(() => setIsOpen(false), []);
 
   const closeAndReturn = useCallback(() => {
-    close();
+    setIsOpen(false);
     buttonRef.current?.focus();
-  }, [close]);
+  }, []);
 
   const handleToggle = () => {
     if (!disabled) setIsOpen((prev) => !prev);
@@ -48,50 +51,98 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
 
   const handleSelect = (format: ExportFormat) => {
     onExport(format);
-    close();
+    setIsOpen(false);
   };
+
+  /** Returns the list of focusable menuitems from the menu container. */
+  const getMenuItems = useCallback((): HTMLElement[] => {
+    if (!menuRef.current) return [];
+    return Array.from(menuRef.current.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+  }, []);
 
   // Close on outside click — shared hook (#149).
   useClickOutside([containerRef], close, isOpen);
 
-  // When the menu opens, move focus to the first menuitem (WCAG 2.4.3 — focus order).
-  // Double-rAF ensures the menu has mounted before .focus() fires.
+  // #281: WAI-ARIA Menu Button keyboard contract — document-level capture listener.
+  //
+  // Why capture phase, not bubble-phase onKeyDown on the menu container?
+  // After the trigger is clicked, focus sits on the trigger button while the
+  // double-rAF that moves focus to the first menuitem is still queued. A
+  // bubble-phase handler on the menu div never sees keys fired from the trigger.
+  // A capture-phase document listener fires first, regardless of where focus is.
+  //
+  // The same effect handles initial focus (double-rAF) so both concerns share
+  // a single cleanup path.
   useEffect(() => {
-    if (!isOpen) return;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const first = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
-        first?.focus();
+    if (!isOpen) {
+      activeFocusIndexRef.current = -1;
+      return;
+    }
+
+    // Focus first menuitem. Double-rAF needed for inline conditional render:
+    // React commits the menu to the DOM on the first frame, making items
+    // queryable on the second frame.
+    let raf2Id = 0;
+    let cancelled = false;
+
+    const raf1Id = requestAnimationFrame(() => {
+      raf2Id = requestAnimationFrame(() => {
+        if (cancelled) return;
+        const items = getMenuItems();
+        if (items.length > 0) {
+          activeFocusIndexRef.current = 0;
+          items[0].focus();
+        }
       });
     });
-  }, [isOpen]);
 
-  // Arrow-key / Tab / Escape handler on the menu container.
-  // WAI-ARIA menu pattern: arrow keys move within the menu; Tab closes it.
-  const handleMenuKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const items = Array.from(
-        menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
-      );
-      const focused = document.activeElement as HTMLElement;
-      const currentIndex = items.indexOf(focused);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const items = getMenuItems();
+      if (items.length === 0) return;
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = items[(currentIndex + 1) % items.length];
-        next?.focus();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = items[(currentIndex - 1 + items.length) % items.length];
-        prev?.focus();
-      } else if (e.key === 'Tab' || e.key === 'Escape') {
-        // Tab and Escape both close the menu and return focus to the trigger.
-        e.preventDefault();
-        closeAndReturn();
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault();
+          // Determine current position from live focus, not just the ref — handles
+          // the case where focus moved into the menu via means other than arrow keys.
+          const currentIdx = items.indexOf(document.activeElement as HTMLElement);
+          const nextIndex = (currentIdx + 1) % items.length;
+          activeFocusIndexRef.current = nextIndex;
+          items[nextIndex].focus();
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          const currentIdx = items.indexOf(document.activeElement as HTMLElement);
+          const prevIndex = (currentIdx - 1 + items.length) % items.length;
+          activeFocusIndexRef.current = prevIndex;
+          items[prevIndex].focus();
+          break;
+        }
+        case 'Tab': {
+          // Tab closes the menu without preventing default — let Tab move
+          // focus naturally past the trigger. Unlike Escape, focus is not
+          // explicitly returned to the trigger button.
+          close();
+          break;
+        }
+        case 'Escape': {
+          e.preventDefault();
+          closeAndReturn();
+          break;
+        }
       }
-    },
-    [closeAndReturn],
-  );
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1Id);
+      cancelAnimationFrame(raf2Id);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, getMenuItems, close, closeAndReturn]);
 
   return (
     <div ref={containerRef} className="relative flex-shrink-0">
@@ -120,7 +171,6 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
           ref={menuRef}
           role="menu"
           aria-label="Export format"
-          onKeyDown={handleMenuKeyDown}
           className={[
             'absolute right-0 top-full mt-1 z-50',
             'min-w-[180px] py-1',
@@ -138,7 +188,9 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
               'text-[13px] text-text-primary',
               'hover:bg-hover',
               'transition-colors duration-fast',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:bg-hover',
+              // tabIndex={-1}: programmatic focus target only — not in Tab order.
+              // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
+              'focus:outline-none focus:bg-hover',
             ].join(' ')}
           >
             Download as Markdown
@@ -153,7 +205,9 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
               'text-[13px] text-text-primary',
               'hover:bg-hover',
               'transition-colors duration-fast',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus focus-visible:bg-hover',
+              // tabIndex={-1}: programmatic focus target only — not in Tab order.
+              // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
+              'focus:outline-none focus:bg-hover',
             ].join(' ')}
           >
             Download as HTML
