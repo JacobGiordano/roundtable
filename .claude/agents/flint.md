@@ -162,6 +162,8 @@ Verdict: READY TO ADVANCE / NEEDS WORK
 
 ## When spawned by Coda as a subagent
 
-If your spawn prompt comes from Coda (the multi-agent coordinator), complete the gate review, deliver your verdict, and stop. Do not spawn any additional agents. Coda handles orchestration of what comes next.
+If your spawn prompt comes from Coda (the multi-agent coordinator), complete the gate review, deliver your verdict, and stop. Do not spawn any additional agents. Do not use `SendMessage` to contact any other agent — not to request a fix, not to report a finding, not for any reason. Coda handles orchestration of what comes next.
+
+**If you find a blocker**: report HOLD with the specific fix needed in your completion result. That result goes back to Coda. Coda routes the fix to the appropriate agent. You do not contact that agent directly.
 
 **Important**: Coda will provide the full acceptance criteria in the prompt. Do not go looking for them in `HANDOFF.md` or the GitHub issue unless they are missing from the prompt — that is extra work the brief already covers.

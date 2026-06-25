@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #272, #268 closed)
+Last updated: 2026-06-25 (ship — #273, #271, #274 closed)
 
 ## Current phase
 
@@ -6,28 +6,30 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#272 (Gate)** — Credential Test button no longer hits `api.anthropic.com` directly. `ANTHROPIC_TEST_BASE` in `credentialTest.ts` now mirrors the three-tier fallback in `claude.ts`: `VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` (dev) → direct URL (prod fallback). `anthropic-dangerous-direct-browser-access: true` header added. Test assertions updated.
+**#273 (Gate)** — Closed. Non-Anthropic credential test buttons (Google, xAI, Deepseek, Mistral) now route through the Vite proxy — same three-tier fallback as Anthropic. Commits `0337cc2` / `bc821c3`. Issue was already fixed; session just closed it.
 
-**#268 (Scout)** — `FakeErrorProvider` now calls `emitErrorChunk` + `buildModelError` from `@/models/openai-sse`, emitting the correct two-chunk sequence (priming non-done chunk → done+error chunk) that real providers use. Mock previously emitted a bare `{ isDone: true, error }` chunk that the belt-and-suspenders guard in `useStreamingMessages` silently dropped.
+**#271 (Aria)** — Closed. Synthesized fallback Message in `useStreamingMessages` guard path now sets `content: 'Error'`, so live region announces "ModelName: Error" instead of silence. Fixed in `3aacc32`.
+
+**#274 (Aria)** — Closed. Three guards in `MessageBubble.tsx` suppress the sentinel "Error" string from rendering as visible body text: `MessageContent` returns null, copy button removed, border-t divider removed — all when `hasError && content === 'Error'`. Real partial-content messages unaffected. Ada: 23/23 pass, zero blockers.
+
+**Agent profiles** — Flint and Coda profiles updated: Flint now has explicit `SendMessage` prohibition when spawned by Coda; Coda's Phase Gate section includes required closing line for every Flint brief. Fixes dropped-notification pattern.
 
 ## Open bugs / known issues
 
-- **#269 (Gate/Atlas)** — Ollama and no-auth custom providers hit auth_failure. Cross-agent; needs usage headroom before starting.
-- **#271 (Aria)** — Live region announces empty snippet for synthesized error messages (Ada advisory).
-- **#273 (Gate)** — Non-Anthropic credential test buttons (Google, xAI, Deepseek, Mistral) may hit external URLs directly — CORS risk. Same fix pattern as #272.
+- **#269 (Gate/Atlas)** — Ollama and no-auth custom providers hit auth_failure. Cross-agent; confirm usage headroom before starting.
 - **ExportButton Escape** — pre-existing WAI-ARIA menu ArrowDown/Up wiring absent.
 
 ## Key decisions
 
-- `FakeErrorProvider` must use `emitErrorChunk` — bare `{ isDone: true, error }` chunks are silently dropped by `useStreamingMessages`. The priming non-done chunk is required to create the accumulator entry.
-- `credentialTest.ts` `ANTHROPIC_TEST_BASE` must stay in sync with `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback, same header.
+- `content: 'Error'` sentinel on synthesized error Messages is load-bearing for live region — do not revert.
+- MessageBubble guards key on `message.error` existence + sentinel string — real partial-content messages always unaffected.
+- Flint must never use SendMessage when spawned by Coda — report HOLD and stop; Coda routes fixes.
 
 ## What's next
 
-1. **#273 (Gate)** — CORS fix for remaining provider test buttons (Google, xAI, Deepseek, Mistral)
-2. **#269 (Gate/Atlas)** — Ollama / no-auth auth_failure; cross-agent, confirm usage before starting
-3. **#271 (Aria)** — Live region empty snippet; minor
-4. **Phase 5 assessment** — after #269 confirmed + #273 fixed
+1. **#269 (Gate/Atlas)** — Ollama / no-auth auth_failure; cross-agent, confirm usage before starting
+2. **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up; Aria issue, file if not already open
+3. **Phase 5 assessment** — after #269 confirmed
 
 ## Gotchas
 
@@ -75,3 +77,4 @@ Phase 4+ — Full gate process active.
 - `sentConversationRef` in App.tsx: set synchronously before `sendMessage()`, read in `handleMessageComplete` — never replace with `store.getActiveConversation()` in that callback
 - Vite dev proxy `/anthropic-proxy` → `https://api.anthropic.com` handles CORS; `anthropic-dangerous-direct-browser-access: true` header required on the fetch
 - `credentialTest.ts` `ANTHROPIC_TEST_BASE` must mirror `ANTHROPIC_API_BASE` in `claude.ts` — same three-tier fallback (`VITE_ANTHROPIC_PROXY_URL` → `/anthropic-proxy` → direct)
+- `content: 'Error'` sentinel on synthesized error Messages feeds the live region — do not revert; MessageBubble guards suppress the visual rendering when `hasError && content === 'Error'`
