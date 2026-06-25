@@ -29,6 +29,9 @@ export default {
         'accent-grok':      'var(--accent-grok)',
         'accent-deepseek':  'var(--accent-deepseek)',
         'accent-mistral':   'var(--accent-mistral)',
+        // User message identity accent — set by applyTheme (Pass 1 theme default)
+        // and optionally overridden by applyUserMessageColor (Pass 2 user choice).
+        'accent-user':      'var(--accent-user)',
         // Interactive
         'hover':           'var(--interactive-hover)',
         'active':          'var(--interactive-active)',

@@ -410,10 +410,18 @@ export function MessageBubble({
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
 
-  // Left border color: read from ModelConfig.color (CSS custom property), error overrides.
-  // accent-other is only used when modelConfig is genuinely absent/unknown.
+  // Left border color:
+  //   - User messages: always var(--accent-user) — the user identity accent (#279).
+  //     No modelId exists on user messages; no fallback to any model accent is permitted.
+  //   - Model messages: resolved from ModelConfig.color (CSS custom property suffix or hex).
+  //     Falls back to accent-other only when modelConfig is genuinely absent/unknown.
+  //   - Error state overrides the accent on any message type.
   const accentColor = modelConfig?.color ?? 'accent-other';
-  const borderLeftColor = hasError ? 'var(--error)' : resolveAccentCssColor(accentColor);
+  const borderLeftColor = hasError
+    ? 'var(--error)'
+    : message.role === 'user'
+      ? 'var(--accent-user)'
+      : resolveAccentCssColor(accentColor);
 
   // Only assistant messages from a model show the name header
   const showHeader = message.role === 'assistant' && modelConfig;

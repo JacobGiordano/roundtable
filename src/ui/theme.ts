@@ -65,6 +65,13 @@ export function applyTheme(theme: CustomThemeJSON): void {
   root.style.setProperty('--accent-deepseek',  theme.accents['model-deepseek']);
   root.style.setProperty('--accent-mistral',   theme.accents['model-mistral']);
 
+  // User message identity accent (Pass 1 — theme default).
+  // `accents.user` is present in all 7 built-in themes but not yet in the
+  // CustomThemeJSON type (Arch tracks this in a follow-up). The cast handles
+  // custom-imported themes that pre-date this key; fallback is periwinkle #A5B4FC.
+  const accentUser = (theme.accents as Record<string, string | undefined>)['user'];
+  root.style.setProperty('--accent-user', accentUser ?? '#A5B4FC');
+
   // Interactive
   root.style.setProperty('--interactive-hover',  theme.interactive.hover);
   root.style.setProperty('--interactive-active', theme.interactive.active);
@@ -131,5 +138,28 @@ export function applyUserAccentColors(userColors: ModelAccentColors): void {
     if (userColors[modelId]) {
       root.style.setProperty(cssVar, userColors[modelId]!);
     }
+  }
+}
+
+/**
+ * Pass 2 of the user message accent override.
+ * If the user stored a custom hex via Gate's setUserAccentColor(), it overrides
+ * the theme default set by applyTheme (Pass 1). When storedHex is null (no
+ * stored override), the inline style is removed so Pass 1's theme value takes
+ * effect.
+ *
+ * Call this:
+ * - On app load, after applyTheme() and after applyUserAccentColors().
+ * - On every theme switch, same order.
+ * - Immediately after setUserAccentColor() — pass the new hex.
+ * - Immediately after clearUserAccentColor() — pass null.
+ */
+export function applyUserMessageColor(storedHex: string | null): void {
+  const root = document.documentElement;
+  if (storedHex) {
+    root.style.setProperty('--accent-user', storedHex);
+  } else {
+    // Remove any previously-set inline override so Pass 1's theme value shows.
+    root.style.removeProperty('--accent-user');
   }
 }

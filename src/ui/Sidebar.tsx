@@ -23,6 +23,10 @@ import {
   // Both are pure Gate persistence functions — permitted exception per CLAUDE.md.
   setActiveTheme,
   getThemePreference,
+  // Gate cross-agent exception (#279): user message accent color persistence API.
+  // getUserAccentColor reads the stored hex (null = use theme default).
+  // setUserAccentColor / clearUserAccentColor are called by UserAccentColorPicker.
+  getUserAccentColor,
 } from '@/auth';
 import { groupConversations } from './groupConversations';
 // #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
@@ -34,7 +38,9 @@ import { filterByArchiveStatus, filterBySearchQuery, deriveExistingGroups, type 
 // applyTheme: applies the selected theme's token set to :root CSS custom properties.
 // THEME_MAP / THEME_IDS: shared static lookup constants (Vite requires static imports
 // for JSON — these live in theme.ts so both main.tsx and Sidebar share the same map).
-import { applyUserAccentColors, applyTheme, THEME_MAP, THEME_IDS } from './theme';
+import { applyUserAccentColors, applyTheme, applyUserMessageColor, THEME_MAP, THEME_IDS } from './theme';
+// #279: UserAccentColorPicker — color picker popover for the user's message accent.
+import { UserAccentColorPicker } from './UserAccentColorPicker';
 import type { ThemeId } from '@/types';
 import { RoundtableLogo } from './RoundtableLogo';
 // #150: shared ChevronIcon replaces the down-chevron SVG in the settings toggle.
@@ -343,6 +349,16 @@ export function Sidebar({
     () => getThemePreference().activeThemeId,
   );
 
+  // User accent color picker state (#279).
+  // userAccentPickerOpen: whether the UserAccentColorPicker popover is visible.
+  // userAccentAnchorRect: BoundingClientRect of the swatch button (for positioning).
+  // userAccentCurrentColor: snapshot of getUserAccentColor() used as the picker's
+  // initial value; refreshed each time the picker opens.
+  const [userAccentPickerOpen, setUserAccentPickerOpen] = useState(false);
+  const [userAccentAnchorRect, setUserAccentAnchorRect] = useState<DOMRect | null>(null);
+  const [userAccentCurrentColor, setUserAccentCurrentColor] = useState<string | null>(null);
+  const userAccentSwatchRef = useRef<HTMLButtonElement>(null);
+
   // Track which named groups are collapsed. All groups start open.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // Archive filter: show active or archived conversations.
@@ -401,14 +417,33 @@ export function Sidebar({
   }, []);
 
   const handleThemeChange = useCallback((themeId: ThemeId) => {
-    // Persist via Gate, then apply the token set and re-run the accent
-    // override pass. The applyUserAccentColors call is non-negotiable —
-    // applyTheme resets all accent CSS vars to theme defaults, so user
-    // overrides must be reapplied immediately after.
+    // Persist via Gate, then apply the token set and re-run all accent
+    // override passes in order:
+    //   1. applyTheme — sets all CSS vars from theme defaults (Pass 1)
+    //   2. applyUserAccentColors — re-applies model accent overrides (Pass 2a)
+    //   3. applyUserMessageColor — re-applies user message accent override (Pass 2b)
+    // All three are non-negotiable: applyTheme resets all accent CSS vars to
+    // theme defaults, so user overrides must be reapplied immediately after.
     setActiveTheme(themeId);
     applyTheme(THEME_MAP[themeId]);
     applyUserAccentColors(getModelAccentColors());
+    applyUserMessageColor(getUserAccentColor());
     setActiveThemeId(themeId);
+  }, []);
+
+  // ── User accent color picker handlers (#279) ──────────────────────────────
+
+  const handleUserAccentSwatchClick = useCallback(() => {
+    const rect = userAccentSwatchRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setUserAccentCurrentColor(getUserAccentColor());
+    setUserAccentAnchorRect(rect);
+    setUserAccentPickerOpen(true);
+  }, []);
+
+  const handleUserAccentPickerClose = useCallback(() => {
+    setUserAccentPickerOpen(false);
+    userAccentSwatchRef.current?.focus();
   }, []);
 
   const handleToggleGroup = useCallback((groupId: string) => {
@@ -916,6 +951,45 @@ export function Sidebar({
                   Reset all model colors to theme defaults
                 </button>
               </div>
+            )}
+
+            {/* Your message accent — user identity color for user message bubbles (#279).
+                A swatch button opens the UserAccentColorPicker popover.
+                The swatch background reflects the currently active --accent-user value
+                (stored override or theme default) via the CSS custom property. */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted mb-2">
+                Your messages
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  ref={userAccentSwatchRef}
+                  type="button"
+                  aria-label="Change your message accent color"
+                  aria-expanded={userAccentPickerOpen}
+                  aria-haspopup="dialog"
+                  onClick={handleUserAccentSwatchClick}
+                  className={[
+                    'w-9 h-9 rounded-md flex-shrink-0',
+                    'border border-border',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    'transition-transform duration-fast hover:scale-105',
+                  ].join(' ')}
+                  style={{ backgroundColor: 'var(--accent-user)' }}
+                />
+                <span className="text-sm font-medium text-text-secondary">
+                  Your message accent
+                </span>
+              </div>
+            </div>
+
+            {/* UserAccentColorPicker popover — rendered at root via portal-like positioning */}
+            {userAccentPickerOpen && userAccentAnchorRect && (
+              <UserAccentColorPicker
+                currentColor={userAccentCurrentColor}
+                anchorRect={userAccentAnchorRect}
+                onClose={handleUserAccentPickerClose}
+              />
             )}
           </div>
         )}
