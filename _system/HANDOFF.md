@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #269 closed)
+Last updated: 2026-06-25 (ship — #275, #276, #278 closed)
 
 ## Current phase
 
@@ -6,34 +6,32 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#269 (Arch/Gate/Atlas/Aria/Scout)** — Closed. No-auth custom providers (Ollama, LM Studio, etc.) no longer hit `auth_failure`. Five-agent wave:
-- Arch: `requiresApiKey?: boolean` on `CustomProviderConfig` — absent = `true`, no migration
-- Gate: `isCustomProviderReady()` exported; `testCustomCredential()` short-circuits; `addCustomProvider`/`updateCustomProvider` store the flag
-- Atlas: credential lookup and `Authorization` header skipped when `requiresApiKey === false` in `generic.ts`
-- Aria: "No API key required" checkbox in Add and Edit forms; API key field removed from DOM when checked; badge shows "No key required"; Ada: 0 blockers
-- Scout: 40 new tests, all passing
+**#275 (Aria/Ada)** — Closed. Custom provider `accentColor` now reaches `MessageBubble` via `rosterToModelConfigs()` → `ModelConfig.color` → context → prop → `resolveAccentCssColor()`. Applied to border, directed-to label, and reply button color sites.
 
-Final merge: `f94ba92`.
+**#276 (Aria/Ada)** — Closed. Four dark themes (slate, midnight, ash, ember) lightened `text.muted` to clear 4.5:1 on the `interactive.hover` surface. Linen advisory (4.44:1) filed as #277 — pre-existing, deferred.
+
+**#278 (Aria)** — Closed. `rosterToModelConfigs()` now merges fresh `name`/`color` from the updated roster into the existing `ModelConfig` entry (preserving `isActive`, `systemPrompt`). Edit → close panel → real-time update in `MessageBubble` without page reload.
+
+Final merge: `5045ed1` (Flint caught a missing `ModelId` import; fixed before push).
 
 ## Open bugs / known issues
 
-- **#275 (Aria)** — Custom provider accent color not applied in chat bubbles. Color shows in settings list but not in message bubbles.
-- **#276 (Aria/Luma/Ada)** — Dark theme text contrast failure. Body text and secondary text near-invisible in dark themes. WCAG AA fail.
-- **ExportButton Escape** — pre-existing WAI-ARIA menu ArrowDown/Up wiring absent.
+- **#277** — Linen `text.muted` on `interactive.hover`: 4.44:1, just below 4.5:1 threshold. Advisory; filed.
+- **#279 (Luma→Aria)** — User message bubble visual identity spec. `_design/specs/user-bubble-identity.md` was left untracked; Luma needs to commit that spec before Aria implements.
+- **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up wiring absent. Pre-existing; no GitHub issue yet — file before starting.
 
 ## Key decisions
 
-- `requiresApiKey?: boolean` lives on `CustomProviderConfig` only — not `BuiltInProviderConfig`, not `ModelProviderConfig`. Built-ins always require credentials.
-- Absent-means-`true` semantics at every layer — Gate, Atlas, Aria all check `=== false` with strict equality.
-- `isCustomProviderReady(config)` is the correct function for any readiness check; `hasCredential` is for value-presence only.
-- `content: 'Error'` sentinel on synthesized error Messages is load-bearing for live region — do not revert.
+- `rosterToModelConfigs()` merges display metadata (`name`, `color`) over existing `ModelConfig` on every roster change — preserves runtime state.
+- `resolveAccentCssColor()` returns hex strings as-is and wraps CSS token suffixes in `var(--)`. Do not change this logic.
+- Linen contrast advisory (#277) is `it.fails()` in the contrast test suite — intentional, not a broken test.
 
 ## What's next
 
-1. **#275 (Aria)** — Accent color not reaching chat bubbles; trace `accentColor` from roster → MessageBubble
-2. **#276 (Aria/Luma/Ada)** — Dark theme contrast; check `text-foreground` token resolution in dark theme scope
-3. **ExportButton Escape** — WAI-ARIA menu ArrowDown/Up; file if not already open
-4. **Phase 5 assessment** — after contrast issues resolved
+1. **#279 (Luma)** — Commit `_design/specs/user-bubble-identity.md` and finalize the spec, then hand to Aria
+2. **#280 (Aria/Gate)** — Persistent sidebar open/close toggle on desktop
+3. **ExportButton Escape** — File issue, then Aria
+4. **Phase 5 assessment** — after #279/#280 land
 
 ## Gotchas
 
