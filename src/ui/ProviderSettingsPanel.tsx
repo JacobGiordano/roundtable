@@ -1071,8 +1071,16 @@ function validateForm(
   }
   if (!endpointUrl.trim()) {
     errors.endpointUrl = 'Endpoint URL is required.';
-  } else if (!/^https?:\/\/.+/.test(endpointUrl.trim())) {
-    errors.endpointUrl = 'Enter a valid URL (e.g. https://my-server.example.com/v1)';
+  } else {
+    const trimmed = endpointUrl.trim();
+    const isAbsoluteUrl = /^https?:\/\/.+/.test(trimmed);
+    // In dev, also accept /dev-proxy/<url> so users can follow the DevProxyHint
+    // instructions without triggering a validation error. Vite strips this branch
+    // (import.meta.env.DEV === false) from production builds.
+    const isDevProxy = import.meta.env.DEV && /^\/dev-proxy\/https?:\/\/.+/.test(trimmed);
+    if (!isAbsoluteUrl && !isDevProxy) {
+      errors.endpointUrl = 'Enter a valid URL (e.g. https://my-server.example.com/v1)';
+    }
   }
   if (!modelString.trim()) {
     errors.modelString = 'Model string is required.';
