@@ -58,6 +58,14 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/mistral-proxy/, ''),
         secure: true,
       },
+      // OpenRouter — custom endpoint users should point to /openrouter-proxy/api/v1/chat/completions
+      // instead of https://openrouter.ai/api/v1/chat/completions when running in the dev container.
+      '/openrouter-proxy': {
+        target: 'https://openrouter.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/openrouter-proxy/, ''),
+        secure: true,
+      },
     },
   },
   test: {

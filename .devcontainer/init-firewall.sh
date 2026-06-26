@@ -79,6 +79,7 @@ for domain in \
     "fonts.gstatic.com" \
     "playwright.download.prss.microsoft.com" \
     "cdn.playwright.dev" \
+    "openrouter.ai" \
     "hooks.slack.com"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
@@ -127,7 +128,7 @@ iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 # These domains serve from large rotating IP pools (AWS CloudFront / ELB), so
 # IPs baked in at container start drift mid-session and block outbound requests.
 nohup bash -c '
-CDN_DOMAINS="hooks.slack.com api.openai.com api.anthropic.com"
+CDN_DOMAINS="hooks.slack.com api.openai.com api.anthropic.com openrouter.ai"
 while true; do
   sleep 1800
   for domain in $CDN_DOMAINS; do

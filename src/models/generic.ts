@@ -177,10 +177,13 @@ export class GenericOpenAIProvider implements ModelProvider {
       if (networkErr instanceof Error && networkErr.name === 'AbortError') {
         throw networkErr;
       }
-      const error = buildModelError(
-        'network_error',
-        networkErr instanceof Error ? networkErr.message : 'Network request failed'
-      );
+      let message = networkErr instanceof Error ? networkErr.message : 'Network request failed';
+      // In the dev container the firewall blocks direct HTTPS calls to external APIs.
+      // If the endpoint is a direct URL (not already a proxy path), surface a hint.
+      if (import.meta.env.DEV && endpointUrl.startsWith('https://')) {
+        message += ' — in the dev container, external URLs may be blocked by the firewall. Use a Vite proxy path or add the domain to init-firewall.sh.';
+      }
+      const error = buildModelError('network_error', message);
       emitErrorChunk(modelId, error, onChunk);
       return {};
     }
