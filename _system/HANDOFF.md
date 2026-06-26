@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #279 and #280 closed)
+Last updated: 2026-06-26 (ship — #282, #283, #284, #277, #286 closed)
 
 ## Current phase
 
@@ -6,31 +6,33 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#279 (Luma/Gate/Aria/Ada/Flint)** — Closed. User message bubbles now have a distinct periwinkle/indigo `accents.user` left border. Gate added `getUserAccentColor`/`setUserAccentColor`/`clearUserAccentColor` API + custom theme validator updated to require `accents.user`. Aria added Pass 2 CSS override, bubble border fix, and "Your messages" swatch + `UserAccentColorPicker` in Settings → Appearance. Hotfix required: `applyUserMessageColor(null)` was stripping Pass 1's `--accent-user` inline style; fix: null branch is now a no-op, reset handler re-applies `applyTheme()` first.
+**#282/#283/#284 (Aria/Ada/Flint)** — Closed. Sidebar collapse button has `aria-expanded={isDesktopOpen}`. All three toggle buttons (collapse, expand, hamburger) have `aria-controls="app-sidebar"`; `<aside>` has `id="app-sidebar"`. UserAccentColorPicker hex input now uses `focus-visible:ring-1 focus-visible:ring-focus` instead of bare `focus:border`. Ada: clear.
 
-**#280 (Gate/Aria/Ada/Flint)** — Closed. Desktop sidebar now has collapse/expand toggle. State persists via `roundtable:sidebar-open` localStorage key. Mobile sidebar unaffected.
+**#277 (Gate/Flint)** — Closed. Linen `text.muted` darkened `#6D6863` → `#6B6660`. Contrast on `interactive.hover` (#EDE6DA): 4.44:1 → 4.58:1. All other Linen surfaces still pass. Note: fix touched `/_design/themes/linen.json` (Luma territory) — future contrast-token fixes should route through Luma, not Gate.
+
+**#286 (Atlas/Aria/Ada/Flint)** — Closed. Custom endpoint accent colors now apply via the AccentColorPicker path. Two-layer root cause: (1) `applyUserAccentColors` only iterated built-in `MODEL_ACCENT_CSS_VARS`; (2) Gate's `readStoredColors` stripped custom IDs on readback. Fix: `applyRosterAccentColors(roster)` initializes `--accent-custom-{id}` CSS vars; `AccentColorPicker.saveColor` bypasses Gate stripping for custom providers; `MessageBubble.resolveAccentCssColor` routes custom providers through `var(--accent-custom-{id})`. Known limitation: AccentColorPicker overrides are session-local until #287 (Gate) lands.
 
 ## Open bugs / known issues
 
-- **#277** — Linen `text.muted` on `interactive.hover`: 4.44:1, just below 4.5:1 threshold. Advisory; filed.
-- **#282** — a11y advisory: collapse button missing `aria-expanded={true}`. Low effort fix.
-- **#283** — a11y advisory: sidebar toggle buttons missing `aria-controls`.
-- **#284** — a11y advisory: hex input in `UserAccentColorPicker` uses `focus:` border instead of `focus-visible:ring`.
-- **#286** — Bug: custom endpoint accent colors not applied to message bubbles. #278 did not fully resolve this. Investigation needed — Atlas + Aria.
+- **#287** — Gate: `isValidModelId` in `accentColors.ts` strips custom provider IDs — AccentColorPicker overrides lost on reload. Fix: accept `custom:*` IDs.
+- **#288** — a11y: `AccentColorPicker.tsx` hex input uses bare `focus:border-border-strong` (sibling to #284, pre-existing).
+- **#285** — File attachments — future, no green light yet.
 
 ## Key decisions
 
-- `applyUserMessageColor(null)` is intentionally a no-op. Any caller that needs to restore the theme default must call `applyTheme(currentTheme)` first. This is documented in JSDoc.
+- `applyUserMessageColor(null)` is a no-op — callers restoring theme default must call `applyTheme(currentTheme)` first.
 - `handleReset` in `UserAccentColorPicker`: order is `applyTheme(THEME_MAP[themeId])` → `clearUserAccentColor()` → `applyUserMessageColor(null)`.
-- `accents.user` token family: `#A5B4FC` (dark themes), `#4338CA` (light themes), `#B4BCFF` (Outrun). All pass 4.5:1 as text against their card surfaces.
-- Sidebar toggle: `md:hidden` on `<aside>` when `!isDesktopOpen`. Mobile sidebar (`isMobileMenuOpen`) is separate state — never touch both in the same handler.
+- `accents.user` token family: `#A5B4FC` (dark), `#4338CA` (light), `#B4BCFF` (Outrun). All pass 4.5:1.
+- Sidebar toggle: `md:hidden` on `<aside>` when `!isDesktopOpen`. Mobile sidebar is separate state — never touch both in same handler.
+- `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts` is single source of truth for `custom:*` → CSS ident. Do not inline.
+- `applyRosterAccentColors(roster)` must be called at boot (`main.tsx`), on theme switch (`Sidebar.tsx handleThemeChange`), and on roster change (`App.tsx handleRosterChange`).
+- Gate's `readStoredColors()` intentionally strips custom IDs until #287 — do not rely on `getModelAccentColors()` returning custom IDs.
 
 ## What's next
 
-1. **#286 (Atlas/Aria)** — Custom endpoint colors bug — user green-lit this
-2. **#285 (multi-agent)** — File attachments — future, no green light yet
-3. **#282/#283/#284** — Ada advisories — low priority, can batch into a future Aria session
-4. **Phase 5 assessment** — after #286 and any remaining Phase 4 bugs land
+1. **#287 (Gate)** — AccentColorPicker persistence for custom providers
+2. **#288 (Aria)** — AccentColorPicker.tsx bare `focus:` — batch with other Aria work
+3. **Phase 5 assessment** — after remaining Phase 4 bugs land
 
 ## Gotchas
 
@@ -84,3 +86,8 @@ Phase 4+ — Full gate process active.
 - `accents.user` custom theme validator: key is now required in `accents` object — custom themes pre-dating #279 need `"user": "<hex>"` added
 - `applyUserMessageColor(null)` is a no-op — callers restoring theme default must call `applyTheme()` first
 - Sidebar toggle: `getSidebarOpen()` default is `true` (absent key = open); `setSidebarOpen(bool)` persists to `roundtable:sidebar-open`
+- `MessageBubble.resolveAccentCssColor(token, modelId?)`: custom providers → `var(--accent-custom-{sanitizeCustomAccentId(modelId)})`; built-ins → `var(--accent-{token})`
+- `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts`: single source of truth for `custom:*` → CSS ident. Do not inline this logic anywhere else.
+- `applyRosterAccentColors(roster)` must be called at boot, theme switch, and roster change — see `main.tsx`, `Sidebar.tsx handleThemeChange`, `App.tsx handleRosterChange`
+- Gate's `readStoredColors()` strips custom provider IDs — `getModelAccentColors()` never returns custom IDs until #287 lands; `AccentColorPicker` bypasses this for live session overrides
+- Contrast-token fixes: route through Luma (values in `/_design/themes/`), not Gate — Gate has no representation of built-in theme token values
