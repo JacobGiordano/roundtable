@@ -79,7 +79,7 @@ const THEMES: Record<string, ThemeTokens> = {
   },
   linen: {
     bg: '#F5F0E8', card: '#FDFAF5', sidebar: '#EDE8DF', input: '#F9F5EE',
-    textPrimary: '#1C1A16', textSecondary: '#4A4640', textMuted: '#6D6863' /* #58 fix */,
+    textPrimary: '#1C1A16', textSecondary: '#4A4640', textMuted: '#6B6660' /* #58 fix, #277 fix */,
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#7E22CE',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#B91C1C', errorBg: '#B91C1C' /* same value, light theme */,
@@ -262,10 +262,8 @@ describe('theme contrast — text-muted on interactive.hover (4.5:1)', () => {
   it('slate: PASS (fixed #276)', () => {
     expect(contrastRatio(THEMES.slate.textMuted, THEMES.slate.hover)).toBeGreaterThanOrEqual(4.5);
   });
-  // Pre-existing failure — linen hover is a warm near-white (#EDE6DA); text.muted
-  // (#6D6863) computes 4.44:1, just below threshold. Not part of #276 scope.
-  // Filed as advisory finding for Luma to resolve.
-  it.fails('linen: ADVISORY FAIL — text-muted 4.44:1 on hover (pre-existing, not #276)', () => {
+  // Fixed in #277: darkened text.muted #6D6863 → #6B6660; now 4.58:1.
+  it('linen: PASS (fixed #277 — text-muted 4.58:1 on hover)', () => {
     expect(contrastRatio(THEMES.linen.textMuted, THEMES.linen.hover)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS (fixed #276)', () => {

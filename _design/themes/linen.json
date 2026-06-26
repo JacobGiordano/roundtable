@@ -10,7 +10,7 @@
   "text": {
     "primary": "#1C1A16",
     "secondary": "#4A4640",
-    "muted": "#6D6863",
+    "muted": "#6B6660",
     "inverse": "#FDFAF5"
   },
   "borders": {
@@ -79,11 +79,12 @@
   },
   "_a11y": {
     "text.muted": {
-      "fix": "Darkened #7A7570 → #6D6863. Shifts from mid-gray to a darker warm taupe; preserves warm brownish neutrality of Linen theme.",
+      "fix": "Darkened #7A7570 → #6D6863 (#58). Darkened again #6D6863 → #6B6660 (#277) to fix 4.44:1 on interactive.hover (#EDE6DA). Preserves warm brownish neutrality of Linen theme.",
       "ratios": {
-        "on-background-#F5F0E8": "4.86:1 PASS",
-        "on-card-#FDFAF5": "5.29:1 PASS",
-        "on-sidebar-#EDE8DF": "4.52:1 PASS"
+        "on-background-#F5F0E8": "5.01:1 PASS",
+        "on-card-#FDFAF5": "5.46:1 PASS",
+        "on-sidebar-#EDE8DF": "4.66:1 PASS",
+        "on-hover-#EDE6DA": "4.58:1 PASS"
       },
       "wcag": "AA 4.5:1 normal text — all surfaces pass"
     }
