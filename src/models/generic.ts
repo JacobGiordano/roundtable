@@ -64,6 +64,22 @@ interface OpenAIStreamChunk {
   };
 }
 
+// ─── stream_options incompatibility cache ─────────────────────────────────────
+
+/**
+ * Module-level cache of endpoint URLs known to reject the stream_options parameter.
+ *
+ * Free-tier OpenRouter models (and some other inference backends) return HTTP 422
+ * or 502 when stream_options is present. This cache records those endpoints so
+ * subsequent requests skip the parameter entirely.
+ *
+ * Lifecycle: populated at runtime on the first non-ok response from any endpoint
+ * when stream_options was included in the request. Persists for the lifetime of
+ * the page; resets on reload. Worst case: one extra failed request per session
+ * per endpoint (the probe that discovers the incompatibility).
+ */
+const streamOptionsIncompatibleEndpoints = new Set<string>();
+
 // ─── GenericOpenAIProvider ────────────────────────────────────────────────────
 
 export class GenericOpenAIProvider implements ModelProvider {
@@ -144,17 +160,24 @@ export class GenericOpenAIProvider implements ModelProvider {
       });
     }
 
-    const requestBody = {
+    // Whether this endpoint has previously rejected stream_options.
+    // On cache hit we omit the parameter outright; on cache miss we include it
+    // and retry once without it if the endpoint returns a non-ok response.
+    const includeStreamOptions = !streamOptionsIncompatibleEndpoints.has(endpointUrl);
+
+    // Build a request body with or without stream_options.
+    // stream_options.include_usage requests token counts in the final SSE chunk.
+    // Some endpoints (e.g. free-tier OpenRouter models backed by third-party
+    // inference) reject this parameter with HTTP 422 or 502. The cache above
+    // tracks which endpoints are incompatible; this helper is called twice when
+    // a retry is needed.
+    const buildRequestBody = (withStreamOptions: boolean) => ({
       model: resolvedModelString,
       max_tokens: MAX_TOKENS_GENERIC,
       stream: true,
-      // Request token usage in the final stream chunk.
-      // Not all OpenAI-compatible endpoints honour this option — if the field is
-      // absent in the response, inputTokens and outputTokens remain zero and we
-      // still emit a valid done chunk rather than failing.
-      stream_options: { include_usage: true },
+      ...(withStreamOptions ? { stream_options: { include_usage: true } } : {}),
       messages: openaiMessages,
-    };
+    });
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -168,7 +191,7 @@ export class GenericOpenAIProvider implements ModelProvider {
       response = await fetch(endpointUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(buildRequestBody(includeStreamOptions)),
         signal,
       });
     } catch (networkErr) {
@@ -186,6 +209,45 @@ export class GenericOpenAIProvider implements ModelProvider {
       const error = buildModelError('network_error', message);
       emitErrorChunk(modelId, error, onChunk);
       return {};
+    }
+
+    // Auto-retry without stream_options on first non-ok response.
+    //
+    // When the initial request included stream_options and the endpoint rejected
+    // it (HTTP 4xx/5xx), mark the endpoint as incompatible and retry once with
+    // stream_options omitted. On success the retry response replaces the original
+    // and execution continues normally into SSE parsing below.
+    //
+    // Constraints:
+    //   - Retry only when stream_options was sent (never double-retry).
+    //   - Skip retry if the AbortSignal is already fired — respect cancellation.
+    //   - Network errors on the retry surface as network_error, not a second retry.
+    if (!response.ok && includeStreamOptions) {
+      streamOptionsIncompatibleEndpoints.add(endpointUrl);
+      if (!signal?.aborted) {
+        try {
+          response = await fetch(endpointUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(buildRequestBody(false)),
+            signal,
+          });
+        } catch (retryNetworkErr) {
+          if (retryNetworkErr instanceof Error && retryNetworkErr.name === 'AbortError') {
+            throw retryNetworkErr;
+          }
+          let retryMessage =
+            retryNetworkErr instanceof Error
+              ? retryNetworkErr.message
+              : 'Network request failed';
+          if (import.meta.env.DEV && endpointUrl.startsWith('https://')) {
+            retryMessage +=
+              ' — in the dev container, external URLs may be blocked by the firewall. Use a Vite proxy path or add the domain to init-firewall.sh.';
+          }
+          emitErrorChunk(modelId, buildModelError('network_error', retryMessage), onChunk);
+          return {};
+        }
+      }
     }
 
     if (!response.ok) {
