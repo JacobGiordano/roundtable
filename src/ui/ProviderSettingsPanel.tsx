@@ -741,6 +741,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                   {editErrors.endpointUrl ? (
                     <p role="alert" className="mt-1 text-[11px] text-error">{editErrors.endpointUrl}</p>
                   ) : null}
+                  <DevProxyHint />
                 </div>
 
                 {/* Model string */}
@@ -1079,6 +1080,28 @@ function validateForm(
   return errors;
 }
 
+// ─── Dev-proxy hint ───────────────────────────────────────────────────────────
+
+/**
+ * Informational hint shown in the dev container below custom endpoint URL
+ * fields. Explains the /dev-proxy/<url> prefix for routing external URLs
+ * through Vite's Node process (not subject to the container iptables firewall).
+ *
+ * Guarded by import.meta.env.DEV — Vite strips this block from production
+ * builds entirely, so no dead code ships.
+ */
+function DevProxyHint() {
+  if (!import.meta.env.DEV) return null;
+  return (
+    <p className="mt-2 text-[11px] text-text-muted leading-[1.5]">
+      In the dev container, prefix your endpoint URL with{' '}
+      <code className="font-mono">/dev-proxy/</code> to route it through Vite
+      (e.g.{' '}
+      <code className="font-mono break-all">/dev-proxy/https://openrouter.ai/api/v1/chat/completions</code>).
+    </p>
+  );
+}
+
 // ─── Add custom endpoint form ─────────────────────────────────────────────────
 
 interface AddCustomFormProps {
@@ -1223,6 +1246,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               Must be an OpenAI-compatible <code>/chat/completions</code> endpoint.
             </p>
           )}
+          <DevProxyHint />
         </div>
 
         {/* Field 3: Model String */}
