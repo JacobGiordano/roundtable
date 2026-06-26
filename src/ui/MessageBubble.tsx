@@ -2,6 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+// #286: MODEL_ACCENT_CSS_VARS and sanitizeCustomAccentId are used by
+// resolveAccentCssColor to route custom providers through their CSS var
+// (--accent-custom-{id}), enabling AccentColorPicker live-session overrides
+// to take effect without changing ModelConfig.color.
+import { MODEL_ACCENT_CSS_VARS, sanitizeCustomAccentId } from './utils/modelColor';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
 function CopyIcon() {
@@ -114,18 +119,30 @@ function getModelDataAttr(modelId: string | undefined): string {
 }
 
 /**
- * Resolve an accent color token to a valid CSS color string. (#275)
+ * Resolve an accent color token to a valid CSS color string. (#275, #286)
  *
- * Custom providers may store a raw hex string (e.g. "#9C6BCC") in their
- * `color` field. Built-in providers store a CSS custom property suffix
- * (e.g. "accent-claude"). Wrapping a hex string in `var(--)` produces an
- * invalid CSS declaration and silently drops the color. This function handles
- * both cases:
+ * Built-in providers store a CSS custom property suffix in ModelConfig.color
+ * (e.g. "accent-claude") → wrapped as var(--accent-claude).
  *
+ * Custom providers store either a raw hex string (e.g. "#9C6BCC") or a
+ * CSS token (e.g. "accent-other") in ModelConfig.color. Either way, when
+ * a modelId is provided and it's a custom provider, we route through
+ * var(--accent-custom-{id}) so that:
+ *   1. applyRosterAccentColors keeps the var set to the roster color.
+ *   2. AccentColorPicker.saveColor can override the var for the live session.
+ * Without this routing, a raw hex in ModelConfig.color would bypass the CSS
+ * var and ignore AccentColorPicker overrides. (#286)
+ *
+ * Without a modelId (or for built-in providers):
  *   - Hex strings  → returned as-is (valid CSS color value)
  *   - Token suffix → wrapped in `var(--{token})`
  */
-function resolveAccentCssColor(token: string): string {
+function resolveAccentCssColor(token: string, modelId?: ModelId | string): string {
+  // Custom providers: always use the CSS var so AccentColorPicker overrides
+  // applied via applyUserAccentColors() are picked up at render time. (#286)
+  if (modelId !== undefined && !(String(modelId) in MODEL_ACCENT_CSS_VARS)) {
+    return `var(--accent-custom-${sanitizeCustomAccentId(String(modelId))})`;
+  }
   return token.startsWith('#') ? token : `var(--${token})`;
 }
 
@@ -421,7 +438,7 @@ export function MessageBubble({
     ? 'var(--error)'
     : message.role === 'user'
       ? 'var(--accent-user)'
-      : resolveAccentCssColor(accentColor);
+      : resolveAccentCssColor(accentColor, modelConfig?.modelId);
 
   // Only assistant messages from a model show the name header
   const showHeader = message.role === 'assistant' && modelConfig;
@@ -537,11 +554,12 @@ export function MessageBubble({
 
       {/* Directed-to label — shown on user messages that have a targetModelId.
           Subtle indicator so the thread stays readable after the fact.
-          Color is read from targetModelConfig.color — no modelId switch needed. */}
+          Color is read from targetModelConfig — modelId passed for custom provider
+          CSS var routing. (#286) */}
       {targetModelConfig && message.role === 'user' && (
         <div
           className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
-          style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other') }}
+          style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
           aria-label={`Directed to ${targetModelConfig.name}`}
         >
           <span aria-hidden="true">→</span>
@@ -594,10 +612,11 @@ export function MessageBubble({
           ].join(' ')}
         >
           {/* "Reply to [Model]" — left side, only for assistant bubbles.
-              Color is read from modelConfig.color — no modelId switch needed.
-              The button is always in the accessibility tree (no aria-hidden); it
-              is opacity-0 at rest but becomes visible on hover OR keyboard focus
-              via focus-within on the parent container. */}
+              Color is read from modelConfig.color; modelId passed for custom
+              provider CSS var routing. (#286) The button is always in the
+              accessibility tree (no aria-hidden); it is opacity-0 at rest but
+              becomes visible on hover OR keyboard focus via focus-within on the
+              parent container. */}
           {canDirectReply ? (
             <button
               type="button"
@@ -608,7 +627,7 @@ export function MessageBubble({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 'rounded-sm',
               ].join(' ')}
-              style={{ color: resolveAccentCssColor(accentColor) }}
+              style={{ color: resolveAccentCssColor(accentColor, modelConfig?.modelId) }}
               aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
             >
               Reply to {modelConfig?.name ?? message.modelId}

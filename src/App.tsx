@@ -2,6 +2,9 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
+// #286: applyRosterAccentColors re-initialises --accent-custom-{id} CSS vars
+// when the roster changes (new provider added, color updated via ProviderSettingsPanel).
+import { applyRosterAccentColors } from '@/ui/theme';
 // useStreamingMessages: UI-owned hook for in-flight streaming accumulation (#158).
 // Extracted from App.tsx to reduce the god-component footprint. Pure React state
 // management — persistence callbacks are supplied by App so the hook stays
@@ -77,6 +80,12 @@ export function rosterToModelConfigs(
       // without a page reload. (#278: the former early-return was silently
       // discarding color/name edits made to existing providers.) Runtime state
       // (isActive, systemPrompt) is preserved from the existing ModelConfig.
+      //
+      // #286: color stays as the raw roster value (hex or CSS token). The
+      // resolveAccentCssColor function in MessageBubble.tsx redirects custom
+      // providers through var(--accent-custom-{id}) at render time, picking up
+      // both the roster default (set by applyRosterAccentColors) and any live
+      // AccentColorPicker session override (set by AccentColorPicker.saveColor).
       const rosterColor = config.color ?? 'accent-other';
       if (existing) {
         return { ...existing, name: config.displayName, color: rosterColor };
@@ -163,8 +172,12 @@ export default function App() {
     [rosterVersion],
   );
   const handleRosterChange = useCallback(() => {
+    const freshRoster = getProviderRoster();
     setRosterVersion((v) => v + 1);
-    setModels((prev) => rosterToModelConfigs(getProviderRoster(), prev));
+    setModels((prev) => rosterToModelConfigs(freshRoster, prev));
+    // #286: re-init --accent-custom-{id} CSS vars when the roster changes
+    // (new provider added, or ProviderSettingsPanel saved a new roster color).
+    applyRosterAccentColors(freshRoster);
   }, []);
 
   // ── Backend connection change (#265) ───────────────────────────────────────

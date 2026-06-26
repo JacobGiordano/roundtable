@@ -67,6 +67,27 @@ export const MODEL_ACCENT_CSS_VARS: Record<ModelId, string> = {
   'mistral':  '--accent-mistral',
 };
 
+// ─── #286 — Custom provider CSS var name sanitization ────────────────────────
+
+/**
+ * Sanitizes a custom provider ID for use in a CSS custom-property name.
+ *
+ * CSS custom property names are ident-sequences: letters, digits, hyphens,
+ * and underscores are reliably safe. Gate-generated IDs contain colons
+ * (e.g. "custom:openrouter-1") which are not valid in idents; they are
+ * replaced with hyphens here.
+ *
+ * Usage: `--accent-custom-${sanitizeCustomAccentId(modelId)}`
+ *
+ * This function is the single source of truth for the sanitization rule —
+ * applyUserAccentColors (theme.ts), applyRosterAccentColors (theme.ts),
+ * and rosterToModelConfigs (App.tsx) all import it so their CSS var names
+ * stay in sync.
+ */
+export function sanitizeCustomAccentId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
 // ─── #148 — Shared dot color resolution ──────────────────────────────────────
 
 /**

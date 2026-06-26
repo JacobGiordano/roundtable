@@ -10,5 +10,5 @@ export { ModelSelectorPanel } from './ModelSelectorPanel';
 export { OnboardingEmptyState } from './OnboardingEmptyState';
 export { ProviderSettingsPanel } from './ProviderSettingsPanel';
 export { Sidebar } from './Sidebar';
-export { applyTheme, applyUserAccentColors } from './theme';
+export { applyTheme, applyUserAccentColors, applyRosterAccentColors } from './theme';
 export { RoundtableLogo } from './RoundtableLogo';
