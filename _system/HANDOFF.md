@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #289, #288, #287 closed)
+Last updated: 2026-06-26 (ship — #290 closed)
 
 ## Current phase
 
@@ -6,26 +6,31 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#289 (Aria/Ada/Flint)** — Closed. `MessageBubble.tsx` error-state `borderLeftColor` changed from `var(--error)` (undefined) to `var(--semantic-error)`. `--error` is a Tailwind utility alias only — inline styles must use the CSS var name directly. Ada: clear.
-
-**#288 (Aria/Ada/Flint)** — Closed. `AccentColorPicker.tsx` hex input changed from bare `focus:border-border-strong` to `focus:outline-none focus-visible:ring-1 focus-visible:ring-focus`. Pattern now consistent with #284. Ada: clear.
-
-**#287 (Gate/Flint)** — Closed. `isValidModelId` in `accentColors.ts` now accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`). Custom accent color overrides now survive page reload. 9 new unit tests added.
+**#290 (Atlas + Aria / Flint)** — Closed. Generic `/dev-proxy/<url>` Vite middleware added to `vite.config.ts` (dev-only, streaming-safe, CORS-handled, protocol-validated). `DevProxyHint` component added to `ProviderSettingsPanel` below custom endpoint URL fields — gated by `import.meta.env.DEV`, zero production footprint. Named per-provider proxies untouched.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — future, no green light yet.
+- **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory, filed by Ada).
+- **#292** — Retry button is a stub (`App.tsx:777`) — not yet wired. Atlas.
+- **#293** — `stream_options: { include_usage: true }` causes 502 on OpenRouter free-tier models. Atlas fix: Option B (try → auto-retry → remember per-endpoint). Interim until #295 lands.
+- **#294** — Reply link text not using custom provider accent color in MessageBubble. Aria.
+- **#295** — Provider capabilities model design. Arch. Phase 5.
 
 ## Key decisions
 
-- `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias (`tailwind.config.js` maps `error` → `var(--semantic-error)`). Inline styles must always use `var(--semantic-error)` directly.
-- `isValidModelId` in `accentColors.ts` is now the single gatekeeper for valid model ID formats. Pattern: built-in enum OR `/^custom:[^\s]+$/`.
+- `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias. Inline styles must use `var(--semantic-error)` directly.
+- `isValidModelId` in `accentColors.ts` accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`).
+- Custom endpoint `endpointUrl` in `generic.ts` is the **full URL** including path (e.g. `/chat/completions`) — the provider does not append it.
+- Option B chosen for #293 (not chainsaw, not per-flag UI — try/retry/remember per-endpoint in generic.ts). #295 is the long-term capabilities model.
 
 ## What's next
 
-1. **OpenRouter firewall** — `openrouter.ai` not on container allowlist. User needs to add it to `init-firewall.sh` and rebuild, or test from outside the container.
-2. **#285 (Multi-agent)** — File attachments — awaiting green light.
-3. **Phase 5 assessment** — after remaining Phase 4 bugs land.
+1. **#293** (Atlas, Option B) — stream_options auto-retry. Queued.
+2. **#292** (Atlas) — Wire up Retry button. Batch with #293.
+3. **#294** (Aria) — Reply link accent color for custom providers.
+4. **#285** — File attachments — awaiting green light.
+5. **#295** — Capabilities model — Phase 5, Arch-led design.
 
 ## Gotchas
 
@@ -40,7 +45,6 @@ Phase 4+ — Full gate process active.
 - InteractionModeSwitcher: Manual + Auto-chain intentionally disabled (#131)
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
 - Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
-- `openrouter.ai` not on container firewall allowlist — all OpenRouter endpoints fail with "Failed to fetch" in dev container
 - App integration tests read from `lastContextValue` (RoundtableContext), not `lastAppLayoutProps`
 - Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
@@ -85,3 +89,5 @@ Phase 4+ — Full gate process active.
 - Gate's `readStoredColors()` now returns custom IDs (post-#287) — `getModelAccentColors()` returns custom accent overrides correctly
 - Contrast-token fixes: route through Luma (values in `/_design/themes/`), not Gate — Gate has no representation of built-in theme token values
 - `var(--error)` does not exist — use `var(--semantic-error)` in inline styles; Tailwind `bg-error`/`text-error` work via config alias only
+- Custom endpoint `endpointUrl` in `generic.ts` is the full URL including path (e.g. `/chat/completions`) — provider posts directly to it, does not append
+- `/dev-proxy/<url>` middleware is dev-only (`configureServer` hook) — Vite strips it from production builds entirely
