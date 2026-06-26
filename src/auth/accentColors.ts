@@ -32,15 +32,20 @@ const ACCENT_COLORS_STORAGE_KEY = 'roundtable:model-accent-colors' as const;
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 // BUILTIN_MODEL_IDS imported from builtinModelIds.ts — canonical single source.
-// Custom model IDs are not in this set, so they are filtered out during
-// deserialization of stored accent colors. This is correct behavior for the
-// current phase — custom model accent color persistence is out of scope until
-// ProviderRoster-aware storage is implemented.
+// Custom provider IDs have the format "custom:<slug>" (e.g. "custom:meta-llama-3-3-70b").
+// Both built-in IDs and valid custom IDs are accepted on readback so that
+// AccentColorPicker overrides for custom providers survive page reload (#287).
 
 const HEX_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
-function isValidModelId(value: unknown): value is BuiltInModelId {
-  return typeof value === 'string' && BUILTIN_MODEL_IDS.has(value as BuiltInModelId);
+// Matches custom provider IDs: "custom:" followed by one or more non-whitespace
+// characters. The slug may contain colons, hyphens, dots, and other characters
+// — sanitizeCustomAccentId() in src/ui/utils/modelColor.ts handles CSS safety.
+const CUSTOM_ID_PATTERN = /^custom:[^\s]+$/;
+
+function isValidModelId(value: unknown): value is ModelId {
+  if (typeof value !== 'string') return false;
+  return BUILTIN_MODEL_IDS.has(value as BuiltInModelId) || CUSTOM_ID_PATTERN.test(value);
 }
 
 function isValidHex(value: unknown): value is string {
