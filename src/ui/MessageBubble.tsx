@@ -435,7 +435,7 @@ export function MessageBubble({
   //   - Error state overrides the accent on any message type.
   const accentColor = modelConfig?.color ?? 'accent-other';
   const borderLeftColor = hasError
-    ? 'var(--error)'
+    ? 'var(--semantic-error)'
     : message.role === 'user'
       ? 'var(--accent-user)'
       : resolveAccentCssColor(accentColor, modelConfig?.modelId);
