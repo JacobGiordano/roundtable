@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #282, #283, #284, #277, #286 closed)
+Last updated: 2026-06-26 (ship — #289, #288, #287 closed)
 
 ## Current phase
 
@@ -6,33 +6,26 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#282/#283/#284 (Aria/Ada/Flint)** — Closed. Sidebar collapse button has `aria-expanded={isDesktopOpen}`. All three toggle buttons (collapse, expand, hamburger) have `aria-controls="app-sidebar"`; `<aside>` has `id="app-sidebar"`. UserAccentColorPicker hex input now uses `focus-visible:ring-1 focus-visible:ring-focus` instead of bare `focus:border`. Ada: clear.
+**#289 (Aria/Ada/Flint)** — Closed. `MessageBubble.tsx` error-state `borderLeftColor` changed from `var(--error)` (undefined) to `var(--semantic-error)`. `--error` is a Tailwind utility alias only — inline styles must use the CSS var name directly. Ada: clear.
 
-**#277 (Gate/Flint)** — Closed. Linen `text.muted` darkened `#6D6863` → `#6B6660`. Contrast on `interactive.hover` (#EDE6DA): 4.44:1 → 4.58:1. All other Linen surfaces still pass. Note: fix touched `/_design/themes/linen.json` (Luma territory) — future contrast-token fixes should route through Luma, not Gate.
+**#288 (Aria/Ada/Flint)** — Closed. `AccentColorPicker.tsx` hex input changed from bare `focus:border-border-strong` to `focus:outline-none focus-visible:ring-1 focus-visible:ring-focus`. Pattern now consistent with #284. Ada: clear.
 
-**#286 (Atlas/Aria/Ada/Flint)** — Closed. Custom endpoint accent colors now apply via the AccentColorPicker path. Two-layer root cause: (1) `applyUserAccentColors` only iterated built-in `MODEL_ACCENT_CSS_VARS`; (2) Gate's `readStoredColors` stripped custom IDs on readback. Fix: `applyRosterAccentColors(roster)` initializes `--accent-custom-{id}` CSS vars; `AccentColorPicker.saveColor` bypasses Gate stripping for custom providers; `MessageBubble.resolveAccentCssColor` routes custom providers through `var(--accent-custom-{id})`. Known limitation: AccentColorPicker overrides are session-local until #287 (Gate) lands.
+**#287 (Gate/Flint)** — Closed. `isValidModelId` in `accentColors.ts` now accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`). Custom accent color overrides now survive page reload. 9 new unit tests added.
 
 ## Open bugs / known issues
 
-- **#287** — Gate: `isValidModelId` in `accentColors.ts` strips custom provider IDs — AccentColorPicker overrides lost on reload. Fix: accept `custom:*` IDs.
-- **#288** — a11y: `AccentColorPicker.tsx` hex input uses bare `focus:border-border-strong` (sibling to #284, pre-existing).
 - **#285** — File attachments — future, no green light yet.
 
 ## Key decisions
 
-- `applyUserMessageColor(null)` is a no-op — callers restoring theme default must call `applyTheme(currentTheme)` first.
-- `handleReset` in `UserAccentColorPicker`: order is `applyTheme(THEME_MAP[themeId])` → `clearUserAccentColor()` → `applyUserMessageColor(null)`.
-- `accents.user` token family: `#A5B4FC` (dark), `#4338CA` (light), `#B4BCFF` (Outrun). All pass 4.5:1.
-- Sidebar toggle: `md:hidden` on `<aside>` when `!isDesktopOpen`. Mobile sidebar is separate state — never touch both in same handler.
-- `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts` is single source of truth for `custom:*` → CSS ident. Do not inline.
-- `applyRosterAccentColors(roster)` must be called at boot (`main.tsx`), on theme switch (`Sidebar.tsx handleThemeChange`), and on roster change (`App.tsx handleRosterChange`).
-- Gate's `readStoredColors()` intentionally strips custom IDs until #287 — do not rely on `getModelAccentColors()` returning custom IDs.
+- `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias (`tailwind.config.js` maps `error` → `var(--semantic-error)`). Inline styles must always use `var(--semantic-error)` directly.
+- `isValidModelId` in `accentColors.ts` is now the single gatekeeper for valid model ID formats. Pattern: built-in enum OR `/^custom:[^\s]+$/`.
 
 ## What's next
 
-1. **#287 (Gate)** — AccentColorPicker persistence for custom providers
-2. **#288 (Aria)** — AccentColorPicker.tsx bare `focus:` — batch with other Aria work
-3. **Phase 5 assessment** — after remaining Phase 4 bugs land
+1. **OpenRouter firewall** — `openrouter.ai` not on container allowlist. User needs to add it to `init-firewall.sh` and rebuild, or test from outside the container.
+2. **#285 (Multi-agent)** — File attachments — awaiting green light.
+3. **Phase 5 assessment** — after remaining Phase 4 bugs land.
 
 ## Gotchas
 
@@ -47,7 +40,7 @@ Phase 4+ — Full gate process active.
 - InteractionModeSwitcher: Manual + Auto-chain intentionally disabled (#131)
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
 - Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
-- `openrouter.ai` not on container firewall allowlist — live-API catalog fetch degrades to `[]` in dev
+- `openrouter.ai` not on container firewall allowlist — all OpenRouter endpoints fail with "Failed to fetch" in dev container
 - App integration tests read from `lastContextValue` (RoundtableContext), not `lastAppLayoutProps`
 - Parallel agent worktrees: Gate must always merge before Aria when Aria consumes a new Gate function
 - `aria-disabled` not `disabled` for buttons that need tooltip discoverability via keyboard
@@ -89,5 +82,6 @@ Phase 4+ — Full gate process active.
 - `MessageBubble.resolveAccentCssColor(token, modelId?)`: custom providers → `var(--accent-custom-{sanitizeCustomAccentId(modelId)})`; built-ins → `var(--accent-{token})`
 - `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts`: single source of truth for `custom:*` → CSS ident. Do not inline this logic anywhere else.
 - `applyRosterAccentColors(roster)` must be called at boot, theme switch, and roster change — see `main.tsx`, `Sidebar.tsx handleThemeChange`, `App.tsx handleRosterChange`
-- Gate's `readStoredColors()` strips custom provider IDs — `getModelAccentColors()` never returns custom IDs until #287 lands; `AccentColorPicker` bypasses this for live session overrides
+- Gate's `readStoredColors()` now returns custom IDs (post-#287) — `getModelAccentColors()` returns custom accent overrides correctly
 - Contrast-token fixes: route through Luma (values in `/_design/themes/`), not Gate — Gate has no representation of built-in theme token values
+- `var(--error)` does not exist — use `var(--semantic-error)` in inline styles; Tailwind `bg-error`/`text-error` work via config alias only
