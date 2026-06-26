@@ -2,6 +2,11 @@ import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { ModelConfig } from '@/types';
 // #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon replace inline SVGs.
 import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon } from './icons';
+// #294: resolveAccentCssColor routes custom providers through var(--accent-custom-{id})
+// so the directed-reply chip shows the correct user-chosen color and picks up
+// AccentColorPicker live-session overrides, instead of producing an invalid CSS var
+// from a raw hex string (e.g. var(--#4285F4)).
+import { resolveAccentCssColor } from './utils/modelColor';
 
 interface InputBarProps {
   onSend: (content: string) => void;
@@ -53,9 +58,14 @@ interface InputBarProps {
  * replacing the previous Tailwind opacity-modifier approach (which required one explicit
  * switch case per model because JIT cannot resolve dynamic class strings at build time).
  * Adding a new model to MODEL_REGISTRY now automatically works here — no code change needed.
+ *
+ * #294: modelId is required alongside color so resolveAccentCssColor can route custom
+ * providers through var(--accent-custom-{id}). Without this, a raw hex stored in
+ * ModelConfig.color (e.g. "#4285F4") would produce var(--#4285F4) — an invalid CSS
+ * custom property name — causing the pill to render with no color at all.
  */
-function getPillAccentStyle(color: string): React.CSSProperties {
-  const cssVar = `var(--${color})`;
+function getPillAccentStyle(color: string, modelId?: string): React.CSSProperties {
+  const cssVar = resolveAccentCssColor(color, modelId);
   return {
     backgroundColor: `color-mix(in srgb, ${cssVar} 15%, transparent)`,
     color: cssVar,
@@ -266,7 +276,7 @@ export function InputBar({
         >
           <div
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium"
-            style={getPillAccentStyle(directedReplyTarget.color)}
+            style={getPillAccentStyle(directedReplyTarget.color, directedReplyTarget.modelId)}
             aria-live="polite"
             aria-label={`Directed reply mode: sending to ${directedReplyTarget.name}`}
           >
