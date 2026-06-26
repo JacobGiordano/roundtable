@@ -1,4 +1,4 @@
-Last updated: 2026-06-25 (ship — #281 closed)
+Last updated: 2026-06-26 (ship — #279 and #280 closed)
 
 ## Current phase
 
@@ -6,26 +6,31 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#281 (Aria/Ada/Flint)** — Closed. ExportButton now implements the full WAI-ARIA Menu Button keyboard contract. Root cause was a bubble-phase `onKeyDown` on the menu div that never fired when focus was on the trigger during the double-rAF window. Replaced with a document-level capture listener. ArrowDown/ArrowUp wrap correctly; Escape returns focus to trigger; `handleSelect` uses `closeAndReturn()` (Ada caught bare `setIsOpen(false)` as a WCAG 2.4.3 blocker — focus was dropping to body after keyboard selection).
+**#279 (Luma/Gate/Aria/Ada/Flint)** — Closed. User message bubbles now have a distinct periwinkle/indigo `accents.user` left border. Gate added `getUserAccentColor`/`setUserAccentColor`/`clearUserAccentColor` API + custom theme validator updated to require `accents.user`. Aria added Pass 2 CSS override, bubble border fix, and "Your messages" swatch + `UserAccentColorPicker` in Settings → Appearance. Hotfix required: `applyUserMessageColor(null)` was stripping Pass 1's `--accent-user` inline style; fix: null branch is now a no-op, reset handler re-applies `applyTheme()` first.
+
+**#280 (Gate/Aria/Ada/Flint)** — Closed. Desktop sidebar now has collapse/expand toggle. State persists via `roundtable:sidebar-open` localStorage key. Mobile sidebar unaffected.
 
 ## Open bugs / known issues
 
 - **#277** — Linen `text.muted` on `interactive.hover`: 4.44:1, just below 4.5:1 threshold. Advisory; filed.
-- **#279 (Luma→Aria)** — User message bubble visual identity spec. `_design/specs/user-bubble-identity.md` was left untracked; Luma needs to commit that spec before Aria implements.
+- **#282** — a11y advisory: collapse button missing `aria-expanded={true}`. Low effort fix.
+- **#283** — a11y advisory: sidebar toggle buttons missing `aria-controls`.
+- **#284** — a11y advisory: hex input in `UserAccentColorPicker` uses `focus:` border instead of `focus-visible:ring`.
+- **#286** — Bug: custom endpoint accent colors not applied to message bubbles. #278 did not fully resolve this. Investigation needed — Atlas + Aria.
 
 ## Key decisions
 
-- `rosterToModelConfigs()` merges display metadata (`name`, `color`) over existing `ModelConfig` on every roster change — preserves runtime state.
-- `resolveAccentCssColor()` returns hex strings as-is and wraps CSS token suffixes in `var(--)`. Do not change this logic.
-- Linen contrast advisory (#277) is `it.fails()` in the contrast test suite — intentional, not a broken test.
-- ExportButton: document-level capture listener (not bubble-phase onKeyDown) for menu keyboard nav — same rationale as AddModelButton.
-- ExportButton: `handleSelect` must call `closeAndReturn()` (not bare `setIsOpen(false)`) so focus returns to trigger on keyboard selection.
+- `applyUserMessageColor(null)` is intentionally a no-op. Any caller that needs to restore the theme default must call `applyTheme(currentTheme)` first. This is documented in JSDoc.
+- `handleReset` in `UserAccentColorPicker`: order is `applyTheme(THEME_MAP[themeId])` → `clearUserAccentColor()` → `applyUserMessageColor(null)`.
+- `accents.user` token family: `#A5B4FC` (dark themes), `#4338CA` (light themes), `#B4BCFF` (Outrun). All pass 4.5:1 as text against their card surfaces.
+- Sidebar toggle: `md:hidden` on `<aside>` when `!isDesktopOpen`. Mobile sidebar (`isMobileMenuOpen`) is separate state — never touch both in the same handler.
 
 ## What's next
 
-1. **#279 (Luma)** — Commit `_design/specs/user-bubble-identity.md` and finalize the spec, then hand to Aria
-2. **#280 (Aria/Gate)** — Persistent sidebar open/close toggle on desktop
-3. **Phase 5 assessment** — after #279/#280 land
+1. **#286 (Atlas/Aria)** — Custom endpoint colors bug — user green-lit this
+2. **#285 (multi-agent)** — File attachments — future, no green light yet
+3. **#282/#283/#284** — Ada advisories — low priority, can batch into a future Aria session
+4. **Phase 5 assessment** — after #286 and any remaining Phase 4 bugs land
 
 ## Gotchas
 
@@ -76,3 +81,6 @@ Phase 4+ — Full gate process active.
 - `content: 'Error'` sentinel on synthesized error Messages feeds the live region — do not revert; MessageBubble guards suppress the visual rendering when `hasError && content === 'Error'`
 - `isCustomProviderReady(config)` is the correct readiness check for custom providers — `hasCredential` alone returns false for intentionally keyless providers
 - `focus-trap-browser.spec.ts` in `/src/tests/a11y/keyboard/` is a Playwright spec collected by Vitest due to naming — pre-existing suite-level error, not a real test failure
+- `accents.user` custom theme validator: key is now required in `accents` object — custom themes pre-dating #279 need `"user": "<hex>"` added
+- `applyUserMessageColor(null)` is a no-op — callers restoring theme default must call `applyTheme()` first
+- Sidebar toggle: `getSidebarOpen()` default is `true` (absent key = open); `setSidebarOpen(bool)` persists to `roundtable:sidebar-open`
