@@ -5,7 +5,8 @@
  * contract, same contrast warning) with these differences per Luma's spec (#279):
  *   - Header label: "Your accent" (not "Model accent")
  *   - No modelId routing — clicking a swatch calls setUserAccentColor(hex) directly
- *   - "Reset to theme default" calls clearUserAccentColor() then applyUserMessageColor(null)
+ *   - "Reset to theme default" calls applyTheme(currentTheme), then clearUserAccentColor(),
+ *     then applyUserMessageColor(null) (now a no-op — the theme default was already restored)
  *   - Reset shown only when getUserAccentColor() !== null
  */
 
@@ -15,8 +16,9 @@ import { useClickOutside } from './hooks/useClickOutside';
 // These three functions are the Gate-owned storage layer for the user's custom
 // accent color. Aria validates hex before calling setUserAccentColor (it throws
 // on invalid input per Gate's contract).
+import type { ThemeId } from '@/types';
 import { getUserAccentColor, setUserAccentColor, clearUserAccentColor } from '@/auth';
-import { applyUserMessageColor } from './theme';
+import { applyUserMessageColor, applyTheme, THEME_MAP } from './theme';
 import { contrastRatio } from './colorUtils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -298,8 +300,13 @@ export function UserAccentColorPicker({
   // ── Reset ─────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
+    // Re-apply the current theme first so applyTheme() re-sets --accent-user from the
+    // theme JSON (Pass 1). Without this, applyUserMessageColor(null) is a no-op and
+    // the previously-set inline override remains, blocking the theme default from showing.
+    const themeId = (document.documentElement.getAttribute('data-theme') ?? 'slate') as ThemeId;
+    applyTheme(THEME_MAP[themeId]);
     clearUserAccentColor();
-    applyUserMessageColor(null);
+    applyUserMessageColor(null); // no-op — theme default already restored by applyTheme
     onClose();
   }, [onClose]);
 

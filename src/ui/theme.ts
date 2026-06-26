@@ -145,21 +145,24 @@ export function applyUserAccentColors(userColors: ModelAccentColors): void {
  * Pass 2 of the user message accent override.
  * If the user stored a custom hex via Gate's setUserAccentColor(), it overrides
  * the theme default set by applyTheme (Pass 1). When storedHex is null (no
- * stored override), the inline style is removed so Pass 1's theme value takes
- * effect.
+ * stored override), this is a no-op — applyTheme() already set --accent-user
+ * via setProperty, and calling removeProperty here would strip it entirely,
+ * leaving no value on load (the bug this fixes).
+ *
+ * Callers that need to restore the theme default (e.g. "Reset to theme default")
+ * must call applyTheme(currentTheme) before calling applyUserMessageColor(null).
  *
  * Call this:
  * - On app load, after applyTheme() and after applyUserAccentColors().
  * - On every theme switch, same order.
  * - Immediately after setUserAccentColor() — pass the new hex.
- * - Immediately after clearUserAccentColor() — pass null.
+ * - After clearUserAccentColor() — pass null (no-op; applyTheme already set the default).
  */
 export function applyUserMessageColor(storedHex: string | null): void {
   const root = document.documentElement;
-  if (storedHex) {
+  if (storedHex !== null) {
     root.style.setProperty('--accent-user', storedHex);
-  } else {
-    // Remove any previously-set inline override so Pass 1's theme value shows.
-    root.style.removeProperty('--accent-user');
   }
+  // No else — when storedHex is null, applyTheme() already set --accent-user.
+  // removeProperty would strip the inline style, leaving no value at runtime.
 }
