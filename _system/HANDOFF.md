@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #290 closed)
+Last updated: 2026-06-26 (ship — #293 closed)
 
 ## Current phase
 
@@ -6,14 +6,15 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#290 (Atlas + Aria / Flint)** — Closed. Generic `/dev-proxy/<url>` Vite middleware added to `vite.config.ts` (dev-only, streaming-safe, CORS-handled, protocol-validated). `DevProxyHint` component added to `ProviderSettingsPanel` below custom endpoint URL fields — gated by `import.meta.env.DEV`, zero production footprint. Named per-provider proxies untouched.
+**#290 (Atlas + Aria / Flint)** — Closed. Generic `/dev-proxy/<url>` Vite middleware + `DevProxyHint` in ProviderSettingsPanel.
+
+**#293 (Atlas / Flint)** — Closed. `stream_options: { include_usage: true }` auto-retry in `generic.ts`. Module-level `streamOptionsIncompatibleEndpoints: Set<string>` — first request sends with `stream_options`; if non-ok response, endpoint is cached and request is retried without it. Abort-safe. Fixes 502s on OpenRouter free-tier models.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — future, no green light yet.
-- **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory, filed by Ada).
+- **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
 - **#292** — Retry button is a stub (`App.tsx:777`) — not yet wired. Atlas.
-- **#293** — `stream_options: { include_usage: true }` causes 502 on OpenRouter free-tier models. Atlas fix: Option B (try → auto-retry → remember per-endpoint). Interim until #295 lands.
 - **#294** — Reply link text not using custom provider accent color in MessageBubble. Aria.
 - **#295** — Provider capabilities model design. Arch. Phase 5.
 
@@ -22,15 +23,14 @@ Phase 4+ — Full gate process active.
 - `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias. Inline styles must use `var(--semantic-error)` directly.
 - `isValidModelId` in `accentColors.ts` accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`).
 - Custom endpoint `endpointUrl` in `generic.ts` is the **full URL** including path (e.g. `/chat/completions`) — the provider does not append it.
-- Option B chosen for #293 (not chainsaw, not per-flag UI — try/retry/remember per-endpoint in generic.ts). #295 is the long-term capabilities model.
+- `stream_options` incompatibility handled via Option B (try/retry/remember) not a per-provider flag. #295 is the long-term capabilities model.
 
 ## What's next
 
-1. **#293** (Atlas, Option B) — stream_options auto-retry. Queued.
-2. **#292** (Atlas) — Wire up Retry button. Batch with #293.
-3. **#294** (Aria) — Reply link accent color for custom providers.
-4. **#285** — File attachments — awaiting green light.
-5. **#295** — Capabilities model — Phase 5, Arch-led design.
+1. **#292** (Atlas) — Wire up Retry button.
+2. **#294** (Aria) — Reply link accent color for custom providers.
+3. **#285** — File attachments — awaiting green light.
+4. **#295** — Capabilities model — Phase 5, Arch-led design.
 
 ## Gotchas
 
@@ -91,3 +91,4 @@ Phase 4+ — Full gate process active.
 - `var(--error)` does not exist — use `var(--semantic-error)` in inline styles; Tailwind `bg-error`/`text-error` work via config alias only
 - Custom endpoint `endpointUrl` in `generic.ts` is the full URL including path (e.g. `/chat/completions`) — provider posts directly to it, does not append
 - `/dev-proxy/<url>` middleware is dev-only (`configureServer` hook) — Vite strips it from production builds entirely
+- `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is module-level (page-lifetime cache) — resets on reload; one extra 502 per session per incompatible endpoint is acceptable
