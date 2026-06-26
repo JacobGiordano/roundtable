@@ -2,11 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
-// #286: MODEL_ACCENT_CSS_VARS and sanitizeCustomAccentId are used by
-// resolveAccentCssColor to route custom providers through their CSS var
-// (--accent-custom-{id}), enabling AccentColorPicker live-session overrides
-// to take effect without changing ModelConfig.color.
-import { MODEL_ACCENT_CSS_VARS, sanitizeCustomAccentId } from './utils/modelColor';
+// #294: resolveAccentCssColor is the shared single source of truth for accent
+// color resolution — custom providers route through var(--accent-custom-{id})
+// so AccentColorPicker live-session overrides are picked up at render time.
+// Moved from a local function to modelColor.ts so InputBar.tsx can share it.
+import { resolveAccentCssColor } from './utils/modelColor';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
 function CopyIcon() {
@@ -116,34 +116,6 @@ interface MessageBubbleProps {
 /** Maps a ModelId to the data-model attribute value for streaming shimmer CSS targeting. */
 function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
-}
-
-/**
- * Resolve an accent color token to a valid CSS color string. (#275, #286)
- *
- * Built-in providers store a CSS custom property suffix in ModelConfig.color
- * (e.g. "accent-claude") → wrapped as var(--accent-claude).
- *
- * Custom providers store either a raw hex string (e.g. "#9C6BCC") or a
- * CSS token (e.g. "accent-other") in ModelConfig.color. Either way, when
- * a modelId is provided and it's a custom provider, we route through
- * var(--accent-custom-{id}) so that:
- *   1. applyRosterAccentColors keeps the var set to the roster color.
- *   2. AccentColorPicker.saveColor can override the var for the live session.
- * Without this routing, a raw hex in ModelConfig.color would bypass the CSS
- * var and ignore AccentColorPicker overrides. (#286)
- *
- * Without a modelId (or for built-in providers):
- *   - Hex strings  → returned as-is (valid CSS color value)
- *   - Token suffix → wrapped in `var(--{token})`
- */
-function resolveAccentCssColor(token: string, modelId?: ModelId | string): string {
-  // Custom providers: always use the CSS var so AccentColorPicker overrides
-  // applied via applyUserAccentColors() are picked up at render time. (#286)
-  if (modelId !== undefined && !(String(modelId) in MODEL_ACCENT_CSS_VARS)) {
-    return `var(--accent-custom-${sanitizeCustomAccentId(String(modelId))})`;
-  }
-  return token.startsWith('#') ? token : `var(--${token})`;
 }
 
 // ─── Markdown component renderers ─────────────────────────────────────────────

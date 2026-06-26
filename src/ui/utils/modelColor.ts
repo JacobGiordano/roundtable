@@ -88,6 +88,41 @@ export function sanitizeCustomAccentId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, '-');
 }
 
+// ─── #294 — Shared accent CSS color resolution (single source of truth) ─────
+
+/**
+ * Resolve an accent color token to a valid CSS color string. (#275, #286, #294)
+ *
+ * Built-in providers store a CSS custom property suffix in ModelConfig.color
+ * (e.g. "accent-claude") → wrapped as var(--accent-claude).
+ *
+ * Custom providers store either a raw hex string (e.g. "#9C6BCC") or a
+ * CSS token (e.g. "accent-other") in ModelConfig.color. Either way, when
+ * a modelId is provided and it's a custom provider, we route through
+ * var(--accent-custom-{id}) so that:
+ *   1. applyRosterAccentColors keeps the var set to the roster color.
+ *   2. AccentColorPicker.saveColor can override the var for the live session.
+ * Without this routing, a raw hex in ModelConfig.color would produce an
+ * invalid CSS custom property name (e.g. var(--#9C6BCC)), causing the color
+ * to silently fall back to the browser default and making the chip appear
+ * with the wrong or missing accent color. (#294 — contrast failure)
+ *
+ * Without a modelId (or for built-in providers):
+ *   - Hex strings  → returned as-is (valid CSS color value)
+ *   - Token suffix → wrapped in `var(--{token})`
+ *
+ * Single source of truth — MessageBubble.tsx and InputBar.tsx both import
+ * this. Do not define a local copy of this logic anywhere else.
+ */
+export function resolveAccentCssColor(token: string, modelId?: string): string {
+  // Custom providers: always use the CSS var so AccentColorPicker overrides
+  // applied via applyUserAccentColors() are picked up at render time. (#286)
+  if (modelId !== undefined && !(String(modelId) in MODEL_ACCENT_CSS_VARS)) {
+    return `var(--accent-custom-${sanitizeCustomAccentId(String(modelId))})`;
+  }
+  return token.startsWith('#') ? token : `var(--${token})`;
+}
+
 // ─── #148 — Shared dot color resolution ──────────────────────────────────────
 
 /**

@@ -2,6 +2,11 @@ import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { ModelConfig } from '@/types';
 // #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon replace inline SVGs.
 import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon } from './icons';
+// #294: resolveAccentCssColor routes custom providers through var(--accent-custom-{id})
+// so the directed-reply chip shows the correct user-chosen color and picks up
+// AccentColorPicker live-session overrides, instead of producing an invalid CSS var
+// from a raw hex string (e.g. var(--#4285F4)).
+import { resolveAccentCssColor } from './utils/modelColor';
 
 interface InputBarProps {
   onSend: (content: string) => void;
@@ -53,13 +58,23 @@ interface InputBarProps {
  * replacing the previous Tailwind opacity-modifier approach (which required one explicit
  * switch case per model because JIT cannot resolve dynamic class strings at build time).
  * Adding a new model to MODEL_REGISTRY now automatically works here — no code change needed.
+ *
+ * #294: modelId is required alongside color so resolveAccentCssColor can route custom
+ * providers through var(--accent-custom-{id}). Without this, a raw hex stored in
+ * ModelConfig.color (e.g. "#4285F4") would produce var(--#4285F4) — an invalid CSS
+ * custom property name — causing the pill to render with no color at all.
+ *
+ * Text color is intentionally NOT set here — the chip uses text-text-secondary (Tailwind
+ * class on the element) so it passes WCAG 1.4.3 across all 7 themes. Ada audit #294
+ * found 23/56 accent-on-accent-tint combinations fail when the same accent is used for
+ * both text and background tint. Accent identity is communicated via background tint and
+ * the stronger 40% border.
  */
-function getPillAccentStyle(color: string): React.CSSProperties {
-  const cssVar = `var(--${color})`;
+function getPillAccentStyle(color: string, modelId?: string): React.CSSProperties {
+  const cssVar = resolveAccentCssColor(color, modelId);
   return {
     backgroundColor: `color-mix(in srgb, ${cssVar} 15%, transparent)`,
-    color: cssVar,
-    borderColor: `color-mix(in srgb, ${cssVar} 30%, transparent)`,
+    borderColor: `color-mix(in srgb, ${cssVar} 40%, transparent)`,
   };
 }
 
@@ -265,10 +280,8 @@ export function InputBar({
           ].join(' ')}
         >
           <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium"
-            style={getPillAccentStyle(directedReplyTarget.color)}
-            aria-live="polite"
-            aria-label={`Directed reply mode: sending to ${directedReplyTarget.name}`}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium text-text-secondary"
+            style={getPillAccentStyle(directedReplyTarget.color, directedReplyTarget.modelId)}
           >
             <span aria-hidden="true">→</span>
             <span>{directedReplyTarget.name}</span>
@@ -374,6 +387,22 @@ export function InputBar({
           className="sr-only"
         >
           {isStreaming ? 'Generating response — press Stop to cancel' : ''}
+        </span>
+
+        {/* Visually-hidden live region — announces directed-reply mode changes.
+            Always present in the DOM so the browser registers the live region before any
+            update fires. The chip is conditionally mounted — aria-live on mount/unmount
+            elements is unreliable across screen readers (WCAG 4.1.3). This persistent
+            span is the correct pattern (same as ghost mode and streaming regions above).
+            Ada audit #294 advisory. */}
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {directedReplyTarget
+            ? `Directed reply mode: sending to ${directedReplyTarget.name}`
+            : ''}
         </span>
 
         {/* Textarea */}
