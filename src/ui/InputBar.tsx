@@ -63,13 +63,18 @@ interface InputBarProps {
  * providers through var(--accent-custom-{id}). Without this, a raw hex stored in
  * ModelConfig.color (e.g. "#4285F4") would produce var(--#4285F4) — an invalid CSS
  * custom property name — causing the pill to render with no color at all.
+ *
+ * Text color is intentionally NOT set here — the chip uses text-text-secondary (Tailwind
+ * class on the element) so it passes WCAG 1.4.3 across all 7 themes. Ada audit #294
+ * found 23/56 accent-on-accent-tint combinations fail when the same accent is used for
+ * both text and background tint. Accent identity is communicated via background tint and
+ * the stronger 40% border.
  */
 function getPillAccentStyle(color: string, modelId?: string): React.CSSProperties {
   const cssVar = resolveAccentCssColor(color, modelId);
   return {
     backgroundColor: `color-mix(in srgb, ${cssVar} 15%, transparent)`,
-    color: cssVar,
-    borderColor: `color-mix(in srgb, ${cssVar} 30%, transparent)`,
+    borderColor: `color-mix(in srgb, ${cssVar} 40%, transparent)`,
   };
 }
 
@@ -275,10 +280,8 @@ export function InputBar({
           ].join(' ')}
         >
           <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium text-text-secondary"
             style={getPillAccentStyle(directedReplyTarget.color, directedReplyTarget.modelId)}
-            aria-live="polite"
-            aria-label={`Directed reply mode: sending to ${directedReplyTarget.name}`}
           >
             <span aria-hidden="true">→</span>
             <span>{directedReplyTarget.name}</span>
@@ -384,6 +387,22 @@ export function InputBar({
           className="sr-only"
         >
           {isStreaming ? 'Generating response — press Stop to cancel' : ''}
+        </span>
+
+        {/* Visually-hidden live region — announces directed-reply mode changes.
+            Always present in the DOM so the browser registers the live region before any
+            update fires. The chip is conditionally mounted — aria-live on mount/unmount
+            elements is unreliable across screen readers (WCAG 4.1.3). This persistent
+            span is the correct pattern (same as ghost mode and streaming regions above).
+            Ada audit #294 advisory. */}
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {directedReplyTarget
+            ? `Directed reply mode: sending to ${directedReplyTarget.name}`
+            : ''}
         </span>
 
         {/* Textarea */}
