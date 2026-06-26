@@ -168,6 +168,55 @@ describe('getModelAccentColors', () => {
     expect(() => getModelAccentColors()).not.toThrow();
     expect(getModelAccentColors()).toEqual({});
   });
+
+  // ── custom:* ID acceptance (#287) ───────────────────────────────────────────
+
+  it('returns custom:* entries — they are not dropped on readback', () => {
+    setRaw(JSON.stringify({ 'custom:meta-llama-3-3-70b': '#FF5500' }));
+    expect(getModelAccentColors()).toEqual({ 'custom:meta-llama-3-3-70b': '#FF5500' });
+  });
+
+  it('returns custom:* entries with complex slugs (hyphens, dots, underscores)', () => {
+    setRaw(JSON.stringify({ 'custom:my.endpoint_v2': '#123456' }));
+    expect(getModelAccentColors()).toEqual({ 'custom:my.endpoint_v2': '#123456' });
+  });
+
+  it('silently drops "custom:" with no slug (empty slug is invalid)', () => {
+    setRaw(JSON.stringify({ 'custom:': '#FF5500' }));
+    expect(getModelAccentColors()).toEqual({});
+  });
+
+  it('silently drops "custom: slug" with leading whitespace in slug', () => {
+    setRaw(JSON.stringify({ 'custom: openrouter': '#FF5500' }));
+    expect(getModelAccentColors()).toEqual({});
+  });
+
+  it('returns mixed built-in and custom:* entries together', () => {
+    setRaw(
+      JSON.stringify({
+        claude: '#F59E0B',
+        'custom:openrouter-1': '#14B8A6',
+        gemini: '#8B5CF6',
+        'custom:local-llama': '#AABBCC',
+      })
+    );
+    expect(getModelAccentColors()).toEqual({
+      claude: '#F59E0B',
+      'custom:openrouter-1': '#14B8A6',
+      gemini: '#8B5CF6',
+      'custom:local-llama': '#AABBCC',
+    });
+  });
+
+  it('silently drops non-custom unknown IDs even when custom:* entries are present', () => {
+    setRaw(
+      JSON.stringify({
+        'custom:openrouter-1': '#FF5500',
+        totally_made_up: '#AABBCC',
+      })
+    );
+    expect(getModelAccentColors()).toEqual({ 'custom:openrouter-1': '#FF5500' });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -335,6 +384,20 @@ describe('round-trip consistency', () => {
   it('set then get returns the same value', () => {
     setModelAccentColor('claude', '#F59E0B');
     expect(getModelAccentColors()).toEqual({ claude: '#F59E0B' });
+  });
+
+  it('custom:* ID round-trips through setModelAccentColor → getModelAccentColors', () => {
+    setModelAccentColor('custom:meta-llama-3-3-70b', '#FF5500');
+    expect(getModelAccentColors()).toEqual({ 'custom:meta-llama-3-3-70b': '#FF5500' });
+  });
+
+  it('custom:* clear removes entry; built-in entry survives', () => {
+    setModelAccentColor('claude', '#F59E0B');
+    setModelAccentColor('custom:openrouter-1', '#14B8A6');
+    clearModelAccentColor('custom:openrouter-1');
+    const result = getModelAccentColors();
+    expect('custom:openrouter-1' in result).toBe(false);
+    expect(result['claude']).toBe('#F59E0B');
   });
 
   it('set then clear then get returns {} for that model', () => {
