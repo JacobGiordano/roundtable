@@ -544,6 +544,7 @@ export function Sidebar({
 
   return (
     <aside
+      id="app-sidebar"
       className={[
         // Mobile: fixed drawer, slides in/out via translate
         'fixed inset-y-0 left-0 z-50 h-full w-72',
@@ -630,6 +631,8 @@ export function Sidebar({
               <button
                 type="button"
                 aria-label="Collapse sidebar"
+                aria-expanded={isDesktopOpen}
+                aria-controls="app-sidebar"
                 onClick={onToggleDesktop}
                 className={[
                   'w-8 h-8 rounded-md flex items-center justify-center',

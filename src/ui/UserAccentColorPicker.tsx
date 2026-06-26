@@ -442,7 +442,7 @@ export function UserAccentColorPicker({
               'h-9 w-24 px-2 rounded-sm text-[12px] text-text-primary',
               'bg-input border',
               'placeholder:text-text-muted',
-              'focus:outline-none focus:border-border-strong',
+              'focus:outline-none focus-visible:ring-1 focus-visible:ring-focus focus-visible:ring-offset-1',
               'transition-[border-color] duration-fast',
               hexFieldError ? 'border-semantic-error' : 'border-border',
             ].join(' ')}
