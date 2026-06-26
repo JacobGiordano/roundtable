@@ -16,12 +16,15 @@ import type { ModelId, ModelAccentColors } from '@/types';
 // setModelAccentColor (it throws on invalid hex per Gate's contract).
 // getModelAccentColors is called after every mutation so applyUserAccentColors
 // receives a fresh record that reflects the latest stored state.
+// getProviderRoster: used by handleReset for custom providers (#286) to restore
+// the roster color after clearing a live-session AccentColorPicker override.
 import {
   setModelAccentColor,
   clearModelAccentColor,
   getModelAccentColors,
+  getProviderRoster,
 } from '@/auth';
-import { applyUserAccentColors } from './theme';
+import { applyUserAccentColors, applyRosterAccentColors } from './theme';
 import { contrastRatio } from './colorUtils';
 // #152: MODEL_ACCENT_CSS_VARS is the single source of truth for modelId → CSS var name.
 // Previously defined inline here and in theme.ts; both files now import from utils/modelColor.
@@ -268,7 +271,17 @@ export function AccentColorPicker({
     (hex: string) => {
       if (!isValidHex(hex)) return;
       setModelAccentColor(modelId, hex);
-      applyUserAccentColors(getModelAccentColors());
+      // Gate's getModelAccentColors() strips custom provider IDs on read
+      // (documented current-phase design in accentColors.ts). For built-in
+      // providers the stored record is returned as-is. For custom providers
+      // we merge the hex directly so applyUserAccentColors can write the
+      // --accent-custom-{id} CSS var for the live session. (#286)
+      const stored = getModelAccentColors();
+      const isCustom = !(modelId in MODEL_ACCENT_CSS_VARS);
+      const effectiveColors = isCustom
+        ? { ...stored, [String(modelId)]: hex }
+        : stored;
+      applyUserAccentColors(effectiveColors);
     },
     [modelId],
   );
@@ -363,7 +376,20 @@ export function AccentColorPicker({
 
   const handleReset = useCallback(() => {
     clearModelAccentColor(modelId);
-    applyUserAccentColors(getModelAccentColors());
+    if (modelId in MODEL_ACCENT_CSS_VARS) {
+      // Built-in: getModelAccentColors() returns the remaining stored overrides
+      // (cleared model is absent); applyUserAccentColors leaves its CSS var
+      // untouched so it reverts to the theme default set by applyTheme.
+      applyUserAccentColors(getModelAccentColors());
+    } else {
+      // Custom provider: saveColor set --accent-custom-{id} live (bypassing
+      // Gate's custom-ID strip). Reset must restore that var to the roster
+      // color. applyRosterAccentColors re-reads the roster for all custom
+      // providers; then applyUserAccentColors re-applies any built-in overrides.
+      // (#286)
+      applyRosterAccentColors(getProviderRoster());
+      applyUserAccentColors(getModelAccentColors());
+    }
     onClose();
   }, [modelId, onClose]);
 

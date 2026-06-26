@@ -93,4 +93,54 @@ describe('applyUserAccentColors', () => {
     // (applyTheme is not called here, so the stub starts clean.)
     expect(setPropertyCalls).toHaveLength(0);
   });
+
+  // ── #286 — Custom provider support ────────────────────────────────────────
+  // Gate's getModelAccentColors() strips custom IDs on read (current-phase
+  // design). AccentColorPicker.saveColor bypasses this by merging the hex
+  // directly into the record. These tests verify applyUserAccentColors handles
+  // the merged record correctly.
+
+  it('writes --accent-custom-custom-openrouter-1 for a Gate-style custom ID', () => {
+    // Gate generates IDs like "custom:openrouter-1"; the colon is sanitized to "-".
+    applyUserAccentColors({ 'custom:openrouter-1': '#FF5500' });
+    expect(setPropertyCalls).toContainEqual([
+      '--accent-custom-custom-openrouter-1',
+      '#FF5500',
+    ]);
+  });
+
+  it('writes --accent-custom-my-provider for a simple custom ID', () => {
+    applyUserAccentColors({ 'my-provider': '#AA33BB' });
+    expect(setPropertyCalls).toContainEqual([
+      '--accent-custom-my-provider',
+      '#AA33BB',
+    ]);
+  });
+
+  it('sanitizes dots and colons in custom IDs to hyphens', () => {
+    applyUserAccentColors({ 'custom:my.endpoint_v2': '#123456' });
+    expect(setPropertyCalls).toContainEqual([
+      '--accent-custom-custom-my-endpoint_v2',
+      '#123456',
+    ]);
+  });
+
+  it('does not write a custom var when the hex value is falsy', () => {
+    // Partial<Record<ModelId, string>> allows undefined — skip those.
+    applyUserAccentColors({ 'custom:openrouter-1': undefined });
+    const writtenVars = setPropertyCalls.map(([prop]) => prop);
+    expect(writtenVars).not.toContain('--accent-custom-custom-openrouter-1');
+  });
+
+  it('handles built-in and custom providers in the same record', () => {
+    applyUserAccentColors({
+      claude: '#FF0000',
+      'custom:openrouter-1': '#00FF00',
+    });
+    expect(setPropertyCalls).toContainEqual(['--accent-claude', '#FF0000']);
+    expect(setPropertyCalls).toContainEqual([
+      '--accent-custom-custom-openrouter-1',
+      '#00FF00',
+    ]);
+  });
 });

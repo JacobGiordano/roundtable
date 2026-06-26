@@ -27,6 +27,9 @@ import {
   // getUserAccentColor reads the stored hex (null = use theme default).
   // setUserAccentColor / clearUserAccentColor are called by UserAccentColorPicker.
   getUserAccentColor,
+  // Gate cross-agent exception (#286): getProviderRoster reads the roster so
+  // applyRosterAccentColors can reinitialise --accent-custom-{id} vars on theme change.
+  getProviderRoster,
 } from '@/auth';
 import { groupConversations } from './groupConversations';
 // #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
@@ -34,11 +37,11 @@ import { groupConversations } from './groupConversations';
 // without a DOM environment or React testing setup.
 import { filterByArchiveStatus, filterBySearchQuery, deriveExistingGroups, type ArchiveFilter } from './sidebarUtils';
 // applyUserAccentColors: re-runs the CSS override pass after clearing all stored colors.
-// Called with {} so every model reverts to its theme default (no overrides applied).
+// applyRosterAccentColors: re-initializes --accent-custom-{id} vars from roster (#286).
 // applyTheme: applies the selected theme's token set to :root CSS custom properties.
 // THEME_MAP / THEME_IDS: shared static lookup constants (Vite requires static imports
 // for JSON — these live in theme.ts so both main.tsx and Sidebar share the same map).
-import { applyUserAccentColors, applyTheme, applyUserMessageColor, THEME_MAP, THEME_IDS } from './theme';
+import { applyUserAccentColors, applyRosterAccentColors, applyTheme, applyUserMessageColor, THEME_MAP, THEME_IDS } from './theme';
 // #279: UserAccentColorPicker — color picker popover for the user's message accent.
 import { UserAccentColorPicker } from './UserAccentColorPicker';
 import type { ThemeId } from '@/types';
@@ -420,12 +423,14 @@ export function Sidebar({
     // Persist via Gate, then apply the token set and re-run all accent
     // override passes in order:
     //   1. applyTheme — sets all CSS vars from theme defaults (Pass 1)
-    //   2. applyUserAccentColors — re-applies model accent overrides (Pass 2a)
-    //   3. applyUserMessageColor — re-applies user message accent override (Pass 2b)
-    // All three are non-negotiable: applyTheme resets all accent CSS vars to
-    // theme defaults, so user overrides must be reapplied immediately after.
+    //   2a-roster. applyRosterAccentColors — init --accent-custom-{id} vars (#286)
+    //   2a. applyUserAccentColors — re-applies model accent overrides
+    //   2b. applyUserMessageColor — re-applies user message accent override
+    // All are non-negotiable: applyTheme resets all CSS vars to theme defaults,
+    // so roster colors and user overrides must be reapplied immediately after.
     setActiveTheme(themeId);
     applyTheme(THEME_MAP[themeId]);
+    applyRosterAccentColors(getProviderRoster());
     applyUserAccentColors(getModelAccentColors());
     applyUserMessageColor(getUserAccentColor());
     setActiveThemeId(themeId);

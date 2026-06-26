@@ -5,10 +5,11 @@ import linenTheme from '../../_design/themes/linen.json';
 import midnightTheme from '../../_design/themes/midnight.json';
 import outrunTheme from '../../_design/themes/outrun.json';
 import slateTheme from '../../_design/themes/slate.json';
-import type { CustomThemeJSON, ModelAccentColors, ModelId, ThemeId } from '@/types';
+import type { CustomThemeJSON, ModelAccentColors, ModelId, ProviderRoster, ThemeId } from '@/types';
 // #152: MODEL_ACCENT_CSS_VARS is the single source of truth for modelId → CSS var name.
 // Extracted from this file into utils/modelColor.ts so AccentColorPicker can share it.
-import { MODEL_ACCENT_CSS_VARS } from './utils/modelColor';
+// #286: sanitizeCustomAccentId converts a custom provider ID to a valid CSS ident segment.
+import { MODEL_ACCENT_CSS_VARS, sanitizeCustomAccentId } from './utils/modelColor';
 
 /**
  * Static lookup map from ThemeId to the corresponding theme JSON.
@@ -123,20 +124,69 @@ export function applyTheme(theme: CustomThemeJSON): void {
  * user-chosen accent color stored. Models absent from userColors keep the
  * theme default already set by applyTheme (Pass 1).
  *
+ * Built-in providers: uses MODEL_ACCENT_CSS_VARS (static map).
+ * Custom providers: dynamically sets --accent-custom-{sanitized-id}.
+ *   Gate's getModelAccentColors() currently strips custom IDs on read
+ *   (documented design for the current phase). Callers that need to apply
+ *   a custom provider's live-session override must merge the hex into the
+ *   record before calling this function (see AccentColorPicker.saveColor).
+ *
  * Call this:
- * - On app load, immediately after applyTheme().
- * - On every theme switch, immediately after applyTheme().
+ * - On app load, immediately after applyTheme() and applyRosterAccentColors().
+ * - On every theme switch, same order.
  * - Immediately after any setModelAccentColor() call.
  * - Immediately after any clearModelAccentColor() call (pass the current
  *   stored record — the cleared model simply won't be present, so its CSS
- *   var is untouched and reverts to the Pass 1 theme value).
+ *   var is untouched and reverts to the roster default or theme value).
  */
 export function applyUserAccentColors(userColors: ModelAccentColors): void {
   const root = document.documentElement;
 
+  // Built-in providers: iterate the static CSS var map.
   for (const [modelId, cssVar] of Object.entries(MODEL_ACCENT_CSS_VARS) as [ModelId, string][]) {
     if (userColors[modelId]) {
       root.style.setProperty(cssVar, userColors[modelId]!);
+    }
+  }
+
+  // Custom providers: set --accent-custom-{sanitized-id} for any ID not in
+  // MODEL_ACCENT_CSS_VARS. Gate strips custom IDs from getModelAccentColors(),
+  // so these entries only arrive when the caller has merged them manually
+  // (AccentColorPicker does this for live-session picks).
+  for (const [modelId, hex] of Object.entries(userColors)) {
+    if ((modelId as string) in MODEL_ACCENT_CSS_VARS || !hex) continue;
+    root.style.setProperty(`--accent-custom-${sanitizeCustomAccentId(modelId)}`, hex);
+  }
+}
+
+/**
+ * Initialises --accent-custom-{id} CSS variables from the provider roster.
+ * Called at app boot (after applyTheme) and on roster change so every custom
+ * provider has a CSS var that rosterToModelConfigs can reference by token name.
+ *
+ * Resolution order for each custom provider:
+ *   1. roster.color is a hex string  → used directly
+ *   2. roster.color is a CSS token   → wrapped as var(--{token})
+ *   3. roster.color absent           → var(--accent-other) fallback
+ *
+ * applyUserAccentColors should be called immediately after this to overlay
+ * any AccentColorPicker overrides on top of the roster defaults.
+ *
+ * Call this:
+ * - On app load, between applyTheme() and applyUserAccentColors().
+ * - On every theme switch, same position.
+ * - After handleRosterChange() re-derives models (roster may have new colors).
+ */
+export function applyRosterAccentColors(roster: ProviderRoster): void {
+  const root = document.documentElement;
+  for (const entry of roster) {
+    if (entry.kind !== 'custom') continue;
+    const varName = `--accent-custom-${sanitizeCustomAccentId(entry.id)}`;
+    const rosterColor = entry.color ?? 'accent-other';
+    if (rosterColor.startsWith('#')) {
+      root.style.setProperty(varName, rosterColor);
+    } else {
+      root.style.setProperty(varName, `var(--${rosterColor})`);
     }
   }
 }
