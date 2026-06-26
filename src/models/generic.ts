@@ -77,10 +77,12 @@ export class GenericOpenAIProvider implements ModelProvider {
     this.config = {
       modelId: customConfig.id,
       name: customConfig.displayName,
-      // color may be a CSS token or hex; fall back to 'gray' as a safe Tailwind token
-      // if the field is absent. Aria renders color via accent overrides — this field
-      // is present to satisfy ModelProviderConfig but Aria will prefer customConfig.color.
-      color: customConfig.color ?? 'gray',
+      // color satisfies the ModelProviderConfig contract. Aria does NOT read this
+      // field for bubble rendering — it uses ModelConfig.color from rosterToModelConfigs,
+      // which reads CustomProviderConfig.color from the roster (Gate) directly.
+      // Fall back to 'accent-other' to match the rest of the codebase's unknown-color
+      // convention (rosterToModelConfigs uses the same fallback when color is absent).
+      color: customConfig.color ?? 'accent-other',
       credentialKey: customConfig.credentialKey ?? '',
     };
   }
