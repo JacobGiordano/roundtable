@@ -301,6 +301,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
               type="button"
               aria-label="Expand sidebar"
               aria-expanded={false}
+              aria-controls="app-sidebar"
               onClick={handleToggleSidebar}
               className={[
                 'flex items-center justify-center',
@@ -326,6 +327,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             type="button"
             aria-label="Open navigation"
             aria-expanded={isMobileMenuOpen}
+            aria-controls="app-sidebar"
             onClick={handleOpenMobileMenu}
             className={[
               'flex items-center justify-center',
