@@ -68,7 +68,7 @@ function isCredentialTestable(credentialKey: string | undefined): boolean {
  */
 const BUILTIN_META: Record<BuiltInModelId, { name: string; color: string }> = {
   'claude':    { name: 'Claude',    color: 'accent-claude' },
-  'gpt-5.5':  { name: 'GPT-5.5',   color: 'accent-gpt' },
+  'gpt-5.5':  { name: 'ChatGPT',    color: 'accent-gpt' },
   'gemini':   { name: 'Gemini',    color: 'accent-gemini' },
   'grok':     { name: 'Grok',      color: 'accent-grok' },
   'deepseek': { name: 'DeepSeek',  color: 'accent-deepseek' },
