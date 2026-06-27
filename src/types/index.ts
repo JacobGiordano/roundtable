@@ -276,9 +276,7 @@ export interface BuiltInProviderConfig {
  * settings panel.
  *
  * This is a pure static declaration — not a runtime cache. Once Atlas reads it
- * on a given request, no further probing occurs. The interim
- * `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is replaced by Atlas
- * reading `capabilities.streamUsage` once this type is wired in (#295 follow-on).
+ * on a given request, no further probing occurs.
  *
  * Design constraint: all fields are optional so existing `CustomProviderConfig`
  * records that predate this field remain valid without migration.
