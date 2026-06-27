@@ -660,6 +660,83 @@ export default function App() {
     setPendingTargetModelId(null);
   }, []);
 
+  /**
+   * Retry a failed model response.
+   *
+   * Removes the failed assistant message from the conversation, then re-sends
+   * to only the model that failed. The rest of the conversation history
+   * (including any other models' successful responses) is preserved as context.
+   *
+   * Mirrors the handleSend flow for sentConversationRef and AbortController
+   * lifecycle: the ref is set synchronously before sendMessage() is called so
+   * handleMessageComplete reads the correct base when the retry stream completes.
+   *
+   * Ghost-mode guard: follows the same saveGhostConversation / updateConversation
+   * branching as handleSend.
+   */
+  const handleRetry = useCallback((messageId: string) => {
+    const conversationSnapshot =
+      store.getActiveConversation() ??
+      (store.activeConversationId
+        ? getGhostConversation(store.activeConversationId)
+        : undefined);
+    if (!conversationSnapshot) return;
+
+    // Locate the failed assistant message.
+    const failedMessage = conversationSnapshot.messages.find((m) => m.id === messageId);
+    if (!failedMessage || failedMessage.role !== 'assistant' || !failedMessage.modelId) return;
+
+    const failedModelId = failedMessage.modelId;
+
+    // Build a conversation without the failed message. This is the base
+    // handleMessageComplete will append the new response to, and the history
+    // the retried provider will receive (so it does not see its own failed attempt).
+    const conversationWithoutFailed: Conversation = {
+      ...conversationSnapshot,
+      messages: conversationSnapshot.messages.filter((m) => m.id !== messageId),
+      updatedAt: Date.now(),
+    };
+
+    // Persist the removal so the failed message disappears from the UI immediately.
+    if (conversationWithoutFailed.isGhost) {
+      saveGhostConversation(conversationWithoutFailed);
+    } else {
+      void store.updateConversation(conversationWithoutFailed);
+    }
+
+    // Set the ref synchronously — same requirement as in handleSend. When the
+    // retry stream completes, handleMessageComplete reads this ref as the base
+    // to append the new response to. It must be set before sendMessage() so it
+    // is ready when the first chunk arrives.
+    sentConversationRef.current = conversationWithoutFailed;
+
+    // content is required by SendMessageOptions but ignored when `conversation`
+    // is provided (sendMessage uses conversation.messages directly in that path).
+    // Pass the last user message content to keep the value semantically correct.
+    const lastUserMsg = [...conversationWithoutFailed.messages]
+      .reverse()
+      .find((m) => m.role === 'user');
+    const content = lastUserMsg?.content ?? '';
+
+    const sendingConversationId = conversationSnapshot.id;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    void sendMessage(
+      {
+        conversationId: sendingConversationId,
+        content,
+        targetModelId: failedModelId,
+        conversation: conversationWithoutFailed,
+        signal: controller.signal,
+      },
+      handleChunk(sendingConversationId),
+    ).finally(() => {
+      abortControllerRef.current = null;
+    });
+  }, [store, getGhostConversation, saveGhostConversation, handleChunk]);
+
   // ── Ghost mode toggle ─────────────────────────────────────────────────────
   // Toggles the active conversation's ghost status via useGhostMode, and
   // flips isGlobalGhostMode so subsequent new conversations follow suit.
@@ -774,7 +851,7 @@ export default function App() {
         streamingMessages: activeStreamingMessages,
         activeModels,
         allModels: models,
-        onRetry: () => { /* stub — retry not yet wired */ },
+        onRetry: handleRetry,
         onDirectedReply: handleDirectedReply,
         tokenCountVisibility,
         onExportConversation: store.activeConversationId ? handleExportConversation : undefined,
