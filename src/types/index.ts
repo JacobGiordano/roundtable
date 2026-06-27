@@ -260,6 +260,90 @@ export interface BuiltInProviderConfig {
 }
 
 /**
+ * Declared feature capabilities of a custom OpenAI-compatible provider endpoint.
+ *
+ * Not all endpoints that speak the OpenAI Chat Completions wire format implement
+ * the full API surface. Some reject `stream_options`, some lack system-role
+ * support, some never expose vision or function calling. This interface lets the
+ * user declare — at provider-configuration time — which features their endpoint
+ * actually supports. Atlas reads these declarations at request-build time and
+ * omits unsupported parameters rather than probing for failures at runtime.
+ *
+ * All fields are optional. Absence of a field means "Atlas uses its built-in
+ * default for this capability" — Atlas owns and documents those defaults in
+ * `/src/models/generic.ts`. Gate writes this object when the user configures or
+ * updates a custom provider; Aria may expose capability toggles in the provider
+ * settings panel.
+ *
+ * This is a pure static declaration — not a runtime cache. Once Atlas reads it
+ * on a given request, no further probing occurs. The interim
+ * `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is replaced by Atlas
+ * reading `capabilities.streamUsage` once this type is wired in (#295 follow-on).
+ *
+ * Design constraint: all fields are optional so existing `CustomProviderConfig`
+ * records that predate this field remain valid without migration.
+ */
+export interface ProviderCapabilities {
+  /**
+   * Whether the endpoint supports `stream_options: { include_usage: true }` in
+   * streaming requests (OpenAI Chat Completions format).
+   *
+   * When `true` (or absent), Atlas includes `stream_options` to request token
+   * counts in the final SSE chunk. When `false`, Atlas omits `stream_options`
+   * entirely — no token counts are available for this provider session.
+   *
+   * Default (when absent): `true`. Optimistic — most conformant endpoints
+   * support this, and the current try/retry Option B behavior already handles
+   * the error case gracefully. Explicit `false` replaces that probe with a
+   * static skip, eliminating the one extra failed request per session.
+   */
+  streamUsage?: boolean;
+
+  /**
+   * Whether the endpoint accepts multimodal image inputs (vision).
+   *
+   * When `true`, Atlas may include `image_url` content parts in the messages
+   * array. When `false` (or absent), Atlas must send text-only content — passing
+   * image parts to a non-vision endpoint produces an API error.
+   *
+   * Default (when absent): `false`. Conservative — vision is a strict superset
+   * of text completion; most custom endpoints serve text-only models even when
+   * the underlying inference server is vision-capable. Explicit `true` opts in.
+   */
+  vision?: boolean;
+
+  /**
+   * Whether the endpoint supports function calling / tools.
+   *
+   * When `true`, Atlas may include a `tools` array in the request body and
+   * handle `tool_calls` in the response. When `false` (or absent), Atlas must
+   * not send function definitions — endpoints that lack tool support return
+   * errors or ignore the field silently.
+   *
+   * Default (when absent): `false`. Conservative — function calling is an
+   * optional extension; many lightweight inference servers and proxied endpoints
+   * do not implement it.
+   */
+  toolUse?: boolean;
+
+  /**
+   * Whether the endpoint accepts a `system`-role message.
+   *
+   * When `true` (or absent), Atlas prepends the system prompt as a `role:
+   * "system"` message in the messages array, which is the standard OpenAI
+   * behavior. When `false`, Atlas must fold the system prompt into the first
+   * user message or omit it — some minimalist endpoints (certain Ollama
+   * models, stripped-down inference servers) reject or silently drop system
+   * messages.
+   *
+   * Default (when absent): `true`. Optimistic — system-role support is
+   * specified in the OpenAI Chat Completions format and nearly universally
+   * implemented by conformant endpoints.
+   */
+  systemPrompt?: boolean;
+}
+
+/**
  * Persisted configuration for a user-configured custom OpenAI-compatible provider.
  *
  * Gate writes one of these when the user adds a custom endpoint (OpenRouter,
@@ -315,6 +399,21 @@ export interface CustomProviderConfig {
    * field existed are treated as requiring a key.
    */
   requiresApiKey?: boolean;
+  /**
+   * Declared feature capabilities of this provider endpoint.
+   *
+   * Optional — absence means "no explicit overrides; Atlas uses its built-in
+   * default for each capability." Gate writes this when the user configures or
+   * later edits the provider. Atlas reads it at request-build time to decide
+   * which parameters to include in the API call.
+   *
+   * Existing `CustomProviderConfig` records that predate this field are valid
+   * without migration — Atlas falls back to per-capability defaults on every
+   * field that is absent.
+   *
+   * @see ProviderCapabilities for field-by-field semantics and defaults.
+   */
+  capabilities?: ProviderCapabilities;
 }
 
 /**
