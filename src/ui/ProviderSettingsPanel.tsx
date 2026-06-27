@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { BuiltInModelId, ProviderConfig, BuiltInProviderConfig } from '@/types';
+import type { BuiltInModelId, ProviderCapabilities, ProviderConfig, BuiltInProviderConfig } from '@/types';
 // CustomThemeImport — Appearance section (Section 4) added per #169.
 import { CustomThemeImport } from './CustomThemeImport';
 // Gate cross-agent exception: provider roster CRUD functions and credential
@@ -361,6 +361,11 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
   const [editModelString, setEditModelString] = useState('');
   const [editAccentColor, setEditAccentColor] = useState('');
   const [editRequiresApiKey, setEditRequiresApiKey] = useState(true);
+  // Capability toggles — seeded from provider.capabilities on edit open.
+  const [editCapStreamUsage, setEditCapStreamUsage] = useState(false);
+  const [editCapVision, setEditCapVision] = useState(false);
+  const [editCapToolUse, setEditCapToolUse] = useState(false);
+  const [editCapSystemPrompt, setEditCapSystemPrompt] = useState(false);
   const [editErrors, setEditErrors] = useState<FormErrors>({});
   const [editSubmitAttempted, setEditSubmitAttempted] = useState(false);
   // Ref to the pencil button — focus returns here on Save or Cancel.
@@ -447,6 +452,11 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
     setEditAccentColor(provider.color ?? '');
     // requiresApiKey absent or true → key required; false → no key required.
     setEditRequiresApiKey(provider.requiresApiKey !== false);
+    // Seed capability toggles from stored capabilities (absent field → false).
+    setEditCapStreamUsage(provider.capabilities?.streamUsage ?? false);
+    setEditCapVision(provider.capabilities?.vision ?? false);
+    setEditCapToolUse(provider.capabilities?.toolUse ?? false);
+    setEditCapSystemPrompt(provider.capabilities?.systemPrompt ?? false);
     setEditErrors({});
     setEditSubmitAttempted(false);
     setIsEditingProvider(true);
@@ -488,6 +498,14 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
       setEditErrors(newErrors);
       return;
     }
+    // Capabilities: always pass the full object on edit — omitting it would clear
+    // the stored value (updateCustomProvider semantics mirror color field).
+    const capabilities: ProviderCapabilities = {
+      streamUsage: editCapStreamUsage,
+      vision: editCapVision,
+      toolUse: editCapToolUse,
+      systemPrompt: editCapSystemPrompt,
+    };
     updateCustomProvider(id, {
       displayName: editDisplayName.trim(),
       endpointUrl: editEndpointUrl.trim(),
@@ -496,6 +514,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
       // Pass requiresApiKey: false only when explicitly disabled; omit otherwise
       // so Gate treats the provider as requiring a key (the default).
       ...(editRequiresApiKey ? {} : { requiresApiKey: false }),
+      capabilities,
     });
     // Refresh badge — the provider prop won't update until the parent re-renders
     // from onUpdated(), but badgeState is local state and needs an explicit push.
@@ -518,7 +537,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
         editPencilRef.current?.focus();
       });
     });
-  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, editRequiresApiKey, onUpdated, provider]);
+  }, [id, editDisplayName, editEndpointUrl, editModelString, editAccentColor, editRequiresApiKey, editCapStreamUsage, editCapVision, editCapToolUse, editCapSystemPrompt, onUpdated, provider]);
 
   // Move focus to the Cancel button when the row enters a confirm state so
   // keyboard users land on a usable control rather than body (WCAG 2.4.3, #115).
@@ -799,6 +818,116 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                     </span>
                   </label>
                 </div>
+
+                {/* Capabilities — fieldset/legend for WCAG 1.3.1 group semantics */}
+                <fieldset className="border-0 p-0 m-0 min-w-0">
+                  <legend className="text-[12px] font-medium text-text-secondary mb-2">Capabilities</legend>
+                  <div className="flex flex-col gap-3">
+                    {/* Vision */}
+                    <label
+                      htmlFor={`edit-cap-vision-${id}`}
+                      className="flex items-center gap-3 cursor-pointer select-none group"
+                    >
+                      <input
+                        id={`edit-cap-vision-${id}`}
+                        type="checkbox"
+                        checked={editCapVision}
+                        onChange={(e) => setEditCapVision(e.target.checked)}
+                        className={[
+                          'w-4 h-4 rounded cursor-pointer',
+                          'accent-[var(--accent-claude)]',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        ].join(' ')}
+                      />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                          Vision
+                        </span>
+                        <span className="text-[11px] text-text-muted">
+                          Provider accepts image inputs
+                        </span>
+                      </span>
+                    </label>
+
+                    {/* Tool use */}
+                    <label
+                      htmlFor={`edit-cap-tool-use-${id}`}
+                      className="flex items-center gap-3 cursor-pointer select-none group"
+                    >
+                      <input
+                        id={`edit-cap-tool-use-${id}`}
+                        type="checkbox"
+                        checked={editCapToolUse}
+                        onChange={(e) => setEditCapToolUse(e.target.checked)}
+                        className={[
+                          'w-4 h-4 rounded cursor-pointer',
+                          'accent-[var(--accent-claude)]',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        ].join(' ')}
+                      />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                          Tool use
+                        </span>
+                        <span className="text-[11px] text-text-muted">
+                          Provider supports function/tool calling
+                        </span>
+                      </span>
+                    </label>
+
+                    {/* System prompt */}
+                    <label
+                      htmlFor={`edit-cap-system-prompt-${id}`}
+                      className="flex items-center gap-3 cursor-pointer select-none group"
+                    >
+                      <input
+                        id={`edit-cap-system-prompt-${id}`}
+                        type="checkbox"
+                        checked={editCapSystemPrompt}
+                        onChange={(e) => setEditCapSystemPrompt(e.target.checked)}
+                        className={[
+                          'w-4 h-4 rounded cursor-pointer',
+                          'accent-[var(--accent-claude)]',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        ].join(' ')}
+                      />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                          System prompt
+                        </span>
+                        <span className="text-[11px] text-text-muted">
+                          Provider accepts a system prompt
+                        </span>
+                      </span>
+                    </label>
+
+                    {/* Stream usage */}
+                    <label
+                      htmlFor={`edit-cap-stream-usage-${id}`}
+                      className="flex items-center gap-3 cursor-pointer select-none group"
+                    >
+                      <input
+                        id={`edit-cap-stream-usage-${id}`}
+                        type="checkbox"
+                        checked={editCapStreamUsage}
+                        onChange={(e) => setEditCapStreamUsage(e.target.checked)}
+                        className={[
+                          'w-4 h-4 rounded cursor-pointer',
+                          'accent-[var(--accent-claude)]',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        ].join(' ')}
+                      />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                          Stream usage
+                        </span>
+                        <span className="text-[11px] text-text-muted">
+                          Provider streams token usage data in responses
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
 
                 {/* Accent color */}
                 <div>
@@ -1123,6 +1252,11 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [noApiKeyRequired, setNoApiKeyRequired] = useState(false);
+  // Capability toggles — all default unchecked (absent → Atlas uses per-capability defaults).
+  const [capStreamUsage, setCapStreamUsage] = useState(false);
+  const [capVision, setCapVision] = useState(false);
+  const [capToolUse, setCapToolUse] = useState(false);
+  const [capSystemPrompt, setCapSystemPrompt] = useState(false);
   const [accentColor, setAccentColor] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -1149,6 +1283,20 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
         return;
       }
 
+      // Capabilities: only include the object when at least one is explicitly
+      // checked. When all are unchecked, omit entirely so Atlas applies its
+      // per-capability defaults (streamUsage=true, vision=false, toolUse=false,
+      // systemPrompt=true). Only pass true values — unchecked = "use default".
+      const hasAnyCap = capStreamUsage || capVision || capToolUse || capSystemPrompt;
+      const capObj: ProviderCapabilities = hasAnyCap
+        ? {
+            ...(capStreamUsage ? { streamUsage: true } : {}),
+            ...(capVision ? { vision: true } : {}),
+            ...(capToolUse ? { toolUse: true } : {}),
+            ...(capSystemPrompt ? { systemPrompt: true } : {}),
+          }
+        : {};
+
       const newConfig = addCustomProvider({
         displayName: displayName.trim(),
         endpointUrl: endpointUrl.trim(),
@@ -1157,6 +1305,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
         // Pass requiresApiKey: false only when toggled on — omit otherwise so
         // Gate treats the provider as requiring a key (the default behavior).
         ...(noApiKeyRequired ? { requiresApiKey: false } : {}),
+        ...(hasAnyCap ? { capabilities: capObj } : {}),
       });
 
       // Save the API key only when the provider requires one and a key was entered.
@@ -1170,6 +1319,10 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
       setModelString('');
       setApiKey('');
       setNoApiKeyRequired(false);
+      setCapStreamUsage(false);
+      setCapVision(false);
+      setCapToolUse(false);
+      setCapSystemPrompt(false);
       setAccentColor('');
       setErrors({});
       setSubmitAttempted(false);
@@ -1177,7 +1330,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
 
       onAdded();
     },
-    [displayName, endpointUrl, modelString, apiKey, noApiKeyRequired, accentColor, onAdded],
+    [displayName, endpointUrl, modelString, apiKey, noApiKeyRequired, capStreamUsage, capVision, capToolUse, capSystemPrompt, accentColor, onAdded],
   );
 
   const handleClear = useCallback(() => {
@@ -1186,6 +1339,10 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
     setModelString('');
     setApiKey('');
     setNoApiKeyRequired(false);
+    setCapStreamUsage(false);
+    setCapVision(false);
+    setCapToolUse(false);
+    setCapSystemPrompt(false);
     setAccentColor('');
     setErrors({});
     setSubmitAttempted(false);
@@ -1354,6 +1511,116 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
           </p>
         </div>
         )}
+
+        {/* Capabilities — fieldset/legend for WCAG 1.3.1 group semantics */}
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="text-[12px] font-medium text-text-secondary mb-2">Capabilities</legend>
+          <div className="flex flex-col gap-3">
+            {/* Vision */}
+            <label
+              htmlFor="psp-cap-vision"
+              className="flex items-center gap-3 cursor-pointer select-none group"
+            >
+              <input
+                id="psp-cap-vision"
+                type="checkbox"
+                checked={capVision}
+                onChange={(e) => setCapVision(e.target.checked)}
+                className={[
+                  'w-4 h-4 rounded cursor-pointer',
+                  'accent-[var(--accent-claude)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                  Vision
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Provider accepts image inputs
+                </span>
+              </span>
+            </label>
+
+            {/* Tool use */}
+            <label
+              htmlFor="psp-cap-tool-use"
+              className="flex items-center gap-3 cursor-pointer select-none group"
+            >
+              <input
+                id="psp-cap-tool-use"
+                type="checkbox"
+                checked={capToolUse}
+                onChange={(e) => setCapToolUse(e.target.checked)}
+                className={[
+                  'w-4 h-4 rounded cursor-pointer',
+                  'accent-[var(--accent-claude)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                  Tool use
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Provider supports function/tool calling
+                </span>
+              </span>
+            </label>
+
+            {/* System prompt */}
+            <label
+              htmlFor="psp-cap-system-prompt"
+              className="flex items-center gap-3 cursor-pointer select-none group"
+            >
+              <input
+                id="psp-cap-system-prompt"
+                type="checkbox"
+                checked={capSystemPrompt}
+                onChange={(e) => setCapSystemPrompt(e.target.checked)}
+                className={[
+                  'w-4 h-4 rounded cursor-pointer',
+                  'accent-[var(--accent-claude)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                  System prompt
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Provider accepts a system prompt
+                </span>
+              </span>
+            </label>
+
+            {/* Stream usage */}
+            <label
+              htmlFor="psp-cap-stream-usage"
+              className="flex items-center gap-3 cursor-pointer select-none group"
+            >
+              <input
+                id="psp-cap-stream-usage"
+                type="checkbox"
+                checked={capStreamUsage}
+                onChange={(e) => setCapStreamUsage(e.target.checked)}
+                className={[
+                  'w-4 h-4 rounded cursor-pointer',
+                  'accent-[var(--accent-claude)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[12px] font-medium text-text-secondary group-hover:text-text-primary transition-colors duration-fast">
+                  Stream usage
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Provider streams token usage data in responses
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
 
         {/* Accent Color */}
         <div>
