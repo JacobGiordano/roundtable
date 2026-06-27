@@ -1,4 +1,4 @@
-Last updated: 2026-06-27 (ship — #299, #302, #303, #304 closed)
+Last updated: 2026-06-27 (ship — #300 closed)
 
 ## Current phase
 
@@ -6,31 +6,28 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#299 (Aria / Ada)** — Closed. Auto-chain mode wired end-to-end. Removed `comingSoon` flag from `InteractionModeSwitcher`. `handleSend` in `App.tsx` builds `AutoChainConfig` from active roster (roster order, `appendToContext: true`, `maxPasses: 1`) and passes `chainConfig` to `sendMessage()`. Parallel unchanged. Confirmed working in the wild.
-
-**#302 (Atlas + Aria)** — Closed. OpenAI provider display name renamed from `'GPT-5.5'` to `'ChatGPT'` in two places: `gpt.ts` (registry name) and `ProviderSettingsPanel.tsx` (hardcoded `BUILTIN_META` map). `BUILTIN_META` is an intentional local copy — importing from `@/models` would cross the agent boundary.
-
-**#303 (Atlas + Gate)** — Closed. OpenAI CORS proxy fix. Credential test now uses `OPENAI_TEST_BASE` via `proxyBase()` (Gate). Chat completions URL routes through `/openai-proxy` in dev (Atlas). `/openai-proxy` → `https://api.openai.com` Vite route added. Confirmed: key test passes, conversations work.
-
-**#304 (Atlas + Scout)** — Closed. `BaseOpenAIProvider` now sends `max_completion_tokens` for `gpt-5.5`, `o3`, `o1`, `o1-mini` and `max_tokens` for `gpt-4o`, `gpt-4o-mini`. Uses module-level `MAX_COMPLETION_TOKENS_MODELS` Set checked against resolved model string post-version-selection. Scout added 6-test regression suite in `src/tests/integration/base-openai-provider-token-key.test.ts`.
+**#300 (Aria / Ada / Flint)** — Closed. Two commits on main:
+1. Arrow-key navigation for `InteractionModeSwitcher` radiogroup — `handleRadioGroupKeyDown` on parent div; Left/Up = prev non-disabled (wrap), Right/Down = next (wrap); disabled Manual skipped in cycle but stays Tab-reachable.
+2. WCAG 1.4.13 fix — capture-phase `document` Escape listener in `ModeButton` dismisses hover tooltips; covers both enabled-button and disabled-span render paths via shared `isTooltipVisible` state.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
-- **#300** — `InteractionModeSwitcher`: arrow-key navigation for radiogroup (WAI-ARIA APG gap, now more impactful with two active radio buttons). Filed by Ada in #299 session.
-- **#301** — `InteractionModeSwitcher`: `aria-describedby` on enabled `ModeButton` repeats description already in `aria-label` (verbose double-read). Filed by Ada in #299 session.
+- **#301** — `InteractionModeSwitcher`: `aria-describedby` on enabled `ModeButton` repeats description already in `aria-label` (verbose double-read). Advisory.
+- **#306** — Roving tabindex deviation: Tab visits all three radios; APG expects only checked radio at `tabIndex=0`. Intentional — Manual stays reachable for tooltip discoverability. Advisory.
+- **#307 (to file)** — WCAG 1.4.13 hoverable sub-criterion: `pointer-events-none` on tooltip means pointer cannot move onto tooltip text without it disappearing. Pre-existing. File before next ship cycle.
 
 ## Key decisions
 
-- `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy — do not import from `@/models` to avoid crossing agent boundary.
-- `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` uses resolved model string (post-version-selection) — not provider class — because `GPT55ModelProvider` serves both `max_tokens` and `max_completion_tokens` models.
-- Export/import feature (#305) captured for Phase 6+; requires passphrase-based encryption — never plaintext key export.
-- Flint coordination: agents run Flint internally; Coda should not spawn a separate Flint if the agent's summary includes a Flint verdict. Direct file/git verification + user confirmation is the fallback. File Arch ticket to document the Coda-coordinated wave exception for Flint (same pattern as Ada exception).
+- `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy — do not import from `@/models`.
+- `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` uses resolved model string post-version-selection.
+- Arrow nav lives on parent `InteractionModeSwitcher` (not `ModeButton`) — needs sibling access and `onModeChange`.
+- Escape document listener declared before `if (isDisabled)` branch — covers both render paths through shared state.
 
 ## What's next
 
-1. **#300** — Arrow-key nav for `InteractionModeSwitcher` radiogroup (Aria, a11y, medium urgency).
+1. **#307** — File WCAG 1.4.13 hoverable advisory (tooltip `pointer-events-none` gap) — before next ship cycle.
 2. **#301** — `aria-describedby` redundancy on `ModeButton` (Aria, advisory).
 3. **#291** — Advisory a11y gap on ProviderSettingsPanel (Aria, low urgency).
 4. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel.
@@ -103,3 +100,5 @@ Phase 5 — Full gate process active.
 - OpenAI proxy: `/openai-proxy` → `https://api.openai.com` in vite.config.ts; `OPENAI_TEST_BASE` in credentialTest.ts; `apiUrl` getter in `gpt.ts` uses three-tier fallback matching claude.ts pattern
 - `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` — checked against resolved model string post-version-selection; `gpt-5.5`, `o3`, `o1`, `o1-mini` use `max_completion_tokens`; `gpt-4o`, `gpt-4o-mini` use `max_tokens`
 - `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy of provider display names — do not import from `@/models` to avoid crossing agent boundary
+- Arrow nav in `InteractionModeSwitcher`: `handleRadioGroupKeyDown` on parent div; queries `[role="radio"]` by DOM; uses `data-mode` attribute to read mode without reaching into ModeButton internals
+- Hover tooltip Escape: capture-phase `document` keydown listener in `ModeButton` useEffect; fires when `isTooltipVisible` is true; declared before `if (isDisabled)` so it covers both render paths
