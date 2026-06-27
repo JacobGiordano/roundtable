@@ -223,7 +223,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         type="button"
         role="radio"
         aria-checked={isSelected}
-        aria-label={`${config.label} — ${config.description}`}
+        aria-label={config.label}
         aria-describedby={tooltipId}
         data-mode={config.mode}
         onClick={() => onSelect(config.mode)}

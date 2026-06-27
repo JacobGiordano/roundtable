@@ -1243,6 +1243,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
             onChange={(e) => setEndpointUrl(e.target.value)}
             onBlur={() => validateField('endpointUrl')}
             placeholder="https://my-server.example.com/v1"
+            aria-describedby="psp-endpoint-url-hint"
             className={`${inputBase} ${errors.endpointUrl ? 'border-error' : 'border-border'}`}
           />
           {errors.endpointUrl ? (
@@ -1250,7 +1251,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               {errors.endpointUrl}
             </p>
           ) : (
-            <p className="mt-1 text-[11px] text-text-muted">
+            <p id="psp-endpoint-url-hint" className="mt-1 text-[11px] text-text-muted">
               Must be an OpenAI-compatible <code>/chat/completions</code> endpoint.
             </p>
           )}
@@ -1269,6 +1270,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
             onChange={(e) => setModelString(e.target.value)}
             onBlur={() => validateField('modelString')}
             placeholder="llama3.2:latest"
+            aria-describedby="psp-model-string-hint"
             className={`${inputBase} ${errors.modelString ? 'border-error' : 'border-border'}`}
           />
           {errors.modelString ? (
@@ -1276,7 +1278,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               {errors.modelString}
             </p>
           ) : (
-            <p className="mt-1 text-[11px] text-text-muted">
+            <p id="psp-model-string-hint" className="mt-1 text-[11px] text-text-muted">
               The model identifier passed to the API.
             </p>
           )}
@@ -1328,6 +1330,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Leave blank for keyless endpoints (Ollama, LM Studio)"
+              aria-describedby="psp-api-key-hint"
               style={{ paddingRight: '36px' }}
               className={`${inputBase} border-border`}
             />
@@ -1346,7 +1349,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
-          <p className="mt-1 text-[11px] text-text-muted">
+          <p id="psp-api-key-hint" className="mt-1 text-[11px] text-text-muted">
             Never logged or transmitted except to your endpoint.
           </p>
         </div>
@@ -1360,7 +1363,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
           <label htmlFor="psp-accent-color-btn" className={labelClass}>
             Accent color
           </label>
-          <p className="text-[11px] text-text-muted mb-2">
+          <p id="psp-accent-color-hint" className="text-[11px] text-text-muted mb-2">
             Used for this provider's identity dot.
           </p>
           <div className="flex items-center gap-2">
@@ -1369,6 +1372,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
                 id="psp-accent-color-btn"
                 type="button"
                 aria-label="Choose accent color"
+                aria-describedby="psp-accent-color-hint"
                 onClick={() => {
                   const el = document.getElementById('psp-color-input') as HTMLInputElement | null;
                   el?.click();
