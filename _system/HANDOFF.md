@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #294 closed)
+Last updated: 2026-06-26 (ship — #292 closed)
 
 ## Current phase
 
@@ -6,17 +6,16 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#290 (Atlas + Aria / Flint)** — Closed. Generic `/dev-proxy/<url>` Vite middleware + `DevProxyHint` in ProviderSettingsPanel.
-
 **#293 (Atlas / Flint)** — Closed. `stream_options` auto-retry in `generic.ts` — module-level incompatibility cache, fixes 502s on OpenRouter free-tier models.
 
 **#294 (Aria / Ada / Flint)** — Closed. Directed reply chip accent color contrast fix. Root cause: `var(--#hex)` is invalid CSS — raw hex colors in `ModelConfig.color` produced silent no-ops. Fixed by routing through `resolveAccentCssColor` (now a shared export in `modelColor.ts`). Chip text switched to `text-text-secondary` (contrast-safe all 7 themes); accent communicated via 40% border + 15% tint. Two Ada-found ARIA issues fixed in `InputBar` (aria-live pattern, aria-label on div).
+
+**#292 (Atlas / Flint)** — Closed. Retry button wired. `handleRetry(messageId)` in `App.tsx`: removes the failed assistant message from the conversation, persists the removal, sets `sentConversationRef.current` synchronously, then calls `sendMessage({ targetModelId: failedModelId, ... })` — routes through `runDirected`, targets only the failed model. Ghost mode and AbortController lifecycle mirror `handleSend`.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — future, no green light yet.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
-- **#292** — Retry button is a stub (`App.tsx:777`) — not yet wired. Atlas.
 - **#295** — Provider capabilities model design. Arch. Phase 5.
 - **#296** — Models can't distinguish their own responses from other models' in shared history. Arch/Atlas. Phase 5 prerequisite for Auto-chain.
 
@@ -28,12 +27,12 @@ Phase 4+ — Full gate process active.
 - `stream_options` incompatibility handled via Option B (try/retry/remember). #295 is the long-term capabilities model.
 - `resolveAccentCssColor(token, modelId?)` is now exported from `src/ui/utils/modelColor.ts` — single source of truth for accent CSS var resolution. Do not re-inline anywhere.
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text color on tinted background (contrast failure).
+- Retry: `sentConversationRef.current` must be set synchronously before `sendMessage()` — same race requirement as `handleSend`. Retry removes the failed message from history before calling `sendMessage` so the model does not see its own failed attempt.
 
 ## What's next
 
-1. **#292** (Atlas) — Wire up Retry button.
-2. **#285** — File attachments — awaiting green light.
-3. **#295 / #296** — Phase 5 design work (capabilities model, model attribution in history).
+1. **#285** — File attachments — awaiting green light.
+2. **#295 / #296** — Phase 5 design work (capabilities model, model attribution in history).
 
 ## Gotchas
 
@@ -96,3 +95,4 @@ Phase 4+ — Full gate process active.
 - `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is module-level (page-lifetime cache) — resets on reload; one extra 502 per session per incompatible endpoint is acceptable
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text `color:` on tinted background (contrast failure across 7 themes)
 - `var(--#hex)` is invalid CSS — never interpolate raw hex into a `var()` call; always route through `resolveAccentCssColor`
+- Retry orphans the previous AbortController if a stream is already active — same pre-existing gap as `handleSend`; deactivated-model retry emits a synthetic error bubble (benign)
