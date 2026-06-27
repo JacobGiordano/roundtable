@@ -34,6 +34,7 @@ import { getProviderRoster } from '@/auth';
 import { PROVIDERS } from './registry';
 import { createCustomProvider } from './generic';
 import { emitErrorChunk, buildModelError } from './openai-sse';
+import { buildAttributedMessages, buildAttributionSystemPrompt } from './attribution';
 
 // Internal provider type alias for clarity
 type Provider = typeof PROVIDERS[number];
@@ -255,7 +256,28 @@ async function runParallel(
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
       const selectedVersionId = modelConfig?.selectedVersionId;
-      return runProviderIsolated(provider, messages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
+
+      // Option B: build a per-provider message array that attributes other
+      // models' assistant messages as user-role messages with "[Name responded: ...]"
+      // framing. Stored messages are never mutated — this is wire-format only.
+      const attributedMessages = conversation
+        ? buildAttributedMessages(messages, provider.config.modelId, conversation.models)
+        : messages;
+
+      // Option C: prepend multi-model framing to the effective system prompt so
+      // the provider knows its own name and can interpret attribution markers.
+      // Only applied when conversation is available and modelConfig is resolved.
+      const otherActiveModels = conversation
+        ? conversation.models.filter(
+            (m) => m.isActive && m.modelId !== provider.config.modelId
+          )
+        : [];
+      const effectiveSystemPrompt =
+        modelConfig && conversation
+          ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
+          : resolvedSystemPrompt;
+
+      return runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
     })
   );
 }
@@ -290,7 +312,24 @@ async function runDirected(
   );
   const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
   const selectedVersionId = modelConfig?.selectedVersionId;
-  await runProviderIsolated(target, messages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
+
+  // Option B: attribute other models' messages for the directed target.
+  const attributedMessages = conversation
+    ? buildAttributedMessages(messages, target.config.modelId, conversation.models)
+    : messages;
+
+  // Option C: prepend multi-model framing to the effective system prompt.
+  const otherActiveModels = conversation
+    ? conversation.models.filter(
+        (m) => m.isActive && m.modelId !== target.config.modelId
+      )
+    : [];
+  const effectiveSystemPrompt =
+    modelConfig && conversation
+      ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
+      : resolvedSystemPrompt;
+
+  await runProviderIsolated(target, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
 }
 
 /**
@@ -361,12 +400,32 @@ async function runAutoChain(
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
       const selectedVersionId = modelConfig?.selectedVersionId;
 
+      // Option B: build a per-step attributed message array. sharedMessages grows
+      // as appendToContext steps complete — the transform is applied at dispatch
+      // time so each step's provider sees its own prior responses as assistant
+      // turns and all other participants' responses as attributed user turns.
+      const attributedMessages = conversation
+        ? buildAttributedMessages(sharedMessages, step.modelId, conversation.models)
+        : sharedMessages;
+
+      // Option C: prepend multi-model framing to the effective system prompt.
+      const otherActiveModels = conversation
+        ? conversation.models.filter(
+            (m) => m.isActive && m.modelId !== step.modelId
+          )
+        : [];
+      const effectiveSystemPrompt =
+        modelConfig && conversation
+          ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
+          : resolvedSystemPrompt;
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, handler, selectedVersionId, signal);
+        await runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, handler, selectedVersionId, signal);
 
-        // Append the model's response as an assistant message for subsequent steps.
+        // Append the raw response to sharedMessages (not attributedMessages) so
+        // subsequent steps accumulate real content, not re-attributed wire format.
         const responseText = getText();
         if (responseText) {
           sharedMessages = [
@@ -382,7 +441,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, sharedMessages, resolvedSystemPrompt, onChunk, selectedVersionId, signal);
+        await runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
       }
     }
   }
