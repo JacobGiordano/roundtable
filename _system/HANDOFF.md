@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #292 closed)
+Last updated: 2026-06-26 (ship — #296 closed)
 
 ## Current phase
 
@@ -6,18 +6,16 @@ Phase 4+ — Full gate process active.
 
 ## Session summary
 
-**#293 (Atlas / Flint)** — Closed. `stream_options` auto-retry in `generic.ts` — module-level incompatibility cache, fixes 502s on OpenRouter free-tier models.
+**#292 (Atlas / Flint)** — Closed. Retry button wired. `handleRetry(messageId)` in `App.tsx`: removes the failed assistant message, persists the removal, sets `sentConversationRef.current` synchronously, then calls `sendMessage({ targetModelId: failedModelId })` — routes through `runDirected`, targets only the failed model.
 
-**#294 (Aria / Ada / Flint)** — Closed. Directed reply chip accent color contrast fix. Root cause: `var(--#hex)` is invalid CSS — raw hex colors in `ModelConfig.color` produced silent no-ops. Fixed by routing through `resolveAccentCssColor` (now a shared export in `modelColor.ts`). Chip text switched to `text-text-secondary` (contrast-safe all 7 themes); accent communicated via 40% border + 15% tint. Two Ada-found ARIA issues fixed in `InputBar` (aria-live pattern, aria-label on div).
-
-**#292 (Atlas / Flint)** — Closed. Retry button wired. `handleRetry(messageId)` in `App.tsx`: removes the failed assistant message from the conversation, persists the removal, sets `sentConversationRef.current` synchronously, then calls `sendMessage({ targetModelId: failedModelId, ... })` — routes through `runDirected`, targets only the failed model. Ghost mode and AbortController lifecycle mirror `handleSend`.
+**#296 (Arch / Atlas / Flint)** — Closed. Model attribution in history serialization. New `src/models/attribution.ts` with two pure functions: `buildAttributedMessages` (reframes other models' assistant turns as attributed `[Name responded: ...]` user-role messages on the wire) and `buildAttributionSystemPrompt` (prepends participant framing to each model's system prompt). Wired into all three dispatch paths (`runParallel`, `runDirected`, `runAutoChain`) in `sendMessage.ts`. Single-model sessions are a no-op. Stored `Message` objects are never mutated — wire-format only. Arch confirmed no type changes needed — `Message.modelId` was always sufficient.
 
 ## Open bugs / known issues
 
-- **#285** — File attachments — future, no green light yet.
+- **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
 - **#295** — Provider capabilities model design. Arch. Phase 5.
-- **#296** — Models can't distinguish their own responses from other models' in shared history. Arch/Atlas. Phase 5 prerequisite for Auto-chain.
+- **#131** — Auto-chain. Now unblocked by #296. Phase 5.
 
 ## Key decisions
 
@@ -28,11 +26,15 @@ Phase 4+ — Full gate process active.
 - `resolveAccentCssColor(token, modelId?)` is now exported from `src/ui/utils/modelColor.ts` — single source of truth for accent CSS var resolution. Do not re-inline anywhere.
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text color on tinted background (contrast failure).
 - Retry: `sentConversationRef.current` must be set synchronously before `sendMessage()` — same race requirement as `handleSend`. Retry removes the failed message from history before calling `sendMessage` so the model does not see its own failed attempt.
+- Attribution (Option B): `buildAttributedMessages` reframes other-model assistant turns as `role: 'user'` with `[Name responded: ...]` — wire-format only, stored Messages never mutated. Bracketed messages = other AI; unbracketed user-role = human. No user label needed for single-user architecture.
+- Attribution (Option C): `buildAttributionSystemPrompt` prepends framing naming this model and other participants. No-ops for single-model sessions. User messages need no name label — the bracket pattern is the distinguishing signal.
 
 ## What's next
 
-1. **#285** — File attachments — awaiting green light.
-2. **#295 / #296** — Phase 5 design work (capabilities model, model attribution in history).
+1. **#295** — Provider capabilities model (Arch design, then Atlas). Phase 5.
+2. **#131** — Auto-chain (now unblocked). Phase 5.
+3. **#291** — Advisory a11y gap (Aria, low urgency).
+4. **#285** — File attachments (deferred — revisit after Phase 5).
 
 ## Gotchas
 
@@ -96,3 +98,5 @@ Phase 4+ — Full gate process active.
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text `color:` on tinted background (contrast failure across 7 themes)
 - `var(--#hex)` is invalid CSS — never interpolate raw hex into a `var()` call; always route through `resolveAccentCssColor`
 - Retry orphans the previous AbortController if a stream is already active — same pre-existing gap as `handleSend`; deactivated-model retry emits a synthetic error bubble (benign)
+- Attribution transform (`buildAttributedMessages`) skips `isStreaming` and error-sentinel messages — these must never reach providers. Consecutive other-model turns produce consecutive `role:'user'` turns on the wire; modern providers handle non-alternating sequences correctly.
+- `buildAttributionSystemPrompt` no-ops for single-model sessions (otherActiveModels.length === 0) — framing is never injected into solo conversations
