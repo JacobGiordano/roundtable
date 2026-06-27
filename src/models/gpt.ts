@@ -10,6 +10,13 @@
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
  *   - The API key is only transmitted to https://api.openai.com
+ *
+ * Dev proxy:
+ *   OpenAI's CORS stance changed — browser-direct calls now fail preflight in many
+ *   environments. In development, we route through Vite's /openai-proxy → api.openai.com
+ *   server-side proxy (configured in vite.config.ts), matching the pattern used by
+ *   Claude (/anthropic-proxy), Gemini (/google-proxy), and others.
+ *   VITE_OPENAI_PROXY_URL overrides both dev and prod paths when set.
  */
 
 import type { ModelProviderConfig } from '@/types';
@@ -20,7 +27,7 @@ import { BaseOpenAIProvider } from './BaseOpenAIProvider';
 
 export const GPT55_CONFIG: ModelProviderConfig = {
   modelId: 'gpt-5.5',
-  name: 'GPT-5.5',
+  name: 'ChatGPT',
   color: 'emerald',
   credentialKey: 'openai',
 };
@@ -31,7 +38,10 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
   readonly config: ModelProviderConfig = GPT55_CONFIG;
 
   protected get apiUrl(): string {
-    return 'https://api.openai.com/v1/chat/completions';
+    const base =
+      import.meta.env.VITE_OPENAI_PROXY_URL ??
+      (import.meta.env.DEV ? '/openai-proxy' : 'https://api.openai.com');
+    return `${base}/v1/chat/completions`;
   }
 
   /**
