@@ -1,4 +1,4 @@
-Last updated: 2026-06-26 (ship — #293 closed)
+Last updated: 2026-06-26 (ship — #294 closed)
 
 ## Current phase
 
@@ -8,29 +8,32 @@ Phase 4+ — Full gate process active.
 
 **#290 (Atlas + Aria / Flint)** — Closed. Generic `/dev-proxy/<url>` Vite middleware + `DevProxyHint` in ProviderSettingsPanel.
 
-**#293 (Atlas / Flint)** — Closed. `stream_options: { include_usage: true }` auto-retry in `generic.ts`. Module-level `streamOptionsIncompatibleEndpoints: Set<string>` — first request sends with `stream_options`; if non-ok response, endpoint is cached and request is retried without it. Abort-safe. Fixes 502s on OpenRouter free-tier models.
+**#293 (Atlas / Flint)** — Closed. `stream_options` auto-retry in `generic.ts` — module-level incompatibility cache, fixes 502s on OpenRouter free-tier models.
+
+**#294 (Aria / Ada / Flint)** — Closed. Directed reply chip accent color contrast fix. Root cause: `var(--#hex)` is invalid CSS — raw hex colors in `ModelConfig.color` produced silent no-ops. Fixed by routing through `resolveAccentCssColor` (now a shared export in `modelColor.ts`). Chip text switched to `text-text-secondary` (contrast-safe all 7 themes); accent communicated via 40% border + 15% tint. Two Ada-found ARIA issues fixed in `InputBar` (aria-live pattern, aria-label on div).
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — future, no green light yet.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
 - **#292** — Retry button is a stub (`App.tsx:777`) — not yet wired. Atlas.
-- **#294** — Reply link text not using custom provider accent color in MessageBubble. Aria.
 - **#295** — Provider capabilities model design. Arch. Phase 5.
+- **#296** — Models can't distinguish their own responses from other models' in shared history. Arch/Atlas. Phase 5 prerequisite for Auto-chain.
 
 ## Key decisions
 
 - `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias. Inline styles must use `var(--semantic-error)` directly.
 - `isValidModelId` in `accentColors.ts` accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`).
 - Custom endpoint `endpointUrl` in `generic.ts` is the **full URL** including path (e.g. `/chat/completions`) — the provider does not append it.
-- `stream_options` incompatibility handled via Option B (try/retry/remember) not a per-provider flag. #295 is the long-term capabilities model.
+- `stream_options` incompatibility handled via Option B (try/retry/remember). #295 is the long-term capabilities model.
+- `resolveAccentCssColor(token, modelId?)` is now exported from `src/ui/utils/modelColor.ts` — single source of truth for accent CSS var resolution. Do not re-inline anywhere.
+- Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text color on tinted background (contrast failure).
 
 ## What's next
 
 1. **#292** (Atlas) — Wire up Retry button.
-2. **#294** (Aria) — Reply link accent color for custom providers.
-3. **#285** — File attachments — awaiting green light.
-4. **#295** — Capabilities model — Phase 5, Arch-led design.
+2. **#285** — File attachments — awaiting green light.
+3. **#295 / #296** — Phase 5 design work (capabilities model, model attribution in history).
 
 ## Gotchas
 
@@ -83,12 +86,13 @@ Phase 4+ — Full gate process active.
 - `accents.user` custom theme validator: key is now required in `accents` object — custom themes pre-dating #279 need `"user": "<hex>"` added
 - `applyUserMessageColor(null)` is a no-op — callers restoring theme default must call `applyTheme()` first
 - Sidebar toggle: `getSidebarOpen()` default is `true` (absent key = open); `setSidebarOpen(bool)` persists to `roundtable:sidebar-open`
-- `MessageBubble.resolveAccentCssColor(token, modelId?)`: custom providers → `var(--accent-custom-{sanitizeCustomAccentId(modelId)})`; built-ins → `var(--accent-{token})`
-- `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts`: single source of truth for `custom:*` → CSS ident. Do not inline this logic anywhere else.
+- `resolveAccentCssColor(token, modelId?)` exported from `src/ui/utils/modelColor.ts` — custom providers → `var(--accent-custom-{sanitizeCustomAccentId(modelId)})`; built-ins → `var(--accent-{token})`
+- `sanitizeCustomAccentId(id)` in `src/ui/utils/modelColor.ts` — single source of truth for `custom:*` → CSS ident. Do not inline.
 - `applyRosterAccentColors(roster)` must be called at boot, theme switch, and roster change — see `main.tsx`, `Sidebar.tsx handleThemeChange`, `App.tsx handleRosterChange`
 - Gate's `readStoredColors()` now returns custom IDs (post-#287) — `getModelAccentColors()` returns custom accent overrides correctly
-- Contrast-token fixes: route through Luma (values in `/_design/themes/`), not Gate — Gate has no representation of built-in theme token values
 - `var(--error)` does not exist — use `var(--semantic-error)` in inline styles; Tailwind `bg-error`/`text-error` work via config alias only
 - Custom endpoint `endpointUrl` in `generic.ts` is the full URL including path (e.g. `/chat/completions`) — provider posts directly to it, does not append
 - `/dev-proxy/<url>` middleware is dev-only (`configureServer` hook) — Vite strips it from production builds entirely
 - `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is module-level (page-lifetime cache) — resets on reload; one extra 502 per session per incompatible endpoint is acceptable
+- Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text `color:` on tinted background (contrast failure across 7 themes)
+- `var(--#hex)` is invalid CSS — never interpolate raw hex into a `var()` call; always route through `resolveAccentCssColor`
