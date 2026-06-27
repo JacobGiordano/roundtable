@@ -177,6 +177,15 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/anthropic-proxy/, ''),
         secure: true,
       },
+      // OpenAI — CORS behavior changed; browser-direct calls now fail preflight
+      // in many environments. Proxy through Node.js server-side to avoid CORS.
+      // VITE_OPENAI_PROXY_URL overrides this for production deployments.
+      '/openai-proxy': {
+        target: 'https://api.openai.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/openai-proxy/, ''),
+        secure: true,
+      },
       // Google Gemini API does not reliably support browser-direct calls — CORS
       // behavior on the generativelanguage.googleapis.com domain varies by
       // endpoint and key type. Proxy for consistent dev behaviour.
