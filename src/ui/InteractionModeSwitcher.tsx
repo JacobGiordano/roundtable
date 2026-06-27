@@ -143,6 +143,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
           aria-disabled="true"
           aria-label={`${config.label} — coming soon`}
           aria-describedby={tooltipId}
+          data-mode={config.mode}
           tabIndex={0}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -201,6 +202,7 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
         aria-checked={isSelected}
         aria-label={`${config.label} — ${config.description}`}
         aria-describedby={tooltipId}
+        data-mode={config.mode}
         onClick={() => onSelect(config.mode)}
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -284,6 +286,60 @@ export function InteractionModeSwitcher({
 }: InteractionModeSwitcherProps) {
   const lastIndex = INTERACTION_MODES.length - 1;
 
+  // WAI-ARIA APG radio group keyboard pattern — arrow-key navigation.
+  // Left/Up: previous non-disabled radio (with wrap). Right/Down: next (with wrap).
+  // Disabled radios are skipped in the cycle but still tab-reachable.
+  // If focus is on the disabled button, arrows jump to the nearest enabled one.
+  // The handler lives here (not in ModeButton) because it needs access to all
+  // sibling radios and `onModeChange` — ModeButton only handles its own Escape.
+  const handleRadioGroupKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const isArrow =
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowRight' ||
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown';
+      if (!isArrow) return;
+
+      const container = e.currentTarget;
+      const allRadios = Array.from(
+        container.querySelectorAll<HTMLElement>('[role="radio"]'),
+      );
+      const focusedIndex = allRadios.findIndex(
+        (el) => el === document.activeElement,
+      );
+      if (focusedIndex === -1) return;
+
+      // Prevent the browser from scrolling the page on arrow keys.
+      e.preventDefault();
+
+      const delta =
+        e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
+      const n = allRadios.length;
+
+      // Walk in `delta` direction, wrapping, until we find a non-disabled radio
+      // (or exhaust all candidates — guard against all-disabled edge case).
+      let nextIndex = (focusedIndex + delta + n) % n;
+      let guard = 0;
+      while (
+        allRadios[nextIndex].getAttribute('aria-disabled') === 'true' &&
+        guard < n
+      ) {
+        nextIndex = (nextIndex + delta + n) % n;
+        guard++;
+      }
+
+      const nextEl = allRadios[nextIndex];
+      if (nextEl.getAttribute('aria-disabled') === 'true') return; // all disabled
+
+      nextEl.focus();
+
+      const mode = nextEl.getAttribute('data-mode') as InteractionMode | null;
+      if (mode) onModeChange(mode);
+    },
+    [onModeChange],
+  );
+
   // #221: sr-only span is a sibling of the radiogroup (not inside it) to prevent
   // double-read on older AT (JAWS ≤ 2022, some NVDA browse modes). The
   // aria-describedby reference on the radiogroup remains valid regardless of
@@ -294,6 +350,7 @@ export function InteractionModeSwitcher({
         role="radiogroup"
         aria-label="Interaction mode"
         aria-describedby="interaction-mode-coming-soon-note"
+        onKeyDown={handleRadioGroupKeyDown}
         className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
       >
         {INTERACTION_MODES.map((config, index) => {
