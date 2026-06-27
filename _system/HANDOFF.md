@@ -1,4 +1,4 @@
-Last updated: 2026-06-27 (ship — #300 closed)
+Last updated: 2026-06-27 (ship — #297 and #298 closed)
 
 ## Current phase
 
@@ -6,9 +6,9 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#300 (Aria / Ada / Flint)** — Closed. Two commits on main:
-1. Arrow-key navigation for `InteractionModeSwitcher` radiogroup — `handleRadioGroupKeyDown` on parent div; Left/Up = prev non-disabled (wrap), Right/Down = next (wrap); disabled Manual skipped in cycle but stays Tab-reachable.
-2. WCAG 1.4.13 fix — capture-phase `document` Escape listener in `ModeButton` dismisses hover tooltips; covers both enabled-button and disabled-span render paths via shared `isTooltipVisible` state.
+**#297 (Atlas)** — Closed. Removed cross-boundary `getCredentials` import from `generic.ts`. Fixed via dependency injection: `GenericOpenAIProvider` now accepts `GetCredentialsFn` as a constructor param; `sendMessage.ts` (already a Gate consumer) passes it in. Security preserved — function ref stored, key resolved at call time only.
+
+**#298 (Arch)** — Closed. JSDoc-only: removed stale three-line sentence in `ProviderCapabilities` that described `streamOptionsIncompatibleEndpoints` as an "interim state." That migration completed in #295; the Set no longer exists.
 
 ## Open bugs / known issues
 
@@ -16,7 +16,7 @@ Phase 5 — Full gate process active.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
 - **#301** — `InteractionModeSwitcher`: `aria-describedby` on enabled `ModeButton` repeats description already in `aria-label` (verbose double-read). Advisory.
 - **#306** — Roving tabindex deviation: Tab visits all three radios; APG expects only checked radio at `tabIndex=0`. Intentional — Manual stays reachable for tooltip discoverability. Advisory.
-- **#307 (to file)** — WCAG 1.4.13 hoverable sub-criterion: `pointer-events-none` on tooltip means pointer cannot move onto tooltip text without it disappearing. Pre-existing. File before next ship cycle.
+- **#307** — WCAG 1.4.13 hoverable sub-criterion: `pointer-events-none` on tooltip means pointer cannot move onto tooltip text without it disappearing. Pre-existing. Advisory.
 
 ## Key decisions
 
@@ -24,15 +24,14 @@ Phase 5 — Full gate process active.
 - `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` uses resolved model string post-version-selection.
 - Arrow nav lives on parent `InteractionModeSwitcher` (not `ModeButton`) — needs sibling access and `onModeChange`.
 - Escape document listener declared before `if (isDisabled)` branch — covers both render paths through shared state.
+- `GetCredentialsFn` passed as constructor param to `GenericOpenAIProvider` — do not revert to direct `@/auth` import.
 
 ## What's next
 
-1. **#307** — File WCAG 1.4.13 hoverable advisory (tooltip `pointer-events-none` gap) — before next ship cycle.
-2. **#301** — `aria-describedby` redundancy on `ModeButton` (Aria, advisory).
-3. **#291** — Advisory a11y gap on ProviderSettingsPanel (Aria, low urgency).
-4. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel.
-5. **#285** — File attachments (deferred).
-6. **#305** — Cross-device export/import (Phase 6+).
+1. **#301 + #291** — Aria advisory batch (one Aria+Ada wave): `aria-describedby` redundancy on ModeButton + ProviderSettingsPanel form inputs.
+2. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel.
+3. **#285** — File attachments (deferred).
+4. **#305** — Cross-device export/import (Phase 6+).
 
 ## Gotchas
 
@@ -102,3 +101,4 @@ Phase 5 — Full gate process active.
 - `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy of provider display names — do not import from `@/models` to avoid crossing agent boundary
 - Arrow nav in `InteractionModeSwitcher`: `handleRadioGroupKeyDown` on parent div; queries `[role="radio"]` by DOM; uses `data-mode` attribute to read mode without reaching into ModeButton internals
 - Hover tooltip Escape: capture-phase `document` keydown listener in `ModeButton` useEffect; fires when `isTooltipVisible` is true; declared before `if (isDisabled)` so it covers both render paths
+- `GetCredentialsFn` is a constructor param on `GenericOpenAIProvider` — injected by `sendMessage.ts`; never import `getCredentials` directly from `@/auth` inside `/src/models/`
