@@ -67,6 +67,25 @@ interface OpenAIStreamChunk {
   };
 }
 
+// ─── Models requiring max_completion_tokens ───────────────────────────────────
+//
+// OpenAI's newer reasoning models and gpt-5.5 require `max_completion_tokens`
+// instead of `max_tokens` in the request body. Sending `max_tokens` to these
+// models returns a 400: "Unsupported parameter: 'max_tokens' is not supported
+// with this model. Use 'max_completion_tokens' instead."
+//
+// `gpt-4o` and `gpt-4o-mini` use `max_tokens` and do NOT accept
+// `max_completion_tokens` — so this must be detected per resolved model string,
+// not at the provider class level (GPT55ModelProvider serves all six versions).
+//
+// This Set lives at the module level so it is allocated once, not per request.
+const MAX_COMPLETION_TOKENS_MODELS = new Set([
+  'gpt-5.5',
+  'o3',
+  'o1',
+  'o1-mini',
+]);
+
 // ─── BaseOpenAIProvider ───────────────────────────────────────────────────────
 
 export abstract class BaseOpenAIProvider implements ModelProvider {
@@ -79,7 +98,11 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
   /** Default API model string used when no selectedVersionId is provided. */
   protected abstract get defaultModel(): string;
 
-  /** Output token ceiling for this provider (sent as max_tokens in the request body). */
+  /**
+   * Output token ceiling for this provider. Sent as `max_tokens` for gpt-4o
+   * and gpt-4o-mini; sent as `max_completion_tokens` for gpt-5.5, o3, o1, and
+   * o1-mini. The key is selected at request-build time via MAX_COMPLETION_TOKENS_MODELS.
+   */
   protected abstract get maxTokens(): number;
 
   /**
@@ -127,9 +150,16 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       });
     }
 
+    // gpt-5.5, o3, o1, and o1-mini require `max_completion_tokens`; gpt-4o
+    // and gpt-4o-mini require `max_tokens`. The two keys are mutually exclusive
+    // on their respective models — sending the wrong one returns a 400.
+    const tokenLimitKey = MAX_COMPLETION_TOKENS_MODELS.has(modelString)
+      ? 'max_completion_tokens'
+      : 'max_tokens';
+
     const requestBody = {
       model: modelString,
-      max_tokens: this.maxTokens,
+      [tokenLimitKey]: this.maxTokens,
       stream: true,
       // Request token usage in the final stream chunk (OpenAI-compatible extension)
       stream_options: { include_usage: true },
