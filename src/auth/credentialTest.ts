@@ -122,6 +122,22 @@ const MISTRAL_TEST_BASE = proxyBase(
   'https://api.mistral.ai',
 );
 
+/**
+ * OpenAI — no longer reliably allows all browser origins; CORS preflight
+ * failures have been observed. Proxy through the Vite dev server like every
+ * other provider.
+ *
+ *   - Development: /openai-proxy → https://api.openai.com (Vite proxy,
+ *     configured in vite.config.ts)
+ *   - Production with self-hosted backend: VITE_OPENAI_PROXY_URL env var
+ *   - Production fallback: direct URL (may fail in browser due to CORS)
+ */
+const OPENAI_TEST_BASE = proxyBase(
+  'VITE_OPENAI_PROXY_URL',
+  '/openai-proxy',
+  'https://api.openai.com',
+);
+
 const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
   anthropic: {
     url: `${ANTHROPIC_TEST_BASE}/v1/models`,
@@ -134,13 +150,8 @@ const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
       },
     }),
   },
-  /**
-   * OpenAI explicitly supports browser-direct API calls — their client SDK is
-   * designed for browser use and api.openai.com returns CORS headers that allow
-   * any origin. No proxy needed; hitting the URL directly is the correct approach.
-   */
   openai: {
-    url: 'https://api.openai.com/v1/models',
+    url: `${OPENAI_TEST_BASE}/v1/models`,
     buildInit: (value) => ({
       method: 'GET',
       headers: {
