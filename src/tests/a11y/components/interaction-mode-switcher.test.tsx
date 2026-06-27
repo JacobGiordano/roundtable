@@ -1,9 +1,10 @@
 /**
  * InteractionModeSwitcher — Axe-core Accessibility Tests (#131, #199)
  *
- * Issue #131 changed Manual and Auto-chain mode buttons from interactive
- * `<button>` elements into disabled radio items with a "coming soon" tooltip,
- * while Parallel remains a functional `<button role="radio">`.
+ * Issue #131 changed Manual and Auto-chain modes to "coming soon" disabled radio
+ * items. Issue #299 wired Auto-chain into handleSend — Auto-chain is now a fully
+ * interactive `<button role="radio">`. Only Manual remains disabled (`comingSoon:
+ * true`), rendered as `<span role="radio" aria-disabled="true">`.
  *
  * Issue #199 fixed the ARIA ownership model. The previous approach used
  * aria-owns on the radiogroup to exclude coming-soon spans, but aria-owns
@@ -85,7 +86,7 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     // aria-disabled (not HTML disabled) ensures keyboard users can Tab to the item
     // and hear the "coming soon" tooltip — satisfying WCAG 2.1.1.
     const disabledRadios = container.querySelectorAll('[role="radio"][aria-disabled="true"]');
-    expect(disabledRadios.length).toBe(2);
+    expect(disabledRadios.length).toBe(1);
     for (const radio of disabledRadios) {
       expect(radio.getAttribute('aria-checked')).toBe('false');
     }
@@ -112,11 +113,24 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // Each disabled radio carries aria-label="[Mode] — coming soon"
+    // Manual is the only remaining disabled mode — carries aria-label="Manual — coming soon"
     const manualRadio = container.querySelector('[role="radio"][aria-label="Manual — coming soon"]');
-    const autoChainRadio = container.querySelector('[role="radio"][aria-label="Auto-chain — coming soon"]');
     expect(manualRadio).not.toBeNull();
-    expect(autoChainRadio).not.toBeNull();
+
+    // Auto-chain (#299) is now interactive — its aria-label describes the mode,
+    // not "coming soon". Confirm it is a <button> with an auto-chain label that
+    // does NOT include "coming soon".
+    const autoChainRadio = container.querySelector('button[role="radio"]');
+    const autoChainLabels = Array.from(
+      container.querySelectorAll('button[role="radio"]')
+    ).map((el) => el.getAttribute('aria-label') ?? '');
+    const autoChainLabel = autoChainLabels.find((l) => /auto-chain/i.test(l));
+    expect(autoChainLabel).toBeDefined();
+    expect(autoChainLabel).not.toMatch(/coming soon/i);
+    // The disabled coming-soon span must NOT be auto-chain
+    expect(
+      container.querySelector('[role="radio"][aria-disabled="true"][aria-label*="Auto-chain"]')
+    ).toBeNull();
   });
 
   it('tooltip elements carry role="tooltip"', () => {
@@ -189,7 +203,6 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     );
     const note = container.querySelector('#interaction-mode-coming-soon-note');
     expect(note?.textContent).toMatch(/manual/i);
-    expect(note?.textContent).toMatch(/auto-chain/i);
     expect(note?.textContent).toMatch(/coming soon/i);
   });
 
