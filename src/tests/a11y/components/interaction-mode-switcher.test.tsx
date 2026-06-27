@@ -120,7 +120,6 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     // Auto-chain (#299) is now interactive — its aria-label describes the mode,
     // not "coming soon". Confirm it is a <button> with an auto-chain label that
     // does NOT include "coming soon".
-    const autoChainRadio = container.querySelector('button[role="radio"]');
     const autoChainLabels = Array.from(
       container.querySelectorAll('button[role="radio"]')
     ).map((el) => el.getAttribute('aria-label') ?? '');
