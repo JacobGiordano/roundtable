@@ -1,4 +1,4 @@
-Last updated: 2026-06-27 (ship — #295 closed)
+Last updated: 2026-06-27 (ship — #299, #302, #303, #304 closed)
 
 ## Current phase
 
@@ -6,28 +6,36 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#295 (Arch / Atlas / Flint)** — Closed. Provider capabilities model. Arch added `ProviderCapabilities` interface to `/src/types/index.ts` with four optional fields (`streamUsage`, `vision`, `toolUse`, `systemPrompt`) and wired `capabilities?: ProviderCapabilities` onto `CustomProviderConfig`. Atlas replaced the `streamOptionsIncompatibleEndpoints` module-level Set (Option B runtime probe) in `generic.ts` with a static read: `const includeStreamOptions = this.customConfig.capabilities?.streamUsage !== false;`. Try/retry fallback preserved for the `undefined`/`true` case. Flint cleared all 10 criteria.
+**#299 (Aria / Ada)** — Closed. Auto-chain mode wired end-to-end. Removed `comingSoon` flag from `InteractionModeSwitcher`. `handleSend` in `App.tsx` builds `AutoChainConfig` from active roster (roster order, `appendToContext: true`, `maxPasses: 1`) and passes `chainConfig` to `sendMessage()`. Parallel unchanged. Confirmed working in the wild.
+
+**#302 (Atlas + Aria)** — Closed. OpenAI provider display name renamed from `'GPT-5.5'` to `'ChatGPT'` in two places: `gpt.ts` (registry name) and `ProviderSettingsPanel.tsx` (hardcoded `BUILTIN_META` map). `BUILTIN_META` is an intentional local copy — importing from `@/models` would cross the agent boundary.
+
+**#303 (Atlas + Gate)** — Closed. OpenAI CORS proxy fix. Credential test now uses `OPENAI_TEST_BASE` via `proxyBase()` (Gate). Chat completions URL routes through `/openai-proxy` in dev (Atlas). `/openai-proxy` → `https://api.openai.com` Vite route added. Confirmed: key test passes, conversations work.
+
+**#304 (Atlas + Scout)** — Closed. `BaseOpenAIProvider` now sends `max_completion_tokens` for `gpt-5.5`, `o3`, `o1`, `o1-mini` and `max_tokens` for `gpt-4o`, `gpt-4o-mini`. Uses module-level `MAX_COMPLETION_TOKENS_MODELS` Set checked against resolved model string post-version-selection. Scout added 6-test regression suite in `src/tests/integration/base-openai-provider-token-key.test.ts`.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
-- **#131** — Auto-chain. Unblocked by #296. Phase 5.
+- **#300** — `InteractionModeSwitcher`: arrow-key navigation for radiogroup (WAI-ARIA APG gap, now more impactful with two active radio buttons). Filed by Ada in #299 session.
+- **#301** — `InteractionModeSwitcher`: `aria-describedby` on enabled `ModeButton` repeats description already in `aria-label` (verbose double-read). Filed by Ada in #299 session.
 
 ## Key decisions
 
-- `ProviderCapabilities` defaults: `streamUsage` → optimistic (`true`); `vision` / `toolUse` → conservative (`false`); `systemPrompt` → optimistic (`true`). Absence of `capabilities` field = Atlas falls back to per-capability defaults — no migration required.
-- `stream_options` Option B workaround is retired. `capabilities?.streamUsage === false` skips `stream_options` statically; `undefined`/`true` preserves try/retry.
-- `var(--error)` does NOT exist — use `var(--semantic-error)` in inline styles.
-- Attribution: `buildAttributedMessages` reframes other-model turns as `role: 'user'` with `[Name responded: ...]` — wire-format only.
-- `resolveAccentCssColor(token, modelId?)` is the single source of truth for accent CSS var resolution — do not re-inline.
+- `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy — do not import from `@/models` to avoid crossing agent boundary.
+- `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` uses resolved model string (post-version-selection) — not provider class — because `GPT55ModelProvider` serves both `max_tokens` and `max_completion_tokens` models.
+- Export/import feature (#305) captured for Phase 6+; requires passphrase-based encryption — never plaintext key export.
+- Flint coordination: agents run Flint internally; Coda should not spawn a separate Flint if the agent's summary includes a Flint verdict. Direct file/git verification + user confirmation is the fallback. File Arch ticket to document the Coda-coordinated wave exception for Flint (same pattern as Ada exception).
 
 ## What's next
 
-1. **#131** — Auto-chain (unblocked). Phase 5. Atlas.
-2. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel. File issues when ready to start.
-3. **#291** — Advisory a11y gap (Aria, low urgency).
-4. **#285** — File attachments (deferred).
+1. **#300** — Arrow-key nav for `InteractionModeSwitcher` radiogroup (Aria, a11y, medium urgency).
+2. **#301** — `aria-describedby` redundancy on `ModeButton` (Aria, advisory).
+3. **#291** — Advisory a11y gap on ProviderSettingsPanel (Aria, low urgency).
+4. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel.
+5. **#285** — File attachments (deferred).
+6. **#305** — Cross-device export/import (Phase 6+).
 
 ## Gotchas
 
@@ -39,7 +47,6 @@ Phase 5 — Full gate process active.
 - `inert` attribute: `isClosed ? '' : undefined`
 - `inert` and `aria-hidden` must always be controlled by the same boolean — keep in sync
 - Bash tool CWD can drift into a worktree — always use `git -C /workspace`
-- InteractionModeSwitcher: Manual + Auto-chain intentionally disabled (#131)
 - `StoredConversation` envelope: `{ schemaVersion: 1, data: Conversation }` — bare records auto-migrate
 - Release workflow: one-time → Settings → Actions → General → "Read and write permissions"
 - App integration tests read from `lastContextValue` (RoundtableContext), not `lastAppLayoutProps`
@@ -93,3 +100,6 @@ Phase 5 — Full gate process active.
 - Attribution transform (`buildAttributedMessages`) skips `isStreaming` and error-sentinel messages — these must never reach providers. Consecutive other-model turns produce consecutive `role:'user'` turns on the wire; modern providers handle non-alternating sequences correctly.
 - `buildAttributionSystemPrompt` no-ops for single-model sessions (otherActiveModels.length === 0) — framing is never injected into solo conversations
 - `ProviderCapabilities` all fields optional — absence of `capabilities` on `CustomProviderConfig` means Atlas uses per-capability defaults; existing persisted configs valid without migration
+- OpenAI proxy: `/openai-proxy` → `https://api.openai.com` in vite.config.ts; `OPENAI_TEST_BASE` in credentialTest.ts; `apiUrl` getter in `gpt.ts` uses three-tier fallback matching claude.ts pattern
+- `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` — checked against resolved model string post-version-selection; `gpt-5.5`, `o3`, `o1`, `o1-mini` use `max_completion_tokens`; `gpt-4o`, `gpt-4o-mini` use `max_tokens`
+- `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy of provider display names — do not import from `@/models` to avoid crossing agent boundary
