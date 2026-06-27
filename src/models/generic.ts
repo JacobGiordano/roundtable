@@ -10,9 +10,14 @@
  * identical to GPT55ModelProvider (OpenAI Chat Completions format).
  *
  * Security rules (non-negotiable):
- *   - The API key is retrieved at call-time via getCredentials() and never stored in state
+ *   - The API key is retrieved at call-time via getCredentialsFn() and never stored in state
  *   - The API key is NEVER logged
  *   - The API key is only transmitted to the endpoint URL supplied by the user's config
+ *
+ * Credential injection: getCredentialsFn is passed in at construction time
+ * (dependency injection) rather than imported from @/auth. This keeps @/models
+ * free of cross-boundary imports. sendMessage.ts — which already imports from
+ * @/auth for getProviderRoster — passes Gate's getCredentials here.
  *
  * Phase extension note: per-model token limits could be made configurable
  * via CustomProviderConfig in a future phase. For now MAX_TOKENS_GENERIC is used
@@ -26,8 +31,8 @@ import type {
   StreamHandler,
   TokenUsage,
   CustomProviderConfig,
+  GetCredentialsFn,
 } from '@/types';
-import { getCredentials } from '@/auth';
 import { MAX_TOKENS_GENERIC } from './constants';
 import {
   mapHttpStatusToErrorCode,
@@ -72,8 +77,20 @@ export class GenericOpenAIProvider implements ModelProvider {
   /** The full CustomProviderConfig supplied at construction. */
   private readonly customConfig: CustomProviderConfig;
 
-  constructor(customConfig: CustomProviderConfig) {
+  /**
+   * Credential lookup function injected at construction time.
+   * Stores a function reference, never a key value — the actual API key
+   * is only read when sendMessage() calls this function, preserving the
+   * "retrieved at call-time, never stored" security rule.
+   *
+   * sendMessage.ts passes Gate's getCredentials here, which reads from
+   * localStorage. This avoids a cross-boundary @/auth import in this file.
+   */
+  private readonly getCredentialsFn: GetCredentialsFn;
+
+  constructor(customConfig: CustomProviderConfig, getCredentialsFn: GetCredentialsFn) {
     this.customConfig = customConfig;
+    this.getCredentialsFn = getCredentialsFn;
     this.config = {
       modelId: customConfig.id,
       name: customConfig.displayName,
@@ -120,7 +137,7 @@ export class GenericOpenAIProvider implements ModelProvider {
     //     server returns 401/403 → auth_failure error.
     const apiKey =
       this.customConfig.requiresApiKey !== false && credentialKey
-        ? getCredentials(credentialKey)
+        ? this.getCredentialsFn(credentialKey)
         : undefined;
 
     // Filter error-only assistant messages from history before sending to the API.
@@ -350,7 +367,11 @@ export class GenericOpenAIProvider implements ModelProvider {
  * Construct a GenericOpenAIProvider from a CustomProviderConfig.
  * Used by sendMessage.ts dispatch (ticket #95) when building the active
  * provider list from the user's ProviderRoster.
+ *
+ * getCredentialsFn is Gate's getCredentials function, passed in by the caller
+ * (sendMessage.ts) which already imports from @/auth. This avoids a
+ * cross-boundary @/auth import here in @/models.
  */
-export function createCustomProvider(config: CustomProviderConfig): GenericOpenAIProvider {
-  return new GenericOpenAIProvider(config);
+export function createCustomProvider(config: CustomProviderConfig, getCredentialsFn: GetCredentialsFn): GenericOpenAIProvider {
+  return new GenericOpenAIProvider(config, getCredentialsFn);
 }
