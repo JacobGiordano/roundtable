@@ -1,4 +1,4 @@
-Last updated: 2026-06-27 (ship — #297 and #298 closed)
+Last updated: 2026-06-27 (ship — #301 and #291 closed)
 
 ## Current phase
 
@@ -6,17 +6,16 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#297 (Atlas)** — Closed. Removed cross-boundary `getCredentials` import from `generic.ts`. Fixed via dependency injection: `GenericOpenAIProvider` now accepts `GetCredentialsFn` as a constructor param; `sendMessage.ts` (already a Gate consumer) passes it in. Security preserved — function ref stored, key resolved at call time only.
+**#301 (Aria)** — Closed. ModeButton `aria-label` trimmed to label-only ("Parallel", "Auto-chain"). Description now announced once via `aria-describedby` pointing at the tooltip div — not duplicated in the label. File: `InteractionModeSwitcher.tsx`.
 
-**#298 (Arch)** — Closed. JSDoc-only: removed stale three-line sentence in `ProviderCapabilities` that described `streamOptionsIncompatibleEndpoints` as an "interim state." That migration completed in #295; the Set no longer exists.
+**#291 (Aria)** — Closed. Wired `aria-describedby` on 4 inputs in `AddCustomForm` (endpoint URL, model string, API key, accent color button) to their helper `<p>` elements via stable IDs. `ProviderRow` inline edit form has no static helper text — no changes needed there. File: `ProviderSettingsPanel.tsx`.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
-- **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
-- **#301** — `InteractionModeSwitcher`: `aria-describedby` on enabled `ModeButton` repeats description already in `aria-label` (verbose double-read). Advisory.
 - **#306** — Roving tabindex deviation: Tab visits all three radios; APG expects only checked radio at `tabIndex=0`. Intentional — Manual stays reachable for tooltip discoverability. Advisory.
 - **#307** — WCAG 1.4.13 hoverable sub-criterion: `pointer-events-none` on tooltip means pointer cannot move onto tooltip text without it disappearing. Pre-existing. Advisory.
+- **#308** — Scout: `provider-settings-panel.test.tsx` has 13 stale label assertions (GPT-5.5 → ChatGPT rename from #302). Test file only — no app code change needed.
 
 ## Key decisions
 
@@ -25,10 +24,13 @@ Phase 5 — Full gate process active.
 - Arrow nav lives on parent `InteractionModeSwitcher` (not `ModeButton`) — needs sibling access and `onModeChange`.
 - Escape document listener declared before `if (isDisabled)` branch — covers both render paths through shared state.
 - `GetCredentialsFn` passed as constructor param to `GenericOpenAIProvider` — do not revert to direct `@/auth` import.
+- ModeButton `aria-label` is label-only; description lives exclusively in `aria-describedby` — do not re-merge them.
+- `ProviderSettingsPanel` helper `<p>` IDs use `psp-` prefix — keep stable; tests may reference them.
+- Disabled ModeButton "coming soon" double-read (label + describedby) is pre-existing advisory — deferred.
 
 ## What's next
 
-1. **#301 + #291** — Aria advisory batch (one Aria+Ada wave): `aria-describedby` redundancy on ModeButton + ProviderSettingsPanel form inputs.
+1. **#308** — Scout: fix stale `provider-settings-panel.test.tsx` assertions (GPT-5.5 → ChatGPT).
 2. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel.
 3. **#285** — File attachments (deferred).
 4. **#305** — Cross-device export/import (Phase 6+).
@@ -102,3 +104,5 @@ Phase 5 — Full gate process active.
 - Arrow nav in `InteractionModeSwitcher`: `handleRadioGroupKeyDown` on parent div; queries `[role="radio"]` by DOM; uses `data-mode` attribute to read mode without reaching into ModeButton internals
 - Hover tooltip Escape: capture-phase `document` keydown listener in `ModeButton` useEffect; fires when `isTooltipVisible` is true; declared before `if (isDisabled)` so it covers both render paths
 - `GetCredentialsFn` is a constructor param on `GenericOpenAIProvider` — injected by `sendMessage.ts`; never import `getCredentials` directly from `@/auth` inside `/src/models/`
+- ModeButton `aria-label` is label-only; description lives in `aria-describedby` on tooltip div — do not re-merge them into the label
+- `ProviderSettingsPanel` helper `<p>` IDs: `psp-endpoint-url-hint`, `psp-model-string-hint`, `psp-api-key-hint`, `psp-accent-color-hint` — keep stable
