@@ -30,7 +30,7 @@ import type {
   ModelId,
   SessionTokenUsage,
 } from '@/types';
-import { getProviderRoster } from '@/auth';
+import { getProviderRoster, getCredentials } from '@/auth';
 import { PROVIDERS } from './registry';
 import { createCustomProvider } from './generic';
 import { emitErrorChunk, buildModelError } from './openai-sse';
@@ -127,7 +127,9 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
 
     if (customEntry && customEntry.kind === 'custom') {
       // Custom provider — instantiate from config.
-      providers.push(createCustomProvider(customEntry));
+      // Pass getCredentials from @/auth here rather than letting generic.ts
+      // import it directly, keeping the @/models boundary clean.
+      providers.push(createCustomProvider(customEntry, getCredentials));
     } else {
       // Neither a built-in nor a roster-backed custom provider.
       // Caller will emit auth_failure and skip.

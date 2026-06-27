@@ -15,7 +15,8 @@
  *
  * Mocking strategy: mock at the network boundary (fetch) only. Real
  * GenericOpenAIProvider and real getCredentials() implementations are used.
- * localStorage is mocked via buildLocalStorageMock().
+ * getCredentials is injected explicitly (Atlas #297 boundary fix — generic.ts
+ * no longer imports from @/auth directly). localStorage is mocked via buildLocalStorageMock().
  *
  * The fake SSE stream returned by fetchMock produces a minimal valid OpenAI
  * streaming response (one content chunk + done marker) so sendMessage() completes
@@ -24,6 +25,13 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GenericOpenAIProvider } from '@/models/generic';
+// getCredentials is injected into GenericOpenAIProvider at construction time rather
+// than imported directly by generic.ts — this is the Atlas #297 boundary fix.
+// Integration tests that exercise the credential lookup path must pass the real
+// Gate implementation explicitly. Tests verifying requiresApiKey:false behavior
+// (where no lookup occurs) may also pass getCredentials for API compatibility,
+// though the function will never be called in those branches.
+import { getCredentials } from '@/auth';
 import { buildLocalStorageMock, makeUserMessage, resetIdSeq } from '../fixtures/conversations';
 import { ChunkAccumulator } from '../fixtures/mockProviders';
 import type { CustomProviderConfig, Message } from '@/types/index';
@@ -135,7 +143,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false', () => {
   it('does not set Authorization header on the outbound request', async () => {
     const fetchMock = stubFetchSuccess('llama3');
     const config = makeKeylessProviderConfig();
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -149,7 +157,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false', () => {
   it('sends the request to the configured endpoint URL', async () => {
     const fetchMock = stubFetchSuccess('llama3');
     const config = makeKeylessProviderConfig();
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -162,7 +170,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false', () => {
     stubFetchSuccess('llama3', 'Hello from Ollama');
     const config = makeKeylessProviderConfig();
     // No credential stored for this provider — if credential lookup ran it would find nothing.
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -176,7 +184,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false', () => {
   it('does not emit auth_failure even with no stored credential', async () => {
     stubFetchSuccess('llama3');
     const config = makeKeylessProviderConfig();
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -196,7 +204,7 @@ describe('GenericOpenAIProvider — requiresApiKey:true or absent (credential lo
       'roundtable:key:custom:custom:openrouter',
       'sk-or-test-key',
     );
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -211,7 +219,7 @@ describe('GenericOpenAIProvider — requiresApiKey:true or absent (credential lo
     const fetchMock = stubFetchSuccess('mistralai/mistral-7b-instruct');
     const config = makeKeyedProviderConfig();
     // No credential stored — lookup returns undefined.
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -229,7 +237,7 @@ describe('GenericOpenAIProvider — requiresApiKey:true or absent (credential lo
       'roundtable:key:custom:custom:openrouter',
       'sk-explicit-true-key',
     );
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -251,7 +259,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false vs absent Authorization
       'roundtable:key:custom:custom:ollama',
       'stale-key',
     );
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
@@ -270,7 +278,7 @@ describe('GenericOpenAIProvider — requiresApiKey:false vs absent Authorization
       'roundtable:key:custom:custom:ollama',
       'sk-test-key',
     );
-    const provider = new GenericOpenAIProvider(config);
+    const provider = new GenericOpenAIProvider(config, getCredentials);
     const acc = new ChunkAccumulator();
 
     await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
