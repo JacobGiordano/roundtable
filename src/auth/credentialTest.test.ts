@@ -151,7 +151,10 @@ describe('testCredential — built-in providers', () => {
       vi.stubGlobal('fetch', fetchMock);
       await testCredential('openai', 'sk-openai-test');
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toContain('api.openai.com');
+      // In test / dev mode the URL routes through the Vite proxy (/openai-proxy)
+      // or VITE_OPENAI_PROXY_URL. The URL will NOT be the direct api.openai.com
+      // address — that's the whole point of the fix for the CORS error.
+      expect(url).toContain('/v1/models');
       expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer sk-openai-test');
     });
   });
