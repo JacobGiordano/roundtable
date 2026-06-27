@@ -1,40 +1,33 @@
-Last updated: 2026-06-26 (ship — #296 closed)
+Last updated: 2026-06-27 (ship — #295 closed)
 
 ## Current phase
 
-Phase 4+ — Full gate process active.
+Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#292 (Atlas / Flint)** — Closed. Retry button wired. `handleRetry(messageId)` in `App.tsx`: removes the failed assistant message, persists the removal, sets `sentConversationRef.current` synchronously, then calls `sendMessage({ targetModelId: failedModelId })` — routes through `runDirected`, targets only the failed model.
-
-**#296 (Arch / Atlas / Flint)** — Closed. Model attribution in history serialization. New `src/models/attribution.ts` with two pure functions: `buildAttributedMessages` (reframes other models' assistant turns as attributed `[Name responded: ...]` user-role messages on the wire) and `buildAttributionSystemPrompt` (prepends participant framing to each model's system prompt). Wired into all three dispatch paths (`runParallel`, `runDirected`, `runAutoChain`) in `sendMessage.ts`. Single-model sessions are a no-op. Stored `Message` objects are never mutated — wire-format only. Arch confirmed no type changes needed — `Message.modelId` was always sufficient.
+**#295 (Arch / Atlas / Flint)** — Closed. Provider capabilities model. Arch added `ProviderCapabilities` interface to `/src/types/index.ts` with four optional fields (`streamUsage`, `vision`, `toolUse`, `systemPrompt`) and wired `capabilities?: ProviderCapabilities` onto `CustomProviderConfig`. Atlas replaced the `streamOptionsIncompatibleEndpoints` module-level Set (Option B runtime probe) in `generic.ts` with a static read: `const includeStreamOptions = this.customConfig.capabilities?.streamUsage !== false;`. Try/retry fallback preserved for the `undefined`/`true` case. Flint cleared all 10 criteria.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
 - **#291** — Pre-existing `aria-describedby` gap on ProviderSettingsPanel form inputs (advisory).
-- **#295** — Provider capabilities model design. Arch. Phase 5.
-- **#131** — Auto-chain. Now unblocked by #296. Phase 5.
+- **#131** — Auto-chain. Unblocked by #296. Phase 5.
 
 ## Key decisions
 
-- `var(--error)` does NOT exist as a CSS custom property — only as a Tailwind utility alias. Inline styles must use `var(--semantic-error)` directly.
-- `isValidModelId` in `accentColors.ts` accepts `custom:*` IDs (pattern: `/^custom:[^\s]+$/`).
-- Custom endpoint `endpointUrl` in `generic.ts` is the **full URL** including path (e.g. `/chat/completions`) — the provider does not append it.
-- `stream_options` incompatibility handled via Option B (try/retry/remember). #295 is the long-term capabilities model.
-- `resolveAccentCssColor(token, modelId?)` is now exported from `src/ui/utils/modelColor.ts` — single source of truth for accent CSS var resolution. Do not re-inline anywhere.
-- Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text color on tinted background (contrast failure).
-- Retry: `sentConversationRef.current` must be set synchronously before `sendMessage()` — same race requirement as `handleSend`. Retry removes the failed message from history before calling `sendMessage` so the model does not see its own failed attempt.
-- Attribution (Option B): `buildAttributedMessages` reframes other-model assistant turns as `role: 'user'` with `[Name responded: ...]` — wire-format only, stored Messages never mutated. Bracketed messages = other AI; unbracketed user-role = human. No user label needed for single-user architecture.
-- Attribution (Option C): `buildAttributionSystemPrompt` prepends framing naming this model and other participants. No-ops for single-model sessions. User messages need no name label — the bracket pattern is the distinguishing signal.
+- `ProviderCapabilities` defaults: `streamUsage` → optimistic (`true`); `vision` / `toolUse` → conservative (`false`); `systemPrompt` → optimistic (`true`). Absence of `capabilities` field = Atlas falls back to per-capability defaults — no migration required.
+- `stream_options` Option B workaround is retired. `capabilities?.streamUsage === false` skips `stream_options` statically; `undefined`/`true` preserves try/retry.
+- `var(--error)` does NOT exist — use `var(--semantic-error)` in inline styles.
+- Attribution: `buildAttributedMessages` reframes other-model turns as `role: 'user'` with `[Name responded: ...]` — wire-format only.
+- `resolveAccentCssColor(token, modelId?)` is the single source of truth for accent CSS var resolution — do not re-inline.
 
 ## What's next
 
-1. **#295** — Provider capabilities model (Arch design, then Atlas). Phase 5.
-2. **#131** — Auto-chain (now unblocked). Phase 5.
+1. **#131** — Auto-chain (unblocked). Phase 5. Atlas.
+2. **Gate + Aria** — Persist and expose `capabilities` toggles in ProviderSettingsPanel. File issues when ready to start.
 3. **#291** — Advisory a11y gap (Aria, low urgency).
-4. **#285** — File attachments (deferred — revisit after Phase 5).
+4. **#285** — File attachments (deferred).
 
 ## Gotchas
 
@@ -94,9 +87,9 @@ Phase 4+ — Full gate process active.
 - `var(--error)` does not exist — use `var(--semantic-error)` in inline styles; Tailwind `bg-error`/`text-error` work via config alias only
 - Custom endpoint `endpointUrl` in `generic.ts` is the full URL including path (e.g. `/chat/completions`) — provider posts directly to it, does not append
 - `/dev-proxy/<url>` middleware is dev-only (`configureServer` hook) — Vite strips it from production builds entirely
-- `streamOptionsIncompatibleEndpoints` Set in `generic.ts` is module-level (page-lifetime cache) — resets on reload; one extra 502 per session per incompatible endpoint is acceptable
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text `color:` on tinted background (contrast failure across 7 themes)
 - `var(--#hex)` is invalid CSS — never interpolate raw hex into a `var()` call; always route through `resolveAccentCssColor`
 - Retry orphans the previous AbortController if a stream is already active — same pre-existing gap as `handleSend`; deactivated-model retry emits a synthetic error bubble (benign)
 - Attribution transform (`buildAttributedMessages`) skips `isStreaming` and error-sentinel messages — these must never reach providers. Consecutive other-model turns produce consecutive `role:'user'` turns on the wire; modern providers handle non-alternating sequences correctly.
 - `buildAttributionSystemPrompt` no-ops for single-model sessions (otherActiveModels.length === 0) — framing is never injected into solo conversations
+- `ProviderCapabilities` all fields optional — absence of `capabilities` on `CustomProviderConfig` means Atlas uses per-capability defaults; existing persisted configs valid without migration
