@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { InteractionMode, InteractionModeConfig } from '@/types';
 
 // ─── Mode registry ────────────────────────────────────────────────────────────
@@ -123,6 +123,29 @@ function ModeButton({ config, isSelected, onSelect, tooltipAlign = 'center' }: M
     },
     [],
   );
+
+  // WCAG 1.4.13 — hover content must be dismissible via keyboard without moving
+  // the pointer. When the tooltip is visible due to hover (not focus), the button
+  // element itself is not focused, so the onKeyDown handler above never fires.
+  // This document-level listener covers that hover-only case for both the enabled
+  // button path and the disabled span path. Cleanup runs when visibility is false
+  // or the component unmounts.
+  useEffect(() => {
+    if (!isTooltipVisible) return;
+
+    const handleDocumentKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsTooltipVisible(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleDocumentKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown, true);
+    };
+  }, [isTooltipVisible]);
 
   if (isDisabled) {
     // Render as role="radio" + aria-disabled="true" so every ARIA-owned child of
