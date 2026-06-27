@@ -13,9 +13,8 @@ import type { InteractionMode, InteractionModeConfig } from '@/types';
  * where their selected mode is silently ignored by App.tsx:handleSend, which
  * always broadcasts in parallel.
  *
- * Issue #131: Auto-chain and Manual are disabled (Option 2). Do not enable
- * them until the respective dispatch logic lands in Atlas (handleSend must
- * actually respect the selected mode before the UI unlocks).
+ * Issue #131: Manual is disabled (Option 2). Auto-chain is enabled — #299 wired
+ * chainConfig into handleSend so the mode is fully functional.
  */
 interface InteractionModeEntry extends InteractionModeConfig {
   comingSoon?: boolean;
@@ -37,7 +36,6 @@ const INTERACTION_MODES: InteractionModeEntry[] = [
     mode: 'auto-chain',
     label: 'Auto-chain',
     description: 'Models respond in sequence, each building on the previous reply.',
-    comingSoon: true,
   },
 ];
 
@@ -271,12 +269,11 @@ export interface InteractionModeSwitcherProps {
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
  * middle item centers — preventing right-edge clipping for Auto-chain.
  *
- * Non-interactive modes: Manual and Auto-chain are rendered as `role="radio"`
- * + `aria-disabled="true"` elements with a "coming soon" tooltip. They cannot
- * be selected but are Tab-reachable so keyboard users can discover the tooltip.
- * Every child of the radiogroup has role="radio", satisfying aria-required-children
- * without an aria-owns workaround (#199). Only Parallel is selectable, reflecting
- * that App.tsx:handleSend always broadcasts in parallel. (#131)
+ * Non-interactive modes: Manual is rendered as `role="radio"` + `aria-disabled="true"`
+ * with a "coming soon" tooltip. It cannot be selected but is Tab-reachable so
+ * keyboard users can discover the tooltip. Every child of the radiogroup has
+ * role="radio", satisfying aria-required-children without an aria-owns workaround
+ * (#199). Parallel and Auto-chain are fully selectable. (#131 / #299)
  *
  * Tooltip delay: all tooltips in this component use the 600ms hover
  * intentionality filter per tooltip.md §1 (#211).
@@ -320,7 +317,7 @@ export function InteractionModeSwitcher({
         id="interaction-mode-coming-soon-note"
         className="sr-only"
       >
-        Manual and Auto-chain modes are coming soon and are not yet available.
+        Manual mode is coming soon and is not yet available.
       </span>
     </>
   );

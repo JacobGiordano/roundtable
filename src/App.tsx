@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import type { Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
+import type { AutoChainConfig, Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
 // #286: applyRosterAccentColors re-initialises --accent-custom-{id} CSS vars
@@ -483,6 +483,26 @@ export default function App() {
     // in-flight provider streams when the user clicks stop. The controller is
     // cleared in the finally block so abortControllerRef never holds a stale
     // controller after the fan-out resolves (whether normally or via abort).
+
+    // Auto-chain (#299): when the conversation's interaction mode is 'auto-chain',
+    // build a ChainConfig from the active roster in their current order. Each step
+    // appends its response to context so every subsequent model sees prior replies.
+    // maxPasses: 1 — single pass through the sequence per user message.
+    // For parallel (or any other mode), chainConfig is undefined — existing
+    // fan-out behaviour is preserved.
+    const interactionMode = updatedConversation.interactionMode;
+    const chainConfig: AutoChainConfig | undefined =
+      interactionMode === 'auto-chain'
+        ? {
+            steps: activeModels.map((model, index) => ({
+              modelId: model.modelId,
+              appendToContext: true,
+              stepIndex: index,
+            })),
+            maxPasses: 1,
+          }
+        : undefined;
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
     void sendMessage(
@@ -491,6 +511,7 @@ export default function App() {
         content,
         // Thread targetModelId into SendMessageOptions so Atlas routes to only that model.
         targetModelId: pendingTargetModelId ?? undefined,
+        chainConfig,
         conversation: updatedConversation,
         signal: controller.signal,
       },
