@@ -64,22 +64,6 @@ interface OpenAIStreamChunk {
   };
 }
 
-// ─── stream_options incompatibility cache ─────────────────────────────────────
-
-/**
- * Module-level cache of endpoint URLs known to reject the stream_options parameter.
- *
- * Free-tier OpenRouter models (and some other inference backends) return HTTP 422
- * or 502 when stream_options is present. This cache records those endpoints so
- * subsequent requests skip the parameter entirely.
- *
- * Lifecycle: populated at runtime on the first non-ok response from any endpoint
- * when stream_options was included in the request. Persists for the lifetime of
- * the page; resets on reload. Worst case: one extra failed request per session
- * per endpoint (the probe that discovers the incompatibility).
- */
-const streamOptionsIncompatibleEndpoints = new Set<string>();
-
 // ─── GenericOpenAIProvider ────────────────────────────────────────────────────
 
 export class GenericOpenAIProvider implements ModelProvider {
@@ -160,17 +144,27 @@ export class GenericOpenAIProvider implements ModelProvider {
       });
     }
 
-    // Whether this endpoint has previously rejected stream_options.
-    // On cache hit we omit the parameter outright; on cache miss we include it
-    // and retry once without it if the endpoint returns a non-ok response.
-    const includeStreamOptions = !streamOptionsIncompatibleEndpoints.has(endpointUrl);
+    // Whether to include stream_options in the request.
+    //
+    // Reads the static capability declaration from CustomProviderConfig:
+    //   - capabilities?.streamUsage === false → skip stream_options unconditionally;
+    //     no retry is ever needed because we know this endpoint cannot accept it.
+    //   - capabilities?.streamUsage === true or absent (the default) → include
+    //     stream_options optimistically and retry once without it if the endpoint
+    //     rejects the request (the try/retry path below handles this case).
+    //
+    // This replaces the former runtime-probe approach (Option B) that used a
+    // module-level Set to remember rejecting endpoints across requests. The
+    // static declaration eliminates the one extra failed request per session at
+    // the cost of requiring the user to declare incompatibility at config time.
+    const includeStreamOptions = this.customConfig.capabilities?.streamUsage !== false;
 
     // Build a request body with or without stream_options.
     // stream_options.include_usage requests token counts in the final SSE chunk.
     // Some endpoints (e.g. free-tier OpenRouter models backed by third-party
-    // inference) reject this parameter with HTTP 422 or 502. The cache above
-    // tracks which endpoints are incompatible; this helper is called twice when
-    // a retry is needed.
+    // inference) reject this parameter with HTTP 422 or 502. This helper is
+    // called twice when capabilities?.streamUsage is not false and the endpoint
+    // rejects the first request.
     const buildRequestBody = (withStreamOptions: boolean) => ({
       model: resolvedModelString,
       max_tokens: MAX_TOKENS_GENERIC,
@@ -214,16 +208,19 @@ export class GenericOpenAIProvider implements ModelProvider {
     // Auto-retry without stream_options on first non-ok response.
     //
     // When the initial request included stream_options and the endpoint rejected
-    // it (HTTP 4xx/5xx), mark the endpoint as incompatible and retry once with
-    // stream_options omitted. On success the retry response replaces the original
-    // and execution continues normally into SSE parsing below.
+    // it (HTTP 4xx/5xx), retry once with stream_options omitted. On success the
+    // retry response replaces the original and execution continues normally into
+    // SSE parsing below.
+    //
+    // This branch is only reachable when capabilities?.streamUsage is true or
+    // absent — when it is explicitly false, includeStreamOptions is false and
+    // stream_options is never sent, so this branch is never entered.
     //
     // Constraints:
     //   - Retry only when stream_options was sent (never double-retry).
     //   - Skip retry if the AbortSignal is already fired — respect cancellation.
     //   - Network errors on the retry surface as network_error, not a second retry.
     if (!response.ok && includeStreamOptions) {
-      streamOptionsIncompatibleEndpoints.add(endpointUrl);
       if (!signal?.aborted) {
         try {
           response = await fetch(endpointUrl, {
