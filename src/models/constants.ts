@@ -20,9 +20,9 @@
  *   keeps the default meaningful for the most-used model.
  *
  * GPT / OpenAI
- *   gpt-5.5, gpt-4o, gpt-4o-mini: 16 384 output tokens
- *   o3 / o1 series use max_completion_tokens, but those models accept this
- *   field too — the API ignores it or maps it accordingly.
+ *   gpt-5.5, o3, o1, o1-mini: 16 384 output tokens — sent as max_completion_tokens
+ *   gpt-4o, gpt-4o-mini: 16 384 output tokens — sent as max_tokens
+ *   (The key selection lives in BaseOpenAIProvider.ts — MAX_COMPLETION_TOKENS_MODELS.)
  *
  * Gemini (Google)
  *   gemini-2.5-flash: 8 192 output tokens (default model)
