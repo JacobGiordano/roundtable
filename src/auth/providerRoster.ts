@@ -20,6 +20,7 @@ import type {
   BuiltInModelId,
   BuiltInProviderConfig,
   CustomProviderConfig,
+  ProviderCapabilities,
   ProviderConfig,
   ProviderRoster,
 } from '@/types';
@@ -52,6 +53,29 @@ function isBuiltInCredentialKey(value: unknown): value is BuiltInCredentialKey {
 }
 
 /**
+ * Validate that a deserialized value is a structurally valid ProviderCapabilities object.
+ *
+ * All fields are optional booleans. Absence of the `capabilities` field on a
+ * CustomProviderConfig is allowed — Atlas uses per-capability defaults in that case.
+ * When present, the value must be a plain object with only optional boolean fields;
+ * any non-boolean field value is rejected (fail closed).
+ */
+function isValidCapabilities(value: unknown): value is ProviderCapabilities {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  const knownFields: Array<keyof ProviderCapabilities> = [
+    'streamUsage',
+    'vision',
+    'toolUse',
+    'systemPrompt',
+  ];
+  for (const field of knownFields) {
+    if (v[field] !== undefined && typeof v[field] !== 'boolean') return false;
+  }
+  return true;
+}
+
+/**
  * Validate that a deserialized object is a structurally valid BuiltInProviderConfig.
  * Drops any entry that doesn't conform — fail closed.
  */
@@ -70,6 +94,10 @@ function isValidBuiltInConfig(value: unknown): value is BuiltInProviderConfig {
 /**
  * Validate that a deserialized object is a structurally valid CustomProviderConfig.
  * Drops any entry that doesn't conform — fail closed.
+ *
+ * `capabilities` is optional. When present, it must pass `isValidCapabilities`.
+ * Existing records without `capabilities` continue to pass — Atlas uses per-capability
+ * defaults for any absent field.
  */
 function isValidCustomConfig(value: unknown): value is CustomProviderConfig {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -86,7 +114,8 @@ function isValidCustomConfig(value: unknown): value is CustomProviderConfig {
     (v['modelString'] as string).length > 0 &&
     (v['credentialKey'] === undefined || typeof v['credentialKey'] === 'string') &&
     (v['color'] === undefined || typeof v['color'] === 'string') &&
-    (v['requiresApiKey'] === undefined || typeof v['requiresApiKey'] === 'boolean')
+    (v['requiresApiKey'] === undefined || typeof v['requiresApiKey'] === 'boolean') &&
+    (v['capabilities'] === undefined || isValidCapabilities(v['capabilities']))
   );
 }
 
@@ -239,6 +268,10 @@ export function addBuiltInProvider(modelId: BuiltInModelId): BuiltInProviderConf
  * When absent, `requiresApiKey` defaults to `true` — all existing callers are
  * unaffected.
  *
+ * When `capabilities` is provided, it is stored verbatim on the entry. Absence
+ * means Atlas uses its per-capability defaults for every field. Aria passes this
+ * when the user configures capability toggles at provider-creation time.
+ *
  * Returns the new CustomProviderConfig entry.
  */
 export function addCustomProvider(input: {
@@ -248,6 +281,7 @@ export function addCustomProvider(input: {
   credentialKey?: string;
   color?: string;
   requiresApiKey?: boolean;
+  capabilities?: ProviderCapabilities;
 }): CustomProviderConfig {
   const roster = readRoster();
   const id = generateCustomId(input.displayName, roster);
@@ -263,6 +297,8 @@ export function addCustomProvider(input: {
     // Only store requiresApiKey when explicitly set to false. Absence and true
     // are equivalent; storing true explicitly is unnecessary noise in localStorage.
     ...(input.requiresApiKey === false ? { requiresApiKey: false } : {}),
+    // Only store capabilities when explicitly provided.
+    ...(input.capabilities !== undefined ? { capabilities: input.capabilities } : {}),
   };
 
   writeRoster([...roster, newEntry]);
@@ -294,13 +330,18 @@ export function removeProvider(id: string): void {
 /**
  * Update the editable fields of an existing custom provider.
  *
- * Applies displayName, endpointUrl, modelString, color, and requiresApiKey to
- * the matching custom entry in the roster. `credentialKey` and `id` are never
- * changed — they are stable identifiers; `credentialKey` in particular links
- * the provider to its stored API key and must survive edits.
+ * Applies displayName, endpointUrl, modelString, color, requiresApiKey, and
+ * capabilities to the matching custom entry in the roster. `credentialKey` and
+ * `id` are never changed — they are stable identifiers; `credentialKey` in
+ * particular links the provider to its stored API key and must survive edits.
  *
  * `requiresApiKey` defaults to `true` when not supplied. Pass `false` explicitly
  * to mark a provider as keyless (e.g. a local Ollama instance).
+ *
+ * `capabilities` follows the same pattern as `color`: when present in the input,
+ * it replaces the stored value; when absent (undefined), the stored `capabilities`
+ * field is removed. Aria's edit form must pass the current capability values when
+ * saving — omitting `capabilities` clears any previously stored overrides.
  *
  * No-op if:
  *   - No provider with the given `id` exists in the roster.
@@ -314,6 +355,7 @@ export function updateCustomProvider(
     modelString: string;
     color?: string;
     requiresApiKey?: boolean;
+    capabilities?: ProviderCapabilities;
   },
 ): void {
   const roster = readRoster();
@@ -338,6 +380,12 @@ export function updateCustomProvider(
       entry.requiresApiKey = false;
     } else {
       delete entry.requiresApiKey;
+    }
+    // Store capabilities when provided; clear when absent (same semantics as color).
+    if (input.capabilities !== undefined) {
+      entry.capabilities = input.capabilities;
+    } else {
+      delete entry.capabilities;
     }
     return entry;
   });
