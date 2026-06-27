@@ -213,7 +213,7 @@ describe('ProviderRow — edit button label', () => {
 
     renderPanel();
 
-    const editBtn = screen.getByLabelText('Set API key for GPT-5.5');
+    const editBtn = screen.getByLabelText('Set API key for ChatGPT');
     expect(editBtn.textContent).toContain('Set key');
   });
 });
@@ -227,7 +227,7 @@ describe('ProviderRow — open → cancel flow', () => {
 
     renderPanel();
 
-    const editBtn = screen.getByLabelText('Set API key for GPT-5.5');
+    const editBtn = screen.getByLabelText('Set API key for ChatGPT');
     fireEvent.click(editBtn);
 
     // Input with aria-label "New API key" appears in the editor.
@@ -241,7 +241,7 @@ describe('ProviderRow — open → cancel flow', () => {
     renderPanel();
 
     // Open the editor.
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     // Click Cancel.
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -262,7 +262,7 @@ describe('ProviderRow — save flow', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const saveBtn = screen.getByRole('button', { name: 'Save' });
     expect((saveBtn as HTMLButtonElement).disabled).toBe(true);
@@ -274,7 +274,7 @@ describe('ProviderRow — save flow', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     fireEvent.change(input, { target: { value: 'sk-test-key-123' } });
@@ -293,7 +293,7 @@ describe('ProviderRow — save flow', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     fireEvent.change(input, { target: { value: 'sk-test-key-123' } });
@@ -310,7 +310,7 @@ describe('ProviderRow — save flow', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     fireEvent.change(input, { target: { value: 'sk-test-key-123' } });
@@ -330,7 +330,7 @@ describe('ProviderRow — save flow', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     const saveBtn = screen.getByRole('button', { name: 'Save' });
@@ -371,7 +371,7 @@ describe('ProviderRow — clear flow', () => {
     renderPanel();
 
     // Open the editor.
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     expect(screen.queryByRole('button', { name: 'Remove key' })).toBeNull();
   });
@@ -440,7 +440,7 @@ describe('ProviderRow — "Remove key" visibility matches badgeState', () => {
     vi.mocked(hasCredential).mockReturnValue(false);
 
     renderPanel();
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     expect(screen.queryByRole('button', { name: 'Remove key' })).toBeNull();
   });
@@ -455,7 +455,7 @@ describe('ProviderRow — keyboard interactions', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     fireEvent.change(input, { target: { value: 'sk-enter-test' } });
@@ -472,7 +472,7 @@ describe('ProviderRow — keyboard interactions', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     // Input is empty — press Enter anyway.
@@ -487,7 +487,7 @@ describe('ProviderRow — keyboard interactions', () => {
 
     renderPanel();
 
-    fireEvent.click(screen.getByLabelText('Set API key for GPT-5.5'));
+    fireEvent.click(screen.getByLabelText('Set API key for ChatGPT'));
 
     const input = screen.getByLabelText('New API key');
     fireEvent.change(input, { target: { value: 'partial-key' } });
