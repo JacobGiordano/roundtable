@@ -239,6 +239,51 @@ describe('testCustomCredential — custom OpenAI-compatible endpoints', () => {
     expect(url).toBe('http://localhost:11434/v1/models');
   });
 
+  it('strips /chat/completions suffix before probing /models', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    await testCustomCredential('http://localhost:11434/v1/chat/completions', 'test-key');
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('http://localhost:11434/v1/models');
+  });
+
+  it('strips /chat/completions from a proxy path URL (e.g. /openrouter-proxy/...)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    await testCustomCredential('/openrouter-proxy/api/v1/chat/completions', 'sk-or-test');
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('/openrouter-proxy/api/v1/models');
+  });
+
+  it('strips /chat/completions from a full OpenRouter-style URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    await testCustomCredential(
+      '/dev-proxy/https://openrouter.ai/api/v1/chat/completions',
+      'sk-or-test',
+    );
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('/dev-proxy/https://openrouter.ai/api/v1/models');
+  });
+
+  it('does not strip /chat/completions when URL does not end with it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    // URL contains /chat/completions in the middle — should not be stripped
+    await testCustomCredential('http://my-host/chat/completions/v1', 'sk-key');
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('http://my-host/chat/completions/v1/models');
+  });
+
+  it('strips trailing slash then /chat/completions before probing', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    // Trailing slash stripped first, then /chat/completions
+    await testCustomCredential('https://openrouter.ai/api/v1/chat/completions/', 'sk-key');
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('https://openrouter.ai/api/v1/models');
+  });
+
   // ─── keyed endpoints ────────────────────────────────────────────────────────
 
   it('sends Authorization: Bearer header when apiKey is provided', async () => {

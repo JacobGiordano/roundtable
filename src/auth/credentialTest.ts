@@ -291,10 +291,12 @@ export async function testCredential(
  *   endpoint reachability through other means if desired.
  *
  * URL normalisation:
- *   `endpointUrl` is the base URL the user configured — it should be the
- *   /chat/completions root (e.g. "http://localhost:11434/v1"). We probe
- *   `<endpointUrl>/models` (stripping any trailing slash) to avoid double-slash.
- *   If the base URL already ends with "/models" we use it as-is.
+ *   `endpointUrl` is the full endpoint URL the user configured — it may include
+ *   the /chat/completions path (e.g. "http://localhost:11434/v1/chat/completions"
+ *   or "https://openrouter.ai/api/v1/chat/completions"). We strip a trailing
+ *   /chat/completions suffix before probing, then append /models. Trailing
+ *   slashes are also stripped. If the resulting base URL already ends with
+ *   "/models" we use it as-is.
  *
  * Security: `apiKey` is sent only to `endpointUrl` and is never logged.
  */
@@ -314,7 +316,7 @@ export async function testCustomCredential(
     return { status: 'error', message: 'No endpoint URL configured' };
   }
 
-  const base = endpointUrl.trim().replace(/\/+$/, '');
+  const base = endpointUrl.trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
   const probeUrl = base.endsWith('/models') ? base : `${base}/models`;
 
   const headers: Record<string, string> = {
