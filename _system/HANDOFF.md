@@ -1,4 +1,4 @@
-Last updated: 2026-06-27 (ship — #308 and #309 closed)
+Last updated: 2026-06-28
 
 ## Current phase
 
@@ -6,17 +6,12 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#308 (Scout)** — Closed. Fixed 13 stale `aria-label` assertions in `provider-settings-panel.test.tsx` after the GPT-5.5 → ChatGPT display name rename (#302). Test file only; no app code changed. Suite: 1586 passed.
-
-**#309 (Gate + Aria)** — Closed. Two-agent wave:
-- Gate: Extended `addCustomProvider` / `updateCustomProvider` to accept `capabilities?: ProviderCapabilities`. Added `isValidCapabilities()` validator. 14 new unit tests.
-- Aria: Added 4 capability toggles (Vision, Tool use, System prompt, Stream usage) to AddCustomForm and ProviderRow inline edit form. `<fieldset>`/`<legend>` grouping per WCAG 1.3.1.
+**#311 (Gate)** — Closed. Bug fix: `testCustomCredential` was probing `<endpointUrl>/models`, but `endpointUrl` is the full chat completions URL — so the probe hit `.../chat/completions/models` → 404. Fix: strip trailing `/chat/completions` before building probe URL (one-liner regex in `credentialTest.ts`). 6 new test cases added. Suite: 1605 passed.
 
 ## Open bugs / known issues
 
-- **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
 - **#305** — Cross-device export/import. Fully specced (plaintext JSON, Gate + Vault + Aria wave). Deferred pending weekly usage reset.
-- **#285** — File attachments. Deferred.
+- **#285** — File attachments. Fully specced (2026-06-28). Deferred pending weekly usage reset.
 
 ## Key decisions
 
@@ -26,13 +21,13 @@ Phase 5 — Full gate process active.
 - `updateCustomProvider` clears `capabilities` when field is omitted from input — edit form must always pass the full capabilities object back on save.
 - `ProviderCapabilities` all fields optional — absence means Atlas uses per-capability defaults; this is intentional.
 - `isValidCapabilities()` is forward-compat: unknown fields pass, non-object/non-boolean known fields are rejected and drop the entry.
+- `testCustomCredential` strips `/chat/completions` from `endpointUrl` before probing `/models` — `endpointUrl` is the full URL and must not have `/models` appended naively.
 
 ## What's next
 
-All open issues are deferred. No unblocked work in the queue. Options:
-1. Tackle **#305** (cross-device export/import) — Gate + Vault + Aria wave, fully specced and ready to fire.
-2. Tackle **#285** (file attachments) — multi-agent, significant scope.
-3. File new issues based on current user priorities.
+Both issues are deferred pending weekly usage reset. Both are fully specced and ready to fire:
+1. **#305** (cross-device export/import) — Gate + Vault + Aria wave. Fire first; smaller scope.
+2. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada → Flint. Larger wave.
 
 ## Gotchas
 
@@ -59,6 +54,7 @@ All open issues are deferred. No unblocked work in the queue. Options:
 - `applyRosterAccentColors(roster)` must be called at boot, theme switch, and roster change
 - `var(--error)` does not exist — use `var(--semantic-error)` in inline styles
 - Custom endpoint `endpointUrl` in `generic.ts` is the full URL including path — provider posts directly to it
+- `testCustomCredential` strips `/chat/completions` suffix before probing `/models` — do not change without updating `generic.ts` contract
 - Chip accent pattern: border (40%) + background tint (15%) only — never apply accent as text `color:` on tinted background
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
 - `ProviderCapabilities` fields: `streamUsage`, `vision`, `toolUse`, `systemPrompt` (all optional booleans)
