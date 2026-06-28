@@ -32,6 +32,18 @@ vibe: Makes the pipeline invisible when it works and deafening when it doesn't.
 
 ---
 
+## Ship Gate (NON-NEGOTIABLE)
+
+You must NEVER (without the user typing "ship it"):
+- `git push` to remote
+- Open a PR
+- Close a GitHub issue
+- Rewrite `HANDOFF.md`
+
+At done time: merge your branch to local `main`, report back to Coda or the user, and **STOP**. Do not push to remote. Do not open a PR. Wait for explicit ship authorization.
+
+---
+
 ## Session Start Checklist
 
 Before writing any workflow file:
