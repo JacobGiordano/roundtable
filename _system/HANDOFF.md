@@ -15,9 +15,8 @@ Phase 5 — Full gate process active.
 ## Open bugs / known issues
 
 - **#285** — File attachments — deferred. Not core; revisit after Phase 5 design work.
-- **#306** — Roving tabindex deviation: Tab visits all three radios; APG expects only checked radio at `tabIndex=0`. Intentional — Manual stays reachable for tooltip discoverability. Advisory.
-- **#307** — WCAG 1.4.13 hoverable sub-criterion: `pointer-events-none` on tooltip means pointer cannot move onto tooltip text without it disappearing. Pre-existing. Advisory.
-- **#305** — Cross-device export/import (Phase 6+). Deferred.
+- **#305** — Cross-device export/import. Fully specced (plaintext JSON, Gate + Vault + Aria wave). Deferred pending weekly usage reset.
+- **#285** — File attachments. Deferred.
 
 ## Key decisions
 
@@ -30,8 +29,8 @@ Phase 5 — Full gate process active.
 
 ## What's next
 
-All open issues are either advisory (#306, #307) or deferred (#285, #305). No unblocked work in the queue. Options:
-1. Tackle **#305** (cross-device export/import) — Gate + Vault wave, Phase 5/6 boundary.
+All open issues are deferred. No unblocked work in the queue. Options:
+1. Tackle **#305** (cross-device export/import) — Gate + Vault + Aria wave, fully specced and ready to fire.
 2. Tackle **#285** (file attachments) — multi-agent, significant scope.
 3. File new issues based on current user priorities.
 
