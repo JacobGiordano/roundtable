@@ -1,4 +1,4 @@
-Last updated: 2026-06-28
+Last updated: 2026-07-01
 
 ## Current phase
 
@@ -6,28 +6,29 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#311 (Gate)** — Closed. Bug fix: `testCustomCredential` was probing `<endpointUrl>/models`, but `endpointUrl` is the full chat completions URL — so the probe hit `.../chat/completions/models` → 404. Fix: strip trailing `/chat/completions` before building probe URL (one-liner regex in `credentialTest.ts`). 6 new test cases added. Suite: 1605 passed.
+**#312 (Aria)** — Closed. Token count settings were frozen at page-load value because `App.tsx` called `useUserPreferences()` once at mount with no cross-instance notification. Fix: new `usePreferencesSync` hook (`/src/ui/hooks/usePreferencesSync.ts`) using `useSyncExternalStore` + one-time `localStorage.setItem` patch; any preference write now wakes all subscribers. Ada clean.
+
+**#305 (Arch + Gate + Vault + Aria wave)** — Closed. Cross-device setup export/import: exports API keys + custom providers + preferences as plaintext JSON; imports with schema validation, backward compat, and full error surfacing. `TransferSetupPanel` added as Section 5 of `ProviderSettingsPanel`. Ada: zero blockers.
 
 ## Open bugs / known issues
 
-- **#305** — Cross-device export/import. Fully specced (plaintext JSON, Gate + Vault + Aria wave). Deferred pending weekly usage reset.
-- **#285** — File attachments. Fully specced (2026-06-28). Deferred pending weekly usage reset.
+- **#285** — File attachments. Fully specced (2026-06-28). Ready to fire.
+- **#313** — Auto-chain non-linear ordering. Atlas only. Defer until after #285.
 
 ## Key decisions
 
+- `usePreferencesSync` is the correct hook for any UI component that needs reactive Gate preferences — do not use `useUserPreferences()` in App.tsx or context providers.
 - `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy — do not import from `@/models`.
-- `MAX_COMPLETION_TOKENS_MODELS` Set in `BaseOpenAIProvider` uses resolved model string post-version-selection.
-- `GetCredentialsFn` passed as constructor param to `GenericOpenAIProvider` — do not revert to direct `@/auth` import.
-- `updateCustomProvider` clears `capabilities` when field is omitted from input — edit form must always pass the full capabilities object back on save.
-- `ProviderCapabilities` all fields optional — absence means Atlas uses per-capability defaults; this is intentional.
-- `isValidCapabilities()` is forward-compat: unknown fields pass, non-object/non-boolean known fields are rejected and drop the entry.
-- `testCustomCredential` strips `/chat/completions` from `endpointUrl` before probing `/models` — `endpointUrl` is the full URL and must not have `/models` appended naively.
+- `importSetup()` accepts `unknown` (not `SetupExport`) — Gate validates shape at runtime.
+- `readJSONFile()` cancel resolves `null`, not rejection — always check for null before passing to `importSetup`.
+- `SETUP_SCHEMA_VERSION = 1` in `/src/auth/setupExport.ts` — increment on any backward-incompatible shape change; requires new types PR per single-PR rule.
+- Aria imports `exportSetup`/`importSetup` from `@/auth` and `downloadJSON`/`readJSONFile` from `@/storage` — documented cross-agent exceptions.
 
 ## What's next
 
-Both issues are deferred pending weekly usage reset. Both are fully specced and ready to fire:
-1. **#305** (cross-device export/import) — Gate + Vault + Aria wave. Fire first; smaller scope.
-2. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada → Flint. Larger wave.
+1. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada. Large wave; defer to fresh usage window.
+2. **#313** (auto-chain non-linear) — Atlas only. Smaller; can run solo.
+3. Two follow-up issues filed this session: Scout test for `usePreferencesSync` sync behavior; Ada A2 heading hierarchy in `ProviderSettingsPanel`.
 
 ## Gotchas
 
@@ -59,3 +60,6 @@ Both issues are deferred pending weekly usage reset. Both are fully specced and 
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
 - `ProviderCapabilities` fields: `streamUsage`, `vision`, `toolUse`, `systemPrompt` (all optional booleans)
 - `psp-` prefix for stable IDs in ProviderSettingsPanel helper elements
+- `readJSONFile()` resolves `null` on user cancel — always null-check before passing to `importSetup`
+- `importSetup()` accepts `unknown` not `SetupExport` — internal validation; pass raw parsed JSON directly
+- `usePreferencesSync` (not `useUserPreferences`) for any reactive preference reads in UI components
