@@ -202,7 +202,7 @@ export function TransferSetupPanel({ onRosterRefresh }: TransferSetupPanelProps)
       */}
       <div role="status" aria-atomic="true" className="sr-only">
         {importPhase === 'success'
-          ? 'Setup imported successfully.'
+          ? 'Setup imported successfully. Delete this file now.'
           : importPhase === 'error' && importError
             ? `Import failed. ${importError.errors.length} error${importError.errors.length !== 1 ? 's' : ''}.`
             : exportPhase === 'confirm'
