@@ -76,3 +76,4 @@ export {
   setUserAccentColor,
   clearUserAccentColor,
 } from './userAccentColor';
+export { exportSetup, importSetup, SETUP_SCHEMA_VERSION } from './setupExport';
