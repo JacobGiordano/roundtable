@@ -1094,3 +1094,73 @@ export type ClearModelAccentColorFn = (modelId: ModelId) => void;
  * defaults" control in the Settings panel.
  */
 export type ClearAllModelAccentColorsFn = () => void;
+
+// ─── Setup export / import — Gate implements, Aria consumes ──────────────────
+
+/**
+ * Payload written to the cross-device setup transfer file (issue #305).
+ *
+ * Gate produces this object when the user triggers "Export setup". Gate
+ * consumes it when the user triggers "Import setup". Aria initiates both
+ * operations and receives `ImportResult` from the import path.
+ *
+ * `schemaVersion` must be incremented (via a types PR) when the shape changes
+ * in a backward-incompatible way. Gate must reject payloads whose
+ * `schemaVersion` exceeds the version it was built against.
+ *
+ * `exportedAt` is an ISO 8601 timestamp string (e.g. "2026-07-01T12:00:00.000Z").
+ * Gate records this at export time so the import UI can display when the file
+ * was created.
+ *
+ * `credentials` maps each `CredentialKey` to its stored plaintext value. Gate
+ * reads from localStorage at export time and writes back at import time. The
+ * export file itself is the secret — Gate must never transmit or log these values.
+ *
+ * `customProviders` is the complete array of user-configured custom OpenAI-
+ * compatible providers at export time. Gate writes the full `CustomProviderConfig`
+ * objects so the import side can reconstruct the provider roster exactly.
+ *
+ * `preferences` captures Gate-owned preferences (active theme, sidebar state,
+ * etc.) as a loosely-typed record so the export format remains stable across
+ * preference schema changes. Gate is responsible for interpreting these values
+ * at import time and discarding any keys it does not recognize.
+ */
+export interface SetupExport {
+  /** Schema version of this payload. Current value: 1. */
+  schemaVersion: number;
+  /** ISO 8601 timestamp recorded at export time, e.g. "2026-07-01T12:00:00.000Z". */
+  exportedAt: string;
+  /**
+   * API credentials keyed by CredentialKey. Values are plaintext.
+   * The export file is the secret — Gate must never transmit or log these values.
+   */
+  credentials: Record<string, string>;
+  /** Full array of user-configured custom provider records at export time. */
+  customProviders: CustomProviderConfig[];
+  /**
+   * Gate-owned preferences: active theme, sidebar state, etc.
+   * Loosely typed so the export format remains stable across preference schema
+   * changes. Gate discards unrecognized keys at import time.
+   */
+  preferences: Record<string, unknown>;
+}
+
+/**
+ * Result returned by Gate's `importSetup()` after applying a `SetupExport` payload.
+ *
+ * `ok` is `true` when all import operations completed without error —
+ * credentials written, custom providers registered, preferences applied.
+ * Aria uses this to decide whether to show a success or partial-failure state
+ * in the import UI.
+ *
+ * `errors` is always present and always an array. It is empty when `ok` is
+ * `true`. When `ok` is `false`, each element is a human-readable description
+ * of one failure or skipped operation. Aria renders these to the user so they
+ * can diagnose partial import failures.
+ */
+export interface ImportResult {
+  /** True when all import operations completed without error. */
+  ok: boolean;
+  /** Human-readable error descriptions. Empty array when ok is true. */
+  errors: string[];
+}
