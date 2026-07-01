@@ -16,18 +16,22 @@ import { useStreamingMessages } from '@/ui/useStreamingMessages';
 // maintains; we use it to resolve name/color/versions for built-in providers
 // when mapping ProviderRoster → ModelConfig[].
 import { sendMessage, getSessionTokenUsage, MODEL_REGISTRY } from '@/models';
-// Gate cross-agent exception: useUserPreferences reads/writes UserPreferences from
-// localStorage. Called at the App root so tokenCountVisibility can be threaded
-// down the component tree without per-component Gate imports.
-// getModelVersion / setModelVersion / clearModelVersion are Gate-owned utilities
-// for persisting per-model version selections (ModelConfig.selectedVersionId).
+// Gate cross-agent exception: getModelVersion / setModelVersion / clearModelVersion
+// are Gate-owned utilities for persisting per-model version selections.
 // getProviderRoster is Gate's public API for the user's configured provider list.
 // Aria reads it at app boot to seed model selector state from the real roster
 // instead of the static buildDefaultModelConfigs() fallback.
 // getActiveStorageProvider is Gate's StorageProvider factory — used here to
 // supply useGhostMode with the active provider without App needing to know
 // which concrete implementation (Local vs Server) is in use.
-import { useUserPreferences, getModelVersion, setModelVersion, clearModelVersion, getProviderRoster, getActiveStorageProvider } from '@/auth';
+import { getModelVersion, setModelVersion, clearModelVersion, getProviderRoster, getActiveStorageProvider } from '@/auth';
+// usePreferencesSync: UI-owned reactive hook for UserPreferences (#312).
+// Replaces the former useUserPreferences() (Gate) call here. useUserPreferences
+// uses React useState — each call site owns its own state, so TokenCountControl's
+// save never propagated back to App.tsx's instance. usePreferencesSync uses
+// useSyncExternalStore + a localStorage.setItem patch to give real-time reactivity
+// without crossing the /src/auth boundary.
+import { usePreferencesSync } from '@/ui/hooks/usePreferencesSync';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
@@ -154,10 +158,11 @@ export default function App() {
     originalContent: string;
   } | null>(null);
 
-  // UserPreferences from Gate — read at the App root so tokenCountVisibility can
-  // be threaded down the tree without per-component Gate imports.
-  const [userPrefs] = useUserPreferences();
-  const { tokenCountVisibility } = userPrefs;
+  // UserPreferences — reactive read via usePreferencesSync (#312).
+  // usePreferencesSync subscribes to localStorage writes via a targeted setItem
+  // patch, so tokenCountVisibility updates in real-time when TokenCountControl
+  // saves a new preference (without requiring /src/auth modifications).
+  const { tokenCountVisibility } = usePreferencesSync();
 
 
   // ── Provider roster empty state (#100) ────────────────────────────────────
