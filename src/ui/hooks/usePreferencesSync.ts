@@ -98,7 +98,6 @@ function _patchLocalStorage(): void {
   _patched = true;
 
   const _origSetItem = localStorage.setItem.bind(localStorage);
-  // eslint-disable-next-line no-restricted-properties
   localStorage.setItem = function patchedSetItem(key: string, value: string): void {
     _origSetItem(key, value);
     if (key === USER_PREFS_STORAGE_KEY) {

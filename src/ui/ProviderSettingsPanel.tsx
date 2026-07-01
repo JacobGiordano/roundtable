@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { BuiltInModelId, ProviderCapabilities, ProviderConfig, BuiltInProviderConfig } from '@/types';
 // CustomThemeImport — Appearance section (Section 4) added per #169.
 import { CustomThemeImport } from './CustomThemeImport';
+// TransferSetupPanel — Transfer setup section (Section 5) added per #305.
+import { TransferSetupPanel } from './TransferSetupPanel';
 // Gate cross-agent exception: provider roster CRUD functions and credential
 // helpers are pure Gate persistence utilities — permitted per CLAUDE.md.
 // BUILTIN_MODEL_IDS: Gate's canonical ReadonlySet<BuiltInModelId> — imported
@@ -2006,7 +2008,7 @@ export function ProviderSettingsPanel({
 
         {/* ── Section 4: Appearance ─────────────────────────────────────── */}
         {/* Custom theme import — spec: /_design/specs/custom-theme-import.md */}
-        <section className="border-t border-border pt-8">
+        <section className="border-t border-border pt-8 mb-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
             Appearance
           </p>
@@ -2017,6 +2019,15 @@ export function ProviderSettingsPanel({
             Import a theme JSON file conforming to the Roundtable token schema.
           </p>
           <CustomThemeImport />
+        </section>
+
+        {/* ── Section 5: Transfer setup ─────────────────────────────────── */}
+        {/* Export/import API keys + custom providers + preferences (#305). */}
+        <section className="border-t border-border pt-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
+            Transfer setup
+          </p>
+          <TransferSetupPanel onRosterRefresh={refreshRoster} />
         </section>
       </div>
     </div>
