@@ -1,6 +1,8 @@
 // Vault owns this directory — /src/storage
 export { LocalStorageProvider, downloadExportedConversation } from './LocalStorageProvider';
 export { conversationToMarkdown, conversationToHtml } from './exporters';
+// Browser file I/O primitives — Aria imports these for the #305 setup export/import feature.
+export { downloadJSON, readJSONFile } from './fileio';
 export { ServerStorageProvider } from './ServerStorageProvider';
 export type { ServerStorageConfig } from './ServerStorageProvider';
 export { StorageError } from './StorageError';

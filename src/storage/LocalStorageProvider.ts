@@ -31,6 +31,7 @@ import type {
 } from '@/types/index';
 
 import { conversationToMarkdown, conversationToHtml } from './exporters';
+import { triggerDownload } from './fileio';
 import { wrapForStorage, parseStoredConversation } from './migration';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -90,19 +91,6 @@ function writeIndex(ids: string[]): void {
  */
 function parseConversation(raw: string | null): Conversation | null {
   return parseStoredConversation(raw);
-}
-
-function triggerDownload(filename: string, content: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 // ─── LocalStorageProvider ─────────────────────────────────────────────────────
