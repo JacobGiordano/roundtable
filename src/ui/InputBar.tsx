@@ -1,7 +1,8 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { Attachment, ModelConfig } from '@/types';
-// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon.
-import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon } from './icons';
+// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon.
+// #321: PhotoIcon replaces PaperclipIcon — image-specific icon per Luma spec update 2026-07-02.
+import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon } from './icons';
 // #294: resolveAccentCssColor routes custom providers through var(--accent-custom-{id})
 // so the directed-reply chip shows the correct user-chosen color and picks up
 // AccentColorPicker live-session overrides, instead of producing an invalid CSS var
@@ -655,7 +656,7 @@ export function InputBar({
           'transition-[border-color] duration-fast',
         ].join(' ')}
       >
-        {/* Input row: ghost icon | live regions | textarea | clip button | stop/send */}
+        {/* Input row: ghost icon | live regions | attach button | textarea | stop/send */}
         <div className="flex items-end gap-2">
           {isGhostMode && (
             <div
@@ -703,32 +704,6 @@ export function InputBar({
               : ''}
           </span>
 
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            id={textareaId}
-            value={value}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder={placeholderText}
-            rows={1}
-            className={[
-              'flex-1 resize-none bg-transparent border-none outline-none',
-              'text-[15px] font-normal leading-[1.5] text-text-primary',
-              'placeholder:text-text-muted',
-              'min-h-[36px] max-h-[200px]',
-              'self-end',
-              'focus-visible:outline-none',
-              isStreaming ? 'cursor-text' : '',
-            ].join(' ')}
-            style={{ overflowY: 'auto' }}
-            aria-label="Message input"
-            aria-multiline="true"
-          />
-
           {/* Attach button (#285) — opens the file picker.
               Hidden during edit mode (edits don't carry new attachments).
               aria-disabled (not disabled) in ghost mode so the tooltip is keyboard-reachable
@@ -750,7 +725,7 @@ export function InputBar({
                 onBlur={() => setIsAttachTooltipVisible(false)}
                 className={[
                   'flex items-center justify-center',
-                  'w-9 h-9 rounded-md',
+                  'w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
                   isGhostMode
                     ? 'text-text-muted opacity-50 cursor-not-allowed'
                     : 'text-text-muted hover:text-text-secondary hover:bg-hover cursor-pointer',
@@ -758,7 +733,7 @@ export function InputBar({
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 ].join(' ')}
               >
-                <PaperclipIcon size={16} />
+                <PhotoIcon size={16} />
               </button>
 
               {/* Tooltip for the ghost-mode-disabled attach button — 600ms hover delay,
@@ -768,7 +743,7 @@ export function InputBar({
                   id={attachTooltipId}
                   role="tooltip"
                   className={[
-                    'absolute bottom-full right-0 mb-2 w-max max-w-[200px]',
+                    'absolute bottom-full left-0 mb-2 w-max max-w-[200px]',
                     'bg-sidebar border border-border rounded-sm shadow-md',
                     'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
                     'pointer-events-none transition-opacity duration-fast z-20',
@@ -777,13 +752,46 @@ export function InputBar({
                 >
                   Attachments aren't saved in ghost mode
                   <span
-                    className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                    className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
                     aria-hidden="true"
                   />
                 </div>
               )}
             </div>
           )}
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            id={textareaId}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={placeholderText}
+            rows={1}
+            className={[
+              'flex-1 resize-none bg-transparent border-none outline-none',
+              'text-[15px] font-normal leading-[1.5] text-text-primary',
+              'placeholder:text-text-muted',
+              // py-[3px] overrides the browser-default textarea padding (~2px top in Chrome,
+              // 0–2px in Firefox/Safari) with an explicit value so text center lands at the
+              // same optical baseline as the 44px button icons in every browser.
+              // Math (items-end row = 44px, textarea = 36px bottom-aligned):
+              //   textarea top = 44 - 36 = 8px from row top
+              //   text center  = 8 + 3 (pad-top) + 11.25 (lineHeight/2) = 22.25px
+              //   button icon  = 44 / 2 = 22px  → delta ≈ 0.25px (imperceptible). #321
+              'min-h-[36px] max-h-[200px] py-[3px]',
+              'self-end',
+              'focus-visible:outline-none',
+              isStreaming ? 'cursor-text' : '',
+            ].join(' ')}
+            style={{ overflowY: 'auto' }}
+            aria-label="Message input"
+            aria-multiline="true"
+          />
 
           {/* Stop button (streaming) / Send button */}
           {isStreaming && onStopMessage ? (
