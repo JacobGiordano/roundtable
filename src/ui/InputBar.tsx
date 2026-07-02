@@ -607,7 +607,21 @@ export function InputBar({
                   <button
                     type="button"
                     data-chip-remove="true"
-                    onClick={() => removeAttachment(att.id)}
+                    onClick={() => {
+                      removeAttachment(att.id);
+                      // Restore focus after removal (WCAG 2.4.3): Enter/Space activates
+                      // onClick, deleting this button from the DOM. Without explicit focus
+                      // management, focus falls to document.body. Match handleChipKeyDown:
+                      // move to the previous chip's remove button, or the attach button.
+                      requestAnimationFrame(() => {
+                        if (index > 0) {
+                          const chips = document.querySelectorAll<HTMLElement>('[data-chip-remove]');
+                          chips[index - 1]?.focus();
+                        } else {
+                          attachButtonRef.current?.focus();
+                        }
+                      });
+                    }}
                     onKeyDown={(e) => handleChipKeyDown(e, att.id, index)}
                     aria-label={`Remove ${att.filename ?? att.mimeType}`}
                     className={[
