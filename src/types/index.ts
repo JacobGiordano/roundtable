@@ -151,6 +151,51 @@ export interface TokenUsage {
  */
 export type SessionTokenUsage = { modelId: ModelId } & TokenUsage;
 
+// ─── Attachments ──────────────────────────────────────────────────────────────
+
+/**
+ * A single file attachment on a user message. Phase 5 (issue #285).
+ *
+ * Only image MIME types are supported in the initial implementation. The union
+ * is intentionally closed to the four types every vision-capable provider
+ * accepts. Extending to other file types (PDF, etc.) requires a types PR when
+ * a provider adds explicit support for them.
+ *
+ * `base64` is the raw base64-encoded file content — no data-URL prefix
+ * (i.e. no "data:image/jpeg;base64," preamble). Atlas prepends the appropriate
+ * prefix when constructing provider-specific content parts.
+ *
+ * `sizeBytes` is the unencoded file size in bytes. Aria enforces a
+ * per-attachment size ceiling before adding to the pending message; Atlas reads
+ * this field for telemetry.
+ *
+ * `filename` is optional — clipboard pastes carry no filename; file-picker
+ * selections always carry one.
+ *
+ * Lifecycle:
+ *   - Aria creates `Attachment` objects from the file picker / clipboard-paste
+ *     handler and attaches them to the pending user message before calling
+ *     `sendMessage`.
+ *   - Atlas reads attachments from `SendMessageOptions.attachments` (the
+ *     current in-flight turn) and from `Message.attachments` on prior messages
+ *     in `conversation.messages` (conversation history). Atlas must not pass
+ *     attachment content to a provider whose `capabilities.vision` is `false`
+ *     or absent — see `ProviderCapabilities.vision`.
+ *   - Vault persists `Attachment` objects as part of `Conversation.messages`
+ *     in localStorage; base64 content is stored verbatim. There is no separate
+ *     blob store in Phase 5.
+ */
+export interface Attachment {
+  id: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+  /** Raw base64-encoded content, without a data-URL prefix. */
+  base64: string;
+  /** Present when the attachment originated from the file picker; absent for clipboard pastes. */
+  filename?: string;
+  /** Unencoded file size in bytes. */
+  sizeBytes: number;
+}
+
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
 export interface Message {
@@ -168,6 +213,12 @@ export interface Message {
   isStreaming?: boolean;
   /** Set on assistant messages when the stream terminated with an error. */
   error?: ModelError;
+  /**
+   * Attached files. Present only on user-role messages; always absent on
+   * assistant-role messages. Atlas reads these when building multimodal
+   * requests for vision-capable providers (Phase 5, issue #285).
+   */
+  attachments?: Attachment[];
 }
 
 // ─── Model version selection ───────────────────────────────────────────────────
@@ -257,6 +308,35 @@ export interface BuiltInProviderConfig {
    * Default: true. Users can set this to false to hide a built-in they do not use.
    */
   isVisible: boolean;
+  /**
+   * Declared feature capabilities of this built-in provider. Phase 5 (issue #285).
+   *
+   * Design decision — vision-capability cross-boundary resolution:
+   *   Aria needs to show a pre-send warning modal when any active model lacks vision
+   *   support ("Model X won't see your image"). Built-in capability defaults are
+   *   authoritative in Atlas's domain, which Aria cannot import from. Rather than
+   *   adding a runtime constant to this types file (which would violate the
+   *   types-only rule) or having Aria maintain a second static copy, the solution
+   *   is to add `capabilities` here — mirroring the existing field on
+   *   `CustomProviderConfig` — and have Gate populate it from Gate's own static
+   *   built-in capability map (following the BUILTIN_META precedent established
+   *   in ProviderSettingsPanel). This gives Aria a uniform path to check
+   *   `config.capabilities?.vision` for both built-in and custom providers without
+   *   any cross-boundary import.
+   *
+   * Gate is responsible for writing this from its own BUILTIN_META-style capability
+   * map when initializing or migrating the roster. Atlas also reads it — when
+   * `vision` is `true`, Atlas may include image content parts; when `false` or
+   * absent, Atlas must send text-only requests to this provider.
+   *
+   * When absent (pre-migration records), Aria and Atlas apply the conservative
+   * `ProviderCapabilities` defaults: `vision: false`, `toolUse: false`.
+   * Gate must ensure this is populated for all six built-ins on roster init/migration.
+   *
+   * @see ProviderCapabilities for field-by-field semantics and defaults.
+   * @see CustomProviderConfig.capabilities for the analogous field on custom providers.
+   */
+  capabilities?: ProviderCapabilities;
 }
 
 /**
@@ -618,6 +698,25 @@ export interface SendMessageOptions {
    * (which invokes `controller.abort()`) when the user clicks the stop button.
    */
   signal?: AbortSignal;
+  /**
+   * Files attached to the current in-flight user message. Phase 5 (issue #285).
+   *
+   * Atlas reads these to build multimodal content parts for vision-capable
+   * providers. Providers whose `capabilities.vision` is `false` or absent must
+   * not receive attachment content — Atlas is responsible for filtering per
+   * provider before building the request payload.
+   *
+   * Note: these are the attachments on the current turn only. Prior user
+   * messages that carried attachments are already stored in
+   * `conversation.messages` under `Message.attachments` and will be included
+   * naturally in the history Atlas sends to the provider (subject to the same
+   * per-provider vision capability check).
+   *
+   * Aria creates `Attachment` objects from the file picker / paste handler and
+   * passes them here alongside `content`. Absence means no attachments on this
+   * turn — text-only message.
+   */
+  attachments?: Attachment[];
 }
 
 /**
