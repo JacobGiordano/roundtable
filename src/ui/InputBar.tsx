@@ -656,7 +656,7 @@ export function InputBar({
           'transition-[border-color] duration-fast',
         ].join(' ')}
       >
-        {/* Input row: ghost icon | live regions | textarea | clip button | stop/send */}
+        {/* Input row: ghost icon | live regions | attach button | textarea | stop/send */}
         <div className="flex items-end gap-2">
           {isGhostMode && (
             <div
