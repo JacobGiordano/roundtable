@@ -1,15 +1,24 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
-import type { ModelConfig } from '@/types';
-// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon replace inline SVGs.
-import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon } from './icons';
+import type { Attachment, ModelConfig } from '@/types';
+// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon.
+import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon } from './icons';
 // #294: resolveAccentCssColor routes custom providers through var(--accent-custom-{id})
 // so the directed-reply chip shows the correct user-chosen color and picks up
 // AccentColorPicker live-session overrides, instead of producing an invalid CSS var
 // from a raw hex string (e.g. var(--#4285F4)).
 import { resolveAccentCssColor } from './utils/modelColor';
+// #285: useAttachments manages pending image attachments (add, remove, clear, limit check).
+import { useAttachments } from './hooks/useAttachments';
+// #285: VisionWarningModal — pre-send warning when some active models lack vision support.
+import { VisionWarningModal } from './components/VisionWarningModal';
+// Cross-agent exception: getProviderRoster is a Gate pure-read utility imported here to
+// check per-provider vision capability at send time for the pre-send warning modal (#285).
+// Does not cross the model or storage boundaries. Same permitted-exception pattern as
+// getSidebarOpen/setSidebarOpen in AppLayout.tsx and getUserPreferences in usePreferencesSync.ts.
+import { getProviderRoster } from '@/auth';
 
 interface InputBarProps {
-  onSend: (content: string) => void;
+  onSend: (content: string, attachments: Attachment[]) => void;
   /** When true, the send button and Enter-to-submit are disabled. Atlas sets this. */
   isStreaming?: boolean;
   /**
@@ -18,7 +27,7 @@ interface InputBarProps {
    * Issue #159.
    */
   onStopMessage?: () => void;
-  /** When true, shows the ghost mode SVG indicator. Gate wires this up in a later issue. */
+  /** When true, shows the ghost mode SVG indicator and disables attachment (#285). */
   isGhostMode?: boolean;
   /**
    * When set, the InputBar is in directed-reply mode. A pill showing "→ [Model]"
@@ -35,6 +44,11 @@ interface InputBarProps {
    */
   activeModelCount?: number;
   /**
+   * Active ModelConfig list — used at send time to check per-provider vision capability
+   * for the pre-send warning modal. Absence skips the vision check entirely. Issue #285.
+   */
+  activeModels?: ModelConfig[];
+  /**
    * When provided, applied as the `id` attribute on the textarea element.
    * Used by AppLayout to place `id="skip-target"` on the primary interactive
    * element so the skip-to-main-content link lands on a focusable element
@@ -49,8 +63,6 @@ interface InputBarProps {
   /** Called when user clicks Cancel in edit mode or presses Escape. */
   onCancelEdit?: () => void;
 }
-
-// StopIcon and SendIcon are now imported from the shared icon system (#147).
 
 /**
  * Returns inline styles for the directed-reply pill using the model's CSS custom property.
@@ -78,6 +90,18 @@ function getPillAccentStyle(color: string, modelId?: string): React.CSSPropertie
   };
 }
 
+/**
+ * Returns inline styles for an attachment thumbnail chip (#285).
+ * Uses --accent-user (user message identity accent) at 15% bg / 40% border —
+ * matching the chip pattern from HANDOFF: "border 40% + bg tint 15%; never accent as text color."
+ */
+function getAttachmentChipStyle(): React.CSSProperties {
+  return {
+    backgroundColor: `color-mix(in srgb, var(--accent-user) 15%, transparent)`,
+    borderColor: `color-mix(in srgb, var(--accent-user) 40%, transparent)`,
+  };
+}
+
 export function InputBar({
   onSend,
   isStreaming = false,
@@ -86,6 +110,7 @@ export function InputBar({
   directedReplyTarget,
   onClearDirectedReply,
   activeModelCount,
+  activeModels,
   textareaId,
   editingMessage,
   onCancelEdit,
@@ -93,6 +118,8 @@ export function InputBar({
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const stopButtonRef = useRef<HTMLButtonElement>(null);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   // Track whether streaming has ever been active so the focus-return branch
@@ -100,17 +127,33 @@ export function InputBar({
   // return focus when the stop→send swap actually occurs, not at mount time.
   const hasStreamedRef = useRef(false);
 
+  // ── Attachment management (#285) ──────────────────────────────────────────
+  const {
+    attachments,
+    error: attachError,
+    addFiles,
+    removeAttachment,
+    clearAll,
+    clearError,
+  } = useAttachments();
+
+  // Drag-over visual state. Counter-based to handle child element boundary crossings
+  // without flickering: each dragenter increments, each dragleave decrements.
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // Vision warning modal: holds the pending send payload when a confirmation is required.
+  // Cleared when the user confirms ("Send anyway") or cancels.
+  const [pendingVisionSend, setPendingVisionSend] = useState<{
+    content: string;
+    nonVisionModelNames: string[];
+  } | null>(null);
+
+  // Ref to the focused element before the modal opened — used by VisionWarningModal
+  // to restore focus on close (WCAG 2.4.3).
+  const focusReturnRef = useRef<HTMLElement | null>(null);
+
   // Manage focus across the send↔stop button swap (WCAG 2.4.3 — issue #244).
-  //
-  // When streaming starts (send unmounts, stop mounts): move focus to the stop
-  // button so keyboard users stay in the input area.
-  //
-  // When streaming ends — whether by natural completion or abort (stop unmounts,
-  // send mounts): return focus to the textarea so the user can type the next
-  // message without tabbing back in.
-  //
-  // Double-rAF ensures the DOM has settled after React's unmount/mount cycle
-  // before .focus() fires. Same pattern as closeAndReturnFocus() in Sidebar.tsx.
   useEffect(() => {
     if (isStreaming && onStopMessage) {
       hasStreamedRef.current = true;
@@ -118,36 +161,36 @@ export function InputBar({
         requestAnimationFrame(() => stopButtonRef.current?.focus());
       });
     } else if (!isStreaming && hasStreamedRef.current) {
-      // Only fire on a real stream-end transition, not on initial render.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => textareaRef.current?.focus());
       });
     }
   }, [isStreaming, onStopMessage]);
 
-  // Edit mode: when editingMessage is set, pre-fill the textarea with the original
-  // content and move focus to it. Clears when editingMessage becomes null.
+  // Edit mode setup: pre-fill textarea, clear attachments, move focus.
   useEffect(() => {
     if (editingMessage) {
       setValue(editingMessage.originalContent);
-      // Reset height to auto first, then let the auto-resize compute the new height.
+      clearAll(); // Edits don't carry attachments (#285).
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
       }
-      // Move focus to the textarea so the user can start editing immediately.
-      // Double-rAF ensures the DOM has settled after any React re-renders.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => textareaRef.current?.focus());
       });
     }
-  }, [editingMessage]);
+  }, [editingMessage, clearAll]);
 
   // Ghost mode tooltip — 600ms hover delay per tooltip.md §1 (#210).
-  // Hover shows after intentionality delay; focus shows immediately.
   const [isGhostTooltipVisible, setIsGhostTooltipVisible] = useState(false);
   const ghostHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ghostTooltipId = useId();
+
+  // Attach button tooltip (ghost-mode-disabled state) — same 600ms hover delay.
+  const [isAttachTooltipVisible, setIsAttachTooltipVisible] = useState(false);
+  const attachHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attachTooltipId = useId();
 
   const handleGhostMouseEnter = useCallback(() => {
     ghostHoverTimerRef.current = setTimeout(() => {
@@ -163,22 +206,177 @@ export function InputBar({
     setIsGhostTooltipVisible(false);
   }, []);
 
-  const isEmpty = value.trim().length === 0;
-  // §3.3: gate on zero active models in addition to the streaming/empty checks.
-  // activeModelCount undefined means the gate is not wired — don't block send.
-  const canSend = !isEmpty && !isStreaming && (activeModelCount === undefined || activeModelCount > 0);
+  const handleAttachMouseEnter = useCallback(() => {
+    if (!isGhostMode) return;
+    attachHoverTimerRef.current = setTimeout(() => {
+      setIsAttachTooltipVisible(true);
+    }, 600);
+  }, [isGhostMode]);
+
+  const handleAttachMouseLeave = useCallback(() => {
+    if (attachHoverTimerRef.current !== null) {
+      clearTimeout(attachHoverTimerRef.current);
+      attachHoverTimerRef.current = null;
+    }
+    setIsAttachTooltipVisible(false);
+  }, []);
+
+  // canSend: true when there is text OR attachments (or both), not streaming,
+  // and at least one model is active (when the model count gate is wired).
+  const hasContent = value.trim().length > 0 || attachments.length > 0;
+  const canSend =
+    hasContent && !isStreaming && (activeModelCount === undefined || activeModelCount > 0);
+
+  // ── Drag-and-drop (#285) ──────────────────────────────────────────────────
+
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setIsDragOver(false);
+  }, []);
+
+  // Must preventDefault on dragover to allow drop events.
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+      if (isGhostMode) return; // Ghost conversations must not persist files.
+      if (e.dataTransfer.files.length > 0) {
+        void addFiles(e.dataTransfer.files);
+      }
+    },
+    [addFiles, isGhostMode],
+  );
+
+  // ── Clipboard paste (#285) ────────────────────────────────────────────────
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (isGhostMode) return;
+      const imageItems = Array.from(e.clipboardData.items).filter(
+        (item) =>
+          item.kind === 'file' &&
+          ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(item.type),
+      );
+      if (imageItems.length === 0) return;
+      const files = imageItems
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (files.length > 0) {
+        void addFiles(files);
+        // Don't preventDefault: text content in the same paste still goes through.
+      }
+    },
+    [addFiles, isGhostMode],
+  );
+
+  // ── File picker (#285) ────────────────────────────────────────────────────
+
+  const handleAttachClick = useCallback(() => {
+    if (isGhostMode) return; // aria-disabled: click no-ops in ghost mode.
+    fileInputRef.current?.click();
+  }, [isGhostMode]);
+
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        void addFiles(e.target.files);
+      }
+      // Reset input value so re-selecting the same file works after removal.
+      e.target.value = '';
+    },
+    [addFiles],
+  );
+
+  // ── Vision check (#285) ───────────────────────────────────────────────────
+
+  /**
+   * Returns display names of active models that lack vision capability.
+   * Reads the provider roster from Gate synchronously at send time — safe because
+   * the roster cannot change while the user is composing (no background updates).
+   */
+  const getNonVisionModelNames = useCallback((): string[] => {
+    if (!activeModels || activeModels.length === 0) return [];
+    const roster = getProviderRoster();
+    return activeModels
+      .filter((m) => {
+        const config = roster.find((r) =>
+          r.kind === 'builtin' ? r.modelId === m.modelId : r.id === m.modelId,
+        );
+        // Conservative default: absent capabilities.vision = false.
+        return !(config?.capabilities?.vision ?? false);
+      })
+      .map((m) => m.name);
+  }, [activeModels]);
 
   const handleSend = useCallback(() => {
     if (!canSend) return;
-    onSend(value.trim());
-    setValue('');
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    const content = value.trim();
+
+    // If attachments are pending, check for non-vision models.
+    if (attachments.length > 0) {
+      const nonVisionNames = getNonVisionModelNames();
+      if (nonVisionNames.length > 0) {
+        // Show the warning modal; capture current focus element for restoration.
+        focusReturnRef.current = document.activeElement as HTMLElement;
+        setPendingVisionSend({ content, nonVisionModelNames: nonVisionNames });
+        return;
+      }
     }
-    // Return focus to textarea
+
+    // No modal needed — send immediately.
+    onSend(content, attachments);
+    clearAll();
+    setValue('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [canSend, onSend, value]);
+  }, [canSend, value, attachments, onSend, clearAll, getNonVisionModelNames]);
+
+  const handleVisionModalSend = useCallback(() => {
+    if (!pendingVisionSend) return;
+    onSend(pendingVisionSend.content, attachments);
+    clearAll();
+    setValue('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setPendingVisionSend(null);
+    // Focus restores via VisionWarningModal's cleanup useEffect (returnFocusRef).
+  }, [pendingVisionSend, attachments, onSend, clearAll]);
+
+  const handleVisionModalCancel = useCallback(() => {
+    setPendingVisionSend(null);
+    // Focus restores via VisionWarningModal's cleanup useEffect (returnFocusRef).
+  }, []);
+
+  // ── Chip keyboard (#285) ──────────────────────────────────────────────────
+
+  const handleChipKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, attachmentId: string, chipIndex: number) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      e.preventDefault();
+      removeAttachment(attachmentId);
+      // After removal, focus: previous chip's remove button (if any) or the attach button.
+      requestAnimationFrame(() => {
+        if (chipIndex > 0) {
+          const chips = document.querySelectorAll<HTMLElement>('[data-chip-remove]');
+          chips[chipIndex - 1]?.focus();
+        } else {
+          attachButtonRef.current?.focus();
+        }
+      });
+    },
+    [removeAttachment],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -186,14 +384,11 @@ export function InputBar({
         e.preventDefault();
         handleSend();
       }
-      // Escape in edit mode cancels the edit and clears the textarea.
       if (e.key === 'Escape' && editingMessage) {
         e.preventDefault();
         setValue('');
         onCancelEdit?.();
       } else if (e.key === 'Escape' && directedReplyTarget && !editingMessage) {
-        // Escape clears the directed-reply pill without closing any open dropdown.
-        // Focus remains in the textarea — no blur needed.
         e.preventDefault();
         e.stopPropagation();
         onClearDirectedReply?.();
@@ -204,15 +399,11 @@ export function InputBar({
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
-
-    // Auto-resize: reset then set to scrollHeight, capped at 200px
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
 
-  // §3.3: when zero models are active, tell the user they need to add one first.
-  // In edit mode, override the placeholder so the user knows what they're doing.
   const placeholderText = editingMessage
     ? 'Edit your message…'
     : directedReplyTarget
@@ -221,17 +412,63 @@ export function InputBar({
         ? 'Add a model to start chatting'
         : 'Ask all models...';
 
+  // Whether any "top section" (pill / edit banner / chips) is shown above the main input row.
+  // Determines border/rounding class on the main container.
+  const hasTopSection =
+    !!directedReplyTarget || !!editingMessage || attachments.length > 0 || !!attachError;
+
   return (
     <div
-      className="w-full"
-      // Safe-area inset for iOS home indicator — prevents content from being
-      // obscured by the gesture bar on modern iPhones. env() with a 0px fallback
-      // for browsers that don't support the safe-area-inset environment variables.
+      className="w-full relative"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
-      {/* Edit mode banner — rendered above the input row when editing a message (#162).
-          Sits flush against the input row (same pattern as the directed-reply pill).
-          The Cancel button lets the user abandon the edit and restore normal mode. */}
+      {/* Drag-over visual overlay (#285) — signals droppable zone to the user.
+          pointer-events-none so it doesn't intercept the drop event on the container. */}
+      {isDragOver && (
+        <div
+          className={[
+            'absolute inset-0 z-10 rounded-t-lg',
+            'border-2 border-dashed border-border-strong',
+            'flex items-center justify-center pointer-events-none',
+          ].join(' ')}
+          style={{ backgroundColor: `color-mix(in srgb, var(--accent-user) 8%, transparent)` }}
+          aria-hidden="true"
+        >
+          <span className="text-[13px] font-medium text-text-secondary select-none">
+            Drop images here
+          </span>
+        </div>
+      )}
+
+      {/* Hidden file input — triggered programmatically by the paper-clip button.
+          sr-only + aria-hidden + tabIndex={-1}: never in the tab order or AT tree. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        multiple
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleFileInputChange}
+      />
+
+      {/* Vision warning modal (#285) — rendered inside InputBar so returnFocusRef
+          can point directly to the attach button or textarea ref. */}
+      {pendingVisionSend && (
+        <VisionWarningModal
+          nonVisionModelNames={pendingVisionSend.nonVisionModelNames}
+          onSendAnyway={handleVisionModalSend}
+          onCancel={handleVisionModalCancel}
+          returnFocusRef={focusReturnRef as React.RefObject<HTMLElement | null>}
+        />
+      )}
+
+      {/* Edit mode banner (#162) */}
       {editingMessage && (
         <div
           className={[
@@ -240,10 +477,7 @@ export function InputBar({
             'flex items-center justify-between',
           ].join(' ')}
         >
-          <span
-            className="text-[12px] font-medium text-text-secondary"
-            aria-live="polite"
-          >
+          <span className="text-[12px] font-medium text-text-secondary" aria-live="polite">
             Editing message
           </span>
           {onCancelEdit && (
@@ -268,14 +502,15 @@ export function InputBar({
         </div>
       )}
 
-      {/* Directed-reply pill — rendered above the input row when a target model is set.
-          Uses the model's accent color to make directed mode visually distinct.
-          The pill sits flush against the input row (no gap) to read as a single unit. */}
+      {/* Directed-reply pill */}
       {directedReplyTarget && (
         <div
           className={[
             'px-3 pt-2',
-            'bg-input border-t border-x border-border rounded-t-lg',
+            'bg-input',
+            editingMessage
+              ? 'border-x border-border'
+              : 'border-t border-x border-border rounded-t-lg',
             'flex items-center',
           ].join(' ')}
         >
@@ -298,7 +533,6 @@ export function InputBar({
                   'transition-colors duration-fast',
                 ].join(' ')}
               >
-                {/* Small close icon — shared icon (#147) */}
                 <SmallCloseIcon />
               </button>
             )}
@@ -306,178 +540,275 @@ export function InputBar({
         </div>
       )}
 
+      {/* Attachment chips row (#285) — horizontal scrollable list of pending thumbnails.
+          Rendered above the main input row, below any edit-banner or directed-reply pill.
+          Only shown when there are pending attachments or an active error. */}
+      {(attachments.length > 0 || attachError) && (
+        <div
+          className={[
+            'px-3 pt-2',
+            'bg-input',
+            // If another section (pill or edit banner) is already above us, skip border-t
+            // (it's already provided). Otherwise this is the topmost section.
+            (directedReplyTarget || editingMessage)
+              ? 'border-x border-border'
+              : 'border-t border-x border-border rounded-t-lg',
+          ].join(' ')}
+        >
+          {attachError && (
+            <p
+              className="text-[12px] mb-1.5"
+              role="alert"
+              style={{ color: 'var(--semantic-error)' }}
+            >
+              {attachError}
+              <button
+                type="button"
+                onClick={clearError}
+                className={[
+                  'ml-2 underline hover:no-underline',
+                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+                ].join(' ')}
+                aria-label="Dismiss attachment error"
+              >
+                Dismiss
+              </button>
+            </p>
+          )}
+
+          {attachments.length > 0 && (
+            <div
+              className="flex gap-2 overflow-x-auto pb-2"
+              role="list"
+              aria-label="Pending attachments"
+            >
+              {attachments.map((att, index) => (
+                <div
+                  key={att.id}
+                  role="listitem"
+                  className={[
+                    'flex-shrink-0 inline-flex items-center gap-1.5',
+                    'h-10 pl-1.5 pr-2 rounded-md border',
+                    'text-[12px] font-medium text-text-secondary',
+                    'max-w-[160px]',
+                  ].join(' ')}
+                  style={getAttachmentChipStyle()}
+                >
+                  {/* Thumbnail — prepend data-URL prefix (Attachment.base64 is raw). */}
+                  <img
+                    src={`data:${att.mimeType};base64,${att.base64}`}
+                    alt=""
+                    aria-hidden="true"
+                    className="w-7 h-7 rounded object-cover flex-shrink-0"
+                  />
+                  <span className="truncate flex-1 min-w-0">
+                    {att.filename ?? att.mimeType.replace('image/', '')}
+                  </span>
+                  <button
+                    type="button"
+                    data-chip-remove="true"
+                    onClick={() => removeAttachment(att.id)}
+                    onKeyDown={(e) => handleChipKeyDown(e, att.id, index)}
+                    aria-label={`Remove ${att.filename ?? att.mimeType}`}
+                    className={[
+                      'flex-shrink-0 flex items-center justify-center',
+                      'w-5 h-5 rounded-full',
+                      'hover:bg-black/15',
+                      'transition-colors duration-fast',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    ].join(' ')}
+                  >
+                    <SmallCloseIcon size={7} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Main input container */}
       <div
         className={[
           'w-full bg-input',
           'border-t border-border',
-          (directedReplyTarget || editingMessage) ? 'border-x border-b border-border rounded-b-none rounded-t-none' : 'rounded-t-lg rounded-b-none',
+          hasTopSection
+            ? 'border-x border-b border-border rounded-b-none rounded-t-none'
+            : 'rounded-t-lg rounded-b-none',
           'shadow-md',
           'px-3 py-3',
-          'flex items-end gap-2',
           isFocused ? 'border-border-strong' : '',
           'transition-[border-color] duration-fast',
         ].join(' ')}
       >
-        {/* Ghost mode indicator — left side, shown only when active.
-            tabIndex={0} makes this keyboard-reachable so screen reader users can
-            access the tooltip via focus. onFocus shows immediately (0ms per
-            tooltip.md §1); onBlur hides immediately. The title attribute is
-            omitted to prevent double-announcement alongside aria-describedby
-            (NVDA/Firefox double-reads both). */}
-        {isGhostMode && (
-          <div
-            className="flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded"
-            tabIndex={0}
-            aria-label="Ghost mode — this conversation won't be saved"
-            aria-describedby={ghostTooltipId}
-            onMouseEnter={handleGhostMouseEnter}
-            onMouseLeave={handleGhostMouseLeave}
-            onFocus={() => setIsGhostTooltipVisible(true)}
-            onBlur={() => setIsGhostTooltipVisible(false)}
-            onKeyDown={(e) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); }}
-          >
-            <GhostIcon />
-            {/* Tooltip — shown after 600ms hover delay per tooltip.md §1 (#210).
-                Always in DOM so aria-describedby reference is never broken.
-                Opacity controlled by JS state rather than CSS group-hover to
-                enable the intentionality delay. */}
+        {/* Input row: ghost icon | live regions | textarea | clip button | stop/send */}
+        <div className="flex items-end gap-2">
+          {isGhostMode && (
             <div
-              id={ghostTooltipId}
-              role="tooltip"
+              className="flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded"
+              tabIndex={0}
+              aria-label="Ghost mode — this conversation won't be saved"
+              aria-describedby={ghostTooltipId}
+              onMouseEnter={handleGhostMouseEnter}
+              onMouseLeave={handleGhostMouseLeave}
+              onFocus={() => setIsGhostTooltipVisible(true)}
+              onBlur={() => setIsGhostTooltipVisible(false)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); }}
+            >
+              <GhostIcon />
+              <div
+                id={ghostTooltipId}
+                role="tooltip"
+                className={[
+                  'absolute bottom-full left-0 mb-2',
+                  'bg-sidebar border border-border rounded-sm',
+                  'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
+                  'pointer-events-none transition-opacity duration-fast z-20',
+                  isGhostTooltipVisible ? 'opacity-100' : 'opacity-0',
+                ].join(' ')}
+              >
+                Ghost mode — this conversation won't be saved
+                <span
+                  className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Always-present live regions (WCAG 4.1.3) */}
+          <span aria-live="polite" aria-atomic="true" className="sr-only">
+            {isGhostMode ? "Ghost mode on — messages won't be saved" : 'Ghost mode off'}
+          </span>
+          <span aria-live="polite" aria-atomic="true" className="sr-only">
+            {isStreaming ? 'Generating response — press Stop to cancel' : ''}
+          </span>
+          <span aria-live="polite" aria-atomic="true" className="sr-only">
+            {directedReplyTarget
+              ? `Directed reply mode: sending to ${directedReplyTarget.name}`
+              : ''}
+          </span>
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            id={textareaId}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={placeholderText}
+            rows={1}
+            className={[
+              'flex-1 resize-none bg-transparent border-none outline-none',
+              'text-[15px] font-normal leading-[1.5] text-text-primary',
+              'placeholder:text-text-muted',
+              'min-h-[36px] max-h-[200px]',
+              'self-end',
+              'focus-visible:outline-none',
+              isStreaming ? 'cursor-text' : '',
+            ].join(' ')}
+            style={{ overflowY: 'auto' }}
+            aria-label="Message input"
+            aria-multiline="true"
+          />
+
+          {/* Attach button (#285) — opens the file picker.
+              Hidden during edit mode (edits don't carry new attachments).
+              aria-disabled (not disabled) in ghost mode so the tooltip is keyboard-reachable
+              and screen readers announce the disabled state. Click no-ops when aria-disabled. */}
+          {!editingMessage && (
+            <div
+              className="relative flex-shrink-0 self-end"
+              onMouseEnter={handleAttachMouseEnter}
+              onMouseLeave={handleAttachMouseLeave}
+            >
+              <button
+                ref={attachButtonRef}
+                type="button"
+                onClick={handleAttachClick}
+                aria-label="Attach images"
+                aria-disabled={isGhostMode ? 'true' : undefined}
+                aria-describedby={isGhostMode ? attachTooltipId : undefined}
+                onFocus={() => { if (isGhostMode) setIsAttachTooltipVisible(true); }}
+                onBlur={() => setIsAttachTooltipVisible(false)}
+                className={[
+                  'flex items-center justify-center',
+                  'w-9 h-9 rounded-md',
+                  isGhostMode
+                    ? 'text-text-muted opacity-50 cursor-not-allowed'
+                    : 'text-text-muted hover:text-text-secondary hover:bg-hover cursor-pointer',
+                  'transition-[color,background-color,opacity] duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                <PaperclipIcon size={16} />
+              </button>
+
+              {/* Tooltip for the ghost-mode-disabled attach button — 600ms hover delay,
+                  immediate on focus. Explains why attachment is unavailable. */}
+              {isGhostMode && (
+                <div
+                  id={attachTooltipId}
+                  role="tooltip"
+                  className={[
+                    'absolute bottom-full right-0 mb-2 w-max max-w-[200px]',
+                    'bg-sidebar border border-border rounded-sm shadow-md',
+                    'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
+                    'pointer-events-none transition-opacity duration-fast z-20',
+                    isAttachTooltipVisible ? 'opacity-100' : 'opacity-0',
+                  ].join(' ')}
+                >
+                  Attachments aren't saved in ghost mode
+                  <span
+                    className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stop button (streaming) / Send button */}
+          {isStreaming && onStopMessage ? (
+            <button
+              ref={stopButtonRef}
+              type="button"
+              onClick={onStopMessage}
+              aria-label="Stop generating"
               className={[
-                'absolute bottom-full left-0 mb-2',
-                'bg-sidebar border border-border rounded-sm',
-                'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
-                'pointer-events-none',
-                'transition-opacity duration-fast',
-                'z-20',
-                isGhostTooltipVisible ? 'opacity-100' : 'opacity-0',
+                'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
+                'flex items-center justify-center',
+                'bg-hover hover:brightness-110 active:brightness-90 active:scale-[0.96]',
+                'text-text-secondary hover:text-text-primary',
+                'transition-[background-color,filter,transform] duration-fast cursor-pointer',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
               ].join(' ')}
             >
-              Ghost mode — this conversation won't be saved
-              {/* Caret */}
-              <span
-                className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Visually-hidden live region — announces ghost mode state changes to screen readers.
-            Always present in the DOM so the browser registers it as a live region before any
-            update fires. Text changes on every isGhostMode toggle, causing a polite announcement.
-            The initial render text is not announced; only subsequent changes are. */}
-        <span
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-        >
-          {isGhostMode ? 'Ghost mode on — messages won\'t be saved' : 'Ghost mode off'}
-        </span>
-
-        {/* Visually-hidden live region — announces streaming state changes to screen readers.
-            When streaming starts (send button replaced by stop button), announces
-            "Generating response — press Stop to cancel" so keyboard and AT users know
-            the stop affordance is available. Announces when streaming ends so users
-            know the response is complete. Issue #159. */}
-        <span
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-        >
-          {isStreaming ? 'Generating response — press Stop to cancel' : ''}
-        </span>
-
-        {/* Visually-hidden live region — announces directed-reply mode changes.
-            Always present in the DOM so the browser registers the live region before any
-            update fires. The chip is conditionally mounted — aria-live on mount/unmount
-            elements is unreliable across screen readers (WCAG 4.1.3). This persistent
-            span is the correct pattern (same as ghost mode and streaming regions above).
-            Ada audit #294 advisory. */}
-        <span
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-        >
-          {directedReplyTarget
-            ? `Directed reply mode: sending to ${directedReplyTarget.name}`
-            : ''}
-        </span>
-
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          id={textareaId}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholder={placeholderText}
-          rows={1}
-          className={[
-            'flex-1 resize-none bg-transparent border-none outline-none',
-            'text-[15px] font-normal leading-[1.5] text-text-primary',
-            'placeholder:text-text-muted',
-            'min-h-[36px] max-h-[200px]',
-            'self-end',
-            // Suppress the browser default outline. The outer InputBar container
-            // provides the visible focus indicator (border-border-strong).
-            'focus-visible:outline-none',
-            // Disable new-message submit while streaming, but still allow typing
-            isStreaming ? 'cursor-text' : '',
-          ].join(' ')}
-          style={{ overflowY: 'auto' }}
-          aria-label="Message input"
-          aria-multiline="true"
-        />
-
-        {/* Stop button — shown only while streaming is active, replacing the send button.
-            Calls onStopMessage() which signals the AbortController in App.tsx.
-            Atlas guarantees a clean isDone chunk on abort so no partial-message
-            cleanup is needed here. Tap target meets WCAG 2.5.5 (44×44px minimum).
-            ref + useEffect above move focus here when the button mounts (WCAG 2.4.3).
-            Issue #159, #244. */}
-        {isStreaming && onStopMessage ? (
-          <button
-            ref={stopButtonRef}
-            type="button"
-            onClick={onStopMessage}
-            aria-label="Stop generating"
-            className={[
-              'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
-              'flex items-center justify-center',
-              'bg-hover hover:brightness-110 active:brightness-90 active:scale-[0.96]',
-              'text-text-secondary hover:text-text-primary',
-              'transition-[background-color,filter,transform] duration-fast cursor-pointer',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          >
-            <StopIcon />
-          </button>
-        ) : (
-          /* Send button — visible area is 36×36px but tap target is expanded to 44×44px
-              via min-w/min-h to meet WCAG 2.5.5 (AAA) and iOS HIG touch target guidelines.
-              The visual button uses w-9 h-9 (36px); the extra area is transparent padding. */
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!canSend}
-            aria-label="Send message"
-            className={[
-              'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
-              'flex items-center justify-center',
-              'transition-[background-color,filter,transform] duration-fast',
-              canSend
-                ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
-                : 'bg-hover cursor-not-allowed opacity-50',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-            ].join(' ')}
-          >
-            <SendIcon disabled={!canSend} />
-          </button>
-        )}
+              <StopIcon />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!canSend}
+              aria-label="Send message"
+              className={[
+                'flex-shrink-0 w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
+                'flex items-center justify-center',
+                'transition-[background-color,filter,transform] duration-fast',
+                canSend
+                  ? 'bg-accent-claude hover:brightness-110 active:brightness-90 active:scale-[0.96] cursor-pointer'
+                  : 'bg-hover cursor-not-allowed opacity-50',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+              ].join(' ')}
+            >
+              <SendIcon disabled={!canSend} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

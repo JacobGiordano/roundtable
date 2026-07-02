@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import type { AutoChainConfig, Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
+import type { Attachment, AutoChainConfig, Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
 // #286: applyRosterAccentColors re-initialises --accent-custom-{id} CSS vars
@@ -380,7 +380,7 @@ export default function App() {
     onMessageComplete: handleMessageComplete,
   });
 
-  const handleSend = (content: string) => {
+  const handleSend = (content: string, attachments: Attachment[] = []) => {
     // Snapshot the active conversation before state updates so sendMessage
     // receives a consistent view and we have a base to build the updated conv from.
     const conversationSnapshot = store.getActiveConversation() ??
@@ -435,6 +435,8 @@ export default function App() {
         // Stamp targetModelId onto the user message so it persists in the thread.
         targetModelId: pendingTargetModelId ?? undefined,
         timestamp: Date.now(),
+        // #285: attach image attachments to the user message for persistence and replay.
+        attachments: attachments.length > 0 ? attachments : undefined,
       };
 
       // Build the updated conversation with the new user message.
@@ -519,6 +521,8 @@ export default function App() {
         chainConfig,
         conversation: updatedConversation,
         signal: controller.signal,
+        // #285: pass attachments so Atlas can include them in vision-capable provider requests.
+        attachments: attachments.length > 0 ? attachments : undefined,
       },
       handleChunk(sendingConversationId),
     ).finally(() => {

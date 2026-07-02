@@ -35,7 +35,12 @@ import { OutrunFlash } from './OutrunFlash';
  * Keeping it as a direct prop is the simpler, more explicit choice.
  */
 interface AppLayoutProps {
-  onSend: (content: string) => void;
+  /**
+   * Called when the user submits a message. `attachments` is always an array
+   * (empty for text-only sends). Issue #285 extended the signature from
+   * `(content: string) => void` to include attachments.
+   */
+  onSend: (content: string, attachments: import('@/types').Attachment[]) => void;
   /** Called after the user logs in or out of a backend server — refreshes the active storage provider. */
   onBackendConnectionChange?: () => void;
 }
@@ -487,6 +492,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             directedReplyTarget={directedReplyTarget}
             onClearDirectedReply={onClearDirectedReply}
             activeModelCount={allModels.filter((m) => m.isActive).length}
+            activeModels={activeModels}
             textareaId={isRosterEmpty ? undefined : 'skip-target'}
             editingMessage={editingMessage}
             onCancelEdit={onCancelEdit}

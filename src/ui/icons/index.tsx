@@ -350,3 +350,19 @@ export function SmallCloseIcon({ size = 8, className }: IconProps) {
     />
   ));
 }
+
+// ─── PaperclipIcon ────────────────────────────────────────────────────────────
+/**
+ * Paperclip icon. Used in the InputBar attach-image button (issue #285).
+ */
+export function PaperclipIcon({ size = 16, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 16 16' }, (
+    <path
+      d="M13.5 7.5L7 14a4 4 0 0 1-5.657-5.657L8.5 1.5a2.5 2.5 0 0 1 3.536 3.536L5.5 11.5a1 1 0 0 1-1.414-1.414L10 4"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ));
+}
