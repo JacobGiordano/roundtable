@@ -30,7 +30,8 @@ import type {
   StorageProvider,
 } from '@/types/index';
 
-import { conversationToMarkdown, conversationToHtml } from './exporters';
+import { buildExportedConversation } from './exporters';
+import type { ExportOptions } from './exporters';
 import { triggerDownload } from './fileio';
 import { wrapForStorage, parseStoredConversation } from './migration';
 
@@ -247,33 +248,26 @@ export class LocalStorageProvider implements StorageProvider {
    * Serializes the conversation to the requested format and returns the result.
    * Returns null if the conversation does not exist.
    *
+   * The optional `options` parameter is an extension beyond the `StorageProvider`
+   * interface (which only has `id` and `format`). TypeScript accepts extra
+   * optional parameters on implementations. Callers that hold a `StorageProvider`
+   * reference cannot pass `options` — they should use the `useConversationStore`
+   * hook's `exportConversation` method, which accepts the full options object and
+   * threads it through `loadConversation` + `buildExportedConversation` directly.
+   *
    * Does NOT trigger a browser download — that is handled by
    * `downloadExportedConversation`, a separate utility exported from this
    * module. This separation allows ServerStorageProvider to use the same
    * interface without browser DOM access.
    */
-  async exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null> {
+  async exportConversation(
+    id: string,
+    format: ExportFormat,
+    options?: ExportOptions
+  ): Promise<ExportedConversation | null> {
     const conv = await this.loadConversation(id);
     if (!conv) return null;
-
-    const slug = (conv.title ?? `conversation-${id}`)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .slice(0, 60);
-
-    if (format === 'markdown') {
-      return {
-        content: conversationToMarkdown(conv),
-        filename: `${slug}.md`,
-        mimeType: 'text/markdown;charset=utf-8',
-      };
-    } else {
-      return {
-        content: conversationToHtml(conv),
-        filename: `${slug}.html`,
-        mimeType: 'text/html;charset=utf-8',
-      };
-    }
+    return buildExportedConversation(conv, format, options);
   }
 }
 

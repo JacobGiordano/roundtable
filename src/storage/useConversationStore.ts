@@ -29,6 +29,8 @@ import type {
   StorageProvider,
 } from '@/types/index';
 import { LocalStorageProvider } from './LocalStorageProvider';
+import { buildExportedConversation } from './exporters';
+import type { ExportOptions } from './exporters';
 // Documented exception: pure utility from @/models may be imported by Vault for
 // ConversationStore.getSessionTokenUsage delegation. See CLAUDE.md §exceptions.
 import { getSessionTokenUsage as computeSessionTokenUsage } from '@/models';
@@ -126,14 +128,24 @@ export interface UseConversationStoreReturn extends ConversationStore {
   /**
    * Serialize a conversation to the requested format and return the result.
    *
-   * Delegates directly to `StorageProvider.exportConversation`. Returns null if
-   * the conversation does not exist. Does NOT trigger a browser download — the
-   * caller (Aria) is responsible for passing the result to
+   * Returns null if the conversation does not exist. Does NOT trigger a browser
+   * download — the caller (Aria) is responsible for passing the result to
    * `downloadExportedConversation` from `@/storage` if a download is desired.
+   *
+   * `options.includeAttachments` (default `false`): when true, attachment
+   * metadata (filename and mimeType) is included in the export. Raw base64
+   * content is never embedded. See `ExportOptions` for full documentation.
+   *
+   * Implementation note: this method calls `provider.loadConversation(id)` and
+   * then invokes the exporter functions directly via `buildExportedConversation`.
+   * This bypasses `StorageProvider.exportConversation` (which lacks `options` in
+   * its interface contract) so no cast against the narrower interface is needed.
+   * See Phase 4 note in exporters.ts for the future Arch types PR that would
+   * formalize `options` on the interface.
    *
    * No state mutation occurs — this is a pure read through to the provider.
    */
-  exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null>;
+  exportConversation(id: string, format: ExportFormat, options?: ExportOptions): Promise<ExportedConversation | null>;
 
   /**
    * True while the initial `listConversations()` load is in flight.
@@ -383,11 +395,14 @@ export function useConversationStore(injectedProvider?: StorageProvider): UseCon
   // ─── Export ───────────────────────────────────────────────────────────────
 
   const exportConversation = useCallback(
-    (id: string, format: ExportFormat): Promise<ExportedConversation | null> => {
-      // Pure delegation — no state mutation. Aria calls
-      // downloadExportedConversation(result) separately if a browser download
-      // is desired.
-      return provider.exportConversation(id, format);
+    async (id: string, format: ExportFormat, options?: ExportOptions): Promise<ExportedConversation | null> => {
+      // Load the conversation via the StorageProvider interface (no options
+      // threading required here), then call the exporter directly so options
+      // flow through without needing to widen the StorageProvider interface.
+      // No state mutation occurs — this is a pure read.
+      const conv = await provider.loadConversation(id);
+      if (!conv) return null;
+      return buildExportedConversation(conv, format, options);
     },
     [provider],
   );

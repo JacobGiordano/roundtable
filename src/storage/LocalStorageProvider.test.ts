@@ -21,7 +21,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalStorageProvider } from './LocalStorageProvider';
-import type { Conversation, ModelConfig } from '@/types/index';
+import type { Attachment, Conversation, Message, ModelConfig } from '@/types/index';
 
 // ─── localStorage mock ────────────────────────────────────────────────────────
 
@@ -295,6 +295,175 @@ describe('exportConversation', () => {
     const conv = makeConversation();
     await provider.saveConversation(conv);
     await expect(provider.exportConversation('conv-1', 'html')).resolves.not.toBeNull();
+  });
+});
+
+// ─── Attachment metadata in exports ───────────────────────────────────────────
+
+const ATTACHMENT: Attachment = {
+  id: 'att-1',
+  mimeType: 'image/png',
+  base64: 'abc123',
+  filename: 'screenshot.png',
+  sizeBytes: 1024,
+};
+
+const ATTACHMENT_NO_FILENAME: Attachment = {
+  id: 'att-2',
+  mimeType: 'image/jpeg',
+  base64: 'xyz789',
+  sizeBytes: 512,
+  // filename intentionally absent — clipboard paste
+};
+
+function makeMessageWithAttachments(overrides: Partial<Message> = {}): Message {
+  return {
+    id: 'msg-1',
+    role: 'user',
+    content: 'Look at this image',
+    timestamp: 2000,
+    attachments: [ATTACHMENT],
+    ...overrides,
+  };
+}
+
+describe('exportConversation with includeAttachments', () => {
+  it('markdown: omits attachment metadata when includeAttachments is false (default)', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).not.toContain('[Attachment:');
+    expect(result!.content).not.toContain('screenshot.png');
+  });
+
+  it('markdown: omits attachment metadata when includeAttachments is explicitly false', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: false });
+    expect(result!.content).not.toContain('[Attachment:');
+  });
+
+  it('markdown: includes attachment line per attachment when includeAttachments is true', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    expect(result!.content).toContain('[Attachment: screenshot.png (image/png)]');
+  });
+
+  it('markdown: uses mimeType as fallback name when filename is absent', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments({ attachments: [ATTACHMENT_NO_FILENAME] })],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    // No filename — mimeType used as display name
+    expect(result!.content).toContain('[Attachment: image/jpeg (image/jpeg)]');
+  });
+
+  it('markdown: renders one attachment line per attachment', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments({ attachments: [ATTACHMENT, ATTACHMENT_NO_FILENAME] })],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    expect(result!.content).toContain('[Attachment: screenshot.png (image/png)]');
+    expect(result!.content).toContain('[Attachment: image/jpeg (image/jpeg)]');
+  });
+
+  it('markdown: does not add attachment lines when the message has no attachments', async () => {
+    const conv = makeConversation({
+      messages: [{ id: 'msg-plain', role: 'user', content: 'hello', timestamp: 1000 }],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    expect(result!.content).not.toContain('[Attachment:');
+  });
+
+  it('markdown: does not add attachment lines to assistant messages', async () => {
+    const conv = makeConversation({
+      messages: [
+        makeMessageWithAttachments({ attachments: [ATTACHMENT] }),
+        { id: 'msg-2', role: 'assistant', content: 'I see it', timestamp: 3000, modelId: 'claude' },
+      ],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    // Attachment line only appears once (for the user message), not after the assistant reply.
+    const attachmentLineCount = (result!.content.match(/\[Attachment:/g) ?? []).length;
+    expect(attachmentLineCount).toBe(1);
+  });
+
+  it('html: omits attachment pills when includeAttachments is false (default)', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).not.toContain('class="attachment"');
+    expect(result!.content).not.toContain('screenshot.png');
+  });
+
+  it('html: includes attachment pill per attachment when includeAttachments is true', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeAttachments: true });
+    expect(result!.content).toContain('class="attachment"');
+    expect(result!.content).toContain('screenshot.png');
+  });
+
+  it('html: uses mimeType as fallback name when filename is absent', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments({ attachments: [ATTACHMENT_NO_FILENAME] })],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeAttachments: true });
+    expect(result!.content).toContain('image/jpeg');
+  });
+
+  it('html: does not add pills to assistant messages', async () => {
+    const conv = makeConversation({
+      messages: [
+        makeMessageWithAttachments({ attachments: [ATTACHMENT] }),
+        { id: 'msg-2', role: 'assistant', content: 'I see it', timestamp: 3000, modelId: 'claude' },
+      ],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeAttachments: true });
+    // Pills only in the user message div, not in the assistant div.
+    // Verify: attachment CSS class appears inside a user-role div only.
+    // The assistant div appears after the user div in the HTML.
+    const userDivIdx = result!.content.indexOf('<div class="message user">');
+    const assistantDivIdx = result!.content.indexOf('<div class="message assistant">');
+    const pillIdx = result!.content.indexOf('class="attachment"');
+    expect(pillIdx).toBeGreaterThan(userDivIdx);
+    expect(pillIdx).toBeLessThan(assistantDivIdx);
+  });
+
+  it('html: does not embed raw base64 content', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeAttachments: true });
+    // base64 field of the attachment must not appear in the export
+    expect(result!.content).not.toContain('abc123');
+  });
+
+  it('markdown: does not embed raw base64 content', async () => {
+    const conv = makeConversation({
+      messages: [makeMessageWithAttachments()],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeAttachments: true });
+    expect(result!.content).not.toContain('abc123');
   });
 });
 

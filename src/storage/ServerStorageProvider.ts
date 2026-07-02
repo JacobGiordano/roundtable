@@ -41,6 +41,8 @@ import type {
   StorageProvider,
 } from '@/types/index';
 
+import type { ExportOptions } from './exporters';
+
 import { StorageError } from './StorageError';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -292,9 +294,23 @@ export class ServerStorageProvider implements StorageProvider {
    * Export a conversation via GET /conversations/:id/export?format=<format>.
    * Returns null if the server returns 404.
    * The backend returns an ExportedConversation JSON object.
+   *
+   * The optional `options` parameter is an extension beyond the `StorageProvider`
+   * interface. When `options.includeAttachments` is true, `&includeAttachments=true`
+   * is appended to the query string so the backend can include attachment metadata
+   * in its response. The backend is responsible for implementing this flag.
+   *
+   * Phase 4 note: when `StorageProvider.exportConversation` is updated (via an Arch
+   * types PR) to include `options?: ExportOptions`, this parameter will become part
+   * of the formal interface rather than a concrete-only extension.
    */
-  async exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null> {
-    const url = `${this._baseUrl}/conversations/${encodeURIComponent(id)}/export?format=${encodeURIComponent(format)}`;
+  async exportConversation(
+    id: string,
+    format: ExportFormat,
+    options?: ExportOptions
+  ): Promise<ExportedConversation | null> {
+    const attachmentsParam = options?.includeAttachments ? '&includeAttachments=true' : '';
+    const url = `${this._baseUrl}/conversations/${encodeURIComponent(id)}/export?format=${encodeURIComponent(format)}${attachmentsParam}`;
     const response = await this._fetch(url, {
       method: 'GET',
       headers: this._headers(),
