@@ -351,18 +351,46 @@ export function SmallCloseIcon({ size = 8, className }: IconProps) {
   ));
 }
 
-// ─── PaperclipIcon ────────────────────────────────────────────────────────────
+// ─── PhotoIcon ────────────────────────────────────────────────────────────────
 /**
- * Paperclip icon. Used in the InputBar attach-image button (issue #285).
+ * Photo/image icon (mountain-in-frame silhouette). Used in the InputBar
+ * attach-image button (issue #285, #321). Communicates "image" not "generic
+ * attachment" — replaces PaperclipIcon per Luma's spec update 2026-07-02.
+ *
+ * Spec (components.md §3 "Pending icon spec — PhotoIcon"):
+ *   ViewBox 0 0 16 16 · stroke currentColor 1.4 round/round · fill none
+ *   Frame: rect x=1.5 y=2.5 w=13 h=11 rx=2
+ *   Mountain peaks: M1.5 10.5 L5 7 L8.5 10.5 L11 8 L14.5 10.5
+ *   Sun: circle cx=11.5 cy=5.5 r=1.25 (stroke only)
  */
-export function PaperclipIcon({ size = 16, className }: IconProps) {
+export function PhotoIcon({ size = 16, className }: IconProps) {
   return iconSvg(size, className, { viewBox: '0 0 16 16' }, (
-    <path
-      d="M13.5 7.5L7 14a4 4 0 0 1-5.657-5.657L8.5 1.5a2.5 2.5 0 0 1 3.536 3.536L5.5 11.5a1 1 0 0 1-1.414-1.414L10 4"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <>
+      <rect
+        x="1.5"
+        y="2.5"
+        width="13"
+        height="11"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M1.5 10.5 L5 7 L8.5 10.5 L11 8 L14.5 10.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="11.5"
+        cy="5.5"
+        r="1.25"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </>
   ));
 }

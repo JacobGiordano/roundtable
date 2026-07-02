@@ -1,7 +1,8 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
 import type { Attachment, ModelConfig } from '@/types';
-// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon.
-import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PaperclipIcon } from './icons';
+// #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon.
+// #321: PhotoIcon replaces PaperclipIcon — image-specific icon per Luma spec update 2026-07-02.
+import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon } from './icons';
 // #294: resolveAccentCssColor routes custom providers through var(--accent-custom-{id})
 // so the directed-reply chip shows the correct user-chosen color and picks up
 // AccentColorPicker live-session overrides, instead of producing an invalid CSS var
@@ -732,7 +733,7 @@ export function InputBar({
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                 ].join(' ')}
               >
-                <PaperclipIcon size={16} />
+                <PhotoIcon size={16} />
               </button>
 
               {/* Tooltip for the ghost-mode-disabled attach button — 600ms hover delay,
@@ -775,7 +776,14 @@ export function InputBar({
               'flex-1 resize-none bg-transparent border-none outline-none',
               'text-[15px] font-normal leading-[1.5] text-text-primary',
               'placeholder:text-text-muted',
-              'min-h-[36px] max-h-[200px]',
+              // py-[3px] overrides the browser-default textarea padding (~2px top in Chrome,
+              // 0–2px in Firefox/Safari) with an explicit value so text center lands at the
+              // same optical baseline as the 44px button icons in every browser.
+              // Math (items-end row = 44px, textarea = 36px bottom-aligned):
+              //   textarea top = 44 - 36 = 8px from row top
+              //   text center  = 8 + 3 (pad-top) + 11.25 (lineHeight/2) = 22.25px
+              //   button icon  = 44 / 2 = 22px  → delta ≈ 0.25px (imperceptible). #321
+              'min-h-[36px] max-h-[200px] py-[3px]',
               'self-end',
               'focus-visible:outline-none',
               isStreaming ? 'cursor-text' : '',
