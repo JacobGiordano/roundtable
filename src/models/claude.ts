@@ -68,6 +68,68 @@ const ANTHROPIC_API_VERSION = '2023-06-01';
  */
 const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-6';
 
+// ─── Anthropic request content types (Phase 5, issue #285) ──────────────────
+//
+// User messages can carry multimodal content (text + image parts). The content
+// field on an Anthropic message is either a plain string (text-only, all prior
+// turns and assistant turns) or an array of typed content parts (user turns
+// with attachments). Both forms are valid in the Anthropic Messages API.
+//
+// Image parts carry raw base64 (no data-URL prefix) — Anthropic's API expects
+// the media_type and data as separate fields in the source object.
+
+interface AnthropicTextPart {
+  type: 'text';
+  text: string;
+}
+
+interface AnthropicImagePart {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: string; // e.g. "image/jpeg"
+    data: string;       // raw base64, no "data:..." prefix
+  };
+}
+
+type AnthropicContentPart = AnthropicTextPart | AnthropicImagePart;
+type AnthropicMessageContent = string | AnthropicContentPart[];
+
+/**
+ * Build the Anthropic API `content` value for a single message.
+ *
+ * For user messages with attachments, returns an array of typed content parts
+ * (text part first if non-empty, then one image part per attachment). The text
+ * part is omitted when `msg.content` is empty — image-only user turns are valid.
+ *
+ * For all other messages (assistant turns, user turns without attachments),
+ * returns `msg.content` as a plain string — this is the common fast path and
+ * matches the existing wire format exactly.
+ *
+ * Attachment presence here means capabilities.vision was true for this provider
+ * — sendMessage.ts strips attachments before dispatch for non-vision providers.
+ */
+function buildAnthropicContent(msg: Message): AnthropicMessageContent {
+  if (!msg.attachments?.length || msg.role !== 'user') {
+    return msg.content;
+  }
+  const parts: AnthropicContentPart[] = [];
+  if (msg.content) {
+    parts.push({ type: 'text', text: msg.content });
+  }
+  for (const attachment of msg.attachments) {
+    parts.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: attachment.mimeType,
+        data: attachment.base64, // raw base64 — Attachment.base64 carries no prefix
+      },
+    });
+  }
+  return parts;
+}
+
 // ─── SSE event types emitted by the Anthropic streaming API ──────────────────
 
 interface AnthropicContentBlockDelta {
@@ -124,10 +186,16 @@ export class ClaudeModelProvider implements ModelProvider {
     // filterMessagesForApi strips them so they do not corrupt future API calls.
     const filteredMessages = filterMessagesForApi(messages);
 
-    // Map Roundtable Message[] to Anthropic API format
-    const anthropicMessages = filteredMessages.map((msg) => ({
+    // Map Roundtable Message[] to Anthropic API format.
+    // For user messages with attachments, content is an array of typed parts
+    // (text + image). For all other messages, content is a plain string.
+    // Phase 5 (#285): buildAnthropicContent handles multimodal formatting.
+    const anthropicMessages: Array<{
+      role: 'user' | 'assistant';
+      content: AnthropicMessageContent;
+    }> = filteredMessages.map((msg) => ({
       role: msg.role as 'user' | 'assistant',
-      content: msg.content,
+      content: buildAnthropicContent(msg),
     }));
 
     const requestBody: Record<string, unknown> = {

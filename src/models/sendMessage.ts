@@ -72,10 +72,14 @@ interface VersionAwareProvider extends Provider {
  *   the active modelIds appear in conversation.models.
  * `missing` — active modelIds that had no matching entry in the ProviderRoster.
  *   Each of these must receive an auth_failure StreamChunk before dispatch.
+ * `visionCapable` — modelIds whose ProviderConfig has `capabilities.vision === true`.
+ *   sendMessage.ts strips attachments from messages before dispatching to any
+ *   provider NOT in this set (Phase 5, issue #285).
  */
 interface ResolvedProviders {
   providers: Provider[];
   missing: ModelId[];
+  visionCapable: Set<ModelId>;
 }
 
 /**
@@ -104,18 +108,29 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
     .map((m) => m.modelId);
 
   if (activeIds.length === 0) {
-    return { providers: [], missing: [] };
+    return { providers: [], missing: [], visionCapable: new Set() };
   }
 
   const roster = getProviderRoster();
   const providers: Provider[] = [];
   const missing: ModelId[] = [];
+  const visionCapable = new Set<ModelId>();
 
   for (const modelId of activeIds) {
     // Check the static PROVIDERS array first — built-ins are always resolvable
     // regardless of roster state (backward compatible with pre-roster conversations).
     const builtIn = PROVIDERS.find((p) => p.config.modelId === modelId);
     if (builtIn) {
+      // Check roster for this built-in's declared capabilities (Phase 5 #285).
+      // Gate populates BuiltInProviderConfig.capabilities for all six built-ins
+      // on roster init/migration. When absent (pre-migration records), the
+      // conservative default applies: vision: false.
+      const rosterEntry = roster.find(
+        (e) => e.kind === 'builtin' && e.modelId === modelId
+      );
+      if (rosterEntry?.capabilities?.vision === true) {
+        visionCapable.add(modelId);
+      }
       providers.push(builtIn);
       continue;
     }
@@ -126,9 +141,13 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
     );
 
     if (customEntry && customEntry.kind === 'custom') {
-      // Custom provider — instantiate from config.
-      // Pass getCredentials from @/auth here rather than letting generic.ts
-      // import it directly, keeping the @/models boundary clean.
+      // Custom provider — check capabilities.vision before instantiating.
+      if (customEntry.capabilities?.vision === true) {
+        visionCapable.add(modelId);
+      }
+      // Instantiate from config. Pass getCredentials from @/auth here rather
+      // than letting generic.ts import it directly, keeping the @/models
+      // boundary clean.
       providers.push(createCustomProvider(customEntry, getCredentials));
     } else {
       // Neither a built-in nor a roster-backed custom provider.
@@ -137,7 +156,7 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
     }
   }
 
-  return { providers, missing };
+  return { providers, missing, visionCapable };
 }
 
 /**
@@ -231,6 +250,29 @@ function collectingChunkHandler(
   return { handler, getText: () => accumulated };
 }
 
+// ─── Attachment filtering (Phase 5, issue #285) ───────────────────────────────
+
+/**
+ * Returns a copy of the messages array with `attachments` removed from every
+ * message. Used to scrub image data before dispatching to providers whose
+ * `ProviderConfig.capabilities.vision` is `false` or absent.
+ *
+ * Passing image content to a non-vision endpoint produces an API error (Anthropic
+ * 400, OpenAI 400, Gemini 400). This helper is the single enforcement point so
+ * provider formatters never need to check capabilities themselves.
+ *
+ * Fast path: if the message has no `attachments` (the common case for all
+ * non-image messages), the original object is returned unchanged — no allocation.
+ */
+function stripAttachments(messages: Message[]): Message[] {
+  return messages.map((msg) => {
+    if (!msg.attachments?.length) return msg;
+    const stripped: Message = { ...msg };
+    delete stripped.attachments;
+    return stripped;
+  });
+}
+
 // ─── Chain step ordering ──────────────────────────────────────────────────────
 
 /**
@@ -262,6 +304,9 @@ function shuffleArray<T>(arr: T[]): T[] {
  * falling back to the shared systemPrompt parameter if none is set on the model.
  * The signal (if provided) is forwarded to every provider so all streams stop
  * when the user triggers abort.
+ *
+ * visionCapable — set of modelIds whose roster config has capabilities.vision true.
+ * Providers not in this set receive messages with attachments stripped (Phase 5 #285).
  */
 async function runParallel(
   providers: Provider[],
@@ -269,7 +314,8 @@ async function runParallel(
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
   conversation?: Conversation,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  visionCapable?: Set<ModelId>
 ): Promise<void> {
   // Fire all providers in parallel. Promise.allSettled ensures every provider
   // runs to completion regardless of whether siblings succeed or fail.
@@ -301,7 +347,12 @@ async function runParallel(
           ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
           : resolvedSystemPrompt;
 
-      return runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+      // Phase 5 (#285): strip attachments for providers that do not support vision.
+      // Passing image parts to a non-vision endpoint produces a 400 error.
+      const isVision = visionCapable?.has(provider.config.modelId) ?? false;
+      const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
+
+      return runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
     })
   );
 }
@@ -313,6 +364,10 @@ async function runParallel(
  * Resolves per-model systemPrompt from conversation.models, falling back to
  * the shared systemPrompt parameter.
  * The signal (if provided) is forwarded to the target provider.
+ *
+ * visionCapable — set of modelIds whose roster config has capabilities.vision true.
+ * The target provider receives messages with attachments stripped if not vision-capable
+ * (Phase 5, issue #285).
  */
 async function runDirected(
   targetModelId: ModelId,
@@ -321,7 +376,8 @@ async function runDirected(
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
   conversation?: Conversation,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  visionCapable?: Set<ModelId>
 ): Promise<void> {
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
@@ -353,7 +409,11 @@ async function runDirected(
       ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
       : resolvedSystemPrompt;
 
-  await runProviderIsolated(target, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+  // Phase 5 (#285): strip attachments for providers that do not support vision.
+  const isVision = visionCapable?.has(target.config.modelId) ?? false;
+  const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
+
+  await runProviderIsolated(target, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
 }
 
 /**
@@ -383,10 +443,12 @@ async function runAutoChain(
   // Missing entries get error chunks emitted inline per-step (see below).
   let activeProviders: Provider[];
   let missingIds: ModelId[];
+  let visionCapable = new Set<ModelId>();
   if (conversation) {
     const resolved = getActiveProviders(conversation);
     activeProviders = resolved.providers;
     missingIds = resolved.missing;
+    visionCapable = resolved.visionCapable;
     // Emit missing-provider errors upfront (before any step runs).
     emitMissingProviderErrors(missingIds, onChunk);
   } else {
@@ -449,10 +511,14 @@ async function runAutoChain(
           ? buildAttributionSystemPrompt(resolvedSystemPrompt, modelConfig, otherActiveModels)
           : resolvedSystemPrompt;
 
+      // Phase 5 (#285): strip attachments for providers that do not support vision.
+      const isVision = visionCapable.has(step.modelId);
+      const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, handler, selectedVersionId, signal);
+        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, handler, selectedVersionId, signal);
 
         // Append the raw response to sharedMessages (not attributedMessages) so
         // subsequent steps accumulate real content, not re-attributed wire format.
@@ -471,7 +537,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, attributedMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
       }
     }
   }
@@ -521,15 +587,19 @@ export async function sendMessage(
   // Resolve active providers from the ProviderRoster when a conversation is available.
   // The PROVIDERS fallback (no conversation) preserves existing behavior for callers
   // that do not pass a conversation — e.g. legacy call sites and some tests.
+  // visionCapable is empty in the fallback path: messages built without a conversation
+  // never carry attachments, so capability gating is a no-op there.
   let activeProviders: Provider[];
+  let visionCapable = new Set<ModelId>();
   if (conversation) {
-    const { providers, missing } = getActiveProviders(conversation);
-    activeProviders = providers;
+    const resolved = getActiveProviders(conversation);
+    activeProviders = resolved.providers;
+    visionCapable = resolved.visionCapable;
     // Emit auth_failure chunks for any active modelIds missing from the roster
     // before routing — this happens for all modes except auto-chain (which handles
     // its own per-step emission in runAutoChain).
     if (!chainConfig) {
-      emitMissingProviderErrors(missing, onChunk);
+      emitMissingProviderErrors(resolved.missing, onChunk);
     }
   } else {
     activeProviders = PROVIDERS;
@@ -572,13 +642,13 @@ export async function sendMessage(
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation, signal);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation, signal, visionCapable);
     return;
   }
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation, signal);
+  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation, signal, visionCapable);
 }
 
 /**

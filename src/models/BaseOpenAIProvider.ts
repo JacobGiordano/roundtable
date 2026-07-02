@@ -39,6 +39,29 @@ import {
   filterMessagesForApi,
 } from './openai-sse';
 
+// ─── OpenAI request content types (Phase 5, issue #285) ─────────────────────
+//
+// The OpenAI Chat Completions API accepts multimodal content in user messages.
+// Content can be either a plain string (text-only, all prior patterns) or an
+// array of typed content parts (user turns with image attachments).
+//
+// Image parts use the `image_url` format with a data-URL:
+//   `data:<mimeType>;base64,<raw-base64>`
+// Note: Attachment.base64 is raw (no prefix) — we prepend "data:...;base64,"
+// here when constructing the image_url value.
+
+interface OpenAITextPart {
+  type: 'text';
+  text: string;
+}
+
+interface OpenAIImageUrlPart {
+  type: 'image_url';
+  image_url: { url: string }; // "data:<mimeType>;base64,<base64>"
+}
+
+type OpenAIContentPart = OpenAITextPart | OpenAIImageUrlPart;
+
 // ─── SSE event types for the OpenAI Chat Completions streaming format ─────────
 // All four built-in OpenAI-compatible providers share this exact wire format.
 
@@ -137,17 +160,39 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
 
     // Map Roundtable Message[] to OpenAI-compatible Chat API format.
     // Prepend the system prompt as a system message if provided.
-    const apiMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+    // Phase 5 (#285): user messages with attachments use typed content-part arrays
+    // (image_url parts) instead of plain strings. sendMessage.ts strips attachments
+    // before dispatch for non-vision providers, so this branch is only reached when
+    // capabilities.vision is true for this provider.
+    const apiMessages: Array<{
+      role: 'system' | 'user' | 'assistant';
+      content: string | OpenAIContentPart[];
+    }> = [];
 
     if (systemPrompt) {
       apiMessages.push({ role: 'system', content: systemPrompt });
     }
 
     for (const msg of filteredMessages) {
-      apiMessages.push({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      });
+      if (msg.attachments?.length && msg.role === 'user') {
+        const parts: OpenAIContentPart[] = [];
+        if (msg.content) {
+          parts.push({ type: 'text', text: msg.content });
+        }
+        for (const attachment of msg.attachments) {
+          parts.push({
+            type: 'image_url',
+            // Prepend the data-URL prefix — Attachment.base64 is raw (no prefix).
+            image_url: { url: `data:${attachment.mimeType};base64,${attachment.base64}` },
+          });
+        }
+        apiMessages.push({ role: 'user', content: parts });
+      } else {
+        apiMessages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        });
+      }
     }
 
     // gpt-5.5, o3, o1, and o1-mini require `max_completion_tokens`; gpt-4o

@@ -58,6 +58,15 @@ function buildGeminiUrl(modelString: string): string {
 
 interface GeminiContentPart {
   text?: string;
+  /**
+   * Inline image data (Phase 5, issue #285). Gemini uses `inlineData` for
+   * base64-encoded images rather than data-URLs. `data` is raw base64 — no
+   * "data:<mimeType>;base64," prefix (unlike the OpenAI image_url format).
+   */
+  inlineData?: {
+    mimeType: string; // e.g. "image/jpeg"
+    data: string;     // raw base64, no prefix
+  };
 }
 
 interface GeminiContent {
@@ -99,10 +108,36 @@ function buildGeminiRequest(
   messages: Message[],
   systemPrompt: string | undefined
 ): Record<string, unknown> {
-  const contents = messages.map((msg) => ({
-    role: msg.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: msg.content }],
-  }));
+  // Phase 5 (#285): user messages with attachments include inlineData parts.
+  // sendMessage.ts strips attachments before dispatch for non-vision providers,
+  // so inlineData parts are only emitted when capabilities.vision is true.
+  const contents = messages.map((msg) => {
+    const parts: GeminiContentPart[] = [];
+    if (msg.content) {
+      parts.push({ text: msg.content });
+    }
+    if (msg.attachments?.length && msg.role === 'user') {
+      for (const attachment of msg.attachments) {
+        parts.push({
+          inlineData: {
+            mimeType: attachment.mimeType,
+            data: attachment.base64, // raw base64 — Attachment.base64 carries no prefix
+          },
+        });
+      }
+    }
+    // Gemini rejects an empty parts array. Fall back to empty text if there is
+    // genuinely nothing to send (defensive — filterMessagesForApi prevents most
+    // empty-content messages, but user messages could theoretically have no text
+    // and no attachments after stripping).
+    if (parts.length === 0) {
+      parts.push({ text: '' });
+    }
+    return {
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts,
+    };
+  });
 
   const request: Record<string, unknown> = {
     contents,

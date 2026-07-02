@@ -42,6 +42,25 @@ import {
   filterMessagesForApi,
 } from './openai-sse';
 
+// ─── OpenAI request content types (Phase 5, issue #285) ─────────────────────
+//
+// Custom endpoints that declare capabilities.vision === true accept multimodal
+// content in user messages — the same image_url format as the OpenAI API.
+// sendMessage.ts strips attachments before dispatch for non-vision endpoints
+// so this formatting only runs when vision is explicitly enabled.
+
+interface GenericTextPart {
+  type: 'text';
+  text: string;
+}
+
+interface GenericImageUrlPart {
+  type: 'image_url';
+  image_url: { url: string }; // "data:<mimeType>;base64,<base64>"
+}
+
+type GenericContentPart = GenericTextPart | GenericImageUrlPart;
+
 // ─── SSE event types emitted by the OpenAI-compatible streaming API ───────────
 
 interface OpenAIChoiceDelta {
@@ -148,17 +167,39 @@ export class GenericOpenAIProvider implements ModelProvider {
 
     // Map Roundtable Message[] to OpenAI Chat API format.
     // Prepend the system prompt as a system message if provided.
-    const openaiMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+    // Phase 5 (#285): user messages with attachments use typed content-part arrays
+    // (image_url parts). sendMessage.ts strips attachments before dispatch for
+    // endpoints where capabilities.vision is false or absent, so this path only
+    // runs for explicitly vision-capable custom providers.
+    const openaiMessages: Array<{
+      role: 'system' | 'user' | 'assistant';
+      content: string | GenericContentPart[];
+    }> = [];
 
     if (systemPrompt) {
       openaiMessages.push({ role: 'system', content: systemPrompt });
     }
 
     for (const msg of filteredMessages) {
-      openaiMessages.push({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      });
+      if (msg.attachments?.length && msg.role === 'user') {
+        const parts: GenericContentPart[] = [];
+        if (msg.content) {
+          parts.push({ type: 'text', text: msg.content });
+        }
+        for (const attachment of msg.attachments) {
+          parts.push({
+            type: 'image_url',
+            // Prepend the data-URL prefix — Attachment.base64 is raw (no prefix).
+            image_url: { url: `data:${attachment.mimeType};base64,${attachment.base64}` },
+          });
+        }
+        openaiMessages.push({ role: 'user', content: parts });
+      } else {
+        openaiMessages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        });
+      }
     }
 
     // Whether to include stream_options in the request.
