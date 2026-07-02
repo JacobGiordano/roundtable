@@ -104,6 +104,15 @@ function builtInConfig(overrides: Partial<BuiltInProviderConfig> = {}): BuiltInP
     modelId: 'claude',
     credentialKey: 'anthropic',
     isVisible: true,
+    // readRoster() backfills capabilities on every BuiltInProviderConfig that
+    // lacks the field (on-read migration added in Gate #285 Wave 2). The default
+    // modelId is 'claude', whose canonical capabilities are:
+    //   { vision: true, streamUsage: true, toolUse: true, systemPrompt: true }
+    // gpt-5.5 shares these values, so tests that override modelId to 'gpt-5.5'
+    // also round-trip correctly without needing their own capabilities override.
+    // Tests that override modelId to gemini/grok/deepseek/mistral and assert
+    // full structural equality must override capabilities to match that model.
+    capabilities: { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
     ...overrides,
   };
 }
