@@ -14,36 +14,8 @@ import { EllipsisVerticalIcon } from '@/ui/icons';
 // #148: getModelDotStyle is the shared utility for model identity dot colors.
 import { getModelDotStyle } from '@/ui/utils/modelColor';
 import { getThreadTitle } from '@/ui/sidebarUtils';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Format a timestamp into a relative label per the spec. */
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diffMs = now - timestamp;
-  const diffMinutes = Math.floor(diffMs / 60_000);
-  const diffHours = Math.floor(diffMs / 3_600_000);
-  const diffDays = Math.floor(diffMs / 86_400_000);
-
-  if (diffMs < 60_000) return '< 1m';
-  if (diffMinutes < 60) return `${diffMinutes}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-
-  // Same day: "2:34 PM"
-  const msgDate = new Date(timestamp);
-  const today = new Date();
-  if (
-    msgDate.getDate() === today.getDate() &&
-    msgDate.getMonth() === today.getMonth() &&
-    msgDate.getFullYear() === today.getFullYear()
-  ) {
-    return msgDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }
-
-  // Otherwise: "Jan 4"
-  return msgDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
+// #322: formatRelativeTime extracted to shared utility — also used by MessageBubble nameplate.
+import { formatRelativeTime } from '@/ui/utils/timeFormat';
 
 // ─── AnimatedListItem ─────────────────────────────────────────────────────────
 

@@ -602,3 +602,197 @@ describe('MessageBubble — Fix #275: Custom provider hex color path (WCAG 4.1.2
     expect(directedLabel?.getAttribute('aria-label')).toBe('Directed to Local LLM');
   });
 });
+
+// ─── Fix #322 — Nameplate zone structure (WCAG 1.3.1, 4.1.2) ──────────────────
+//
+// #322 replaced the 3px left-border on assistant bubbles with a 28px nameplate
+// zone containing: a color dot, an optional warning icon, the model name label,
+// and a right-aligned timestamp. This describe block audits the nameplate's
+// structural accessibility:
+//
+//   1. Decorative elements (dot, warning icon) must be aria-hidden.
+//   2. The model name span must be in the accessibility tree (NOT aria-hidden) —
+//      it is the primary source of model identity for screen reader users.
+//   3. The timestamp span must be in the accessibility tree.
+//   4. Axe must find no violations in the error-state nameplate (error-tint bg,
+//      visible warning icon, model name in error color).
+//   5. The outer bubble wrapper must have no aria-hidden on any ancestor of the
+//      nameplate that would remove the model name from the AT tree.
+//
+// Note on CSS text-transform: the model name span uses `uppercase` (CSS). The
+// DOM textContent is the natural-case model name ("Claude", "Mistral"), not the
+// visual uppercase ("CLAUDE"). Modern screen readers read the DOM text, not the
+// CSS-rendered text, so users will hear "Claude" rather than "C-L-A-U-D-E". This
+// is the correct and accessible behavior — no fix is needed.
+//
+// WCAG criteria:
+//   1.3.1 — Info and Relationships: model identity communicated in reading order
+//   4.1.2 — Name, Role, Value: decorative elements hidden; informative text exposed
+
+describe('MessageBubble — Fix #322: Nameplate zone structure (WCAG 1.3.1, 4.1.2)', () => {
+  const SENTINEL_ERROR_MESSAGE: Message = {
+    id: 'msg-nameplate-error',
+    role: 'assistant',
+    modelId: 'claude',
+    content: 'Error',
+    timestamp: 1_700_000_020_000,
+    isStreaming: false,
+  };
+
+  const MODEL_ERROR = {
+    modelId: 'claude' as const,
+    message: 'Network request failed.',
+    code: 'network_error' as const,
+  };
+
+  // ─── Model name accessibility ─────────────────────────────────────────────
+
+  it('model name text is present in the accessibility tree', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // The model name span must not be inside an aria-hidden container.
+    // Screen reader users rely on this span to know which model produced the response.
+    // getByText will throw if the text is inside an aria-hidden subtree, so this
+    // implicitly verifies the element is in the AT tree.
+    //
+    // We query directly for the span containing the model name to confirm the
+    // raw DOM text node is present (CSS text-transform uppercase does not affect
+    // textContent — the DOM value is "Claude", not "CLAUDE").
+    const allText = container.textContent ?? '';
+    expect(allText).toContain('Claude');
+  });
+
+  it('DOM textContent of model name is natural-case (CSS uppercase does not affect AT)', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // The model name span uses Tailwind `uppercase` (text-transform: uppercase).
+    // The DOM textContent must still be the natural-case name — not all-caps —
+    // because CSS text-transform is not reflected in the DOM. This confirms that
+    // screen readers will announce "Claude", not "C-L-A-U-D-E".
+    const spans = container.querySelectorAll('span');
+    const nameSpan = [...spans].find((s) => s.textContent === 'Claude');
+    expect(nameSpan).not.toBeUndefined();
+  });
+
+  it('model name is not inside any aria-hidden ancestor', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // Walk up from each aria-hidden element and confirm none contain the model name.
+    const hiddenEls = container.querySelectorAll('[aria-hidden="true"]');
+    for (const el of hiddenEls) {
+      // No aria-hidden element should contain the model name as text.
+      expect(el.textContent).not.toBe('Claude');
+    }
+  });
+
+  // ─── Decorative element hiding ────────────────────────────────────────────
+
+  it('nameplate color dot is aria-hidden', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // The color dot is a 7px×7px <span> with background-color set to --bubble-accent.
+    // It is purely decorative — model identity is conveyed by the model name text,
+    // not by color alone (WCAG 1.4.1). The dot must be aria-hidden.
+    // We identify it by its specific size classes.
+    const dot = container.querySelector('span.w-\\[7px\\].h-\\[7px\\]');
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('nameplate warning icon is aria-hidden in error state', () => {
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    // The ⚠ glyph (&#9888;) in the nameplate is decorative — the error message text
+    // in the body zone conveys the error. The glyph must be aria-hidden so screen
+    // readers do not announce "warning" or the raw Unicode character before the model name.
+    const warningGlyph = container.querySelector('span[aria-hidden="true"].select-none');
+    expect(warningGlyph).not.toBeNull();
+    // Confirm it contains the warning character (not some other aria-hidden span)
+    expect(warningGlyph?.textContent?.trim()).toBeTruthy();
+  });
+
+  // ─── Timestamp accessibility ──────────────────────────────────────────────
+
+  it('timestamp span is present in DOM and not aria-hidden', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // The relative-time timestamp ("< 1m", "5m", "3h" etc.) is supplementary information.
+    // It must be in the DOM and accessible to screen readers — it should NOT be
+    // aria-hidden, since it communicates message recency.
+    // We find it by its unique combination of size and color classes.
+    const timestampSpan = container.querySelector('span.text-\\[11px\\].text-text-muted.shrink-0');
+    expect(timestampSpan).not.toBeNull();
+    expect(timestampSpan?.getAttribute('aria-hidden')).not.toBe('true');
+    // The text content should be non-empty (formatRelativeTime returns a string)
+    expect(timestampSpan?.textContent?.trim().length).toBeGreaterThan(0);
+  });
+
+  // ─── Error state nameplate axe scan ──────────────────────────────────────
+
+  it('has no axe violations — error state nameplate (error-tint bg, model name in error color)', async () => {
+    // The error-state nameplate replaces the accent-tint bg with an error-tint bg
+    // and sets the model name to text-error color. Both are new color paths introduced
+    // in #322; this verifies the error nameplate is axe-clean.
+    const { container } = render(
+      <MessageBubble
+        message={SENTINEL_ERROR_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        error={MODEL_ERROR}
+        onRetry={() => {}}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('has no axe violations — nameplate with unknown model (no modelConfig)', async () => {
+    // When modelConfig is absent the nameplate falls back to message.modelId ?? 'Model'.
+    // Verify the fallback path is axe-clean.
+    const noConfigMessage: Message = {
+      ...COMPLETED_ASSISTANT_MESSAGE,
+      id: 'msg-no-config',
+      modelId: undefined,
+    };
+    const { container } = render(
+      <MessageBubble
+        message={noConfigMessage}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});

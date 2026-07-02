@@ -374,14 +374,6 @@ export function MessageThread({
     }
   }, [messages, streamingMessages, scrollToBottom]);
 
-  if (allMessages.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
-        <p className="text-[13px] text-text-muted">Start a conversation</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Live region 1 — streaming completion (#48).
@@ -412,103 +404,115 @@ export function MessageThread({
       </div>
 
       {/* Model visibility bar (#165) — only shown when 2+ models are active.
-          Lets users hide individual model responses without stopping message delivery.
-          Hidden models still receive and process messages; their output is simply not
-          rendered until the user toggles them back on. */}
+          Rendered unconditionally here (outside the empty-state guard) so it
+          is visible on new conversations before the first message is sent.
+          This fixes #323: the previous early-return on allMessages.length === 0
+          hid the bar, leaving users unable to see or toggle active models on
+          freshly created conversations. */}
       <ModelVisibilityBar
         models={models}
         hiddenModelIds={hiddenModelIds}
         onToggleVisibility={handleToggleVisibility}
       />
 
-      {/* Thread header — only shown when there are messages */}
-      {onExport && (
-        <div className="flex-shrink-0 flex items-center justify-end px-4 pt-3 pb-0">
-          <ExportButton
-            onExport={onExport}
-            disabled={messages.length === 0}
-          />
+      {allMessages.length === 0 ? (
+        /* Empty state — new conversation with no messages yet.
+           ModelVisibilityBar above is still rendered (#323 fix). */
+        <div className="flex-1 flex items-center justify-center overflow-y-auto">
+          <p className="text-[13px] text-text-muted">Start a conversation</p>
         </div>
-      )}
-      {/* Scroll container — ref used by the smart-scroll listener (#161) */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset">
-        <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
-          {allMessages.map((message, index) => {
-            const modelConfig = findModelConfig(message.modelId, models);
-            // Resolve the ModelConfig for the message's targetModelId (if any).
-            // Used to render the "→ [Model]" directed-to label on user messages.
-            const targetModelConfig = findModelConfig(message.targetModelId, models);
-            const entranceIndex = getEntranceIndex(allMessages, index);
+      ) : (
+        <>
+          {/* Thread header — only shown when there are messages */}
+          {onExport && (
+            <div className="flex-shrink-0 flex items-center justify-end px-4 pt-3 pb-0">
+              <ExportButton
+                onExport={onExport}
+                disabled={messages.length === 0}
+              />
+            </div>
+          )}
+          {/* Scroll container — ref used by the smart-scroll listener (#161) */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset">
+            <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
+              {allMessages.map((message, index) => {
+                const modelConfig = findModelConfig(message.modelId, models);
+                // Resolve the ModelConfig for the message's targetModelId (if any).
+                // Used to render the "→ [Model]" directed-to label on user messages.
+                const targetModelConfig = findModelConfig(message.targetModelId, models);
+                const entranceIndex = getEntranceIndex(allMessages, index);
 
-            // Gap between bubbles: spec says 8px same-model, 16px different model.
-            // We implement this via margin-top on each bubble.
-            const prevMessage = index > 0 ? allMessages[index - 1] : null;
-            const isNewModel =
-              prevMessage &&
-              prevMessage.role === 'assistant' &&
-              message.role === 'assistant' &&
-              prevMessage.modelId !== message.modelId;
+                // Gap between bubbles: spec says 8px same-model, 16px different model.
+                // We implement this via margin-top on each bubble.
+                const prevMessage = index > 0 ? allMessages[index - 1] : null;
+                const isNewModel =
+                  prevMessage &&
+                  prevMessage.role === 'assistant' &&
+                  message.role === 'assistant' &&
+                  prevMessage.modelId !== message.modelId;
 
-            // Resolve the persisted-messages index for this message (#162).
-            // allMessages = [...messages, ...streamingMessages]; streaming messages
-            // never get an edit button, so we only compute this for persisted messages
-            // (index < messages.length). Streaming messages (tail of allMessages)
-            // always produce undefined, hiding the edit button.
-            const persistedMessageIndex = index < messages.length ? index : undefined;
+                // Resolve the persisted-messages index for this message (#162).
+                // allMessages = [...messages, ...streamingMessages]; streaming messages
+                // never get an edit button, so we only compute this for persisted messages
+                // (index < messages.length). Streaming messages (tail of allMessages)
+                // always produce undefined, hiding the edit button.
+                const persistedMessageIndex = index < messages.length ? index : undefined;
 
-            return (
-              <div
-                key={message.id}
-                className={isNewModel ? 'mt-2' : ''}
-              >
-                <MessageBubble
-                  message={message}
-                  modelConfig={modelConfig}
-                  targetModelConfig={targetModelConfig}
-                  error={message.error}
-                  onRetry={onRetry ? () => onRetry(message.id) : undefined}
-                  onDirectedReply={onDirectedReply}
-                  entranceIndex={entranceIndex}
-                  tokenCountVisibility={tokenCountVisibility}
-                  onEditMessage={onEditMessage}
-                  messageIndex={persistedMessageIndex}
-                />
+                return (
+                  <div
+                    key={message.id}
+                    className={isNewModel ? 'mt-2' : ''}
+                  >
+                    <MessageBubble
+                      message={message}
+                      modelConfig={modelConfig}
+                      targetModelConfig={targetModelConfig}
+                      error={message.error}
+                      onRetry={onRetry ? () => onRetry(message.id) : undefined}
+                      onDirectedReply={onDirectedReply}
+                      entranceIndex={entranceIndex}
+                      tokenCountVisibility={tokenCountVisibility}
+                      onEditMessage={onEditMessage}
+                      messageIndex={persistedMessageIndex}
+                    />
+                  </div>
+                );
+              })}
+              {/* Scroll anchor */}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Scroll-to-bottom FAB (#161) — appears when the user scrolls up.
+                Sticky at the bottom of the visible scroll viewport, right-aligned.
+                Clicking re-pins and scrolls to the latest message. */}
+            {showScrollButton && (
+              <div className="sticky bottom-4 flex justify-end pr-2 pointer-events-none">
+                <button
+                  type="button"
+                  aria-label="Scroll to bottom"
+                  onClick={() => scrollToBottom('smooth')}
+                  className={[
+                    'pointer-events-auto',
+                    'flex items-center justify-center',
+                    'w-8 h-8',
+                    'rounded-full',
+                    'bg-bg-elevated border border-border',
+                    'text-text-secondary hover:text-text-primary',
+                    'shadow-md',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  {/* Down-chevron icon */}
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 4.5l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
               </div>
-            );
-          })}
-          {/* Scroll anchor */}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Scroll-to-bottom FAB (#161) — appears when the user scrolls up.
-            Sticky at the bottom of the visible scroll viewport, right-aligned.
-            Clicking re-pins and scrolls to the latest message. */}
-        {showScrollButton && (
-          <div className="sticky bottom-4 flex justify-end pr-2 pointer-events-none">
-            <button
-              type="button"
-              aria-label="Scroll to bottom"
-              onClick={() => scrollToBottom('smooth')}
-              className={[
-                'pointer-events-auto',
-                'flex items-center justify-center',
-                'w-8 h-8',
-                'rounded-full',
-                'bg-bg-elevated border border-border',
-                'text-text-secondary hover:text-text-primary',
-                'shadow-md',
-                'transition-colors duration-fast',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              {/* Down-chevron icon */}
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M2 4.5l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

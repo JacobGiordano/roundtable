@@ -7,6 +7,9 @@ import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } 
 // so AccentColorPicker live-session overrides are picked up at render time.
 // Moved from a local function to modelColor.ts so InputBar.tsx can share it.
 import { resolveAccentCssColor } from './utils/modelColor';
+// #322: formatRelativeTime extracted to shared utility so ThreadRow and MessageBubble
+// both use the same relative-time formatting logic without duplication.
+import { formatRelativeTime } from './utils/timeFormat';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
 function CopyIcon() {
@@ -399,43 +402,228 @@ export function MessageBubble({
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
 
-  // Left border color:
-  //   - User messages: always var(--accent-user) — the user identity accent (#279).
-  //     No modelId exists on user messages; no fallback to any model accent is permitted.
-  //   - Model messages: resolved from ModelConfig.color (CSS custom property suffix or hex).
-  //     Falls back to accent-other only when modelConfig is genuinely absent/unknown.
-  //   - Error state overrides the accent on any message type.
+  // Resolve accent color for this model — used for both the nameplate (--bubble-accent)
+  // and any directed-reply button color.
   const accentColor = modelConfig?.color ?? 'accent-other';
-  const borderLeftColor = hasError
-    ? 'var(--semantic-error)'
-    : message.role === 'user'
-      ? 'var(--accent-user)'
-      : resolveAccentCssColor(accentColor, modelConfig?.modelId);
 
-  // Only assistant messages from a model show the name header
-  const showHeader = message.role === 'assistant' && modelConfig;
-
-  // "Reply to [Model]" affordance: only on completed assistant messages with a known modelId
-  const canDirectReply =
-    !!onDirectedReply &&
-    message.role === 'assistant' &&
-    !!message.modelId &&
-    !isStreaming;
-
-  // Determine whether to render the token count element and whether it needs
-  // opacity control. 'never' removes it from the DOM entirely (accessibility tree included).
+  // Token count: shown when visibility is not 'never' and tokenUsage is present.
   const showTokenCount = tokenCountVisibility !== 'never' && !!message.tokenUsage;
 
-  // The bottom row hosts both the reply button and the token count. It is
-  // rendered when at least one of the two is applicable AND the message is done.
-  // With 'never', the token count is suppressed but the reply button can still appear.
-  const showBottomRow = !isStreaming && (canDirectReply || showTokenCount);
-
-  // Opacity of the bottom row:
-  //   'always'  — always visible (1) when row is rendered
-  //   'active'  — hover-controlled
-  //   'never'   — token count already excluded; reply button uses same hover logic
+  // Row opacity: 'always' → always visible; 'active'/'never' → hover-controlled.
   const rowVisible = tokenCountVisibility === 'always' ? true : isHovered;
+
+  // ─── Copy button (shared by both bubble types) ────────────────────────────
+
+  const copyButton = message.content && !(hasError && message.content === 'Error') ? (
+    <button
+      type="button"
+      onClick={handleCopy}
+      aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
+      className={[
+        'absolute top-2 right-2 z-10',
+        'w-7 h-7 rounded flex items-center justify-center',
+        'text-text-secondary',
+        copyState === 'copied'
+          ? 'opacity-100 text-success'
+          : 'hover:bg-hover hover:text-text-primary',
+        'transition-opacity transition-colors duration-fast',
+        isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+      ].join(' ')}
+    >
+      {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+    </button>
+  ) : null;
+
+  // ─── Assistant (model) bubble — nameplate design (#322) ──────────────────
+  //
+  // Structure:
+  //   wrapper (rounded-[12px] overflow-hidden, --bubble-accent set inline)
+  //   ├── copy button (absolute, z-10 above nameplate)
+  //   ├── nameplate zone (28px, tinted background)
+  //   │   ├── model color dot
+  //   │   ├── [error] warning icon
+  //   │   ├── model name label
+  //   │   └── timestamp (right-aligned)
+  //   └── body zone (bg-card, message content + error + bottom row)
+  //
+  // User bubbles retain the left-border design and do NOT use this path.
+
+  if (message.role === 'assistant') {
+    // Directed-reply affordance — available on completed assistant bubbles with known modelId.
+    const canDirectReply =
+      !!onDirectedReply &&
+      !!message.modelId &&
+      !isStreaming;
+
+    const showBottomRow = !isStreaming && (canDirectReply || showTokenCount);
+
+    return (
+      <div
+        className={[
+          'relative w-full rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
+          'transition-shadow duration-fast',
+          'bubble-entering',
+          isStreaming ? 'streaming-shimmer' : '',
+        ].join(' ')}
+        style={{
+          animationDelay: entranceDelay,
+          '--bubble-accent': resolveAccentCssColor(accentColor, modelConfig?.modelId),
+        } as React.CSSProperties}
+        data-model={getModelDataAttr(message.modelId)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        aria-busy={isStreaming ? true : undefined}
+      >
+        {/* Copy button — absolute at top-right, z-10 so it appears above nameplate content.
+            Revealed on hover or keyboard focus (focus-visible). Always in accessibility tree
+            so keyboard users can reach it via Tab. */}
+        {copyButton}
+
+        {/* ── Nameplate zone ─────────────────────────────────────────────────
+            28px fixed-height strip at the top of the card. Background is a
+            12%-tinted blend of the model's accent color into the card surface.
+            In error state the accent tint is replaced by a 12% semantic-error tint.
+            color-mix() graceful degradation: unsupported browsers (<Chrome 111) see
+            bg-card (untinted) — identity is not lost, only the tint. */}
+        <div
+          className={[
+            'h-[28px] px-4 flex items-center gap-2',
+            hasError
+              ? 'bg-[color-mix(in_srgb,var(--semantic-error)_12%,var(--surface-card))]'
+              : 'bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]',
+          ].join(' ')}
+        >
+          {/* Model color dot — inherits --bubble-accent from wrapper */}
+          <span
+            className="w-[7px] h-[7px] rounded-full bg-[var(--bubble-accent)] shrink-0"
+            aria-hidden="true"
+          />
+
+          {/* Warning icon — error state only, between dot and model name.
+              Plain text ⚠ is sufficient; no SVG import needed at this size. */}
+          {hasError && (
+            <span aria-hidden="true" className="text-error text-[12px] select-none leading-none shrink-0">
+              &#9888;
+            </span>
+          )}
+
+          {/* Model name label — uppercase, semibold, secondary color.
+              In error state the label switches to semantic-error color. */}
+          <span
+            className={[
+              'text-[12px] font-semibold uppercase tracking-[0.04em] truncate',
+              hasError ? 'text-error' : 'text-text-secondary',
+            ].join(' ')}
+          >
+            {modelConfig?.name ?? message.modelId ?? 'Model'}
+          </span>
+
+          {/* Timestamp — right-aligned via ml-auto. Uses the same relative format
+              as the sidebar thread timestamp (formatRelativeTime). */}
+          <span className="ml-auto text-[11px] text-text-muted shrink-0">
+            {formatRelativeTime(message.timestamp)}
+          </span>
+        </div>
+
+        {/* ── Body zone ──────────────────────────────────────────────────────
+            Untinted bg-card surface below the nameplate. Contains message content,
+            error detail, and the token count / directed-reply bottom row. */}
+        <div className="px-4 pt-2 pb-3 bg-card">
+          {/* Message content — markdown-rendered via MessageContent.
+              aria-live/aria-atomic handling is encapsulated in MessageContent. */}
+          <MessageContent
+            message={message}
+            isStreaming={isStreaming}
+            hasError={hasError}
+          />
+
+          {/* Error detail — rendered in the body zone below any partial content.
+              The divider (border-t) is only shown when there is visible body content.
+              When content is the synthesized sentinel 'Error', MessageContent returns
+              null and no body is rendered — so the divider is suppressed.
+              The warning icon is in the nameplate; the body shows the message text only. */}
+          {hasError && (
+            <div className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
+              <p className="text-[13px] text-error italic">
+                Error: {error!.message}
+              </p>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-1.5 text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Bottom row: directed-reply button (left) + token count (right).
+              Only shown on completed assistant messages.
+              A11y: aria-hidden must NOT be placed on this container — the Reply button
+              is interactive and must remain in the accessibility tree at all times.
+              Token count is non-interactive and carries aria-hidden when not visible. */}
+          {showBottomRow && (
+            <div
+              className={[
+                'mt-2 flex items-center justify-between',
+                'transition-opacity duration-fast',
+                rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
+              ].join(' ')}
+            >
+              {/* "Reply to [Model]" — left side.
+                  Always in accessibility tree; opacity-0 at rest, visible on hover/focus. */}
+              {canDirectReply ? (
+                <button
+                  type="button"
+                  onClick={() => onDirectedReply!(message.modelId as ModelId)}
+                  className={[
+                    'text-[11px] font-medium',
+                    'hover:underline underline-offset-2',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    'rounded-sm',
+                  ].join(' ')}
+                  style={{ color: resolveAccentCssColor(accentColor, modelConfig?.modelId) }}
+                  aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
+                >
+                  Reply to {modelConfig?.name ?? message.modelId}
+                </button>
+              ) : (
+                // Spacer so token count stays right-aligned when no reply button.
+                <span />
+              )}
+
+              {/* Token count — right side.
+                  'never': excluded from DOM entirely (showTokenCount guard above).
+                  'always'/'active': rendered; aria-hidden when row is not visible since
+                  this is non-interactive supplementary data. */}
+              {showTokenCount && (
+                <div
+                  className="text-[11px] text-text-muted text-right"
+                  title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
+                  aria-hidden={!rowVisible}
+                >
+                  {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── User bubble — left-border design (unchanged) ─────────────────────────
+  //
+  // User bubbles retain the 3px left border with var(--accent-user).
+  // No nameplate zone — user messages have no ambiguous source.
+  // No overflow-hidden — no nameplate background to clip.
+  // Spec: left border color never changes to any model accent or error color;
+  // user bubbles have no error state.
+
+  const userShowBottomRow = !isStreaming && showTokenCount;
 
   return (
     <div
@@ -447,18 +635,17 @@ export function MessageBubble({
         'bubble-entering',
         isStreaming ? 'streaming-shimmer' : '',
       ].join(' ')}
-      style={{ animationDelay: entranceDelay, borderLeftColor }}
+      style={{ animationDelay: entranceDelay, borderLeftColor: 'var(--accent-user)' }}
       data-model={getModelDataAttr(message.modelId)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      aria-busy={isStreaming && message.role === 'assistant' ? true : undefined}
     >
       {/* Edit button — user messages only, revealed on hover or focus.
           Positioned to the left of the copy button (right-10 vs right-2) so the
           two buttons don't overlap. Always in the DOM so keyboard users can reach
           it via Tab — only visual opacity is toggled, never DOM presence.
           Calls onEditMessage(messageIndex) which triggers App's truncate+resend path. */}
-      {message.role === 'user' && onEditMessage && messageIndex !== undefined && (
+      {onEditMessage && messageIndex !== undefined && (
         <button
           type="button"
           onClick={() => onEditMessage(messageIndex)}
@@ -477,58 +664,21 @@ export function MessageBubble({
       )}
 
       {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus.
-          Available on all messages (user and assistant) as long as there is content to copy.
-          aria-label switches between "Copy message" and "Copied!" to announce the state
-          change to screen readers without requiring a live region. The button stays in the
-          accessibility tree at all times so keyboard users can reach it via Tab — only its
-          visual opacity is toggled, never its DOM presence.
-          Suppressed when content is the synthesized sentinel 'Error' — that string is only
-          present for the live-region announcement and is never meaningful to copy. */}
-      {message.content && !(hasError && message.content === 'Error') && (
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
-          className={[
-            'absolute top-2 right-2',
-            'w-7 h-7 rounded flex items-center justify-center',
-            'text-text-secondary',
-            copyState === 'copied'
-              ? 'opacity-100 text-semantic-success'
-              : 'hover:bg-hover hover:text-text-primary',
-            'transition-opacity transition-colors duration-fast',
-            isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-          ].join(' ')}
-        >
-          {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
-        </button>
-      )}
+          Suppressed when content is the synthesized sentinel 'Error'. */}
+      {copyButton}
 
-      {/* Model name header — assistant messages only */}
-      {showHeader && (
-        <div
-          className="mb-2 text-[12px] font-semibold text-text-secondary uppercase tracking-[0.04em]"
-        >
-          {modelConfig.name}
-        </div>
-      )}
-
-      {/* Message body
-          User messages: plain whitespace-preserving text.
-          Assistant messages: rendered via react-markdown with rehype-sanitize XSS protection.
-          aria-live/aria-atomic handling is encapsulated in MessageContent. */}
+      {/* Message body — plain whitespace-preserving text for user messages. */}
       <MessageContent
         message={message}
         isStreaming={isStreaming}
-        hasError={hasError}
+        hasError={false}
       />
 
       {/* Directed-to label — shown on user messages that have a targetModelId.
           Subtle indicator so the thread stays readable after the fact.
           Color is read from targetModelConfig — modelId passed for custom provider
           CSS var routing. (#286) */}
-      {targetModelConfig && message.role === 'user' && (
+      {targetModelConfig && (
         <div
           className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
           style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
@@ -539,81 +689,16 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Error state — terminal indicator rendered after any partial streamed content.
-          The divider (border-t) is only shown when there is visible body content above
-          the error. When content is the synthesized sentinel 'Error' (set by
-          useStreamingMessages guard path), MessageContent returns null and no body
-          is rendered — so the divider is suppressed too. */}
-      {hasError && (
-        <div className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
-          <p className="flex items-start gap-1.5 text-[13px] text-error">
-            <span aria-hidden="true" className="select-none shrink-0">&#9888;</span>
-            <span>{error!.message}</span>
-          </p>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="mt-1.5 text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Bottom row: token count (right) and directed-reply affordance (left).
-          Visibility is driven by tokenCountVisibility:
-            'always' — row always visible on completed messages
-            'active' — reveal on hover (progressive disclosure, default)
-            'never'  — token count excluded from DOM; reply button still hover-reveals
-
-          A11y: aria-hidden must NOT be placed on this container. The Reply button
-          is interactive and must remain in the accessibility tree at all times so
-          keyboard users can reach it. The row becomes visible on hover OR on
-          focus-within (WAI-ARIA Authoring Practices: hover-reveal controls must
-          also be reachable by keyboard). The token count is non-interactive and
-          carries aria-hidden when the row is not visible — it is only supplementary
-          information already conveyed through other means (title tooltip). */}
-      {showBottomRow && (
+      {/* Bottom row — token count only (no directed-reply on user bubbles).
+          Visibility is driven by tokenCountVisibility same as assistant bubbles. */}
+      {userShowBottomRow && (
         <div
           className={[
-            'mt-2 flex items-center justify-between',
+            'mt-2 flex items-center justify-end',
             'transition-opacity duration-fast',
             rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
           ].join(' ')}
         >
-          {/* "Reply to [Model]" — left side, only for assistant bubbles.
-              Color is read from modelConfig.color; modelId passed for custom
-              provider CSS var routing. (#286) The button is always in the
-              accessibility tree (no aria-hidden); it is opacity-0 at rest but
-              becomes visible on hover OR keyboard focus via focus-within on the
-              parent container. */}
-          {canDirectReply ? (
-            <button
-              type="button"
-              onClick={() => onDirectedReply!(message.modelId as ModelId)}
-              className={[
-                'text-[11px] font-medium',
-                'hover:underline underline-offset-2',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-                'rounded-sm',
-              ].join(' ')}
-              style={{ color: resolveAccentCssColor(accentColor, modelConfig?.modelId) }}
-              aria-label={`Reply to ${modelConfig?.name ?? message.modelId}`}
-            >
-              Reply to {modelConfig?.name ?? message.modelId}
-            </button>
-          ) : (
-            // spacer so token count stays right-aligned even when no reply button
-            <span />
-          )}
-
-          {/* Token count — right side.
-              'never': excluded from DOM entirely (not here due to showTokenCount guard).
-              'always'/'active': rendered; aria-hidden when row is not visible since
-              this element is non-interactive (keyboard users cannot act on it) and
-              the data is supplementary — already conveyed via the title tooltip. */}
           {showTokenCount && (
             <div
               className="text-[11px] text-text-muted text-right"

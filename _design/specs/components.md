@@ -18,27 +18,70 @@ The message bubble is the primary content unit. Each model's response is one bub
 - **Margin between consecutive bubbles**: `8px` (`{spacing.2}`).
 - **Margin between bubbles from different models**: `16px` (`{spacing.4}`). Aria determines whether consecutive same-model bubbles exist — this spec covers both cases.
 
-### Border Accent (Model Identity)
+### Nameplate Zone (Model Identity)
 
-- **Left border**: `3px solid {accents.model-*}` — color is determined by the model that produced the message.
-- **Left border style**: solid, no gap, no rounded ends. The border spans the full height of the bubble.
-- **No other borders**: do not add a full perimeter border. The left accent is the only border.
-- **Border-radius**: `{radius.md}` (8px) on all four corners.
-- **Note**: The 3px left border combined with border-radius on the left creates a slight visual quirk where the border caps slightly. This is acceptable and consistent with how CSS handles this. Do not compensate with special border-radius overrides.
+Model identity is communicated via a **28px accent-tinted nameplate** at the top of each model bubble. There is no left border on model bubbles — the nameplate is the sole identity signal.
+
+#### Bubble wrapper
+- **Border-radius**: `12px` on all four corners (replaces the former `{radius.md}` 8px). `overflow: hidden` is required — it clips the nameplate background tint at the rounded corners.
+- **No left border.** Do not add a `border-left` of any kind to model bubbles.
+- **Shadow**: `{shadow.sm}` in all default states. `{shadow.md}` on hover (unchanged).
+
+#### Nameplate zone (top 28px of the card)
+- **Height**: `28px` fixed.
+- **Padding**: `0 16px` horizontal (`{spacing.4}`), vertically centered via `align-items: center` on a flex row.
+- **Background**: `color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))`
+- **`--bubble-accent` binding**: Set on the wrapper element via inline style — `style={{ '--bubble-accent': 'var(--accent-{modelId})' } as React.CSSProperties}`. Aria resolves `modelId` to the appropriate `--accent-*` CSS variable. This is not a token — it is a per-instance CSS custom property.
+- **No explicit divider line** between nameplate and body. The background transition provides visual separation.
+
+Nameplate contents (left to right in a single flex row, `gap: 8px`):
+1. **Model color dot**: `7px` × `7px`, `border-radius: {radius.full}`, `background: var(--bubble-accent)`. Same dot spec as Model Identity Pill.
+2. **Model name label**: see Model Name Label section below. Inside the nameplate, not above the body.
+3. **Timestamp**: right-aligned inside the nameplate (`margin-left: auto`). Typography: `11px`, `font-weight: 400`, `{text.muted}`. Same relative format as the sidebar thread timestamp.
+
+#### Implementation note (for Aria)
+```tsx
+// Wrapper
+// className="rounded-[12px] overflow-hidden shadow-sm"
+// style={{ '--bubble-accent': `var(--accent-${message.modelId})` } as React.CSSProperties}
+
+// Nameplate zone
+// className="h-[28px] px-4 flex items-center gap-2"
+// style bg: className="bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]"
+
+//   Dot
+//   className="w-[7px] h-[7px] rounded-full bg-[var(--bubble-accent)] shrink-0"
+
+//   Model name label
+//   className="text-[12px] font-semibold uppercase tracking-[0.04em] text-text-secondary"
+
+//   Timestamp (right-aligned)
+//   className="ml-auto text-[11px] text-text-muted"
+
+// Body zone
+// className="px-4 pt-2 pb-3 bg-surface-card"
+```
+
+#### color-mix() browser compatibility
+- Supported in Chrome 111+, Firefox 113+, Safari 16.2+.
+- Graceful degradation: browsers that do not support `color-mix()` render `{surfaces.card}` (untinted) for the nameplate background. The dot and label remain visible. This is acceptable — identity is not lost, only the tint.
+- Do not add a JS polyfill. The CSS fallback is sufficient.
 
 ### Background & Shadow
 
-- **Background**: `{surfaces.card}`
-- **Shadow**: `{shadow.sm}` in all default states.
-- **Shadow on hover**: `{shadow.md}` — subtle lift to indicate interactivity (future: copy, share actions).
+- **Nameplate background**: `color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))` — specced in Nameplate Zone above.
+- **Body zone background**: `{surfaces.card}` — the untinted zone below the nameplate containing message content.
+- **Shadow**: Applied on the wrapper element. `{shadow.sm}` in all default states. `{shadow.md}` on hover — subtle lift to indicate interactivity (future: copy, share actions). Shadow values are specced here for discoverability; the authoritative placement is the Bubble wrapper spec above.
 
-### Model Name Header
+### Model Name Label
 
-- **Position**: Top-left of the bubble, inside padding, above message content.
+The model name label now lives inside the nameplate zone — it is not a free-standing header above the message body.
+
+- **Position**: Inside the nameplate zone, second element in the flex row (after the color dot).
 - **Content**: Model display name (e.g. "Claude", "GPT-5.5", "Gemini").
 - **Typography**: `12px`, `font-weight: 600`, `{text.secondary}`, `letter-spacing: 0.04em`, `text-transform: uppercase`.
-- **Margin below header**: `8px` (`{spacing.2}`) between model name and message body.
-- **Color**: `{text.secondary}` — intentionally lower prominence than message content. The left-border accent carries the model identity; the name label is supplementary.
+- **Color**: `{text.secondary}` — intentionally lower prominence than message content. The nameplate tint and dot carry the primary identity signal; the label is supplementary.
+- **No margin between label and body.** Vertical separation between nameplate and body is handled by the nameplate height and body top-padding (`pt-2` / 8px), not by a margin on the label itself.
 
 ### Message Body
 
@@ -58,22 +101,29 @@ The message bubble is the primary content unit. Each model's response is one bub
 ### Error State
 
 - **Trigger**: API call failed, network error, model returned error.
-- **Left border color**: `{semantic.error}` — overrides the model accent color for the duration of the error state.
-- **Background**: `{surfaces.card}` — unchanged. Do not add a red background tint.
-- **Error message**: Displayed in place of or below partial content. Typography: `13px`, `{semantic.error}`, `font-style: italic`.
+- **Nameplate background override**: `color-mix(in srgb, var(--semantic-error) 12%, var(--surface-card))` — replaces the standard accent tint. The wrapper's `--bubble-accent` binding does not apply in error state; Aria overrides the nameplate background class directly when `isError` is true.
+- **Model name label color override**: `{semantic.error}` — overrides the standard `{text.secondary}`.
+- **Warning icon in nameplate**: A `⚠` icon (or equivalent `WarningIcon` SVG at `12px` × `12px`) is prepended before the model name label in the nameplate flex row. Color: `{semantic.error}`. Flex order: dot → warning icon → model name label → timestamp.
+- **Body zone background**: `{surfaces.card}` — unchanged. Do not tint the body zone red.
+- **No left border on error state.** The former mechanism (shift left border to `{semantic.error}`) is removed. The nameplate override is the sole error signal.
+- **Error message**: Displayed in place of or below partial content in the body zone. Typography: `13px`, `{semantic.error}`, `font-style: italic`.
 - **Error message format**: "Error: [short human-readable message]" — e.g. "Error: Request timed out. Check your API key."
 - **Retry affordance**: A small "Retry" text button (`12px`, `{text.secondary}`, underline on hover) appears below the error message. Clicking it resends the last prompt to this model. **Cross-agent dependency: Atlas must expose a retry method. Aria surfaces the button; Atlas handles the request.**
-- **Recovery**: When retry succeeds, the error state clears and the bubble returns to its normal streaming → complete flow.
+- **Recovery**: When retry succeeds, the error state clears and the bubble returns to its normal streaming → complete flow. Nameplate reverts to standard accent tint.
 
 ### User Message Bubble
 
-User message bubbles share all dimension, padding, background, shadow, and state specs from the main Message Bubble spec above. The only differences are the border accent and the absence of a model name header.
+User message bubbles retain the **3px solid left border** identity pattern. They do not use a nameplate zone. This is an intentional cross-paradigm asymmetry: model bubbles identify themselves by source (nameplate with model name and tint), while user bubbles have no source ambiguity and use the simpler border signal.
 
 - **Left border**: `3px solid var(--accent-user)` — fixed. Not determined by any model ID. The border color never changes to a model accent, even on error (user bubbles have no error state).
-- **No model name header.** User bubbles do not show a label above the content. The `var(--accent-user)` border is the sole identity signal. Do not add a "You" label or any other header text.
+- **Border-radius**: `{radius.md}` (8px) on all four corners. User bubbles retain 8px radius — the 12px nameplate radius applies to model bubbles only.
+- **No nameplate zone.** User bubbles do not have a 28px tinted header strip, a model name label, or a color dot.
+- **No "You" label or any other header text.** The `var(--accent-user)` border is the sole identity signal. Do not add any label.
+- **No `overflow: hidden` required** (no nameplate to clip). Standard border-radius behavior applies.
 - **Bug fix note for Aria:** If the current implementation falls through to `var(--accent-claude)` or any other model accent for user bubbles, the fix is to write `border-left: 3px solid var(--accent-user)` explicitly when rendering a user message. There is no `modelId` on a user message — the fallback must not chain to any model accent.
 - **Custom color override**: When the user has set a custom user accent color via `setUserAccentColor()` (Gate), `--accent-user` resolves to their chosen hex via the Pass 2 CSS override. No component-level change needed — the CSS variable handles it automatically.
-- **All other specs** (border-radius, background, shadow, shadow on hover, message body typography, streaming state, reduced-motion behavior) apply identically from the main Message Bubble spec.
+- **Asymmetry rationale**: Model bubbles carry multiple possible sources that users may not recognize by color alone, especially at first use. The nameplate's explicit model name label solves a discoverability problem that user bubbles do not have. Maintaining the left-border pattern for user bubbles avoids adding unnecessary structural complexity (wrapper + overflow-hidden + nameplate zone) to a bubble type that needs only a visual anchor, not a label.
+- **All other specs** (background, shadow, shadow on hover, message body typography, streaming state, reduced-motion behavior) apply identically from the main Message Bubble spec.
 
 ### Ghost Mode State
 
@@ -411,7 +461,7 @@ Not specced for Phase 1. Thread rows have no visible action buttons on hover. Th
 
 | Component | Dependency | Waiting on | Luma's notes |
 |-----------|------------|-----------|-------------|
-| Message Bubble → Retry | Atlas must expose a retry method | Atlas | Aria shows the button; Atlas handles the re-request |
+| Message Bubble → Retry | Atlas must expose a retry method | Atlas | Aria shows the "Retry" button in the bubble body zone; Atlas handles the re-request. On success, nameplate reverts to accent tint. |
 | Input Bar → Stream gating | Atlas must expose a streaming state flag | Atlas | Aria disables send while any model is streaming |
 | Model Pill → Mid-stream deactivation | What happens when a model is deactivated mid-stream | Atlas | Luma's lean: stream completes, then model goes inactive |
 | Ghost Mode indicator | Gate must expose ghost mode state | Gate | Aria reads state; Gate owns the toggle |
