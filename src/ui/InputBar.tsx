@@ -296,6 +296,9 @@ export function InputBar({
       }
       // Reset input value so re-selecting the same file works after removal.
       e.target.value = '';
+      // #319: Return focus to the attach button after the native file dialog closes.
+      // Chrome/Firefox restore focus automatically; Safari does not.
+      requestAnimationFrame(() => attachButtonRef.current?.focus());
     },
     [addFiles],
   );
@@ -582,6 +585,8 @@ export function InputBar({
               className="flex gap-2 overflow-x-auto pb-2"
               role="list"
               aria-label="Pending attachments"
+              aria-live="polite"
+              aria-relevant="additions removals"
             >
               {attachments.map((att, index) => (
                 <div
