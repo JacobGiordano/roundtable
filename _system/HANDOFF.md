@@ -6,14 +6,13 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#312 (Aria)** — Closed. Token count settings were frozen at page-load value because `App.tsx` called `useUserPreferences()` once at mount with no cross-instance notification. Fix: new `usePreferencesSync` hook (`/src/ui/hooks/usePreferencesSync.ts`) using `useSyncExternalStore` + one-time `localStorage.setItem` patch; any preference write now wakes all subscribers. Ada clean.
-
-**#305 (Arch + Gate + Vault + Aria wave)** — Closed. Cross-device setup export/import: exports API keys + custom providers + preferences as plaintext JSON; imports with schema validation, backward compat, and full error surfacing. `TransferSetupPanel` added as Section 5 of `ProviderSettingsPanel`. Ada: zero blockers.
+**#314 (Scout)** — Closed. Integration test for `usePreferencesSync`. 9 tests: reactive update without remount, multiple-subscriber fan-out, subscriber cleanup, `_patched` guard, fast-path equality short-circuit. Key gotcha: jsdom `localStorage` is Proxy-backed — `_patchLocalStorage()` is a no-op in jsdom (not a production bug). Workaround: `vi.resetModules()` + plain-object Storage mock per test. Flint: PASS.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments. Fully specced (2026-06-28). Ready to fire.
 - **#313** — Auto-chain non-linear ordering. Atlas only. Defer until after #285.
+- **#315** — ProviderSettingsPanel sub-section labels should use heading elements. Aria + Ada. Small.
 
 ## Key decisions
 
@@ -23,12 +22,13 @@ Phase 5 — Full gate process active.
 - `readJSONFile()` cancel resolves `null`, not rejection — always check for null before passing to `importSetup`.
 - `SETUP_SCHEMA_VERSION = 1` in `/src/auth/setupExport.ts` — increment on any backward-incompatible shape change; requires new types PR per single-PR rule.
 - Aria imports `exportSetup`/`importSetup` from `@/auth` and `downloadJSON`/`readJSONFile` from `@/storage` — documented cross-agent exceptions.
+- jsdom `localStorage` is Proxy-backed — `_patchLocalStorage()` style patching is a no-op in test env; use `vi.resetModules()` + plain-object Storage mock.
 
 ## What's next
 
-1. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada. Large wave; defer to fresh usage window.
-2. **#313** (auto-chain non-linear) — Atlas only. Smaller; can run solo.
-3. Two follow-up issues filed this session: Scout test for `usePreferencesSync` sync behavior; Ada A2 heading hierarchy in `ProviderSettingsPanel`.
+1. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada. Large wave; needs fresh usage window.
+2. **#315** (heading elements in ProviderSettingsPanel) — Aria + Ada. Small; good warm-up wave.
+3. **#313** (auto-chain non-linear) — Atlas only. Can run solo.
 
 ## Gotchas
 
