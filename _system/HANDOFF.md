@@ -6,7 +6,9 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#318, #319, #320 (Aria + Ada + Flint)** — Closed. Three Ada advisories from Wave 3 batched in one session. aria-live on chips list, Safari focus return after file picker, VisionWarningModal backdrop aria-hidden removed. Ada: PASS (caught #320 naive fix — aria-hidden="true" would hide dialog subtree; correct fix is attribute removal). Flint: PASS.
+**#316, #317 (Scout)** — Closed. Two regression tests added to `/src/tests/regression/auto-chain-shuffle-ordering.test.ts`. #316: asserts `sharedMessages` grows in shuffled step order under `appendToContext: true`. #317: asserts abort signal stops chain at correct shuffled step. 1752 passing (was 1750).
+
+**#318, #319, #320 (Aria + Ada + Flint)** — Closed prior. aria-live on chips, Safari focus return, VisionWarningModal backdrop aria-hidden removed.
 
 ## Key decisions
 
@@ -17,18 +19,16 @@ Phase 5 — Full gate process active.
 - `includeAttachments` on Vault export defaults false; metadata only.
 - Attach button icon: `PhotoIcon` (mountain-in-frame) — not paperclip. Image-only affordance is intentional.
 - VisionWarningModal backdrop: remove `aria-hidden` entirely — do not set to `"true"`. `aria-modal="true"` on the inner panel is the correct suppression mechanism.
-- Bubble presentation redesign: Luma exploring alternatives to 3px left-border pattern. Three proposals (Tinted Field, Nameplate, Chromatic Label) under review. No spec changes yet — awaiting user direction after mockups.
+- Bubble presentation redesign: Nameplate (Proposal B) selected. Luma → Aria wave queued as #322.
 
 ## Open bugs / known issues
 
-- **#316** — Scout: `appendToContext` + shuffle interaction untested (deferred)
-- **#317** — Scout: abort mid-shuffle untested (deferred)
-- **Model row on new chat** — ModelVisibilityBar only renders with 2+ active models; may not appear on fresh conversation. Pre-existing, unconfirmed regression. Investigate before next Aria session.
+- **#323** — Aria: ModelVisibilityBar missing on new conversation (pre-existing, unconfirmed regression)
 
 ## What's next
 
-1. **Bubble redesign** — Luma mockups in review; user to pick direction, then Arch (if types change) + Aria to implement
-2. **#316, #317** — Scout: regression tests (low priority, non-blocking)
+1. **#322** — Luma + Aria + Ada: Nameplate bubble redesign (Luma spec first, then Aria implements)
+2. **#323** — Aria: investigate ModelVisibilityBar on new conversation
 
 ## Gotchas
 
@@ -46,3 +46,4 @@ Phase 5 — Full gate process active.
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
 - Textarea baseline: `py-[3px]` is intentional — counteracts browser-default top padding variance across Chrome/Firefox/Safari
 - VisionWarningModal backdrop: `aria-hidden="true"` hides the dialog subtree — always omit the attribute entirely on the backdrop
+- Scout test setup: `runAutoChain` with `appendToContext` requires `messages: [makeUserMessage(...)]` in the conversation — empty `messages: []` produces invalid assertions (App.tsx pre-appends the user message before calling)
