@@ -231,6 +231,28 @@ function collectingChunkHandler(
   return { handler, getText: () => accumulated };
 }
 
+// ─── Chain step ordering ──────────────────────────────────────────────────────
+
+/**
+ * Returns a new array containing the same elements in a random order.
+ * Uses Fisher-Yates (Knuth) shuffle, seeded by Math.random() at call time.
+ * Called once per pass in runAutoChain so each pass produces an independent
+ * ordering — giving both across-chain and within-chain variation.
+ *
+ * The original array is never mutated; a shallow copy is shuffled in place
+ * and returned.
+ *
+ * Issue #313 — auto-chain non-linear response ordering.
+ */
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 // ─── Routing modes ────────────────────────────────────────────────────────────
 
 /**
@@ -376,7 +398,13 @@ async function runAutoChain(
   let sharedMessages: Message[] = [...initialMessages];
 
   for (let pass = 0; pass < maxPasses; pass++) {
-    for (const step of steps) {
+    // Shuffle the step list independently on each pass (issue #313).
+    // Each pass produces its own random ordering — chains never follow the
+    // deterministic roster order, and multi-pass chains produce non-repeating
+    // sequences (A → C → B → A, not round-robin). shuffleArray always returns
+    // all steps: no model is silenced, only the execution order varies.
+    const passSteps = shuffleArray(steps);
+    for (const step of passSteps) {
       // If the caller aborted, stop dispatching further chain steps silently.
       if (signal?.aborted) return;
 
