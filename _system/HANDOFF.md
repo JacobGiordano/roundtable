@@ -6,13 +6,12 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#314 (Scout)** — Closed. Integration test for `usePreferencesSync`. 9 tests: reactive update without remount, multiple-subscriber fan-out, subscriber cleanup, `_patched` guard, fast-path equality short-circuit. Key gotcha: jsdom `localStorage` is Proxy-backed — `_patchLocalStorage()` is a no-op in jsdom (not a production bug). Workaround: `vi.resetModules()` + plain-object Storage mock per test. Flint: PASS.
+**#315 (Aria + Ada)** — Closed. Replaced 14 `<p>` tags in `ProviderSettingsPanel.tsx` with `<h3>`/`<h4>` elements per WCAG 1.3.1. Heading outline: h2 panel header → h3 sections → h4 sub-forms. No visual change (Tailwind classes untouched). Ada: PASS. Lint + build: PASS.
 
 ## Open bugs / known issues
 
 - **#285** — File attachments. Fully specced (2026-06-28). Ready to fire.
 - **#313** — Auto-chain non-linear ordering. Atlas only. Defer until after #285.
-- **#315** — ProviderSettingsPanel sub-section labels should use heading elements. Aria + Ada. Small.
 
 ## Key decisions
 
@@ -27,8 +26,7 @@ Phase 5 — Full gate process active.
 ## What's next
 
 1. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada. Large wave; needs fresh usage window.
-2. **#315** (heading elements in ProviderSettingsPanel) — Aria + Ada. Small; good warm-up wave.
-3. **#313** (auto-chain non-linear) — Atlas only. Can run solo.
+2. **#313** (auto-chain non-linear) — Atlas only. Can run solo.
 
 ## Gotchas
 
