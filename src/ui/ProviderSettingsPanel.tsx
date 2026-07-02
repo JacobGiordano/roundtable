@@ -710,7 +710,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                 }
               }}
             >
-              <p className="text-[12px] font-medium text-text-secondary mb-3">Edit provider</p>
+              <h4 className="text-[12px] font-medium text-text-secondary mb-3">Edit provider</h4>
               <div className="flex flex-col gap-4">
                 {/* Display name */}
                 <div>
@@ -1362,7 +1362,7 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <p className="text-[12px] font-medium text-text-secondary mb-3">Custom endpoint</p>
+      <h4 className="text-[12px] font-medium text-text-secondary mb-3">Custom endpoint</h4>
       <p className="text-[12px] text-text-muted mb-4">
         Connect any OpenAI-compatible API endpoint.
       </p>
@@ -1922,9 +1922,9 @@ export function ProviderSettingsPanel({
 
         {/* ── Section 1: Configured Providers ──────────────────────────── */}
         <section className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
             Configured providers
-          </p>
+          </h3>
           {roster.length === 0 ? (
             <div className="h-20 flex items-center justify-center rounded-md border border-dashed border-border">
               <p className="text-[13px] text-text-muted text-center">
@@ -1959,12 +1959,12 @@ export function ProviderSettingsPanel({
 
         {/* ── Section 2: Add Built-in Provider ─────────────────────────── */}
         <section className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
             Add a provider
-          </p>
-          <p className="text-[12px] font-medium text-text-secondary mb-2">
+          </h3>
+          <h4 className="text-[12px] font-medium text-text-secondary mb-2">
             Built-in providers
-          </p>
+          </h4>
           {availableBuiltIns.length === 0 ? (
             <p className="text-[13px] text-text-muted">
               All built-in providers are configured.
@@ -2009,12 +2009,12 @@ export function ProviderSettingsPanel({
         {/* ── Section 4: Appearance ─────────────────────────────────────── */}
         {/* Custom theme import — spec: /_design/specs/custom-theme-import.md */}
         <section className="border-t border-border pt-8 mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">
             Appearance
-          </p>
-          <p className="text-[12px] font-medium text-text-secondary mb-2">
+          </h3>
+          <h4 className="text-[12px] font-medium text-text-secondary mb-2">
             Custom theme
-          </p>
+          </h4>
           <p className="text-[12px] font-normal text-text-muted mb-4">
             Import a theme JSON file conforming to the Roundtable token schema.
           </p>
@@ -2024,9 +2024,9 @@ export function ProviderSettingsPanel({
         {/* ── Section 5: Transfer setup ─────────────────────────────────── */}
         {/* Export/import API keys + custom providers + preferences (#305). */}
         <section className="border-t border-border pt-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
             Transfer setup
-          </p>
+          </h3>
           <TransferSetupPanel onRosterRefresh={refreshRoster} />
         </section>
       </div>
