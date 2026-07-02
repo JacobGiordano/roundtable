@@ -31,6 +31,49 @@ import { BUILTIN_MODEL_IDS } from './builtinModelIds';
 
 const ROSTER_STORAGE_KEY = 'roundtable:provider-roster' as const;
 
+// ─── Built-in capabilities ────────────────────────────────────────────────────
+
+/**
+ * Canonical capability declarations for all six built-in providers.
+ *
+ * Gate owns this map. It is the single source of truth for which built-in
+ * providers support vision, streaming usage, tool use, and system prompts.
+ *
+ * Design note: this is an intentional Gate-local copy — not imported from
+ * @/models. Atlas owns its own provider implementations; Gate owns the
+ * persisted ProviderCapabilities used by Aria and Atlas to make request
+ * decisions. The two must agree, but a direct import would create a
+ * cross-boundary dependency that violates agent boundary rules.
+ *
+ * Capabilities are conservative by default: when a built-in does not have
+ * confirmed support for a feature, the field is set to false or omitted so
+ * Atlas never sends unsupported request parameters to that provider.
+ *
+ * Aria reads `config.capabilities?.vision` (from the roster) to show the
+ * pre-send warning modal when the user attaches images to a message
+ * addressed to a non-vision provider. Atlas reads the same field to decide
+ * whether to include image content parts in the request body.
+ *
+ * Typed as Record<BuiltInModelId, ProviderCapabilities> — TypeScript enforces
+ * exhaustiveness at compile time. Adding a new BuiltInModelId to the union
+ * requires adding an entry here; the compiler will error until it is present.
+ */
+const BUILTIN_CAPABILITIES_MAP: Record<BuiltInModelId, ProviderCapabilities> = {
+  // Anthropic Claude: full multimodal + streaming usage + tools + system prompts.
+  'claude': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
+  // OpenAI GPT: full multimodal + streaming usage + tools + system prompts.
+  'gpt-5.5': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
+  // Google Gemini: vision + tools + system prompts; no streamUsage (streaming
+  // token counts not available via the OpenAI-compat endpoint Gate uses).
+  'gemini': { vision: true, streamUsage: false, toolUse: true, systemPrompt: true },
+  // xAI Grok: vision support unconfirmed — conservative default.
+  'grok': { vision: false },
+  // DeepSeek: vision support unconfirmed — conservative default.
+  'deepseek': { vision: false },
+  // Mistral: vision support unconfirmed — conservative default.
+  'mistral': { vision: false },
+};
+
 // ─── Validation helpers ────────────────────────────────────────────────────────
 
 // BUILTIN_MODEL_IDS imported from builtinModelIds.ts — canonical single source.
@@ -148,7 +191,16 @@ function readRoster(): ProviderRoster {
   const result: ProviderRoster = [];
   for (const entry of parsed) {
     if (isValidBuiltInConfig(entry)) {
-      result.push(entry);
+      // Migration: if a stored BuiltInProviderConfig is missing `capabilities`
+      // (e.g. a record written before Wave 2 of issue #285), backfill from
+      // BUILTIN_CAPABILITIES_MAP. This is a transparent on-read upgrade — no
+      // write-back is needed here; the backfilled value is returned in memory
+      // and will be persisted the next time the roster is written.
+      if (entry.capabilities === undefined) {
+        result.push({ ...entry, capabilities: BUILTIN_CAPABILITIES_MAP[entry.modelId] });
+      } else {
+        result.push(entry);
+      }
     } else if (isValidCustomConfig(entry)) {
       result.push(entry);
     }
@@ -250,6 +302,7 @@ export function addBuiltInProvider(modelId: BuiltInModelId): BuiltInProviderConf
     modelId,
     credentialKey: MODEL_CREDENTIAL_MAP[modelId],
     isVisible: true,
+    capabilities: BUILTIN_CAPABILITIES_MAP[modelId],
   };
 
   writeRoster([...roster, newEntry]);

@@ -1,7 +1,15 @@
 /**
  * Gate — providerRoster.test.ts
  *
- * Tests for the `capabilities` field on CustomProviderConfig:
+ * Tests for the `capabilities` field on BuiltInProviderConfig and CustomProviderConfig.
+ *
+ * BuiltInProviderConfig (issue #285 Wave 2):
+ *   - addBuiltInProvider: always populates capabilities from BUILTIN_CAPABILITIES_MAP
+ *   - getProviderRoster (readRoster): backfills capabilities on legacy built-in records
+ *     that were stored without it (transparent on-read migration)
+ *   - getProviderRoster (readRoster): preserves existing capabilities when already set
+ *
+ * CustomProviderConfig:
  *   - addCustomProvider: stores capabilities when provided; omits when absent
  *   - updateCustomProvider: writes capabilities when provided; clears when absent
  *   - getProviderRoster / saveProviderRoster: round-trips capabilities cleanly
@@ -9,18 +17,19 @@
  *     entries where capabilities contains a non-boolean field value
  *
  * Also covers the pre-existing contract that configs stored without `capabilities`
- * continue to load correctly — no migration required.
+ * continue to load correctly — no migration required for custom providers.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  addBuiltInProvider,
   addCustomProvider,
   getProviderById,
   getProviderRoster,
   saveProviderRoster,
   updateCustomProvider,
 } from './providerRoster';
-import type { CustomProviderConfig, ProviderCapabilities } from '@/types';
+import type { BuiltInProviderConfig, CustomProviderConfig, ProviderCapabilities } from '@/types';
 
 // ─── localStorage mock ────────────────────────────────────────────────────────
 
@@ -53,6 +62,198 @@ function minimalInput(overrides: Partial<Parameters<typeof addCustomProvider>[0]
     ...overrides,
   };
 }
+
+// ─── addBuiltInProvider — capabilities from BUILTIN_CAPABILITIES_MAP ─────────
+
+describe('addBuiltInProvider — capabilities field (issue #285 Wave 2)', () => {
+  it('populates capabilities for claude (vision-capable provider)', () => {
+    const entry = addBuiltInProvider('claude');
+    expect(entry.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+
+    const loaded = getProviderById('claude') as BuiltInProviderConfig;
+    expect(loaded.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('populates capabilities for gpt-5.5 (vision-capable provider)', () => {
+    const entry = addBuiltInProvider('gpt-5.5');
+    expect(entry.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('populates capabilities for gemini (streamUsage: false)', () => {
+    const entry = addBuiltInProvider('gemini');
+    expect(entry.capabilities).toEqual({
+      vision: true,
+      streamUsage: false,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('populates capabilities for grok (conservative: vision: false)', () => {
+    const entry = addBuiltInProvider('grok');
+    expect(entry.capabilities).toEqual({ vision: false });
+  });
+
+  it('populates capabilities for deepseek (conservative: vision: false)', () => {
+    const entry = addBuiltInProvider('deepseek');
+    expect(entry.capabilities).toEqual({ vision: false });
+  });
+
+  it('populates capabilities for mistral (conservative: vision: false)', () => {
+    const entry = addBuiltInProvider('mistral');
+    expect(entry.capabilities).toEqual({ vision: false });
+  });
+
+  it('returns the existing entry when the built-in is already in the roster', () => {
+    // First add — creates with capabilities.
+    addBuiltInProvider('claude');
+    // Second add — no-op, returns existing entry.
+    const second = addBuiltInProvider('claude');
+    expect(second.capabilities).toBeDefined();
+    // Only one entry in the roster.
+    expect(getProviderRoster()).toHaveLength(1);
+  });
+});
+
+// ─── readRoster — migration of legacy built-in records ───────────────────────
+
+describe('getProviderRoster — built-in capabilities migration (issue #285 Wave 2)', () => {
+  it('backfills capabilities on a legacy claude record missing the field', () => {
+    // Simulate a pre-Wave-2 stored record — no capabilities field.
+    const legacy = JSON.stringify([
+      {
+        kind: 'builtin',
+        modelId: 'claude',
+        credentialKey: 'anthropic',
+        isVisible: true,
+      },
+    ]);
+    store['roundtable:provider-roster'] = legacy;
+
+    const roster = getProviderRoster();
+    expect(roster).toHaveLength(1);
+    const loaded = roster[0] as BuiltInProviderConfig;
+    expect(loaded.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('backfills capabilities on a legacy gemini record missing the field', () => {
+    const legacy = JSON.stringify([
+      {
+        kind: 'builtin',
+        modelId: 'gemini',
+        credentialKey: 'google',
+        isVisible: true,
+      },
+    ]);
+    store['roundtable:provider-roster'] = legacy;
+
+    const roster = getProviderRoster();
+    const loaded = roster[0] as BuiltInProviderConfig;
+    expect(loaded.capabilities).toEqual({
+      vision: true,
+      streamUsage: false,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('backfills capabilities on a legacy grok record missing the field', () => {
+    const legacy = JSON.stringify([
+      {
+        kind: 'builtin',
+        modelId: 'grok',
+        credentialKey: 'xai',
+        isVisible: true,
+      },
+    ]);
+    store['roundtable:provider-roster'] = legacy;
+
+    const roster = getProviderRoster();
+    const loaded = roster[0] as BuiltInProviderConfig;
+    expect(loaded.capabilities).toEqual({ vision: false });
+  });
+
+  it('preserves existing capabilities when already set on a built-in record', () => {
+    // A record that was already written with capabilities — no backfill should occur.
+    const withCaps = JSON.stringify([
+      {
+        kind: 'builtin',
+        modelId: 'claude',
+        credentialKey: 'anthropic',
+        isVisible: true,
+        capabilities: { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
+      },
+    ]);
+    store['roundtable:provider-roster'] = withCaps;
+
+    const roster = getProviderRoster();
+    expect(roster).toHaveLength(1);
+    const loaded = roster[0] as BuiltInProviderConfig;
+    // Should be the stored value, not a re-derived one (same here, but verifies the branch).
+    expect(loaded.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+  });
+
+  it('backfills capabilities correctly when the roster contains both built-in and custom entries', () => {
+    const mixed = JSON.stringify([
+      {
+        kind: 'builtin',
+        modelId: 'gpt-5.5',
+        credentialKey: 'openai',
+        isVisible: true,
+        // no capabilities — should be backfilled
+      },
+      {
+        kind: 'custom',
+        id: 'custom:ollama',
+        displayName: 'Ollama',
+        endpointUrl: 'http://localhost:11434/v1/chat/completions',
+        modelString: 'llama3',
+        // no capabilities — custom providers are NOT backfilled
+      },
+    ]);
+    store['roundtable:provider-roster'] = mixed;
+
+    const roster = getProviderRoster();
+    expect(roster).toHaveLength(2);
+
+    const builtin = roster.find((p) => p.kind === 'builtin') as BuiltInProviderConfig;
+    expect(builtin.capabilities).toEqual({
+      vision: true,
+      streamUsage: true,
+      toolUse: true,
+      systemPrompt: true,
+    });
+
+    const custom = roster.find((p) => p.kind === 'custom') as CustomProviderConfig;
+    // Custom providers are not migrated — absence stays absent.
+    expect(custom.capabilities).toBeUndefined();
+  });
+});
 
 // ─── addCustomProvider — capabilities field ───────────────────────────────────
 
