@@ -1,4 +1,4 @@
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ## Current phase
 
@@ -6,27 +6,27 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#315 (Aria + Ada)** — Closed. Replaced 14 `<p>` tags in `ProviderSettingsPanel.tsx` with `<h3>`/`<h4>` elements per WCAG 1.3.1. Heading outline: h2 panel header → h3 sections → h4 sub-forms. No visual change (Tailwind classes untouched). Ada: PASS. Lint + build: PASS.
+**#313 (Atlas + Scout)** — Closed. Fisher-Yates shuffle added to `runAutoChain` in `sendMessage.ts` — each pass now iterates over `shuffleArray(steps)` independently. 5 regression tests added in `/src/tests/regression/auto-chain-shuffle-ordering.test.ts`. Flint: PASS.
 
-## Open bugs / known issues
-
-- **#285** — File attachments. Fully specced (2026-06-28). Ready to fire.
-- **#313** — Auto-chain non-linear ordering. Atlas only. Defer until after #285.
+**#285 Wave 1 (Arch)** — Types landed. `Attachment` interface, `Message.attachments?`, `SendMessageOptions.attachments?`, and `BuiltInProviderConfig.capabilities?` all in `/src/types/index.ts`. Wave 2 unblocked.
 
 ## Key decisions
 
-- `usePreferencesSync` is the correct hook for any UI component that needs reactive Gate preferences — do not use `useUserPreferences()` in App.tsx or context providers.
+- `BuiltInProviderConfig.capabilities?: ProviderCapabilities` added — symmetric with `CustomProviderConfig`. Gate populates it from BUILTIN_META for all 6 built-ins (+ migration on roster read). Aria checks `config.capabilities?.vision` uniformly across both provider kinds for the pre-send warning.
+- **Wave 2 is Atlas + Vault + Gate in parallel** (Gate added — must populate `capabilities` on built-ins before Aria can show vision warning correctly).
+- `usePreferencesSync` is the correct hook for reactive Gate preferences — do not use `useUserPreferences()` in App.tsx.
 - `BUILTIN_META` in `ProviderSettingsPanel` is an intentional local copy — do not import from `@/models`.
-- `importSetup()` accepts `unknown` (not `SetupExport`) — Gate validates shape at runtime.
-- `readJSONFile()` cancel resolves `null`, not rejection — always check for null before passing to `importSetup`.
-- `SETUP_SCHEMA_VERSION = 1` in `/src/auth/setupExport.ts` — increment on any backward-incompatible shape change; requires new types PR per single-PR rule.
-- Aria imports `exportSetup`/`importSetup` from `@/auth` and `downloadJSON`/`readJSONFile` from `@/storage` — documented cross-agent exceptions.
-- jsdom `localStorage` is Proxy-backed — `_patchLocalStorage()` style patching is a no-op in test env; use `vi.resetModules()` + plain-object Storage mock.
+
+## Open bugs / known issues
+
+- **#316** — Scout: `appendToContext` + shuffle interaction untested (deferred, not a blocker)
+- **#317** — Scout: abort mid-shuffle untested (deferred, low risk)
 
 ## What's next
 
-1. **#285** (file attachments) — Arch → Atlas + Vault (parallel) → Aria → Ada. Large wave; needs fresh usage window.
-2. **#313** (auto-chain non-linear) — Atlas only. Can run solo.
+1. **#285 Wave 2** — Atlas + Vault + Gate in parallel. Atlas: extend provider formatters for image content parts, read `capabilities.vision` per-provider. Vault: add `includeAttachments` export flag. Gate: populate `capabilities` in BUILTIN_META for all 6 built-ins, migrate existing `BuiltInProviderConfig` records on roster read.
+2. **#285 Wave 3** — Aria: all UI (attach button, drag-drop, clipboard paste, thumbnail chips, pre-send warning modal).
+3. **#285 Wave 4** — Ada + Flint gate.
 
 ## Gotchas
 
@@ -61,3 +61,5 @@ Phase 5 — Full gate process active.
 - `readJSONFile()` resolves `null` on user cancel — always null-check before passing to `importSetup`
 - `importSetup()` accepts `unknown` not `SetupExport` — internal validation; pass raw parsed JSON directly
 - `usePreferencesSync` (not `useUserPreferences`) for any reactive preference reads in UI components
+- `Attachment.base64` is raw — no `data:` URL prefix; providers must prepend `data:<mimeType>;base64,` when needed
+- `BuiltInProviderConfig.capabilities` is optional — absence = conservative defaults (`vision: false`); Gate must populate for all 6 built-ins on roster init + migrate existing records
