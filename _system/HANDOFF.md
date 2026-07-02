@@ -6,7 +6,7 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#321 (Luma + Aria + Ada + Flint)** — Closed. PhotoIcon replaces PaperclipIcon on the attach button. Attach button reordered left of textarea. Textarea baseline aligned with buttons via `py-[3px]`. Touch target confirmed WCAG 2.5.5. Tooltip re-anchored left. Ada: PASS. Flint: PASS.
+**#318, #319, #320 (Aria + Ada + Flint)** — Closed. Three Ada advisories from Wave 3 batched in one session. aria-live on chips list, Safari focus return after file picker, VisionWarningModal backdrop aria-hidden removed. Ada: PASS (caught #320 naive fix — aria-hidden="true" would hide dialog subtree; correct fix is attribute removal). Flint: PASS.
 
 ## Key decisions
 
@@ -15,20 +15,19 @@ Phase 5 — Full gate process active.
 - `Attachment.base64` stored raw; prefix added only at `<img src>` and API boundaries.
 - `getProviderRoster()` from `@/auth` in `InputBar.tsx` — documented cross-agent exception.
 - `includeAttachments` on Vault export defaults false; metadata only.
-- Ada advisories deferred: #318 (aria-live on chips), #319 (Safari file picker focus return), #320 (modal backdrop aria-hidden).
 - Attach button icon: `PhotoIcon` (mountain-in-frame) — not paperclip. Image-only affordance is intentional.
+- VisionWarningModal backdrop: remove `aria-hidden` entirely — do not set to `"true"`. `aria-modal="true"` on the inner panel is the correct suppression mechanism.
+- Bubble presentation redesign: Luma exploring alternatives to 3px left-border pattern. Three proposals (Tinted Field, Nameplate, Chromatic Label) under review. No spec changes yet — awaiting user direction after mockups.
 
 ## Open bugs / known issues
 
 - **#316** — Scout: `appendToContext` + shuffle interaction untested (deferred)
 - **#317** — Scout: abort mid-shuffle untested (deferred)
-- **#318** — Aria: chips list missing `aria-live` (Ada advisory)
-- **#319** — Aria: Safari file picker focus return not guaranteed (Ada advisory)
-- **#320** — Aria: VisionWarningModal backdrop `aria-hidden` value incorrect (Ada advisory)
+- **Model row on new chat** — ModelVisibilityBar only renders with 2+ active models; may not appear on fresh conversation. Pre-existing, unconfirmed regression. Investigate before next Aria session.
 
 ## What's next
 
-1. **#318, #319, #320** — Aria: batch all three Ada advisories in one session (Aria + Ada fixed cost)
+1. **Bubble redesign** — Luma mockups in review; user to pick direction, then Arch (if types change) + Aria to implement
 2. **#316, #317** — Scout: regression tests (low priority, non-blocking)
 
 ## Gotchas
@@ -46,3 +45,4 @@ Phase 5 — Full gate process active.
 - `emitErrorChunk` mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks silently dropped
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
 - Textarea baseline: `py-[3px]` is intentional — counteracts browser-default top padding variance across Chrome/Firefox/Safari
+- VisionWarningModal backdrop: `aria-hidden="true"` hides the dialog subtree — always omit the attribute entirely on the backdrop
