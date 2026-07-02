@@ -6,16 +6,17 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#285 (Atlas + Gate + Vault + Scout + Aria + Ada + Flint)** — Closed. Full file-attachment feature across 4 waves. Flint: PASS.
+**#321 (Luma + Aria + Ada + Flint)** — Closed. PhotoIcon replaces PaperclipIcon on the attach button. Attach button reordered left of textarea. Textarea baseline aligned with buttons via `py-[3px]`. Touch target confirmed WCAG 2.5.5. Tooltip re-anchored left. Ada: PASS. Flint: PASS.
 
 ## Key decisions
 
-- `BUILTIN_CAPABILITIES_MAP` in `providerRoster.ts` is canonical for built-in capabilities. Gate populates on creation and backfills on roster read. Claude/GPT: full vision. Gemini: vision ✓ streamUsage ✗. Grok/DeepSeek/Mistral: vision ✗ (conservative).
-- `stripAttachments()` in `sendMessage.ts` — non-vision providers never see attachment data. Stripping at Atlas dispatch, not at UI layer.
-- `Attachment.base64` stored raw (no `data:` prefix) everywhere. Prefix added only at `<img src>` and API boundaries (OpenAI/generic). Anthropic and Gemini expect raw.
-- `getProviderRoster()` from `@/auth` in `InputBar.tsx` — documented cross-agent exception for send-time vision check.
-- `includeAttachments` on Vault export defaults false; metadata only (name, mimeType) — no base64 in exports.
+- `BUILTIN_CAPABILITIES_MAP` in `providerRoster.ts` is canonical for built-in capabilities.
+- `stripAttachments()` in `sendMessage.ts` — non-vision providers never see attachment data.
+- `Attachment.base64` stored raw; prefix added only at `<img src>` and API boundaries.
+- `getProviderRoster()` from `@/auth` in `InputBar.tsx` — documented cross-agent exception.
+- `includeAttachments` on Vault export defaults false; metadata only.
 - Ada advisories deferred: #318 (aria-live on chips), #319 (Safari file picker focus return), #320 (modal backdrop aria-hidden).
+- Attach button icon: `PhotoIcon` (mountain-in-frame) — not paperclip. Image-only affordance is intentional.
 
 ## Open bugs / known issues
 
@@ -28,7 +29,7 @@ Phase 5 — Full gate process active.
 ## What's next
 
 1. **#318, #319, #320** — Aria: batch all three Ada advisories in one session (Aria + Ada fixed cost)
-2. **#316, #317** — Scout: auto-chain regression tests (low priority, non-blocking)
+2. **#316, #317** — Scout: regression tests (low priority, non-blocking)
 
 ## Gotchas
 
@@ -37,11 +38,11 @@ Phase 5 — Full gate process active.
 - `Attachment.base64` is raw — add `data:<mimeType>;base64,` prefix only at render/API boundary
 - `getProviderRoster()` from `@/auth` permitted in `InputBar.tsx` for vision check — documented exception
 - `usePreferencesSync` (not `useUserPreferences`) for reactive Gate preferences
-- Parallel agent worktrees: `main` may be locked in a stale worktree — check `git worktree list` before checkout
-- `BuiltInProviderConfig.capabilities` absence = conservative defaults (`vision: false`) — Gate migration handles old records
+- `BuiltInProviderConfig.capabilities` absence = conservative defaults (`vision: false`)
 - `aria-disabled` not `disabled` for buttons needing tooltip discoverability
 - Double-rAF for focus restoration after React unmount; single rAF for conditional mount
 - `inert` and `aria-hidden` must always be controlled by the same boolean
 - `var(--semantic-error)` not `var(--error)` for error colors in inline styles
 - `emitErrorChunk` mandatory for all error paths in `/src/models/` — bare `{ isDone: true, error }` chunks silently dropped
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
+- Textarea baseline: `py-[3px]` is intentional — counteracts browser-default top padding variance across Chrome/Firefox/Safari
