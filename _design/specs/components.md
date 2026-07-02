@@ -147,7 +147,20 @@ Used in the model selector panel and as active-model indicators. Compact represe
 
 ## 3. Input Bar
 
-The primary user input surface. Fixed to the bottom of the conversation column. Contains the text input, send button, and ghost mode indicator.
+The primary user input surface. Fixed to the bottom of the conversation column. Contains the text input, send button, ghost mode indicator, and attach button (image-only, issue #285).
+
+### Input Row Element Order
+
+The main input row renders left-to-right in this order:
+
+1. **Ghost mode icon** — shown only when ghost mode is active. Leftmost element.
+2. **Attach button** — shown always except during edit mode. Appears immediately after the ghost icon (or at the leftmost position when ghost mode is off).
+3. **Textarea** — fills remaining space.
+4. **Stop button** (streaming) or **Send button** — rightmost element.
+
+This matches the ChatGPT/Claude.ai/Gemini left-anchor pattern: secondary compose controls on the left, primary action on the right.
+
+**When both ghost mode icon and attach button are present** (ghost mode active, not in edit mode): the two left-anchored icons each carry a 44px minimum touch target and render adjacently before the textarea. This is an intentional, tested two-icon state. On narrow mobile viewports this reduces textarea width; this is acceptable — both controls are necessary and the layout is consistent with the industry pattern.
 
 ### Container Dimensions & Layout
 
@@ -194,11 +207,70 @@ The primary user input surface. Fixed to the bottom of the conversation column. 
 ### Ghost Mode Indicator
 
 - **Ghost mode** = conversation is ephemeral, not persisted to storage.
-- **Position**: Left side of the input bar, vertically centered with the first line of text. `8px` (`{spacing.2}`) from the left edge of the container, before the textarea.
-- **Visual**: A ghost icon (👻 not appropriate for code — use an SVG ghost outline, `16px` × `16px`). The icon uses `{text.muted}` as its fill/stroke.
-- **Tooltip**: On hover, shows "Ghost mode — this conversation won't be saved" in a standard tooltip. Tooltip uses `{surfaces.sidebar}` background, `{text.primary}` text, `{borders.default}` border, `{radius.sm}` corners, `10px` font, `8px` vertical padding, `12px` horizontal padding.
+- **Position**: Leftmost element in the input row, vertically centered with the first line of text. `8px` (`{spacing.2}`) from the left edge of the container, before the attach button and textarea.
+- **Visual**: A ghost icon (SVG ghost outline, `16px` × `16px`). The icon uses `{text.muted}` as its fill/stroke.
+- **Tooltip**: On hover (600ms delay) or focus (immediate), shows "Ghost mode — this conversation won't be saved" in a standard tooltip. Tooltip uses `{surfaces.sidebar}` background, `{text.primary}` text, `{borders.default}` border, `{radius.sm}` corners, `10px` font, `8px` vertical padding, `12px` horizontal padding. Tooltip positioned above the icon, left-anchored.
 - **When ghost mode is OFF**: The icon is not shown. No indicator — the default state is persistent, and absence of the indicator communicates persistence.
 - **Toggle**: Ghost mode is toggled via a setting (Gate owns this). The input bar reflects but does not control ghost mode. Aria subscribes to the ghost mode state from Gate's API.
+
+### Attach Button (Image Attachments — issue #285)
+
+Allows users to attach images to a message via file picker. Drag-and-drop and clipboard paste are alternative entry points handled at the container level; this button is the primary explicit affordance.
+
+- **Position**: Left of the textarea, right of the ghost icon (if present). See Input Row Element Order above.
+- **Visibility**: Hidden during edit mode (`editingMessage` prop set). Always shown otherwise.
+- **Icon**: `PhotoIcon` — mountain-in-frame silhouette, `16px` × `16px`. **Not** a paperclip — the paperclip implies any file type; this button accepts images only. The icon must visually communicate "image" not "generic attachment." See pending icon spec below.
+- **Touch target**: `min-width: 44px`, `min-height: 44px` (WCAG 2.5.5). The visual button size is `36px` × `36px` with `border-radius: {radius.md}` (8px) — the touch target extends beyond the visual bounds via min-width/min-height.
+- **Color (enabled)**: `{text.muted}`. Hover: `{text.secondary}` + `{interactive.hover}` background.
+- **Color (ghost mode disabled)**: `{text.muted}` at `opacity: 0.5`. `cursor: not-allowed`.
+- **Disabled state in ghost mode**: Use `aria-disabled="true"` (not the HTML `disabled` attribute) so the button remains keyboard-focusable and the tooltip is reachable by screen reader users. Click no-ops when `aria-disabled`.
+- **Tooltip in ghost mode**: "Attachments aren't saved in ghost mode." 600ms hover delay, immediate on focus. Positioned above the button, left-anchored. Same tooltip spec as Ghost Mode Indicator.
+- **Accepted formats**: `image/jpeg`, `image/png`, `image/gif`, `image/webp`. Enforced at the file input `accept` attribute. This is the full set — do not expand without a spec update.
+- **Max attachments**: enforced by `useAttachments` hook. Current limit is defined there; the spec does not hard-code the limit so the hook remains the single source of truth.
+- **Transition**: `timing.fast` on color and background changes.
+- **Focus ring**: `2px solid {interactive.focusRing}`, `1px offset`.
+
+#### Pending icon spec — `PhotoIcon`
+
+The current implementation uses `PaperclipIcon`. This is a spec divergence flagged in the design review (2026-07-02). The correct icon is `PhotoIcon`. A future Aria session must:
+
+1. Add `PhotoIcon` to `/src/ui/icons/index.tsx` with this SVG spec:
+   - ViewBox: `0 0 16 16`, default size `16`
+   - Stroke: `currentColor`, `strokeWidth: 1.4`, `strokeLinecap: round`, `strokeLinejoin: round`, fill: none
+   - Frame: rounded rectangle `x=1.5, y=2.5, width=13, height=11, rx=2`
+   - Mountain peaks: path `M1.5 10.5 L5 7 L8.5 10.5 L11 8 L14.5 10.5`
+   - Sun circle: `cx=11.5, cy=5.5, r=1.25` (stroke only)
+2. Remove `PaperclipIcon` if it has no other usages.
+3. Update `InputBar.tsx` to import and use `PhotoIcon` in place of `PaperclipIcon`.
+
+### Attachment Chips Row
+
+Rendered above the main input row when one or more images are pending. Below any directed-reply pill or edit-mode banner.
+
+- **Layout**: Horizontal flex row, `gap: 8px`, `overflow-x: auto`.
+- **Container background**: `{surfaces.input}`. Left and right borders `{borders.default}`. No top border if another section (pill, edit banner) is already rendering above. Top border + top-left/top-right `{radius.lg}` rounding if this is the topmost section.
+- **Padding**: `12px` horizontal, `8px` top, `8px` bottom.
+
+#### Chip
+
+- **Height**: `40px`. `border-radius: {radius.md}`. `padding-left: 6px`, `padding-right: 8px`.
+- **Max-width**: `160px`. Title truncates with ellipsis.
+- **Background + border**: `color-mix(in srgb, var(--accent-user) 15%, transparent)` background; `color-mix(in srgb, var(--accent-user) 40%, transparent)` border. This follows the chip pattern: border 40% tint, background 15% tint.
+- **Contents**: Thumbnail image (28px × 28px, `border-radius: {radius.sm}`, `object-fit: cover`) + filename or MIME type label (`12px`, `{text.secondary}`) + remove button.
+- **Remove button**: `20px` × `20px`, `border-radius: {radius.full}`. `SmallCloseIcon` at 7px. Hover: `rgba(0,0,0,0.15)` background. Focus ring standard.
+- **Keyboard**: `Delete` or `Backspace` on the remove button removes the chip. Focus moves to the previous chip's remove button, or to the attach button if this was the first chip.
+
+#### Attachment error
+
+- `font-size: 12px`, color `{semantic.error}`, `role="alert"`. Inline "Dismiss" text button (underline, same size) clears the error.
+
+### Drag-and-Drop Zone
+
+The entire InputBar container is a drop zone when the user drags files over it.
+
+- **Drag-over overlay**: An absolutely-positioned overlay covering the full InputBar area. `border: 2px dashed {borders.strong}`. `background: color-mix(in srgb, var(--accent-user) 8%, transparent)`. `border-radius: {radius.lg}` on top corners. Centered text label: "Drop images here" (`13px`, `font-weight: 500`, `{text.secondary}`). `pointer-events: none` so it does not intercept the drop event.
+- **Drag-over state**: Managed via counter (increment on `dragenter`, decrement on `dragleave`) to prevent flickering when the pointer crosses child elements.
+- **Ghost mode**: Drop events no-op in ghost mode. The overlay still shows (the user dragged over the zone) but no files are processed.
 
 ---
 

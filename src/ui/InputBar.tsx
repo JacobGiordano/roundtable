@@ -703,6 +703,62 @@ export function InputBar({
               : ''}
           </span>
 
+          {/* Attach button (#285) — opens the file picker.
+              Hidden during edit mode (edits don't carry new attachments).
+              aria-disabled (not disabled) in ghost mode so the tooltip is keyboard-reachable
+              and screen readers announce the disabled state. Click no-ops when aria-disabled. */}
+          {!editingMessage && (
+            <div
+              className="relative flex-shrink-0 self-end"
+              onMouseEnter={handleAttachMouseEnter}
+              onMouseLeave={handleAttachMouseLeave}
+            >
+              <button
+                ref={attachButtonRef}
+                type="button"
+                onClick={handleAttachClick}
+                aria-label="Attach images"
+                aria-disabled={isGhostMode ? 'true' : undefined}
+                aria-describedby={isGhostMode ? attachTooltipId : undefined}
+                onFocus={() => { if (isGhostMode) setIsAttachTooltipVisible(true); }}
+                onBlur={() => setIsAttachTooltipVisible(false)}
+                className={[
+                  'flex items-center justify-center',
+                  'w-9 h-9 min-w-[44px] min-h-[44px] rounded-md',
+                  isGhostMode
+                    ? 'text-text-muted opacity-50 cursor-not-allowed'
+                    : 'text-text-muted hover:text-text-secondary hover:bg-hover cursor-pointer',
+                  'transition-[color,background-color,opacity] duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                <PaperclipIcon size={16} />
+              </button>
+
+              {/* Tooltip for the ghost-mode-disabled attach button — 600ms hover delay,
+                  immediate on focus. Explains why attachment is unavailable. */}
+              {isGhostMode && (
+                <div
+                  id={attachTooltipId}
+                  role="tooltip"
+                  className={[
+                    'absolute bottom-full left-0 mb-2 w-max max-w-[200px]',
+                    'bg-sidebar border border-border rounded-sm shadow-md',
+                    'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
+                    'pointer-events-none transition-opacity duration-fast z-20',
+                    isAttachTooltipVisible ? 'opacity-100' : 'opacity-0',
+                  ].join(' ')}
+                >
+                  Attachments aren't saved in ghost mode
+                  <span
+                    className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Textarea */}
           <textarea
             ref={textareaRef}
@@ -728,62 +784,6 @@ export function InputBar({
             aria-label="Message input"
             aria-multiline="true"
           />
-
-          {/* Attach button (#285) — opens the file picker.
-              Hidden during edit mode (edits don't carry new attachments).
-              aria-disabled (not disabled) in ghost mode so the tooltip is keyboard-reachable
-              and screen readers announce the disabled state. Click no-ops when aria-disabled. */}
-          {!editingMessage && (
-            <div
-              className="relative flex-shrink-0 self-end"
-              onMouseEnter={handleAttachMouseEnter}
-              onMouseLeave={handleAttachMouseLeave}
-            >
-              <button
-                ref={attachButtonRef}
-                type="button"
-                onClick={handleAttachClick}
-                aria-label="Attach images"
-                aria-disabled={isGhostMode ? 'true' : undefined}
-                aria-describedby={isGhostMode ? attachTooltipId : undefined}
-                onFocus={() => { if (isGhostMode) setIsAttachTooltipVisible(true); }}
-                onBlur={() => setIsAttachTooltipVisible(false)}
-                className={[
-                  'flex items-center justify-center',
-                  'w-9 h-9 rounded-md',
-                  isGhostMode
-                    ? 'text-text-muted opacity-50 cursor-not-allowed'
-                    : 'text-text-muted hover:text-text-secondary hover:bg-hover cursor-pointer',
-                  'transition-[color,background-color,opacity] duration-fast',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-                ].join(' ')}
-              >
-                <PaperclipIcon size={16} />
-              </button>
-
-              {/* Tooltip for the ghost-mode-disabled attach button — 600ms hover delay,
-                  immediate on focus. Explains why attachment is unavailable. */}
-              {isGhostMode && (
-                <div
-                  id={attachTooltipId}
-                  role="tooltip"
-                  className={[
-                    'absolute bottom-full right-0 mb-2 w-max max-w-[200px]',
-                    'bg-sidebar border border-border rounded-sm shadow-md',
-                    'px-3 py-2 text-[11px] leading-[1.4] text-text-primary',
-                    'pointer-events-none transition-opacity duration-fast z-20',
-                    isAttachTooltipVisible ? 'opacity-100' : 'opacity-0',
-                  ].join(' ')}
-                >
-                  Attachments aren't saved in ghost mode
-                  <span
-                    className="absolute top-full right-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
-                    aria-hidden="true"
-                  />
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Stop button (streaming) / Send button */}
           {isStreaming && onStopMessage ? (
