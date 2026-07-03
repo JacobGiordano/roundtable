@@ -461,7 +461,7 @@ export function MessageThread({
                 return (
                   <div
                     key={message.id}
-                    className={isNewModel ? 'mt-2' : ''}
+                    className={isNewModel ? 'flex flex-col mt-2' : 'flex flex-col'}
                   >
                     <MessageBubble
                       message={message}
