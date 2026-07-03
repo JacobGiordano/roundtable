@@ -412,46 +412,53 @@ export function MessageBubble({
   // Row opacity: 'always' → always visible; 'active'/'never' → hover-controlled.
   const rowVisible = tokenCountVisibility === 'always' ? true : isHovered;
 
-  // ─── Copy button (shared by both bubble types) ────────────────────────────
+  // ─── Nameplate copy button factory ──────────────────────────────────────
+  // Returns a copy button styled for nameplate flow (not absolute-positioned).
+  // Used in both assistant and user nameplates.
+  // additionalClassName: pass 'ml-4' on the first button after a name/dot to add breathing room.
 
-  const copyButton = message.content && !(hasError && message.content === 'Error') ? (
-    <button
-      type="button"
-      onClick={handleCopy}
-      aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
-      className={[
-        'absolute top-2 right-2 z-10',
-        'w-7 h-7 rounded flex items-center justify-center',
-        'text-text-secondary',
-        copyState === 'copied'
-          ? 'opacity-100 text-success'
-          : 'hover:bg-hover hover:text-text-primary',
-        'transition-opacity transition-colors duration-fast',
-        isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-      ].join(' ')}
-    >
-      {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
-    </button>
-  ) : null;
+  function NameplateCopyButton({ additionalClassName = '' }: { additionalClassName?: string }) {
+    if (!message.content || (hasError && message.content === 'Error')) return null;
+    return (
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
+        className={[
+          additionalClassName,
+          'p-0.5 rounded flex items-center justify-center shrink-0',
+          'text-text-secondary',
+          copyState === 'copied'
+            ? 'text-success'
+            : 'hover:bg-hover hover:text-text-primary',
+          'transition-opacity transition-colors duration-fast',
+          isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+        ].join(' ')}
+      >
+        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+      </button>
+    );
+  }
 
   // ─── Assistant (model) bubble — nameplate design (#322) ──────────────────
   //
   // Structure:
-  //   outer container (relative, --bubble-accent, bubble-entering, hover listeners)
+  //   outer container (relative, --bubble-accent, bubble-entering, drop-shadow, hover listeners)
   //   ├── tail (absolute, left side, points left ◄, CSS border trick)
-  //   └── wrapper (rounded-[12px] overflow-hidden, relative for copy button)
-  //       ├── copy button (absolute, z-10 above nameplate)
+  //   └── wrapper (rounded-[12px] overflow-hidden — no shadow, shadow is on outer container)
   //       ├── nameplate zone (28px, tinted background)
   //       │   ├── model color dot
   //       │   ├── [error] warning icon
-  //       │   ├── model name label
-  //       │   └── timestamp (right-aligned)
+  //       │   ├── model name label (truncate min-w-0)
+  //       │   ├── copy button (in flow, opacity-0 at rest, ml-4 spacer)
+  //       │   └── timestamp (ml-auto, right-aligned)
   //       └── body zone (bg-card, message content + error + bottom row)
   //
   // The tail MUST be a sibling of the wrapper — not a child.
   // The wrapper's overflow:hidden would clip a child that protrudes left.
   // --bubble-accent is on the outer container so the tail can inherit it.
+  // drop-shadow on outer container follows rendered pixel shape including the tail.
 
   if (message.role === 'assistant') {
     // Directed-reply affordance — available on completed assistant bubbles with known modelId.
@@ -467,6 +474,10 @@ export function MessageBubble({
         className={[
           'relative max-w-[85%] self-start',
           'bubble-entering',
+          // Fix #322: drop-shadow on outer container so the tail triangle is included
+          // in the shadow shape. box-shadow on the inner wrapper (which has overflow:hidden)
+          // left the tail unshadowed. filter:drop-shadow() follows rendered pixel shape.
+          'drop-shadow-sm hover:drop-shadow-md transition-[filter] duration-fast',
         ].join(' ')}
         style={{
           animationDelay: entranceDelay,
@@ -491,21 +502,16 @@ export function MessageBubble({
         />
 
         {/* Bubble wrapper — overflow:hidden clips nameplate tint at rounded corners.
-            relative is required here for copy button absolute positioning.
+            Shadow moved to outer container (drop-shadow) so the tail sibling is also shadowed.
             streaming-shimmer + data-model on wrapper so the ::after shimmer bar
             renders at the correct bottom edge of the card (not the outer container). */}
         <div
           className={[
-            'relative rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
-            'transition-shadow duration-fast',
+            'relative rounded-[12px] overflow-hidden',
             isStreaming ? 'streaming-shimmer' : '',
           ].join(' ')}
           data-model={getModelDataAttr(message.modelId)}
         >
-        {/* Copy button — absolute at top-right, z-10 so it appears above nameplate content.
-            Revealed on hover or keyboard focus (focus-visible). Always in accessibility tree
-            so keyboard users can reach it via Tab. */}
-        {copyButton}
 
         {/* ── Nameplate zone ─────────────────────────────────────────────────
             28px fixed-height strip at the top of the card. Background is a
@@ -536,15 +542,22 @@ export function MessageBubble({
           )}
 
           {/* Model name label — uppercase, semibold, secondary color.
+              min-w-0 enables truncation in flex context (flex items default to min-w: auto
+              which prevents overflow from triggering ellipsis). truncate handles the rest.
               In error state the label switches to semantic-error color. */}
           <span
             className={[
-              'text-[12px] font-semibold uppercase tracking-[0.04em] truncate',
+              'text-[12px] font-semibold uppercase tracking-[0.04em] truncate min-w-0',
               hasError ? 'text-error' : 'text-text-secondary',
             ].join(' ')}
           >
             {modelConfig?.name ?? message.modelId ?? 'Model'}
           </span>
+
+          {/* Copy button — in nameplate flow, to the left of timestamp.
+              ml-4 provides breathing room between model name and button.
+              opacity-0 at rest; visible on hover or keyboard focus. */}
+          <NameplateCopyButton additionalClassName="ml-4" />
 
           {/* Timestamp — right-aligned via ml-auto. Uses the same relative format
               as the sidebar thread timestamp (formatRelativeTime). */}
@@ -647,15 +660,17 @@ export function MessageBubble({
   //
   // User bubbles now use the same nameplate wrapper structure as model bubbles.
   // Differences from model bubbles: no dot, no name label — nameplate contains
-  // timestamp only. No left border. --bubble-accent = var(--accent-user).
+  // copy button, edit button, and timestamp only. No left border.
+  // --bubble-accent = var(--accent-user).
   //
   // Structure:
-  //   outer container (relative, --bubble-accent: var(--accent-user), bubble-entering)
+  //   outer container (relative, --bubble-accent: var(--accent-user), bubble-entering, drop-shadow)
   //   ├── tail (absolute, right side, points right ►, CSS border trick)
-  //   └── wrapper (rounded-[12px] overflow-hidden, relative for action buttons)
-  //       ├── edit button (absolute, top-right area)
-  //       ├── copy button (absolute, top-right corner)
-  //       ├── nameplate zone (28px, tinted background, timestamp only)
+  //   └── wrapper (rounded-[12px] overflow-hidden — no shadow, shadow is on outer container)
+  //       ├── nameplate zone (28px, tinted background)
+  //       │   ├── copy button (ml-4 left spacer, opacity-0 at rest)
+  //       │   ├── edit button (opacity-0 at rest, user messages only)
+  //       │   └── timestamp (ml-auto, right-aligned)
   //       └── body zone (bg-card, message content + target label + token count)
   //
   // Token step 1 — --accent-user: confirmed in tailwind.config.js line 34.
@@ -668,6 +683,9 @@ export function MessageBubble({
       className={[
         'relative max-w-[85%] self-end',
         'bubble-entering',
+        // Fix #322: drop-shadow on outer container so the tail triangle is included
+        // in the shadow shape (same reasoning as assistant bubble above).
+        'drop-shadow-sm hover:drop-shadow-md transition-[filter] duration-fast',
       ].join(' ')}
       style={{
         animationDelay: entranceDelay,
@@ -691,47 +709,47 @@ export function MessageBubble({
       />
 
       {/* Bubble wrapper — overflow:hidden clips nameplate tint at rounded corners.
-          relative is required here for edit/copy button absolute positioning.
+          Shadow moved to outer container (drop-shadow) so the tail sibling is also shadowed.
           streaming-shimmer + data-model on wrapper so the ::after shimmer bar
           renders at the correct bottom edge of the card. */}
       <div
         className={[
-          'relative rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
-          'transition-shadow duration-fast',
+          'relative rounded-[12px] overflow-hidden',
           isStreaming ? 'streaming-shimmer' : '',
         ].join(' ')}
         data-model={getModelDataAttr(message.modelId)}
       >
-        {/* Edit button — user messages only, revealed on hover or focus.
-            Positioned to the left of the copy button (right-10 vs right-2) so the
-            two buttons don't overlap. Always in the DOM so keyboard users can reach
-            it via Tab — only visual opacity is toggled, never DOM presence.
-            Calls onEditMessage(messageIndex) which triggers App's truncate+resend path. */}
-        {onEditMessage && messageIndex !== undefined && (
-          <button
-            type="button"
-            onClick={() => onEditMessage(messageIndex)}
-            aria-label="Edit message"
-            className={[
-              'absolute top-2 right-10 z-10',
-              'w-7 h-7 rounded flex items-center justify-center',
-              'text-text-secondary hover:bg-hover hover:text-text-primary',
-              'transition-opacity transition-colors duration-fast',
-              isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-            ].join(' ')}
-          >
-            <EditIcon />
-          </button>
-        )}
 
-        {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus. */}
-        {copyButton}
+        {/* Nameplate zone — 28px fixed height.
+            Contents: copy button, edit button (if applicable), timestamp right-aligned.
+            No dot, no name label for user bubbles.
+            gap-2 spaces buttons from each other; ml-4 on copy button spaces it from
+            the left nameplate edge; ml-auto on timestamp pushes it to the right. */}
+        <div className="h-[28px] px-4 flex items-center gap-2 bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]">
+          {/* Copy button — first in nameplate, ml-4 left spacer from nameplate edge */}
+          <NameplateCopyButton additionalClassName="ml-4" />
 
-        {/* Nameplate zone — 28px fixed height, timestamp only (no dot, no name label).
-            Background is a 12%-tinted blend of --accent-user into the card surface.
-            Timestamp right-aligned via ml-auto. */}
-        <div className="h-[28px] px-4 flex items-center bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]">
+          {/* Edit button — user messages only, shown after copy button.
+              Always in DOM (opacity toggled, not conditional) so Tab reaches it.
+              Calls onEditMessage(messageIndex) → App truncate+resend path. */}
+          {onEditMessage && messageIndex !== undefined && (
+            <button
+              type="button"
+              onClick={() => onEditMessage(messageIndex)}
+              aria-label="Edit message"
+              className={[
+                'p-0.5 rounded flex items-center justify-center shrink-0',
+                'text-text-secondary hover:bg-hover hover:text-text-primary',
+                'transition-opacity transition-colors duration-fast',
+                isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+              ].join(' ')}
+            >
+              <EditIcon />
+            </button>
+          )}
+
+          {/* Timestamp — right-aligned via ml-auto */}
           <span className="ml-auto text-[11px] text-text-muted shrink-0">
             {formatRelativeTime(message.timestamp)}
           </span>
