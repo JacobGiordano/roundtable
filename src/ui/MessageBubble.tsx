@@ -11,21 +11,25 @@ import { resolveAccentCssColor } from './utils/modelColor';
 // both use the same relative-time formatting logic without duplication.
 import { formatRelativeTime } from './utils/timeFormat';
 
-/** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app. */
+/** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app.
+ *  Two rounded-rect subpaths in one <path> with fillRule="evenodd": the overlap
+ *  zone is punched out (transparent), visually separating the back page from the
+ *  front page without any hardcoded color or background masking.
+ */
 function CopyIcon() {
   return (
     <svg
       width="14"
       height="14"
       viewBox="0 0 14 14"
-      fill="none"
       aria-hidden="true"
       className="flex-shrink-0"
     >
-      {/* Page being copied (back) */}
-      <rect x="4" y="1" width="8" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
-      {/* Page in front */}
-      <rect x="1" y="3.5" width="8" height="10" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        fillRule="evenodd"
+        fill="currentColor"
+        d="M5.5,1 H10.5 A1.5,1.5 0 0 1 12,2.5 V9.5 A1.5,1.5 0 0 1 10.5,11 H5.5 A1.5,1.5 0 0 1 4,9.5 V2.5 A1.5,1.5 0 0 1 5.5,1 Z M3.5,3 H8.5 A1.5,1.5 0 0 1 10,4.5 V11.5 A1.5,1.5 0 0 1 8.5,13 H3.5 A1.5,1.5 0 0 1 2,11.5 V4.5 A1.5,1.5 0 0 1 3.5,3 Z"
+      />
     </svg>
   );
 }
