@@ -6,9 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#322 (Luma + Aria + Ada + Flint)** — Closed. Full nameplate bubble redesign: both model and user bubbles now use a nameplate zone (28px tinted header strip). Model bubbles: color dot + model name label. User bubbles: timestamp only. Speech bubble tails added (CSS border trick; model→left, user→right; `var(--surface-card)` color; sibling element outside `overflow-hidden` wrapper). 3px left border removed from all bubbles. Drop-shadow on outer container. Copy/edit buttons right-aligned in nameplate. Copy icon replaced with silhouette (`fill="currentColor"`, two `<rect>` elements, no background masking).
+**#324 (Aria + Ada)** — Closed. Both nameplate timestamps in MessageBubble.tsx replaced with `<time dateTime={new Date(message.timestamp).toISOString()}>`. No visual change — purely a semantic/accessibility improvement. Ada confirmed: valid ISO 8601 datetime attribute, human-readable visible text unchanged, no WCAG violations. Ada's test updated to assert the new element type.
 
-**#323 (Aria)** — Closed. ModelVisibilityBar now rendered unconditionally in `MessageThread.tsx` before the empty-messages check.
+**#322 (Luma + Aria + Ada + Flint)** — Closed prior wave. Nameplate bubble redesign shipped. Copy icon went through three iterations post-ship; final version: stroke outline + `color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))` fill matching the nameplate background tint.
+
+**#323 (Aria)** — Closed prior wave. ModelVisibilityBar unconditional render fix.
 
 ## Key decisions
 
@@ -20,15 +22,15 @@ Phase 5 — Full gate process active.
 - Attach button icon: `PhotoIcon` (mountain-in-frame) — not paperclip. Image-only affordance is intentional.
 - VisionWarningModal backdrop: remove `aria-hidden` entirely — `aria-modal="true"` on inner panel is the correct suppression mechanism.
 - Bubble nameplate: Proposal B selected and shipped. Left-border system fully removed.
-- Copy icon: silhouette approach (`fill="currentColor"`) — background-masking approach was fragile on tinted nameplates.
+- Copy icon: stroke outline + nameplate-matched fill (`color-mix` with `--bubble-accent` 12%) — silhouette/solid approaches were fragile or visually wrong on tinted nameplates.
 
 ## Open bugs / known issues
 
-- **#324** — Aria: MessageBubble nameplate timestamp should use `<time datetime>` for AT users (Ada advisory, filed this wave)
+None currently tracked.
 
 ## What's next
 
-1. **#324** — Aria: `<time datetime>` on nameplate timestamps for assistive tech
+No queued issues. User to identify next priority.
 
 ## Gotchas
 
@@ -48,3 +50,4 @@ Phase 5 — Full gate process active.
 - VisionWarningModal backdrop: `aria-hidden="true"` hides the dialog subtree — always omit the attribute entirely on the backdrop
 - Scout test setup: `runAutoChain` with `appendToContext` requires `messages: [makeUserMessage(...)]` in the conversation — empty `messages: []` produces invalid assertions
 - Bubble tail must be a sibling of the wrapper div (not a child) — wrapper has `overflow-hidden` which clips children that protrude outside
+- Copy icon fill: use `color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))` — matches nameplate tint; `var(--surface-card)` alone bleeds on error-state nameplates
