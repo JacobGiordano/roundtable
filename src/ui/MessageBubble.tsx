@@ -438,16 +438,20 @@ export function MessageBubble({
   // ─── Assistant (model) bubble — nameplate design (#322) ──────────────────
   //
   // Structure:
-  //   wrapper (rounded-[12px] overflow-hidden, --bubble-accent set inline)
-  //   ├── copy button (absolute, z-10 above nameplate)
-  //   ├── nameplate zone (28px, tinted background)
-  //   │   ├── model color dot
-  //   │   ├── [error] warning icon
-  //   │   ├── model name label
-  //   │   └── timestamp (right-aligned)
-  //   └── body zone (bg-card, message content + error + bottom row)
+  //   outer container (relative, --bubble-accent, bubble-entering, hover listeners)
+  //   ├── tail (absolute, left side, points left ◄, CSS border trick)
+  //   └── wrapper (rounded-[12px] overflow-hidden, relative for copy button)
+  //       ├── copy button (absolute, z-10 above nameplate)
+  //       ├── nameplate zone (28px, tinted background)
+  //       │   ├── model color dot
+  //       │   ├── [error] warning icon
+  //       │   ├── model name label
+  //       │   └── timestamp (right-aligned)
+  //       └── body zone (bg-card, message content + error + bottom row)
   //
-  // User bubbles retain the left-border design and do NOT use this path.
+  // The tail MUST be a sibling of the wrapper — not a child.
+  // The wrapper's overflow:hidden would clip a child that protrudes left.
+  // --bubble-accent is on the outer container so the tail can inherit it.
 
   if (message.role === 'assistant') {
     // Directed-reply affordance — available on completed assistant bubbles with known modelId.
@@ -461,20 +465,43 @@ export function MessageBubble({
     return (
       <div
         className={[
-          'relative w-full rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
-          'transition-shadow duration-fast',
+          'relative w-full',
           'bubble-entering',
-          isStreaming ? 'streaming-shimmer' : '',
         ].join(' ')}
         style={{
           animationDelay: entranceDelay,
           '--bubble-accent': resolveAccentCssColor(accentColor, modelConfig?.modelId),
         } as React.CSSProperties}
-        data-model={getModelDataAttr(message.modelId)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-busy={isStreaming ? true : undefined}
       >
+        {/* Tail — left side, points left ◄.
+            Sibling of wrapper (not child) so overflow:hidden on wrapper does not clip it.
+            Positioned absolutely relative to outer container (top-[6px] = within the 28px nameplate band).
+            aria-hidden: purely decorative shape, no semantic content. */}
+        <div
+          className="absolute left-0 top-[6px] -translate-x-full w-0 h-0"
+          aria-hidden="true"
+          style={{
+            borderRight: '8px solid color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))',
+            borderTop: '8px solid transparent',
+            borderBottom: '8px solid transparent',
+          }}
+        />
+
+        {/* Bubble wrapper — overflow:hidden clips nameplate tint at rounded corners.
+            relative is required here for copy button absolute positioning.
+            streaming-shimmer + data-model on wrapper so the ::after shimmer bar
+            renders at the correct bottom edge of the card (not the outer container). */}
+        <div
+          className={[
+            'relative rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
+            'transition-shadow duration-fast',
+            isStreaming ? 'streaming-shimmer' : '',
+          ].join(' ')}
+          data-model={getModelDataAttr(message.modelId)}
+        >
         {/* Copy button — absolute at top-right, z-10 so it appears above nameplate content.
             Revealed on hover or keyboard focus (focus-visible). Always in accessibility tree
             so keyboard users can reach it via Tab. */}
@@ -611,105 +638,152 @@ export function MessageBubble({
             </div>
           )}
         </div>
+        </div>
       </div>
     );
   }
 
-  // ─── User bubble — left-border design (unchanged) ─────────────────────────
+  // ─── User bubble — nameplate design (#322 amendment) ─────────────────────
   //
-  // User bubbles retain the 3px left border with var(--accent-user).
-  // No nameplate zone — user messages have no ambiguous source.
-  // No overflow-hidden — no nameplate background to clip.
-  // Spec: left border color never changes to any model accent or error color;
-  // user bubbles have no error state.
+  // User bubbles now use the same nameplate wrapper structure as model bubbles.
+  // Differences from model bubbles: no dot, no name label — nameplate contains
+  // timestamp only. No left border. --bubble-accent = var(--accent-user).
+  //
+  // Structure:
+  //   outer container (relative, --bubble-accent: var(--accent-user), bubble-entering)
+  //   ├── tail (absolute, right side, points right ►, CSS border trick)
+  //   └── wrapper (rounded-[12px] overflow-hidden, relative for action buttons)
+  //       ├── edit button (absolute, top-right area)
+  //       ├── copy button (absolute, top-right corner)
+  //       ├── nameplate zone (28px, tinted background, timestamp only)
+  //       └── body zone (bg-card, message content + target label + token count)
+  //
+  // Token step 1 — --accent-user: confirmed in tailwind.config.js line 34.
+  // Token step 2 — --accent-user: set by applyTheme() in theme.ts line 74.
 
   const userShowBottomRow = !isStreaming && showTokenCount;
 
   return (
     <div
       className={[
-        'relative w-full bg-card rounded-md shadow-sm hover:shadow-md',
-        'border-l-[3px]',
-        'px-4 py-3',
-        'transition-shadow duration-fast',
+        'relative w-full',
         'bubble-entering',
-        isStreaming ? 'streaming-shimmer' : '',
       ].join(' ')}
-      style={{ animationDelay: entranceDelay, borderLeftColor: 'var(--accent-user)' }}
-      data-model={getModelDataAttr(message.modelId)}
+      style={{
+        animationDelay: entranceDelay,
+        '--bubble-accent': 'var(--accent-user)',
+      } as React.CSSProperties}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Edit button — user messages only, revealed on hover or focus.
-          Positioned to the left of the copy button (right-10 vs right-2) so the
-          two buttons don't overlap. Always in the DOM so keyboard users can reach
-          it via Tab — only visual opacity is toggled, never DOM presence.
-          Calls onEditMessage(messageIndex) which triggers App's truncate+resend path. */}
-      {onEditMessage && messageIndex !== undefined && (
-        <button
-          type="button"
-          onClick={() => onEditMessage(messageIndex)}
-          aria-label="Edit message"
-          className={[
-            'absolute top-2 right-10',
-            'w-7 h-7 rounded flex items-center justify-center',
-            'text-text-secondary hover:bg-hover hover:text-text-primary',
-            'transition-opacity transition-colors duration-fast',
-            isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-          ].join(' ')}
-        >
-          <EditIcon />
-        </button>
-      )}
-
-      {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus.
-          Suppressed when content is the synthesized sentinel 'Error'. */}
-      {copyButton}
-
-      {/* Message body — plain whitespace-preserving text for user messages. */}
-      <MessageContent
-        message={message}
-        isStreaming={isStreaming}
-        hasError={false}
+      {/* Tail — right side, points right ►.
+          Sibling of wrapper (not child) so overflow:hidden on wrapper does not clip it.
+          Positioned absolutely relative to outer container (top-[6px] = within the 28px nameplate band).
+          aria-hidden: purely decorative shape, no semantic content. */}
+      <div
+        className="absolute right-0 top-[6px] translate-x-full w-0 h-0"
+        aria-hidden="true"
+        style={{
+          borderLeft: '8px solid color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))',
+          borderTop: '8px solid transparent',
+          borderBottom: '8px solid transparent',
+        }}
       />
 
-      {/* Directed-to label — shown on user messages that have a targetModelId.
-          Subtle indicator so the thread stays readable after the fact.
-          Color is read from targetModelConfig — modelId passed for custom provider
-          CSS var routing. (#286) */}
-      {targetModelConfig && (
-        <div
-          className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
-          style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
-          aria-label={`Directed to ${targetModelConfig.name}`}
-        >
-          <span aria-hidden="true">→</span>
-          <span>{targetModelConfig.name}</span>
-        </div>
-      )}
+      {/* Bubble wrapper — overflow:hidden clips nameplate tint at rounded corners.
+          relative is required here for edit/copy button absolute positioning.
+          streaming-shimmer + data-model on wrapper so the ::after shimmer bar
+          renders at the correct bottom edge of the card. */}
+      <div
+        className={[
+          'relative rounded-[12px] overflow-hidden shadow-sm hover:shadow-md',
+          'transition-shadow duration-fast',
+          isStreaming ? 'streaming-shimmer' : '',
+        ].join(' ')}
+        data-model={getModelDataAttr(message.modelId)}
+      >
+        {/* Edit button — user messages only, revealed on hover or focus.
+            Positioned to the left of the copy button (right-10 vs right-2) so the
+            two buttons don't overlap. Always in the DOM so keyboard users can reach
+            it via Tab — only visual opacity is toggled, never DOM presence.
+            Calls onEditMessage(messageIndex) which triggers App's truncate+resend path. */}
+        {onEditMessage && messageIndex !== undefined && (
+          <button
+            type="button"
+            onClick={() => onEditMessage(messageIndex)}
+            aria-label="Edit message"
+            className={[
+              'absolute top-2 right-10 z-10',
+              'w-7 h-7 rounded flex items-center justify-center',
+              'text-text-secondary hover:bg-hover hover:text-text-primary',
+              'transition-opacity transition-colors duration-fast',
+              isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            <EditIcon />
+          </button>
+        )}
 
-      {/* Bottom row — token count only (no directed-reply on user bubbles).
-          Visibility is driven by tokenCountVisibility same as assistant bubbles. */}
-      {userShowBottomRow && (
-        <div
-          className={[
-            'mt-2 flex items-center justify-end',
-            'transition-opacity duration-fast',
-            rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
-          ].join(' ')}
-        >
-          {showTokenCount && (
+        {/* Copy-to-clipboard button — top-right corner, revealed on hover or focus. */}
+        {copyButton}
+
+        {/* Nameplate zone — 28px fixed height, timestamp only (no dot, no name label).
+            Background is a 12%-tinted blend of --accent-user into the card surface.
+            Timestamp right-aligned via ml-auto. */}
+        <div className="h-[28px] px-4 flex items-center bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]">
+          <span className="ml-auto text-[11px] text-text-muted shrink-0">
+            {formatRelativeTime(message.timestamp)}
+          </span>
+        </div>
+
+        {/* Body zone — same structure as model bubble body zone. */}
+        <div className="px-4 pt-2 pb-3 bg-card">
+          {/* Message body — plain whitespace-preserving text for user messages. */}
+          <MessageContent
+            message={message}
+            isStreaming={isStreaming}
+            hasError={false}
+          />
+
+          {/* Directed-to label — shown on user messages that have a targetModelId.
+              Subtle indicator so the thread stays readable after the fact.
+              Color is read from targetModelConfig — modelId passed for custom provider
+              CSS var routing. (#286) */}
+          {targetModelConfig && (
             <div
-              className="text-[11px] text-text-muted text-right"
-              title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
-              aria-hidden={!rowVisible}
+              className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
+              style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
+              aria-label={`Directed to ${targetModelConfig.name}`}
             >
-              {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+              <span aria-hidden="true">→</span>
+              <span>{targetModelConfig.name}</span>
+            </div>
+          )}
+
+          {/* Bottom row — token count only (no directed-reply on user bubbles).
+              Visibility is driven by tokenCountVisibility same as assistant bubbles. */}
+          {userShowBottomRow && (
+            <div
+              className={[
+                'mt-2 flex items-center justify-end',
+                'transition-opacity duration-fast',
+                rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
+              ].join(' ')}
+            >
+              {showTokenCount && (
+                <div
+                  className="text-[11px] text-text-muted text-right"
+                  title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
+                  aria-hidden={!rowVisible}
+                >
+                  {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
