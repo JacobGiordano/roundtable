@@ -111,19 +111,116 @@ The model name label now lives inside the nameplate zone — it is not a free-st
 - **Retry affordance**: A small "Retry" text button (`12px`, `{text.secondary}`, underline on hover) appears below the error message. Clicking it resends the last prompt to this model. **Cross-agent dependency: Atlas must expose a retry method. Aria surfaces the button; Atlas handles the request.**
 - **Recovery**: When retry succeeds, the error state clears and the bubble returns to its normal streaming → complete flow. Nameplate reverts to standard accent tint.
 
+### Speech Bubble Tail
+
+Both model and user bubbles carry a triangular CSS pointer (tail) that visually anchors the bubble to the sender direction. Model bubbles point left (◄); user bubbles point right (►).
+
+#### Shape & Size
+
+- **Technique**: CSS border trick — a zero-width, zero-height element (`w-0 h-0`) with transparent top and bottom borders and a solid color on the pointing side.
+- **Dimensions**: `8px` wide × `8px` tall.
+  - Model bubble tail (points left): `border-right: 8px solid [tint]`, `border-top: 8px solid transparent`, `border-bottom: 8px solid transparent`
+  - User bubble tail (points right): `border-left: 8px solid [tint]`, `border-top: 8px solid transparent`, `border-bottom: 8px solid transparent`
+
+#### Color
+
+- **Color**: `var(--surface-card)` — the tail matches the bubble body background, not the nameplate tint.
+
+#### Position
+
+- **Vertical**: `bottom: 12px` from the bottom of the outer container — anchors the tail near (but not flush with) the bottom of the bubble.
+- **Horizontal (model bubble)**: Flush with the left edge, protruding outward. `left: 0`, `transform: translateX(-100%)`.
+- **Horizontal (user bubble)**: Flush with the right edge, protruding outward. `right: 0`, `transform: translateX(100%)`.
+- **No gap** between tail and bubble edge. The tail is flush against the wrapper's side.
+
+#### DOM structure requirement
+
+The tail **must** be a sibling element placed OUTSIDE the bubble wrapper — never a child. The wrapper carries `overflow: hidden` (required to clip the nameplate tint at rounded corners), which would clip any child that protrudes beyond the wrapper boundary. The outer container must be `position: relative`; the tail is `position: absolute`.
+
+#### Implementation note (for Aria)
+
+```tsx
+// Outer container — holds tail and wrapper
+// className="relative"
+
+//   Tail — model bubble (left side, points left):
+//   className="absolute left-0 bottom-[12px] -translate-x-full w-0 h-0"
+//   style={{
+//     borderRight: '8px solid var(--surface-card)',
+//     borderTop: '8px solid transparent',
+//     borderBottom: '8px solid transparent'
+//   }}
+
+//   Bubble wrapper (unchanged)
+//   className="rounded-[12px] overflow-hidden shadow-sm"
+```
+
+For the user bubble tail, replace `left-0 -translate-x-full` with `right-0 translate-x-full`, and use `borderLeft` instead of `borderRight`. See User Message Bubble spec below.
+
+#### Reduced-motion
+
+The tail is a static shape. No animation. No `prefers-reduced-motion` handling required.
+
+---
+
 ### User Message Bubble
 
-User message bubbles retain the **3px solid left border** identity pattern. They do not use a nameplate zone. This is an intentional cross-paradigm asymmetry: model bubbles identify themselves by source (nameplate with model name and tint), while user bubbles have no source ambiguity and use the simpler border signal.
+User message bubbles use the **same nameplate wrapper structure** as model bubbles. The sole structural differences: no color dot, no name label — the nameplate contains only a timestamp. The 3px left border is removed. The nameplate is now the sole identity signal for user bubbles as well.
 
-- **Left border**: `3px solid var(--accent-user)` — fixed. Not determined by any model ID. The border color never changes to a model accent, even on error (user bubbles have no error state).
-- **Border-radius**: `{radius.md}` (8px) on all four corners. User bubbles retain 8px radius — the 12px nameplate radius applies to model bubbles only.
-- **No nameplate zone.** User bubbles do not have a 28px tinted header strip, a model name label, or a color dot.
-- **No "You" label or any other header text.** The `var(--accent-user)` border is the sole identity signal. Do not add any label.
-- **No `overflow: hidden` required** (no nameplate to clip). Standard border-radius behavior applies.
-- **Bug fix note for Aria:** If the current implementation falls through to `var(--accent-claude)` or any other model accent for user bubbles, the fix is to write `border-left: 3px solid var(--accent-user)` explicitly when rendering a user message. There is no `modelId` on a user message — the fallback must not chain to any model accent.
-- **Custom color override**: When the user has set a custom user accent color via `setUserAccentColor()` (Gate), `--accent-user` resolves to their chosen hex via the Pass 2 CSS override. No component-level change needed — the CSS variable handles it automatically.
-- **Asymmetry rationale**: Model bubbles carry multiple possible sources that users may not recognize by color alone, especially at first use. The nameplate's explicit model name label solves a discoverability problem that user bubbles do not have. Maintaining the left-border pattern for user bubbles avoids adding unnecessary structural complexity (wrapper + overflow-hidden + nameplate zone) to a bubble type that needs only a visual anchor, not a label.
-- **All other specs** (background, shadow, shadow on hover, message body typography, streaming state, reduced-motion behavior) apply identically from the main Message Bubble spec.
+#### Bubble wrapper
+
+- **Border-radius**: `12px` on all four corners (same as model bubbles). `overflow: hidden` required — clips the nameplate background tint at rounded corners.
+- **`--bubble-accent` binding**: Set to `var(--accent-user)` on the **outer container** (not the wrapper), so both the nameplate and the tail inherit it. `style={{ '--bubble-accent': 'var(--accent-user)' } as React.CSSProperties}`
+- **No left border.** The `3px solid var(--accent-user)` left border is removed. Do not add `border-left` of any kind to user bubbles.
+- **Shadow**: `{shadow.sm}` default, `{shadow.md}` on hover.
+
+#### Nameplate zone (28px)
+
+- **Height**: `28px` fixed. Same as model nameplate.
+- **Padding**: `0 16px` horizontal (`{spacing.4}`), vertically centered via `align-items: center` on a flex row.
+- **Background**: `color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))`
+- **Contents**: Timestamp only, right-aligned (`margin-left: auto`). No dot. No name label. No "You" label or any other header text.
+- **Timestamp typography**: `11px`, `font-weight: 400`, `{text.muted}`.
+
+#### Body zone
+
+- **Background**: `{surfaces.card}`
+- **Padding**: `px-4 pt-2 pb-3` — same as model body zone.
+
+#### Tail
+
+On the **right** side, pointing right (►). The tail is placed outside the bubble wrapper on the outer container as a sibling element. See Speech Bubble Tail spec above — use `right-0 translate-x-full` and `borderLeft` instead of `borderRight`.
+
+#### Implementation note (for Aria)
+
+```tsx
+// Outer container
+// className="relative"
+// style={{ '--bubble-accent': 'var(--accent-user)' } as React.CSSProperties}
+
+//   Tail (right side, points right):
+//   className="absolute right-0 bottom-[12px] translate-x-full w-0 h-0"
+//   style={{
+//     borderLeft: '8px solid var(--surface-card)',
+//     borderTop: '8px solid transparent',
+//     borderBottom: '8px solid transparent'
+//   }}
+
+//   Bubble wrapper
+//   className="rounded-[12px] overflow-hidden shadow-sm"
+
+//   Nameplate zone
+//   className="h-[28px] px-4 flex items-center"
+//   bg: className="bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]"
+//     Timestamp: className="ml-auto text-[11px] text-text-muted"
+
+//   Body zone
+//   className="px-4 pt-2 pb-3 bg-surface-card"
+```
+
+**Custom color override**: When the user has set a custom user accent color via `setUserAccentColor()` (Gate), `--accent-user` resolves to their chosen hex via the Pass 2 CSS override. No component-level change needed — the CSS variable handles it automatically, including the nameplate tint and tail color.
+
+**All other specs** (background, shadow, shadow on hover, message body typography, streaming state, reduced-motion behavior) apply identically from the main Message Bubble spec. User bubbles have no error state.
 
 ### Ghost Mode State
 
