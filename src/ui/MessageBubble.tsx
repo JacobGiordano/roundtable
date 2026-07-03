@@ -578,9 +578,12 @@ export function MessageBubble({
               This keeps the copy button at a consistent position regardless of name length. */}
           <div className="ml-auto flex items-center gap-2">
             <NameplateCopyButton />
-            <span className="text-[11px] text-text-muted shrink-0">
+            <time
+              dateTime={new Date(message.timestamp).toISOString()}
+              className="text-[11px] text-text-muted shrink-0"
+            >
               {formatRelativeTime(message.timestamp)}
-            </span>
+            </time>
           </div>
         </div>
 
@@ -771,9 +774,12 @@ export function MessageBubble({
             <NameplateCopyButton />
 
             {/* Timestamp — always rightmost in the group */}
-            <span className="text-[11px] text-text-muted shrink-0">
+            <time
+              dateTime={new Date(message.timestamp).toISOString()}
+              className="text-[11px] text-text-muted shrink-0"
+            >
               {formatRelativeTime(message.timestamp)}
-            </span>
+            </time>
           </div>
         </div>
 
