@@ -12,23 +12,37 @@ import { resolveAccentCssColor } from './utils/modelColor';
 import { formatRelativeTime } from './utils/timeFormat';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app.
- *  Two rounded-rect subpaths in one <path> with fillRule="evenodd": the overlap
- *  zone is punched out (transparent), visually separating the back page from the
- *  front page without any hardcoded color or background masking.
+ *  Two <rect> elements with stroke outlines. Page interiors are filled with a
+ *  12% bubble-accent tint over the surface-card base, matching the nameplate
+ *  background exactly on all 7 themes without hardcoded colors or masking.
+ *  Back page sits upper-right; front page overlaps lower-left.
  */
 function CopyIcon() {
+  const pageFill = 'color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))';
   return (
     <svg
       width="14"
       height="14"
       viewBox="0 0 14 14"
+      fill="none"
       aria-hidden="true"
       className="flex-shrink-0"
     >
-      <path
-        fillRule="evenodd"
-        fill="currentColor"
-        d="M5.5,1 H10.5 A1.5,1.5 0 0 1 12,2.5 V9.5 A1.5,1.5 0 0 1 10.5,11 H5.5 A1.5,1.5 0 0 1 4,9.5 V2.5 A1.5,1.5 0 0 1 5.5,1 Z M3.5,3 H8.5 A1.5,1.5 0 0 1 10,4.5 V11.5 A1.5,1.5 0 0 1 8.5,13 H3.5 A1.5,1.5 0 0 1 2,11.5 V4.5 A1.5,1.5 0 0 1 3.5,3 Z"
+      {/* back page — upper-right */}
+      <rect
+        x="4" y="1" width="8" height="10" rx="1.5"
+        fill={pageFill}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      {/* front page — lower-left */}
+      <rect
+        x="2" y="3" width="8" height="10" rx="1.5"
+        fill={pageFill}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
       />
     </svg>
   );
