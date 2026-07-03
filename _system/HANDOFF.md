@@ -1,4 +1,4 @@
-Last updated: 2026-07-02
+Last updated: 2026-07-03
 
 ## Current phase
 
@@ -6,9 +6,9 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#316, #317 (Scout)** — Closed. Two regression tests added to `/src/tests/regression/auto-chain-shuffle-ordering.test.ts`. #316: asserts `sharedMessages` grows in shuffled step order under `appendToContext: true`. #317: asserts abort signal stops chain at correct shuffled step. 1752 passing (was 1750).
+**#322 (Luma + Aria + Ada + Flint)** — Closed. Full nameplate bubble redesign: both model and user bubbles now use a nameplate zone (28px tinted header strip). Model bubbles: color dot + model name label. User bubbles: timestamp only. Speech bubble tails added (CSS border trick; model→left, user→right; `var(--surface-card)` color; sibling element outside `overflow-hidden` wrapper). 3px left border removed from all bubbles. Drop-shadow on outer container. Copy/edit buttons right-aligned in nameplate. Copy icon replaced with silhouette (`fill="currentColor"`, two `<rect>` elements, no background masking).
 
-**#318, #319, #320 (Aria + Ada + Flint)** — Closed prior. aria-live on chips, Safari focus return, VisionWarningModal backdrop aria-hidden removed.
+**#323 (Aria)** — Closed. ModelVisibilityBar now rendered unconditionally in `MessageThread.tsx` before the empty-messages check.
 
 ## Key decisions
 
@@ -18,17 +18,17 @@ Phase 5 — Full gate process active.
 - `getProviderRoster()` from `@/auth` in `InputBar.tsx` — documented cross-agent exception.
 - `includeAttachments` on Vault export defaults false; metadata only.
 - Attach button icon: `PhotoIcon` (mountain-in-frame) — not paperclip. Image-only affordance is intentional.
-- VisionWarningModal backdrop: remove `aria-hidden` entirely — do not set to `"true"`. `aria-modal="true"` on the inner panel is the correct suppression mechanism.
-- Bubble presentation redesign: Nameplate (Proposal B) selected. Luma → Aria wave queued as #322.
+- VisionWarningModal backdrop: remove `aria-hidden` entirely — `aria-modal="true"` on inner panel is the correct suppression mechanism.
+- Bubble nameplate: Proposal B selected and shipped. Left-border system fully removed.
+- Copy icon: silhouette approach (`fill="currentColor"`) — background-masking approach was fragile on tinted nameplates.
 
 ## Open bugs / known issues
 
-- **#323** — Aria: ModelVisibilityBar missing on new conversation (pre-existing, unconfirmed regression)
+- **#324** — Aria: MessageBubble nameplate timestamp should use `<time datetime>` for AT users (Ada advisory, filed this wave)
 
 ## What's next
 
-1. **#322** — Luma + Aria + Ada: Nameplate bubble redesign (Luma spec first, then Aria implements)
-2. **#323** — Aria: investigate ModelVisibilityBar on new conversation
+1. **#324** — Aria: `<time datetime>` on nameplate timestamps for assistive tech
 
 ## Gotchas
 
@@ -46,4 +46,5 @@ Phase 5 — Full gate process active.
 - `updateCustomProvider` clears `capabilities` on omit — always pass full capabilities object from edit form
 - Textarea baseline: `py-[3px]` is intentional — counteracts browser-default top padding variance across Chrome/Firefox/Safari
 - VisionWarningModal backdrop: `aria-hidden="true"` hides the dialog subtree — always omit the attribute entirely on the backdrop
-- Scout test setup: `runAutoChain` with `appendToContext` requires `messages: [makeUserMessage(...)]` in the conversation — empty `messages: []` produces invalid assertions (App.tsx pre-appends the user message before calling)
+- Scout test setup: `runAutoChain` with `appendToContext` requires `messages: [makeUserMessage(...)]` in the conversation — empty `messages: []` produces invalid assertions
+- Bubble tail must be a sibling of the wrapper div (not a child) — wrapper has `overflow-hidden` which clips children that protrude outside
