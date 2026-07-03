@@ -465,7 +465,7 @@ export function MessageBubble({
     return (
       <div
         className={[
-          'relative w-full',
+          'relative max-w-[85%] self-start',
           'bubble-entering',
         ].join(' ')}
         style={{
@@ -478,13 +478,13 @@ export function MessageBubble({
       >
         {/* Tail — left side, points left ◄.
             Sibling of wrapper (not child) so overflow:hidden on wrapper does not clip it.
-            Positioned absolutely relative to outer container (top-[6px] = within the 28px nameplate band).
+            Positioned absolutely relative to outer container (bottom-[12px] = near bottom of bubble).
             aria-hidden: purely decorative shape, no semantic content. */}
         <div
-          className="absolute left-0 top-[6px] -translate-x-full w-0 h-0"
+          className="absolute left-0 bottom-[12px] -translate-x-full w-0 h-0"
           aria-hidden="true"
           style={{
-            borderRight: '8px solid color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))',
+            borderRight: '8px solid var(--surface-card)',
             borderTop: '8px solid transparent',
             borderBottom: '8px solid transparent',
           }}
@@ -666,7 +666,7 @@ export function MessageBubble({
   return (
     <div
       className={[
-        'relative w-full',
+        'relative max-w-[85%] self-end',
         'bubble-entering',
       ].join(' ')}
       style={{
@@ -678,13 +678,13 @@ export function MessageBubble({
     >
       {/* Tail — right side, points right ►.
           Sibling of wrapper (not child) so overflow:hidden on wrapper does not clip it.
-          Positioned absolutely relative to outer container (top-[6px] = within the 28px nameplate band).
+          Positioned absolutely relative to outer container (bottom-[12px] = near bottom of bubble).
           aria-hidden: purely decorative shape, no semantic content. */}
       <div
-        className="absolute right-0 top-[6px] translate-x-full w-0 h-0"
+        className="absolute right-0 bottom-[12px] translate-x-full w-0 h-0"
         aria-hidden="true"
         style={{
-          borderLeft: '8px solid color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))',
+          borderLeft: '8px solid var(--surface-card)',
           borderTop: '8px solid transparent',
           borderBottom: '8px solid transparent',
         }}
