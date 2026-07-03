@@ -7,22 +7,59 @@ persistence.
 
 ## Features
 
+**Conversation modes**
 - **Parallel broadcast** — send a message to all active models at once and see
   responses side by side
 - **Directed replies** — address a follow-up to one specific model without
-  losing context from the others
-- **Multiple providers** — Claude (Anthropic), GPT (OpenAI), Gemini (Google),
-  Grok (xAI), DeepSeek, and Mistral supported out of the box
+  losing thread context
+- **Auto-chain** — models respond in sequence, each seeing prior answers;
+  order shuffled per pass for fairness
+- **Stop streaming** — cancel in-flight responses from all active models
+  at any time
+
+**Messages**
+- **Markdown rendering** — headings, code blocks, lists, and inline formatting
+  rendered in all responses
+- **Image attachments & vision** — attach via clip button, drag-and-drop, or
+  paste; vision warning shown when addressing a non-vision provider
+- **Message actions** — copy, inline edit, and retry available on every
+  message bubble
+- **Smart scroll** — auto-scroll pauses when you scroll up to read; resumes
+  when you return to the bottom
+
+**Models & providers**
+- **Six built-in providers** — Claude (Anthropic), GPT-5.5 (OpenAI), Gemini
+  (Google), Grok (xAI), DeepSeek, and Mistral
+- **Custom OpenAI-compatible providers** — add any compatible endpoint
+  (OpenRouter, Ollama, etc.) with inline edit, credential test, and capability
+  toggles
+- **Model version picker** — choose the specific API model string per provider
+- **Accent color customization** — set a distinct color per model for
+  at-a-glance differentiation
+- **Token count display** — per-message usage shown in the nameplate; toggle
+  visibility in settings
+
+**Conversations**
 - **Session persistence** — conversations saved to localStorage; exportable as
-  Markdown or HTML
+  Markdown or HTML (images optional)
+- **Conversation management** — search/filter, rename, per-model visibility
+  toggle, and sidebar grouping
 - **Ghost mode** — browse and export past sessions without creating new history
-- **Accent color customization** — set a distinct color per model so responses
-  are visually distinct at a glance
+
+**UI & setup**
+- **Seven built-in themes** — 2 light (Chalk, Linen) and 5 dark (Ash, Ember,
+  Midnight, Outrun, Slate)
+- **Custom theme import** — import a theme via JSON (must pass the full token
+  schema)
+- **Mobile-responsive layout** — collapsible sidebar drawer on mobile with
+  proper touch targets
+- **Onboarding** — guided first-run experience when no providers are configured
+- **Setup transfer** — export your provider configuration (API keys excluded)
+  and import it on another device
 - **Self-hostable backend** — optional Express + SQLite backend for shared or
   persistent server-side storage
-- **Seven built-in themes** — including light, dark, and high-contrast variants
-- **Client-side first** — API keys stay in your browser's localStorage; never
-  transmitted except directly to each provider's official API endpoint
+- **Client-side first** — API keys stay in your browser; never transmitted
+  except directly to each provider's official API endpoint
 
 ## Quick start
 
@@ -48,7 +85,7 @@ persistence.
 
 ### Run locally (without dev container)
 
-Requirements: Node 20+
+Requirements: Node 24+
 
 ```bash
 npm install
@@ -83,6 +120,11 @@ npm run dev
 
 See [`/backend/README.md`](backend/README.md) for full setup, Docker Compose
 instructions, and environment variables.
+
+A pre-built backend image is published to
+`ghcr.io/jacobgiordano/roundtable` on GitHub Container Registry (`:latest`
+and version tags). The frontend is a static build and does not have a
+container image.
 
 ## Development
 

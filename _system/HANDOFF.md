@@ -6,13 +6,7 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#325 (Forge)** — Closed. Bumped `node-version: '20'` → `'24'` in `ci.yml` and `release.yml` (9 occurrences total). Eliminates GitHub Actions deprecation warnings.
-
-**#326 (Scout)** — Closed. Moved `focus-trap-browser.spec.ts` from `src/tests/a11y/keyboard/` to `src/tests/e2e/` and added a belt-and-suspenders exclude rule to `vite.config.ts`. Fixes CI `Test` job that had been failing on every push to main for weeks. Focus-trap tests now run under Playwright (correct runner) instead of crashing Vitest. Side note: `playwright.a11y.config.ts` now has no `.spec.ts` files in its `testDir` — effectively idle, minor cleanup candidate.
-
-**#327 (Aria + Ada)** — Closed. Nameplate tint bumped from 12% → 16% uniformly. Superseded immediately by #328 but the commits landed and the approach was correct.
-
-**#328 (Aria + Ada)** — Closed. Nameplate tint made per-theme via `--nameplate-tint` CSS variable set in `applyTheme()` based on `theme.mode`: dark themes (ash, ember, midnight, outrun, slate) → 18%, light themes (chalk, linen) → 16%. Copy icon fill and both nameplate backgrounds all use `var(--nameplate-tint)`. Error-state nameplate (12% with `--semantic-error`) intentionally untouched.
+**README update (Quill)** — Closed. Rewrote the Features section to reflect Phase 5 state: 9 items → 23 items across 5 groups (conversation modes, messages, models & providers, conversations, UI & setup). Corrected Node requirement (20+ → 24+), fixed theme description (no high-contrast mode exists), added Docker registry note for backend image.
 
 ## Key decisions
 
