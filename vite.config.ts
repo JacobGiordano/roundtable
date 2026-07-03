@@ -234,7 +234,11 @@ export default defineConfig({
     // vitest config and node_modules; running them here fails module resolution.
     // Also exclude agent worktrees — stale path references in the transform cache
     // cause loadAndTransform noise after `git worktree remove` (#123).
-    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/backend/**', '**/.claude/worktrees/**'],
+    // Belt-and-suspenders: also exclude any .spec.ts files that land in
+    // tests/a11y/keyboard/ — those are Playwright tests run via
+    // playwright.a11y.config.ts, not Vitest (Playwright's test.describe() API
+    // conflicts with Vitest's globals and crashes the suite).
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/backend/**', '**/.claude/worktrees/**', '**/tests/a11y/keyboard/*.spec.ts'],
     coverage: {
       provider: 'v8',
       thresholds: { lines: 80, functions: 80, branches: 70 },
