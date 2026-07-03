@@ -13,12 +13,12 @@ import { formatRelativeTime } from './utils/timeFormat';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app.
  *  Two <rect> elements with stroke outlines. Page interiors are filled with a
- *  12% bubble-accent tint over the surface-card base, matching the nameplate
+ *  16% bubble-accent tint over the surface-card base, matching the nameplate
  *  background exactly on all 7 themes without hardcoded colors or masking.
  *  Back page sits upper-right; front page overlaps lower-left.
  */
 function CopyIcon() {
-  const pageFill = 'color-mix(in srgb, var(--bubble-accent) 12%, var(--surface-card))';
+  const pageFill = 'color-mix(in srgb, var(--bubble-accent) 16%, var(--surface-card))';
   return (
     <svg
       width="14"
@@ -534,7 +534,7 @@ export function MessageBubble({
 
         {/* ── Nameplate zone ─────────────────────────────────────────────────
             28px fixed-height strip at the top of the card. Background is a
-            12%-tinted blend of the model's accent color into the card surface.
+            16%-tinted blend of the model's accent color into the card surface.
             In error state the accent tint is replaced by a 12% semantic-error tint.
             color-mix() graceful degradation: unsupported browsers (<Chrome 111) see
             bg-card (untinted) — identity is not lost, only the tint. */}
@@ -543,7 +543,7 @@ export function MessageBubble({
             'h-[28px] px-4 flex items-center gap-2',
             hasError
               ? 'bg-[color-mix(in_srgb,var(--semantic-error)_12%,var(--surface-card))]'
-              : 'bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]',
+              : 'bg-[color-mix(in_srgb,var(--bubble-accent)_16%,var(--surface-card))]',
           ].join(' ')}
         >
           {/* Model color dot — inherits --bubble-accent from wrapper */}
@@ -747,7 +747,7 @@ export function MessageBubble({
             No dot, no name label for user bubbles.
             ml-auto on the group pushes everything right; gap-2 spaces items within the group.
             Button order: edit (leftmost) → copy → timestamp (rightmost — consistent position). */}
-        <div className="h-[28px] px-4 flex items-center gap-2 bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]">
+        <div className="h-[28px] px-4 flex items-center gap-2 bg-[color-mix(in_srgb,var(--bubble-accent)_16%,var(--surface-card))]">
           {/* Right group: [edit?] [copy] [timestamp] — always flush-right as a unit */}
           <div className="ml-auto flex items-center gap-2">
             {/* Edit button — user messages only, left of copy.
