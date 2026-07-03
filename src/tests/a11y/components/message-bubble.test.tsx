@@ -613,7 +613,7 @@ describe('MessageBubble — Fix #275: Custom provider hex color path (WCAG 4.1.2
 //   1. Decorative elements (dot, warning icon) must be aria-hidden.
 //   2. The model name span must be in the accessibility tree (NOT aria-hidden) —
 //      it is the primary source of model identity for screen reader users.
-//   3. The timestamp span must be in the accessibility tree.
+//   3. The timestamp <time> element must be in the accessibility tree.
 //   4. Axe must find no violations in the error-state nameplate (error-tint bg,
 //      visible warning icon, model name in error color).
 //   5. The outer bubble wrapper must have no aria-hidden on any ancestor of the
@@ -740,7 +740,7 @@ describe('MessageBubble — Fix #322: Nameplate zone structure (WCAG 1.3.1, 4.1.
 
   // ─── Timestamp accessibility ──────────────────────────────────────────────
 
-  it('timestamp span is present in DOM and not aria-hidden', () => {
+  it('timestamp is present in DOM as a <time> element with datetime attribute and is not aria-hidden', () => {
     const { container } = render(
       <MessageBubble
         message={COMPLETED_ASSISTANT_MESSAGE}
@@ -752,11 +752,12 @@ describe('MessageBubble — Fix #322: Nameplate zone structure (WCAG 1.3.1, 4.1.
     // It must be in the DOM and accessible to screen readers — it should NOT be
     // aria-hidden, since it communicates message recency.
     // We find it by its unique combination of size and color classes.
-    const timestampSpan = container.querySelector('span.text-\\[11px\\].text-text-muted.shrink-0');
-    expect(timestampSpan).not.toBeNull();
-    expect(timestampSpan?.getAttribute('aria-hidden')).not.toBe('true');
+    const timestampEl = container.querySelector('time.text-\\[11px\\].text-text-muted.shrink-0');
+    expect(timestampEl).not.toBeNull();
+    expect(timestampEl?.getAttribute('aria-hidden')).not.toBe('true');
     // The text content should be non-empty (formatRelativeTime returns a string)
-    expect(timestampSpan?.textContent?.trim().length).toBeGreaterThan(0);
+    expect(timestampEl?.textContent?.trim().length).toBeGreaterThan(0);
+    expect(timestampEl?.getAttribute('datetime')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   });
 
   // ─── Error state nameplate axe scan ──────────────────────────────────────
