@@ -25,7 +25,7 @@ function CopyIcon() {
       {/* Page being copied (back) */}
       <rect x="4" y="1" width="8" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
       {/* Page in front */}
-      <rect x="1" y="3.5" width="8" height="10" rx="1.2" fill="var(--surface-card, #fff)" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="1" y="3.5" width="8" height="10" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   );
 }
@@ -477,7 +477,8 @@ export function MessageBubble({
           // Fix #322: drop-shadow on outer container so the tail triangle is included
           // in the shadow shape. box-shadow on the inner wrapper (which has overflow:hidden)
           // left the tail unshadowed. filter:drop-shadow() follows rendered pixel shape.
-          'drop-shadow-sm hover:drop-shadow-md transition-[filter] duration-fast',
+          // Polish2: bumped to drop-shadow (one step up from drop-shadow-sm) for better visibility.
+          'drop-shadow hover:drop-shadow-md transition-[filter] duration-fast',
         ].join(' ')}
         style={{
           animationDelay: entranceDelay,
@@ -554,16 +555,15 @@ export function MessageBubble({
             {modelConfig?.name ?? message.modelId ?? 'Model'}
           </span>
 
-          {/* Copy button — in nameplate flow, to the left of timestamp.
-              ml-4 provides breathing room between model name and button.
-              opacity-0 at rest; visible on hover or keyboard focus. */}
-          <NameplateCopyButton additionalClassName="ml-4" />
-
-          {/* Timestamp — right-aligned via ml-auto. Uses the same relative format
-              as the sidebar thread timestamp (formatRelativeTime). */}
-          <span className="ml-auto text-[11px] text-text-muted shrink-0">
-            {formatRelativeTime(message.timestamp)}
-          </span>
+          {/* Right group: copy + timestamp — always flush-right as a unit.
+              ml-auto on the group pushes everything right; gap-2 spaces copy from timestamp.
+              This keeps the copy button at a consistent position regardless of name length. */}
+          <div className="ml-auto flex items-center gap-2">
+            <NameplateCopyButton />
+            <span className="text-[11px] text-text-muted shrink-0">
+              {formatRelativeTime(message.timestamp)}
+            </span>
+          </div>
         </div>
 
         {/* ── Body zone ──────────────────────────────────────────────────────
@@ -685,7 +685,8 @@ export function MessageBubble({
         'bubble-entering',
         // Fix #322: drop-shadow on outer container so the tail triangle is included
         // in the shadow shape (same reasoning as assistant bubble above).
-        'drop-shadow-sm hover:drop-shadow-md transition-[filter] duration-fast',
+        // Polish2: bumped to drop-shadow (one step up from drop-shadow-sm) for better visibility.
+        'drop-shadow hover:drop-shadow-md transition-[filter] duration-fast',
       ].join(' ')}
       style={{
         animationDelay: entranceDelay,
@@ -721,38 +722,41 @@ export function MessageBubble({
       >
 
         {/* Nameplate zone — 28px fixed height.
-            Contents: copy button, edit button (if applicable), timestamp right-aligned.
+            Contents: right group [edit? copy timestamp] — all flush-right as a unit.
             No dot, no name label for user bubbles.
-            gap-2 spaces buttons from each other; ml-4 on copy button spaces it from
-            the left nameplate edge; ml-auto on timestamp pushes it to the right. */}
+            ml-auto on the group pushes everything right; gap-2 spaces items within the group.
+            Button order: edit (leftmost) → copy → timestamp (rightmost — consistent position). */}
         <div className="h-[28px] px-4 flex items-center gap-2 bg-[color-mix(in_srgb,var(--bubble-accent)_12%,var(--surface-card))]">
-          {/* Copy button — first in nameplate, ml-4 left spacer from nameplate edge */}
-          <NameplateCopyButton additionalClassName="ml-4" />
+          {/* Right group: [edit?] [copy] [timestamp] — always flush-right as a unit */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Edit button — user messages only, left of copy.
+                Always in DOM (opacity toggled, not conditional) so Tab reaches it.
+                Calls onEditMessage(messageIndex) → App truncate+resend path. */}
+            {onEditMessage && messageIndex !== undefined && (
+              <button
+                type="button"
+                onClick={() => onEditMessage(messageIndex)}
+                aria-label="Edit message"
+                className={[
+                  'p-0.5 rounded flex items-center justify-center shrink-0',
+                  'text-text-secondary hover:bg-hover hover:text-text-primary',
+                  'transition-opacity transition-colors duration-fast',
+                  isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                ].join(' ')}
+              >
+                <EditIcon />
+              </button>
+            )}
 
-          {/* Edit button — user messages only, shown after copy button.
-              Always in DOM (opacity toggled, not conditional) so Tab reaches it.
-              Calls onEditMessage(messageIndex) → App truncate+resend path. */}
-          {onEditMessage && messageIndex !== undefined && (
-            <button
-              type="button"
-              onClick={() => onEditMessage(messageIndex)}
-              aria-label="Edit message"
-              className={[
-                'p-0.5 rounded flex items-center justify-center shrink-0',
-                'text-text-secondary hover:bg-hover hover:text-text-primary',
-                'transition-opacity transition-colors duration-fast',
-                isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-              ].join(' ')}
-            >
-              <EditIcon />
-            </button>
-          )}
+            {/* Copy button — rightmost action button, immediately before timestamp */}
+            <NameplateCopyButton />
 
-          {/* Timestamp — right-aligned via ml-auto */}
-          <span className="ml-auto text-[11px] text-text-muted shrink-0">
-            {formatRelativeTime(message.timestamp)}
-          </span>
+            {/* Timestamp — always rightmost in the group */}
+            <span className="text-[11px] text-text-muted shrink-0">
+              {formatRelativeTime(message.timestamp)}
+            </span>
+          </div>
         </div>
 
         {/* Body zone — same structure as model bubble body zone. */}
