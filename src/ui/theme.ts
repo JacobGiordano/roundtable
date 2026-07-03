@@ -116,6 +116,11 @@ export function applyTheme(theme: CustomThemeJSON): void {
   // Data attributes for CSS selectors that need mode-awareness
   root.setAttribute('data-theme', theme.name.toLowerCase());
   root.setAttribute('data-mode',  theme.mode);
+
+  // Nameplate tint percentage — dark themes use 18% to compensate for dark
+  // surface-card bases showing less perceptible tint delta than light surfaces.
+  // Light themes use 16%. Referenced via var(--nameplate-tint) in color-mix() calls.
+  root.style.setProperty('--nameplate-tint', theme.mode === 'dark' ? '18%' : '16%');
 }
 
 /**
