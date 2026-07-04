@@ -86,7 +86,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          # Node 22 LTS: better-sqlite3 has prebuilt binaries for N22.
+          # Compiling from source under Node 24 fails on ubuntu-latest
+          # because prebuild-install@7.x does not publish N24 binaries.
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
       - run: cd backend && npm ci
