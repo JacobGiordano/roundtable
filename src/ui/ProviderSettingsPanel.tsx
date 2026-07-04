@@ -23,6 +23,10 @@ import {
   BUILTIN_MODEL_IDS,
   testCredential,
   testCustomCredential,
+  // Gate cross-agent exception (#335): getProxyConfig is a pure read-only utility used
+  // here to decide whether to show the proxy setup nudge after a key save. Same pattern
+  // as BaseOpenAIProvider and gemini.ts.
+  getProxyConfig,
 } from '@/auth';
 import type { TestResult } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
@@ -324,6 +328,84 @@ function TestButton({ credentialKey, providerName, endpointUrl }: TestButtonProp
   );
 }
 
+// ─── Proxy setup nudge ────────────────────────────────────────────────────────
+
+interface ProxyNudgeProps {
+  providerName: string;
+  onDismiss: () => void;
+}
+
+/**
+ * Inline callout shown after a built-in provider API key is saved in production
+ * when no connection proxy has been configured (#335). Warm-tone, dismissible,
+ * guarded by import.meta.env.PROD — invisible in local dev.
+ *
+ * CTA opens the sidebar settings panel (if collapsed) and focuses the proxy URL
+ * input so the user lands directly on the right field.
+ */
+function ProxyNudge({ providerName, onDismiss }: ProxyNudgeProps) {
+  const handleSetupProxy = useCallback(() => {
+    // Open the sidebar settings panel if it is collapsed.
+    const settingsToggle = document.querySelector<HTMLButtonElement>(
+      '[data-testid="sidebar-settings-toggle"]',
+    );
+    if (settingsToggle && settingsToggle.getAttribute('aria-expanded') === 'false') {
+      settingsToggle.click();
+    }
+    // One frame is enough for React to render the newly expanded panel;
+    // then scroll to and focus the proxy URL input.
+    requestAnimationFrame(() => {
+      const proxyInput = document.getElementById('proxy-url-input') as HTMLInputElement | null;
+      if (proxyInput) {
+        proxyInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        proxyInput.focus();
+      }
+    });
+  }, []);
+
+  return (
+    <div
+      role="note"
+      aria-label="Connection proxy setup reminder"
+      className="mt-2 mb-1 rounded-md border border-border bg-hover px-3 py-2.5"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold text-text-primary">Almost there!</p>
+          <p className="text-[12px] text-text-muted mt-0.5 leading-[1.5]">
+            To use {providerName} in the hosted app, you&apos;ll need a connection proxy.
+          </p>
+          <button
+            type="button"
+            onClick={handleSetupProxy}
+            className={[
+              'mt-1.5 text-[12px] font-medium text-text-secondary underline',
+              'hover:text-text-primary transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+            ].join(' ')}
+          >
+            Set up your proxy →
+          </button>
+        </div>
+        <button
+          type="button"
+          aria-label="Dismiss proxy setup reminder"
+          onClick={onDismiss}
+          className={[
+            'mt-0.5 w-5 h-5 flex items-center justify-center rounded flex-shrink-0',
+            'text-text-muted hover:text-text-primary',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus',
+          ].join(' ')}
+        >
+          {/* Close icon — shared icon (#147) */}
+          <CloseIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Provider row ─────────────────────────────────────────────────────────────
 
 type RowConfirmState = 'idle' | 'confirm-remove' | 'confirm-remove-last';
@@ -386,6 +468,22 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
   // Badge state is stored in component state so it can be refreshed after a
   // save/clear without relying on a prop update from the parent.
   const [badgeState, setBadgeState] = useState<BadgeState>(() => getBadgeState(provider));
+
+  // Proxy nudge: dismissed state lives in component state only (per-session).
+  // The nudge renders whenever the key is set, PROD is true, and proxy is unconfigured.
+  const [proxyNudgeDismissed, setProxyNudgeDismissed] = useState(false);
+
+  // Ref to the trash button — focus returns here after the proxy nudge is dismissed
+  // so keyboard users don't lose their place (WCAG 2.4.3, #335).
+  const trashBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Dismiss the proxy nudge and return focus to the trash button.
+  const handleDismissProxyNudge = useCallback(() => {
+    setProxyNudgeDismissed(true);
+    requestAnimationFrame(() => {
+      trashBtnRef.current?.focus();
+    });
+  }, []);
 
   // Open the inline key editor and move focus to the input.
   const handleOpenKeyEditor = useCallback(() => {
@@ -551,6 +649,15 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
     }
   }, [confirmState]);
 
+  // Show the proxy nudge when: PROD build, built-in provider, key is set,
+  // no proxy configured, and the user hasn't dismissed it this session (#335).
+  const showProxyNudge =
+    import.meta.env.PROD &&
+    provider.kind === 'builtin' &&
+    badgeState === 'key-set' &&
+    getProxyConfig() === null &&
+    !proxyNudgeDismissed;
+
   const rowStyle: React.CSSProperties = isRemoving
     ? { height: 0, opacity: 0, transition: 'height 200ms ease-in, opacity 100ms ease-in', overflow: 'hidden' }
     : { overflow: 'hidden' };
@@ -621,6 +728,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
               </button>
             )}
             <button
+              ref={trashBtnRef}
               type="button"
               aria-label={`Remove ${name}`}
               onClick={handleRemoveClick}
@@ -1107,6 +1215,11 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                 </button>
               </div>
             </div>
+          )}
+
+          {/* ── Proxy setup nudge (#335) — PROD only, built-in providers, key set, no proxy ── */}
+          {showProxyNudge && (
+            <ProxyNudge providerName={name} onDismiss={handleDismissProxyNudge} />
           )}
         </div>
       ) : confirmState === 'confirm-remove' ? (
