@@ -65,6 +65,9 @@ import { ArchiveToggle, GroupHeader, ThreadSkeleton } from './components/sidebar
 // #170: BackendServerPanel — Backend Server section in the settings panel.
 // Aria owns this component; it imports Gate functions via the sanctioned exception path.
 import { BackendServerPanel } from './BackendServerPanel';
+// #332: ProxySettingsPanel — Connection Proxy section in the settings panel.
+// Aria owns this component; it imports Gate proxy functions via the sanctioned exception path.
+import { ProxySettingsPanel } from './ProxySettingsPanel';
 
 // #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
 // Cmd+N / ⌘N is a reserved system/browser shortcut on Mac that cannot be reliably
@@ -908,6 +911,9 @@ export function Sidebar({
 
             {/* Backend Server — login/logout for self-hosted backend (#170) */}
             <BackendServerPanel onConnectionChange={onBackendConnectionChange} />
+
+            {/* Connection Proxy — CORS proxy config for hosted/GitHub Pages deployments (#332) */}
+            <ProxySettingsPanel />
 
             {/* Theme switcher — 7 themes rendered as a grid of labeled buttons */}
             <div>

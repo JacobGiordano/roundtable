@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
-import type { Attachment, ModelConfig } from '@/types';
+import type { Attachment, ModelConfig, BuiltInModelId } from '@/types';
 // #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon.
 // #321: PhotoIcon replaces PaperclipIcon — image-specific icon per Luma spec update 2026-07-02.
 import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon } from './icons';
@@ -12,11 +12,16 @@ import { resolveAccentCssColor } from './utils/modelColor';
 import { useAttachments } from './hooks/useAttachments';
 // #285: VisionWarningModal — pre-send warning when some active models lack vision support.
 import { VisionWarningModal } from './components/VisionWarningModal';
+// #332: ProxyOnboardingModal — first-run setup guide shown when no proxy is configured in PROD.
+import { ProxyOnboardingModal } from './components/ProxyOnboardingModal';
 // Cross-agent exception: getProviderRoster is a Gate pure-read utility imported here to
 // check per-provider vision capability at send time for the pre-send warning modal (#285).
 // Does not cross the model or storage boundaries. Same permitted-exception pattern as
 // getSidebarOpen/setSidebarOpen in AppLayout.tsx and getUserPreferences in usePreferencesSync.ts.
-import { getProviderRoster } from '@/auth';
+// Cross-agent exception: BUILTIN_MODEL_IDS and getProxyConfig are Gate pure-read utilities
+// imported here to check (a) whether any active model is a built-in provider and (b) whether
+// a proxy URL is configured, at send time for the proxy onboarding gate (#332).
+import { getProviderRoster, BUILTIN_MODEL_IDS, getProxyConfig, saveProxyConfig } from '@/auth';
 
 interface InputBarProps {
   onSend: (content: string, attachments: Attachment[]) => void;
@@ -150,8 +155,16 @@ export function InputBar({
     nonVisionModelNames: string[];
   } | null>(null);
 
-  // Ref to the focused element before the modal opened — used by VisionWarningModal
-  // to restore focus on close (WCAG 2.4.3).
+  // Proxy onboarding modal: holds the pending message content when the modal is shown.
+  // Cleared when the user saves a proxy URL and continues, or dismisses.
+  // Only shown in PROD when a built-in provider is active and no proxy is configured.
+  // content snapshot taken at the time of send; attachments are read live from state.
+  const [pendingProxySend, setPendingProxySend] = useState<{
+    content: string;
+  } | null>(null);
+
+  // Ref to the focused element before any modal opened — shared by VisionWarningModal
+  // and ProxyOnboardingModal for focus restoration on close (WCAG 2.4.3).
   const focusReturnRef = useRef<HTMLElement | null>(null);
 
   // Manage focus across the send↔stop button swap (WCAG 2.4.3 — issue #244).
@@ -324,6 +337,18 @@ export function InputBar({
       .map((m) => m.name);
   }, [activeModels]);
 
+  // ── Proxy onboarding check (#332) ────────────────────────────────────────
+  // Returns true when the proxy onboarding modal should be shown:
+  //   - Only in PROD (import.meta.env.PROD); Vite dev proxy handles dev.
+  //   - No proxy is configured yet (getProxyConfig() returns null).
+  //   - At least one active model is a built-in provider (custom providers
+  //     route directly to their own endpoint and do not need the proxy).
+  const shouldShowProxyOnboarding = useCallback((): boolean => {
+    if (!import.meta.env.PROD) return false;
+    if (getProxyConfig() !== null) return false;
+    return !!activeModels?.some((m) => BUILTIN_MODEL_IDS.has(m.modelId as BuiltInModelId));
+  }, [activeModels]);
+
   const handleSend = useCallback(() => {
     if (!canSend) return;
     const content = value.trim();
@@ -339,27 +364,76 @@ export function InputBar({
       }
     }
 
-    // No modal needed — send immediately.
+    // Proxy onboarding check (#332): PROD + built-in provider active + no proxy.
+    if (shouldShowProxyOnboarding()) {
+      focusReturnRef.current = document.activeElement as HTMLElement;
+      setPendingProxySend({ content });
+      return;
+    }
+
+    // All guards passed — send immediately.
     onSend(content, attachments);
     clearAll();
     setValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [canSend, value, attachments, onSend, clearAll, getNonVisionModelNames]);
+  }, [canSend, value, attachments, onSend, clearAll, getNonVisionModelNames, shouldShowProxyOnboarding]);
 
   const handleVisionModalSend = useCallback(() => {
     if (!pendingVisionSend) return;
+
+    // Proxy onboarding check: if the user confirmed the vision warning but still
+    // has no proxy in PROD, redirect to the proxy onboarding modal.
+    if (shouldShowProxyOnboarding()) {
+      focusReturnRef.current = document.activeElement as HTMLElement;
+      setPendingProxySend({ content: pendingVisionSend.content });
+      setPendingVisionSend(null);
+      return;
+    }
+
     onSend(pendingVisionSend.content, attachments);
     clearAll();
     setValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setPendingVisionSend(null);
     // Focus restores via VisionWarningModal's cleanup useEffect (returnFocusRef).
-  }, [pendingVisionSend, attachments, onSend, clearAll]);
+  }, [pendingVisionSend, attachments, onSend, clearAll, shouldShowProxyOnboarding]);
 
   const handleVisionModalCancel = useCallback(() => {
     setPendingVisionSend(null);
     // Focus restores via VisionWarningModal's cleanup useEffect (returnFocusRef).
+  }, []);
+
+  // ── Proxy onboarding modal handlers (#332) ────────────────────────────────
+
+  /**
+   * Called by ProxyOnboardingModal when the user saves a proxy URL and continues.
+   * Saves the proxy config via Gate, then re-submits the original pending message.
+   * The modal's 100ms save-feedback beat already elapsed before this fires.
+   */
+  const handleProxyModalContinue = useCallback(
+    (proxyUrl: string) => {
+      if (!pendingProxySend) return;
+      // Save proxy config via Gate — Atlas will read this at call time.
+      saveProxyConfig({ url: proxyUrl });
+      // Re-submit the original message. Attachments are still in state (not cleared yet).
+      onSend(pendingProxySend.content, attachments);
+      clearAll();
+      setValue('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      setPendingProxySend(null);
+      // Focus restores via ProxyOnboardingModal's cleanup useEffect (returnFocusRef).
+    },
+    [pendingProxySend, attachments, onSend, clearAll],
+  );
+
+  /**
+   * Called by ProxyOnboardingModal when the user dismisses ("I'll set this up later").
+   * The original message remains in the InputBar textarea — nothing is cleared.
+   */
+  const handleProxyModalDismiss = useCallback(() => {
+    setPendingProxySend(null);
+    // Focus restores via ProxyOnboardingModal's cleanup useEffect (returnFocusRef).
   }, []);
 
   // ── Chip keyboard (#285) ──────────────────────────────────────────────────
@@ -468,6 +542,16 @@ export function InputBar({
           nonVisionModelNames={pendingVisionSend.nonVisionModelNames}
           onSendAnyway={handleVisionModalSend}
           onCancel={handleVisionModalCancel}
+          returnFocusRef={focusReturnRef as React.RefObject<HTMLElement | null>}
+        />
+      )}
+
+      {/* Proxy onboarding modal (#332) — first-run setup when no proxy is configured in PROD.
+          Saves via Gate (saveProxyConfig) then re-submits the original message. */}
+      {pendingProxySend && (
+        <ProxyOnboardingModal
+          onSaveAndContinue={handleProxyModalContinue}
+          onDismiss={handleProxyModalDismiss}
           returnFocusRef={focusReturnRef as React.RefObject<HTMLElement | null>}
         />
       )}
