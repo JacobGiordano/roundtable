@@ -1263,3 +1263,42 @@ export interface ImportResult {
   /** Human-readable error descriptions. Empty array when ok is true. */
   errors: string[];
 }
+
+// ─── Proxy config — Gate implements, Atlas and Aria consume ──────────────────
+
+/**
+ * Runtime proxy configuration. When present, Atlas routes all provider API calls
+ * through the specified proxy base URL instead of contacting the provider endpoint
+ * directly.
+ *
+ * Use case: static deployments (e.g. GitHub Pages) where direct browser-to-provider
+ * API calls are blocked by CORS. The user configures a Cloudflare Workers proxy URL;
+ * all provider traffic flows through it, and the proxy forwards requests to the real
+ * provider endpoint server-side where CORS does not apply.
+ *
+ * Gate owns storage (localStorage key: "roundtable:proxy-config").
+ * Aria reads this to populate the proxy settings UI and to pass to the save/clear
+ * functions when the user updates the proxy URL.
+ * Atlas reads this at call time via `getProxyConfig()` to determine the effective
+ * API base URL for every provider request.
+ *
+ * Cross-agent import exception: Atlas model files may import `getProxyConfig()`
+ * from `@/auth` directly to read the proxy URL at call time. This follows the same
+ * rationale as Aria importing `getProviderRoster()` — a pure read of a Gate-owned
+ * setting that Atlas needs at the dispatch boundary. Any Atlas module that does so
+ * must document the exception with a comment at the import site, per the pattern
+ * established in `InputBar.tsx` and `App.tsx`.
+ */
+export interface ProxyConfig {
+  /** Base URL of the user's proxy, e.g. "https://my-proxy.workers.dev". */
+  url: string;
+}
+
+/** Gate implements. Aria and Atlas call this to read the runtime proxy URL. Returns null when no proxy is configured. */
+export type GetProxyConfigFn = () => ProxyConfig | null;
+
+/** Gate implements. Aria calls this when the user saves a proxy URL. */
+export type SaveProxyConfigFn = (config: ProxyConfig) => void;
+
+/** Gate implements. Aria calls this when the user clears the proxy URL. */
+export type ClearProxyConfigFn = () => void;
