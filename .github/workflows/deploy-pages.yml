@@ -33,9 +33,11 @@ on:
 permissions:
   pages: write
   id-token: write
+  actions: write  # needed to delete stale github-pages artifacts before uploading
 
-# Allow only one concurrent deployment; cancel any in-progress run for the
-# same tag so a rapid re-tag does not leave a stale deploy in flight.
+# Allow only one concurrent deployment. Cancelling in-progress runs prevents
+# a pile-up but does not delete artifacts already uploaded by the cancelled run.
+# The cleanup step below handles that.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -65,6 +67,20 @@ jobs:
         run: npm run build
         env:
           VITE_BASE: /roundtable/
+
+      - name: Delete stale github-pages artifacts
+        # deploy-pages@v4 fails if more than one artifact named "github-pages"
+        # exists (e.g. left behind by a cancelled or failed prior run).
+        # Delete all non-expired github-pages artifacts before uploading a fresh one.
+        run: |
+          gh api --method GET "repos/${{ github.repository }}/actions/artifacts" \
+            --paginate -q '.artifacts[] | select(.name=="github-pages" and .expired==false) | .id' \
+          | while read -r id; do
+              gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$id" && \
+                echo "Deleted artifact $id" || echo "Could not delete $id (may be in use)"
+            done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v4
