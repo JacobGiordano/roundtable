@@ -31,6 +31,8 @@ import type {
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
+// permitted cross-agent import — see ProxyConfig JSDoc in @/types
+import { getProxyConfig } from './proxyConfig';
 import {
   mapHttpStatusToErrorCode,
   buildModelError,
@@ -133,6 +135,40 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
    * Example: "OpenAI API key is not set. Add it in Settings."
    */
   protected abstract get authErrorMessage(): string;
+
+  /**
+   * Resolve the provider API base URL at request time.
+   *
+   * Priority chain (evaluated fresh on every sendMessage call — proxy settings
+   * take effect without a page reload):
+   *   1. getProxyConfig()?.url + proxySegment  — runtime Cloudflare Workers proxy
+   *   2. legacyEnvVar                           — legacy build-time env var (kept for compat)
+   *   3. devPath                                — Vite dev server proxy (DEV only)
+   *   4. directUrl                              — direct provider URL (CORS-blocked in most
+   *                                               browser contexts without a proxy)
+   *
+   * Called by each subclass's `apiUrl` getter, which is itself called inside
+   * `sendMessage()` — so URL resolution always happens at request time.
+   *
+   * @param proxySegment  - Provider path segment appended to the proxy base URL,
+   *                        e.g. '/openai', '/grok'. Must start with '/'.
+   * @param legacyEnvVar  - Build-time env var value (e.g. VITE_OPENAI_PROXY_URL),
+   *                        or undefined if no legacy env var exists for this provider.
+   * @param devPath       - Vite dev proxy path, e.g. '/openai-proxy'.
+   * @param directUrl     - The provider's canonical API base URL.
+   */
+  protected resolveBaseUrl(
+    proxySegment: string,
+    legacyEnvVar: string | undefined,
+    devPath: string,
+    directUrl: string,
+  ): string {
+    const proxy = getProxyConfig();
+    if (proxy?.url) return proxy.url + proxySegment;
+    if (legacyEnvVar) return legacyEnvVar;
+    if (import.meta.env.DEV) return devPath;
+    return directUrl;
+  }
 
   async sendMessage(
     messages: Message[],

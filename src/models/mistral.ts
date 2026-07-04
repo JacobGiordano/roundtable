@@ -12,7 +12,12 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://api.mistral.ai
+ *   - The API key is only transmitted to the resolved Mistral endpoint (direct or via proxy)
+ *
+ * URL resolution (evaluated at request time — proxy settings take effect without reload):
+ *   1. getProxyConfig()?.url + '/mistral'  — runtime Cloudflare Workers proxy (new)
+ *   2. /mistral-proxy                      — Vite dev server proxy (DEV only)
+ *   3. https://api.mistral.ai              — direct (CORS behavior undocumented; may fail in browser)
  */
 
 import type { ModelProviderConfig } from '@/types';
@@ -34,7 +39,13 @@ export class MistralModelProvider extends BaseOpenAIProvider {
   readonly config: ModelProviderConfig = MISTRAL_CONFIG;
 
   protected get apiUrl(): string {
-    return 'https://api.mistral.ai/v1/chat/completions';
+    const base = this.resolveBaseUrl(
+      '/mistral',
+      undefined,
+      '/mistral-proxy',
+      'https://api.mistral.ai',
+    );
+    return `${base}/v1/chat/completions`;
   }
 
   /**

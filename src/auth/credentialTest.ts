@@ -40,161 +40,142 @@ interface ProviderTestConfig {
   buildInit: (value: string) => RequestInit;
 }
 
-/**
- * Three-tier proxy base URL helper.
- *
- * Resolution order (same pattern as /src/models/claude.ts and ANTHROPIC_TEST_BASE):
- *   1. VITE_<PROVIDER>_PROXY_URL env var — set in production with a self-hosted backend
- *   2. /<provider>-proxy path  — Vite dev proxy (active in `npm run dev` only)
- *   3. Direct URL              — fallback for production builds without a backend proxy;
- *                                will fail for providers that block CORS from browsers
- */
-function proxyBase(envVar: string, devPath: string, directUrl: string): string {
-  const envValue = (import.meta.env as Record<string, string | undefined>)[envVar];
-  if (envValue) return envValue;
-  return import.meta.env.DEV ? devPath : directUrl;
+// ─── Runtime proxy config reader ─────────────────────────────────────────────
+//
+// Reads Gate's proxy config from localStorage at call time. This inline
+// implementation matches the ProxyConfig shape from @/types/index.ts and uses
+// the canonical localStorage key ("roundtable:proxy-config") documented there.
+//
+// When Gate exports getProxyConfig() from ./proxyConfig, this inline reader can
+// be replaced with that import. Behavior is identical either way.
+//
+// Security note: the proxy URL is not an API key — reading it here does not
+// violate credential-handling rules.
+
+const PROXY_CONFIG_KEY = 'roundtable:proxy-config';
+
+function readRuntimeProxyUrl(): string | null {
+  try {
+    const raw = localStorage.getItem(PROXY_CONFIG_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'url' in parsed &&
+      typeof (parsed as Record<string, unknown>).url === 'string'
+    ) {
+      return (parsed as Record<string, unknown>).url as string;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Anthropic blocks browser-direct API calls (CORS). Route through the Vite
- * dev proxy in development — identical pattern to /src/models/claude.ts.
- *
- *   - Development: /anthropic-proxy → https://api.anthropic.com (Vite proxy,
- *     configured in vite.config.ts)
- *   - Production with self-hosted backend: VITE_ANTHROPIC_PROXY_URL env var
- *   - Production fallback: direct URL (will fail in browser due to CORS)
- *
- * The `anthropic-dangerous-direct-browser-access: true` header satisfies
- * Anthropic's browser-origin check on the proxied request.
- */
-const ANTHROPIC_TEST_BASE = proxyBase(
-  'VITE_ANTHROPIC_PROXY_URL',
-  '/anthropic-proxy',
-  'https://api.anthropic.com',
-);
+// ─── Per-provider test config builder ────────────────────────────────────────
+//
+// Built at call time inside testCredential() so the runtime proxy URL is always
+// current — a proxy-settings change takes effect without a page reload.
+//
+// Priority chain for each provider's base URL (matches /src/models/* pattern):
+//   1. runtimeProxyUrl + '/<provider-segment>'  — Cloudflare Workers proxy (new)
+//   2. VITE_<PROVIDER>_PROXY_URL env var         — legacy build-time proxy (kept for compat)
+//   3. /<provider>-proxy                         — Vite dev server proxy (DEV only)
+//   4. https://api.provider.com                  — direct (CORS-blocked in most browsers)
 
-/**
- * Google Gemini — CORS behaviour varies by endpoint and key type; proxy for
- * reliable dev-time testing.
- *
- *   - Development: /google-proxy → https://generativelanguage.googleapis.com
- *   - Production with self-hosted backend: VITE_GOOGLE_PROXY_URL env var
- *   - Production fallback: direct URL
- */
-const GOOGLE_TEST_BASE = proxyBase(
-  'VITE_GOOGLE_PROXY_URL',
-  '/google-proxy',
-  'https://generativelanguage.googleapis.com',
-);
+function buildProviderTestConfigs(runtimeProxyUrl: string | null): Record<string, ProviderTestConfig> {
+  /**
+   * Resolve a provider's API base URL using the four-tier priority chain.
+   *
+   * @param proxySegment  - Provider path segment, e.g. '/anthropic'. Must start with '/'.
+   * @param legacyEnvVar  - Legacy env var name to check (e.g. 'VITE_ANTHROPIC_PROXY_URL'),
+   *                        or undefined if no legacy var exists for this provider.
+   * @param devPath       - Vite dev proxy path, e.g. '/anthropic-proxy'.
+   * @param directUrl     - Provider's canonical API base URL.
+   */
+  function resolveBase(
+    proxySegment: string,
+    legacyEnvVar: string | undefined,
+    devPath: string,
+    directUrl: string,
+  ): string {
+    if (runtimeProxyUrl) return runtimeProxyUrl + proxySegment;
+    if (legacyEnvVar) {
+      const envValue = (import.meta.env as Record<string, string | undefined>)[legacyEnvVar];
+      if (envValue) return envValue;
+    }
+    return import.meta.env.DEV ? devPath : directUrl;
+  }
 
-/**
- * xAI (Grok) — CORS stance is not publicly documented; proxy conservatively.
- *
- *   - Development: /xai-proxy → https://api.x.ai
- *   - Production with self-hosted backend: VITE_XAI_PROXY_URL env var
- *   - Production fallback: direct URL
- */
-const XAI_TEST_BASE = proxyBase('VITE_XAI_PROXY_URL', '/xai-proxy', 'https://api.x.ai');
+  const anthropicBase = resolveBase('/anthropic', 'VITE_ANTHROPIC_PROXY_URL', '/anthropic-proxy', 'https://api.anthropic.com');
+  const openaiBase    = resolveBase('/openai',    'VITE_OPENAI_PROXY_URL',    '/openai-proxy',    'https://api.openai.com');
+  const googleBase    = resolveBase('/gemini',    'VITE_GOOGLE_PROXY_URL',    '/google-proxy',    'https://generativelanguage.googleapis.com');
+  const xaiBase       = resolveBase('/grok',      'VITE_XAI_PROXY_URL',       '/xai-proxy',       'https://api.x.ai');
+  const deepseekBase  = resolveBase('/deepseek',  'VITE_DEEPSEEK_PROXY_URL',  '/deepseek-proxy',  'https://api.deepseek.com');
+  const mistralBase   = resolveBase('/mistral',   'VITE_MISTRAL_PROXY_URL',   '/mistral-proxy',   'https://api.mistral.ai');
 
-/**
- * DeepSeek — CORS stance is not publicly documented; proxy conservatively.
- *
- *   - Development: /deepseek-proxy → https://api.deepseek.com
- *   - Production with self-hosted backend: VITE_DEEPSEEK_PROXY_URL env var
- *   - Production fallback: direct URL
- */
-const DEEPSEEK_TEST_BASE = proxyBase(
-  'VITE_DEEPSEEK_PROXY_URL',
-  '/deepseek-proxy',
-  'https://api.deepseek.com',
-);
-
-/**
- * Mistral — CORS stance is not publicly documented; proxy conservatively.
- *
- *   - Development: /mistral-proxy → https://api.mistral.ai
- *   - Production with self-hosted backend: VITE_MISTRAL_PROXY_URL env var
- *   - Production fallback: direct URL
- */
-const MISTRAL_TEST_BASE = proxyBase(
-  'VITE_MISTRAL_PROXY_URL',
-  '/mistral-proxy',
-  'https://api.mistral.ai',
-);
-
-/**
- * OpenAI — no longer reliably allows all browser origins; CORS preflight
- * failures have been observed. Proxy through the Vite dev server like every
- * other provider.
- *
- *   - Development: /openai-proxy → https://api.openai.com (Vite proxy,
- *     configured in vite.config.ts)
- *   - Production with self-hosted backend: VITE_OPENAI_PROXY_URL env var
- *   - Production fallback: direct URL (may fail in browser due to CORS)
- */
-const OPENAI_TEST_BASE = proxyBase(
-  'VITE_OPENAI_PROXY_URL',
-  '/openai-proxy',
-  'https://api.openai.com',
-);
-
-const PROVIDER_TEST_CONFIGS: Record<string, ProviderTestConfig> = {
-  anthropic: {
-    url: `${ANTHROPIC_TEST_BASE}/v1/models`,
-    buildInit: (value) => ({
-      method: 'GET',
-      headers: {
-        'x-api-key': value,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-    }),
-  },
-  openai: {
-    url: `${OPENAI_TEST_BASE}/v1/models`,
-    buildInit: (value) => ({
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${value}`,
-      },
-    }),
-  },
-  google: {
-    // Key is passed as a URL query parameter — no Authorization header needed.
-    // Proxied through /google-proxy in dev to avoid CORS preflight issues.
-    url: `${GOOGLE_TEST_BASE}/v1beta/models`,
-    buildInit: () => ({
-      method: 'GET',
-    }),
-  },
-  xai: {
-    url: `${XAI_TEST_BASE}/v1/models`,
-    buildInit: (value) => ({
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${value}`,
-      },
-    }),
-  },
-  deepseek: {
-    url: `${DEEPSEEK_TEST_BASE}/models`,
-    buildInit: (value) => ({
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${value}`,
-      },
-    }),
-  },
-  mistral: {
-    url: `${MISTRAL_TEST_BASE}/v1/models`,
-    buildInit: (value) => ({
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${value}`,
-      },
-    }),
-  },
-};
+  return {
+    anthropic: {
+      // Anthropic blocks browser-direct API calls (CORS). The dangerous-direct-browser-access
+      // header satisfies Anthropic's origin check on proxied requests.
+      url: `${anthropicBase}/v1/models`,
+      buildInit: (value) => ({
+        method: 'GET',
+        headers: {
+          'x-api-key': value,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+      }),
+    },
+    openai: {
+      // OpenAI — CORS preflight failures have been observed; proxy through Vite dev server.
+      url: `${openaiBase}/v1/models`,
+      buildInit: (value) => ({
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${value}`,
+        },
+      }),
+    },
+    google: {
+      // Key is passed as a URL query parameter — no Authorization header needed.
+      // The query param is appended in testCredential() after URL resolution.
+      url: `${googleBase}/v1beta/models`,
+      buildInit: () => ({
+        method: 'GET',
+      }),
+    },
+    xai: {
+      url: `${xaiBase}/v1/models`,
+      buildInit: (value) => ({
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${value}`,
+        },
+      }),
+    },
+    deepseek: {
+      url: `${deepseekBase}/models`,
+      buildInit: (value) => ({
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${value}`,
+        },
+      }),
+    },
+    mistral: {
+      url: `${mistralBase}/v1/models`,
+      buildInit: (value) => ({
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${value}`,
+        },
+      }),
+    },
+  };
+}
 
 // ─── Shared HTTP status interpreter ───────────────────────────────────────────
 
@@ -228,7 +209,11 @@ export async function testCredential(
   credentialKey: CredentialKey,
   value: string,
 ): Promise<TestResult> {
-  const config = PROVIDER_TEST_CONFIGS[credentialKey];
+  // Resolve the runtime proxy URL at call time — a settings change takes effect
+  // without a page reload. Build the per-provider config with the current proxy URL.
+  const runtimeProxyUrl = readRuntimeProxyUrl();
+  const providerTestConfigs = buildProviderTestConfigs(runtimeProxyUrl);
+  const config = providerTestConfigs[credentialKey];
 
   if (!config) {
     return { status: 'error', message: 'Test not supported for this provider' };

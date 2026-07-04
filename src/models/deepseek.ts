@@ -12,7 +12,12 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://api.deepseek.com
+ *   - The API key is only transmitted to the resolved DeepSeek endpoint (direct or via proxy)
+ *
+ * URL resolution (evaluated at request time — proxy settings take effect without reload):
+ *   1. getProxyConfig()?.url + '/deepseek'  — runtime Cloudflare Workers proxy (new)
+ *   2. /deepseek-proxy                      — Vite dev server proxy (DEV only)
+ *   3. https://api.deepseek.com             — direct (CORS behavior undocumented; may fail in browser)
  */
 
 import type { ModelProviderConfig } from '@/types';
@@ -34,7 +39,13 @@ export class DeepSeekModelProvider extends BaseOpenAIProvider {
   readonly config: ModelProviderConfig = DEEPSEEK_CONFIG;
 
   protected get apiUrl(): string {
-    return 'https://api.deepseek.com/v1/chat/completions';
+    const base = this.resolveBaseUrl(
+      '/deepseek',
+      undefined,
+      '/deepseek-proxy',
+      'https://api.deepseek.com',
+    );
+    return `${base}/v1/chat/completions`;
   }
 
   /**

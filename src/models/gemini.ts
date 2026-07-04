@@ -8,7 +8,7 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://generativelanguage.googleapis.com
+ *   - The API key is only transmitted to the resolved Google endpoint (direct or via proxy)
  */
 
 import type {
@@ -19,6 +19,8 @@ import type {
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
+// permitted cross-agent import — see ProxyConfig JSDoc in @/types
+import { getProxyConfig } from './proxyConfig';
 import { MAX_TOKENS_GEMINI } from './constants';
 import {
   mapHttpStatusToErrorCode,
@@ -37,9 +39,8 @@ export const GEMINI_CONFIG: ModelProviderConfig = {
   credentialKey: 'google',
 };
 
-// ─── Google Generative Language API constants ─────────────────────────────────
+// ─── Google Generative Language API URL resolution ────────────────────────────
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
 /**
  * Default model string sent to the Google API when no version is selected.
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Gemini.
@@ -47,11 +48,33 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
 const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
 /**
+ * Resolve the Gemini API base URL at request time.
+ *
+ * Priority chain (evaluated fresh on every call — proxy settings take effect
+ * without a page reload):
+ *   1. getProxyConfig()?.url + '/gemini'           — runtime Cloudflare Workers proxy
+ *   2. /google-proxy                               — Vite dev server proxy (DEV only)
+ *   3. https://generativelanguage.googleapis.com   — direct (CORS may fail in browser)
+ *
+ * Note: Google's API requires the key as a query parameter (?key=...). When using
+ * the Cloudflare Workers proxy, the key is passed as part of the URL and forwarded
+ * to googleapis.com unchanged — the workers script passes the full URL including
+ * query params to the upstream.
+ */
+function resolveGeminiBase(): string {
+  const proxy = getProxyConfig();
+  if (proxy?.url) return `${proxy.url}/gemini`;
+  if (import.meta.env.DEV) return '/google-proxy';
+  return 'https://generativelanguage.googleapis.com';
+}
+
+/**
  * Build the Gemini streaming URL for a given model string.
  * The model is embedded in the URL path — selectedVersionId changes the path.
+ * Calls resolveGeminiBase() at request time so proxy settings are always current.
  */
 function buildGeminiUrl(modelString: string): string {
-  return `${GEMINI_API_BASE}/v1beta/models/${modelString}:streamGenerateContent`;
+  return `${resolveGeminiBase()}/v1beta/models/${modelString}:streamGenerateContent`;
 }
 
 // ─── Google API response types ────────────────────────────────────────────────

@@ -9,14 +9,13 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://api.openai.com
+ *   - The API key is only transmitted to the resolved OpenAI endpoint (direct or via proxy)
  *
- * Dev proxy:
- *   OpenAI's CORS stance changed — browser-direct calls now fail preflight in many
- *   environments. In development, we route through Vite's /openai-proxy → api.openai.com
- *   server-side proxy (configured in vite.config.ts), matching the pattern used by
- *   Claude (/anthropic-proxy), Gemini (/google-proxy), and others.
- *   VITE_OPENAI_PROXY_URL overrides both dev and prod paths when set.
+ * URL resolution (evaluated at request time — proxy settings take effect without reload):
+ *   1. getProxyConfig()?.url + '/openai'  — runtime Cloudflare Workers proxy (new)
+ *   2. VITE_OPENAI_PROXY_URL              — legacy build-time proxy (kept for compat)
+ *   3. /openai-proxy                      — Vite dev server proxy (DEV only)
+ *   4. https://api.openai.com             — direct (CORS-blocked in many browser environments)
  */
 
 import type { ModelProviderConfig } from '@/types';
@@ -38,9 +37,12 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
   readonly config: ModelProviderConfig = GPT55_CONFIG;
 
   protected get apiUrl(): string {
-    const base =
-      import.meta.env.VITE_OPENAI_PROXY_URL ??
-      (import.meta.env.DEV ? '/openai-proxy' : 'https://api.openai.com');
+    const base = this.resolveBaseUrl(
+      '/openai',
+      import.meta.env.VITE_OPENAI_PROXY_URL,
+      '/openai-proxy',
+      'https://api.openai.com',
+    );
     return `${base}/v1/chat/completions`;
   }
 
