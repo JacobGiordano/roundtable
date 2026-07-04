@@ -6,7 +6,7 @@ This is a Cloudflare Workers script that acts as a CORS proxy for the Roundtable
 
 ## Deploy to Cloudflare (one click)
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable&dir=workers)
 
 ---
 

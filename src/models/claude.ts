@@ -20,7 +20,7 @@ import type {
 } from '@/types';
 import { getCredentials } from '@/auth';
 // permitted cross-agent import — see ProxyConfig JSDoc in @/types
-import { getProxyConfig } from './proxyConfig';
+import { getProxyConfig } from '@/auth';
 import { MAX_TOKENS_CLAUDE } from './constants';
 import {
   mapHttpStatusToErrorCode,
