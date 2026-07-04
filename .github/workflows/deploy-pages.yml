@@ -1,8 +1,9 @@
 # .github/workflows/deploy-pages.yml
 #
-# Deploys the Roundtable frontend to GitHub Pages on every version tag push.
+# Deploys the Roundtable frontend to GitHub Pages on every push to main.
 #
-# Trigger: push of a v*.*.* tag (runs in parallel with release.yml on the same tag).
+# Trigger: push to main branch. Pages always reflects the current state of main.
+# Version tags are handled separately by release.yml (Docker image + GitHub Release).
 #
 # What it does:
 #   1. Builds the frontend with VITE_BASE=/roundtable/ so that asset paths
@@ -26,8 +27,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
 
 permissions:
   pages: write
