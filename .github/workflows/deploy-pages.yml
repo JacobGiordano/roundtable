@@ -1,0 +1,78 @@
+# .github/workflows/deploy-pages.yml
+#
+# Deploys the Roundtable frontend to GitHub Pages on every version tag push.
+#
+# Trigger: push of a v*.*.* tag (runs in parallel with release.yml on the same tag).
+#
+# What it does:
+#   1. Builds the frontend with VITE_BASE=/roundtable/ so that asset paths
+#      resolve correctly under the GitHub Pages project URL:
+#      https://jacobgiordano.github.io/roundtable/
+#   2. Uploads the dist/ folder as a Pages artifact.
+#   3. Deploys it via the official GitHub Pages deploy action.
+#
+# One-time repo setup required (this workflow will fail without it):
+#   Repository → Settings → Pages → Source → set to "GitHub Actions"
+#   (NOT a branch — "Deploy from a branch" uses the old jekyll path and
+#   conflicts with the actions/deploy-pages action.)
+#
+# Secrets required: none — GITHUB_TOKEN is auto-provided by Actions.
+#   The `pages: write` and `id-token: write` permissions are declared
+#   explicitly below and are sufficient.
+#
+# Expected runtime: ~2 min on a warm npm cache.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment; cancel any in-progress run for the
+# same tag so a rapid re-tag does not leave a stale deploy in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for GitHub Pages
+        # VITE_BASE sets the Vite `base` option (see vite.config.ts) so that
+        # all asset references are rooted at /roundtable/ for the project page.
+        # Omitting this env var (local dev, other deploys) falls back to '/'.
+        run: npm run build
+        env:
+          VITE_BASE: /roundtable/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

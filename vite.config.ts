@@ -153,6 +153,12 @@ const devProxyPlugin: Plugin = {
 };
 
 export default defineConfig({
+  // base is set at build time for deployment targets:
+  //   - GitHub Pages (project page): VITE_BASE=/roundtable/
+  //   - Local dev (unset):           defaults to '/'
+  // process.env is available here because vite.config.ts runs in Node.js at
+  // build time. Do NOT use import.meta.env (that is browser-side only).
+  base: process.env.VITE_BASE ?? '/',
   plugins: [react(), devProxyPlugin],
   resolve: {
     alias: {
