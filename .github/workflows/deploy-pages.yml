@@ -9,17 +9,13 @@
 #   1. Builds the frontend with VITE_BASE=/roundtable/ so that asset paths
 #      resolve correctly under the GitHub Pages project URL:
 #      https://jacobgiordano.github.io/roundtable/
-#   2. Uploads the dist/ folder as a Pages artifact.
-#   3. Deploys it via the official GitHub Pages deploy action.
+#   2. Pushes the dist/ folder to the gh-pages branch via peaceiris/actions-gh-pages.
 #
-# One-time repo setup required (this workflow will fail without it):
-#   Repository → Settings → Pages → Source → set to "GitHub Actions"
-#   (NOT a branch — "Deploy from a branch" uses the old jekyll path and
-#   conflicts with the actions/deploy-pages action.)
+# Repo setup required:
+#   Repository → Settings → Pages → Source → "Deploy from a branch"
+#   Branch: gh-pages / root
 #
 # Secrets required: none — GITHUB_TOKEN is auto-provided by Actions.
-#   The `pages: write` and `id-token: write` permissions are declared
-#   explicitly below and are sufficient.
 #
 # Expected runtime: ~2 min on a warm npm cache.
 
@@ -31,13 +27,8 @@ on:
       - main
 
 permissions:
-  pages: write
-  id-token: write
-  actions: write  # needed to delete stale github-pages artifacts before uploading
+  contents: write
 
-# Allow only one concurrent deployment. Cancelling in-progress runs prevents
-# a pile-up but does not delete artifacts already uploaded by the cancelled run.
-# The cleanup step below handles that.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -46,9 +37,6 @@ jobs:
   deploy:
     name: Build and deploy to GitHub Pages
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -68,28 +56,8 @@ jobs:
         env:
           VITE_BASE: /roundtable/
 
-      - name: Delete stale github-pages artifacts
-        # deploy-pages@v4 fails if more than one artifact named "github-pages"
-        # exists (e.g. left behind by a cancelled or failed prior run).
-        # Delete all non-expired github-pages artifacts before uploading a fresh one.
-        run: |
-          gh api --method GET "repos/${{ github.repository }}/actions/artifacts" \
-            --paginate -q '.artifacts[] | select(.name=="github-pages" and .expired==false) | .id' \
-          | while read -r id; do
-              gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$id" && \
-                echo "Deleted artifact $id" || echo "Could not delete $id (may be in use)"
-            done
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
