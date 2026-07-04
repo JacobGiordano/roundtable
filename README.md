@@ -5,6 +5,13 @@ models simultaneously in a shared chat thread — compare responses, direct
 follow-ups to specific models, and manage long conversations with full session
 persistence.
 
+## Hosted version
+
+**[→ Open Roundtable](https://jacobgiordano.github.io/roundtable)** — no install required.
+
+First time? Built-in providers need a one-time free proxy setup (~2 minutes).
+See the [deployment guide](docs/deployment.md) to get started.
+
 ## Features
 
 **Conversation modes**
@@ -125,6 +132,9 @@ A pre-built backend image is published to
 `ghcr.io/jacobgiordano/roundtable` on GitHub Container Registry (`:latest`
 and version tags). The frontend is a static build and does not have a
 container image.
+
+If you want to use the GitHub Pages–hosted frontend with a self-hosted backend
+instead of running everything locally, see the [deployment guide](docs/deployment.md).
 
 ## Development
 
