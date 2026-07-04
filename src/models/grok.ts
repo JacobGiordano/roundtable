@@ -12,7 +12,12 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://api.x.ai
+ *   - The API key is only transmitted to the resolved xAI endpoint (direct or via proxy)
+ *
+ * URL resolution (evaluated at request time — proxy settings take effect without reload):
+ *   1. getProxyConfig()?.url + '/grok'  — runtime Cloudflare Workers proxy (new)
+ *   2. /xai-proxy                       — Vite dev server proxy (DEV only)
+ *   3. https://api.x.ai                 — direct (CORS behavior undocumented; may fail in browser)
  */
 
 import type { ModelProviderConfig } from '@/types';
@@ -34,7 +39,13 @@ export class GrokModelProvider extends BaseOpenAIProvider {
   readonly config: ModelProviderConfig = GROK_CONFIG;
 
   protected get apiUrl(): string {
-    return 'https://api.x.ai/v1/chat/completions';
+    const base = this.resolveBaseUrl(
+      '/grok',
+      undefined,
+      '/xai-proxy',
+      'https://api.x.ai',
+    );
+    return `${base}/v1/chat/completions`;
   }
 
   /**

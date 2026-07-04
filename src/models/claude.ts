@@ -8,7 +8,7 @@
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
  *   - The API key is NEVER logged
- *   - The API key is only transmitted to https://api.anthropic.com
+ *   - The API key is only transmitted to the resolved Anthropic endpoint (direct or via proxy)
  */
 
 import type {
@@ -19,6 +19,8 @@ import type {
   TokenUsage,
 } from '@/types';
 import { getCredentials } from '@/auth';
+// permitted cross-agent import — see ProxyConfig JSDoc in @/types
+import { getProxyConfig } from './proxyConfig';
 import { MAX_TOKENS_CLAUDE } from './constants';
 import {
   mapHttpStatusToErrorCode,
@@ -37,31 +39,32 @@ export const CLAUDE_CONFIG: ModelProviderConfig = {
   credentialKey: 'anthropic',
 };
 
-// ─── Anthropic API constants ──────────────────────────────────────────────────
+// ─── Anthropic API URL resolution ─────────────────────────────────────────────
+
+const ANTHROPIC_API_VERSION = '2023-06-01';
 
 /**
+ * Resolve the Anthropic Messages API URL at request time.
+ *
+ * Priority chain (evaluated fresh on every call — proxy settings take effect
+ * without a page reload):
+ *   1. getProxyConfig()?.url + '/anthropic'  — runtime Cloudflare Workers proxy
+ *   2. VITE_ANTHROPIC_PROXY_URL              — legacy build-time proxy (kept for compat)
+ *   3. /anthropic-proxy                      — Vite dev server proxy (DEV only)
+ *   4. https://api.anthropic.com             — direct (CORS-blocked in most browser contexts)
+ *
  * Anthropic blocks browser-direct API calls — all Origins receive a 400
- * "Disallowed CORS origin" on the OPTIONS preflight. We route through a local
- * proxy instead:
- *
- *   - In development: Vite's server.proxy forwards /anthropic-proxy/* →
- *     https://api.anthropic.com/* server-side, bypassing CORS entirely.
- *     Configured in vite.config.ts.
- *
- *   - In production: the VITE_ANTHROPIC_PROXY_URL environment variable must be
- *     set to the base URL of a compatible proxy (e.g. the self-hosted backend's
- *     /api/proxy/anthropic route). When unset, this falls back to the direct
- *     Anthropic URL — which will fail in browser contexts due to CORS; only safe
- *     when the app is served from a backend that already handles the proxy.
- *
- * The proxy must forward the x-api-key, anthropic-version, and Content-Type
- * headers to Anthropic unchanged.
+ * "Disallowed CORS origin" on the OPTIONS preflight. Options 1–3 route through
+ * a server-side or worker-side proxy that bypasses CORS.
  */
-const ANTHROPIC_API_BASE =
-  import.meta.env.VITE_ANTHROPIC_PROXY_URL ??
-  (import.meta.env.DEV ? '/anthropic-proxy' : 'https://api.anthropic.com');
-const ANTHROPIC_API_URL = `${ANTHROPIC_API_BASE}/v1/messages`;
-const ANTHROPIC_API_VERSION = '2023-06-01';
+function resolveAnthropicApiUrl(): string {
+  const proxy = getProxyConfig();
+  if (proxy?.url) return `${proxy.url}/anthropic/v1/messages`;
+  const legacyBase = import.meta.env.VITE_ANTHROPIC_PROXY_URL;
+  if (legacyBase) return `${legacyBase}/v1/messages`;
+  if (import.meta.env.DEV) return '/anthropic-proxy/v1/messages';
+  return 'https://api.anthropic.com/v1/messages';
+}
 /**
  * Default model string sent to the Anthropic API when no version is selected.
  * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for Claude.
@@ -211,7 +214,7 @@ export class ClaudeModelProvider implements ModelProvider {
 
     let response: Response;
     try {
-      response = await fetch(ANTHROPIC_API_URL, {
+      response = await fetch(resolveAnthropicApiUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
