@@ -60,6 +60,34 @@ body {
   }
 }
 
+/**
+ * ConversationEmptyState entrance animations (#341).
+ * emptyStateEnter: content block slides up + fades in (200ms ease-out).
+ * beaconEnter: model identity dots scale + fade in (100ms ease-out),
+ *   staggered via --beacon-index CSS custom property (50ms per beacon).
+ */
+@keyframes emptyStateEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes beaconEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes chunkFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -107,6 +135,15 @@ body {
 }
 
 /* ─── Animation Utility Classes ────────────────────────────────────────────── */
+
+.empty-state-enter {
+  animation: emptyStateEnter 200ms ease-out both;
+}
+
+.beacon-enter {
+  animation: beaconEnter 100ms ease-out both;
+  animation-delay: calc(var(--beacon-index, 0) * 50ms);
+}
 
 .pill-shake {
   animation: pillShake var(--timing-fast, 100ms) ease-out;
@@ -268,6 +305,18 @@ body {
 /* ─── prefers-reduced-motion overrides ─────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
+  .empty-state-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .beacon-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
   .pill-shake {
     animation: none;
     transform: none;

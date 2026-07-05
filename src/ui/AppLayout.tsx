@@ -89,6 +89,13 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
     onRosterChange,
   } = useRoundtable();
 
+  // #341: Suggestion chip prefill — set when user clicks a chip in ConversationEmptyState.
+  // InputBar watches this via useEffect, populates the textarea, focuses it, then calls
+  // onPrefillConsumed to reset back to ''. This avoids needing a ref to the InputBar textarea.
+  const [prefillText, setPrefillText] = useState('');
+  // Stable callback — setPrefillText is a stable useState setter so this never changes reference.
+  const handlePrefillConsumed = useCallback(() => setPrefillText(''), []);
+
   // #280: Desktop sidebar open/close state — persisted via Gate's setSidebarOpen().
   // Initialized from Gate's localStorage-backed getSidebarOpen() (default: true).
   // Mobile sidebar drawer visibility is controlled separately by isMobileMenuOpen.
@@ -446,6 +453,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             tokenCountVisibility={tokenCountVisibility}
             onExport={onExportConversation}
             onEditMessage={onEditMessage}
+            onSuggestionSelect={setPrefillText}
           />
         )}
 
@@ -496,6 +504,8 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             textareaId={isRosterEmpty ? undefined : 'skip-target'}
             editingMessage={editingMessage}
             onCancelEdit={onCancelEdit}
+            prefillText={prefillText}
+            onPrefillConsumed={handlePrefillConsumed}
           />
         </div>
       </main>
