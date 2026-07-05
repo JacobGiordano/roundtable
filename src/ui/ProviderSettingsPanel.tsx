@@ -352,21 +352,24 @@ function ProxyNudge({ providerName, onDismiss }: ProxyNudgeProps) {
     if (settingsToggle && settingsToggle.getAttribute('aria-expanded') === 'false') {
       settingsToggle.click();
     }
-    // One frame is enough for React to render the newly expanded panel;
-    // then scroll to and focus the proxy URL input.
+    // Double RAF: first frame commits React's DOM update (panel expansion);
+    // second frame fires after any CSS transition has started, ensuring focus
+    // lands even when the settings panel has a transition on open (#339).
     requestAnimationFrame(() => {
-      const proxyInput = document.getElementById('proxy-url-input') as HTMLInputElement | null;
-      if (proxyInput) {
-        proxyInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        proxyInput.focus();
-      }
+      requestAnimationFrame(() => {
+        const proxyInput = document.getElementById('proxy-url-input') as HTMLInputElement | null;
+        if (proxyInput) {
+          proxyInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          proxyInput.focus();
+        }
+      });
     });
   }, []);
 
   return (
     <div
       role="note"
-      aria-label="Connection proxy setup reminder"
+      aria-label={`Connection proxy setup reminder for ${providerName}`}
       className="mt-2 mb-1 rounded-md border border-border bg-hover px-3 py-2.5"
     >
       <div className="flex items-start justify-between gap-2">
@@ -377,11 +380,12 @@ function ProxyNudge({ providerName, onDismiss }: ProxyNudgeProps) {
           </p>
           <button
             type="button"
+            aria-label={`Set up proxy for ${providerName}`}
             onClick={handleSetupProxy}
             className={[
               'mt-1.5 text-[12px] font-medium text-text-secondary underline',
               'hover:text-text-primary transition-colors duration-fast',
-              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 rounded',
             ].join(' ')}
           >
             Set up your proxy →
@@ -389,13 +393,13 @@ function ProxyNudge({ providerName, onDismiss }: ProxyNudgeProps) {
         </div>
         <button
           type="button"
-          aria-label="Dismiss proxy setup reminder"
+          aria-label={`Dismiss proxy nudge for ${providerName}`}
           onClick={onDismiss}
           className={[
             'mt-0.5 w-5 h-5 flex items-center justify-center rounded flex-shrink-0',
             'text-text-muted hover:text-text-primary',
             'transition-colors duration-fast',
-            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           ].join(' ')}
         >
           {/* Close icon — shared icon (#147) */}
@@ -473,15 +477,19 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
   // The nudge renders whenever the key is set, PROD is true, and proxy is unconfigured.
   const [proxyNudgeDismissed, setProxyNudgeDismissed] = useState(false);
 
-  // Ref to the trash button — focus returns here after the proxy nudge is dismissed
-  // so keyboard users don't lose their place (WCAG 2.4.3, #335).
+  // Ref to the trash button — used to trigger confirm states but not as a nudge dismiss target.
   const trashBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Dismiss the proxy nudge and return focus to the trash button.
+  // Ref to the "Edit" API key button — focus returns here after the proxy nudge is dismissed
+  // so keyboard users land on a key-management control rather than the destructive trash button
+  // (WCAG 2.4.3, #336).
+  const editKeyBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Dismiss the proxy nudge and return focus to the "Edit" API key button (#336).
   const handleDismissProxyNudge = useCallback(() => {
     setProxyNudgeDismissed(true);
     requestAnimationFrame(() => {
-      trashBtnRef.current?.focus();
+      editKeyBtnRef.current?.focus();
     });
   }, []);
 
@@ -773,6 +781,7 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
               <div className="flex items-center gap-1.5">
                 <TestButton credentialKey={credentialKey} providerName={name} endpointUrl={endpointUrl} />
                 <button
+                  ref={editKeyBtnRef}
                   type="button"
                   aria-label={`Edit API key for ${name}`}
                   onClick={handleOpenKeyEditor}
