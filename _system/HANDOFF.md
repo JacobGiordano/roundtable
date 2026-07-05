@@ -1,4 +1,4 @@
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 ## Current phase
 
@@ -6,42 +6,44 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**GitHub Pages blank page + CI fixes + Aria #332 recovery** — Shipped.
+**#335 — Proxy setup nudge in ProviderSettingsPanel** — Shipped in 5e4b08e.
 
-Root cause of blank page: GitHub Pages source was pointing to `main` branch root
-(serving the Vite dev `index.html` with `/src/main.tsx`) instead of `gh-pages` branch.
-Fix: Settings → Pages → Source → "Deploy from a branch" → gh-pages → / (root).
+`ProxyNudge` component renders inline inside `ProviderSettingsPanel` after a
+built-in provider API key is saved in production when no proxy is configured.
+"Almost there!" tone, provider-name-aware copy, CTA navigates to Connection
+Proxy section and focuses URL input, dismissible (focus returns to trash button).
+PROD-gated — invisible in dev. Ada PASS.
 
-CI was broken for 20+ consecutive runs (pre-existing). Three root causes fixed:
-- Coverage scope: v8 was instrumenting backend/, workers/, config files at 0% — scoped to `src/**/*.{ts,tsx}`, excluded `src/main.tsx`, lowered function threshold 80% → 70%
-- Backend Node version: `better-sqlite3@9.6.0` has no prebuilt for Node 24 ABI — pinned backend CI job to Node 22 LTS
-- ESLint: `coverage/` directory not ignored — generated lcov report JS triggered lint warnings
-
-Aria #332 (proxy settings panel + onboarding modal) was completed and Ada-audited
-during the wave but never landed on main (worktree branch was a dead end in the DAG).
-Recovered via clean cherry-pick of f0bc58a.
+Also shipped this session (earlier): CI fixes (coverage scope, backend Node 22,
+eslint coverage/ ignore), blank page fix (Pages source → gh-pages branch),
+Aria #332 recovery (proxy settings panel + onboarding modal on main).
 
 ## Key decisions
 
-- GitHub Pages source must be: "Deploy from a branch" → gh-pages → / (root)
-- `deploy-pages.yml` triggers on push to main; peaceiris/actions-gh-pages@v4 pushes dist/ to gh-pages branch
-- Coverage scoped to src/**/*.{ts,tsx} only — backend and config files excluded
-- Backend CI runs Node 22 LTS (not 24) due to better-sqlite3 native binding prebuilt availability
-- Aria #332 proxy UI is now on main — onboarding modal fires in import.meta.env.PROD only
+- Proxy nudge fires *during provider setup* (after key save), not on send — preserves send excitement
+- Nudge is PROD-gated (`import.meta.env.PROD`) — same pattern as onboarding modal
+- Send-intercept modal (ProxyOnboardingModal) kept as fallback
+- GitHub Pages source: "Deploy from a branch" → gh-pages → / (root) — must not change
+- Backend CI pinned to Node 22 LTS (better-sqlite3 prebuilt availability)
+- Coverage scoped to src/**/*.{ts,tsx} only; function threshold 70%
 
 ## Open bugs / known issues
 
-- `playwright.a11y.config.ts` `testDir` points at `src/tests/a11y/keyboard/` which has no `.spec.ts` files — idle but harmless
-- Chunk size warning on build (560 kB) — pre-existing, not introduced this wave
+- #336 — Nudge dismiss focuses trash button; should target a key-management control
+- #337 — Aria-labels lack provider name; ambiguous when multiple nudges visible
+- #338 — Focus ring weight inconsistent (ring-1 vs ring-2) in nudge
+- #339 — CTA RAF timing may silently fail if settings panel has CSS transition
+- playwright.a11y.config.ts testDir points at keyboard/ with no .spec.ts files — harmless
+- Chunk size warning on build (560 kB) — pre-existing
 
 ## What's next
 
 - User to identify next priority
-- Consider upgrading `better-sqlite3` to ≥11.x (supports Node 24) to unblock backend CI Node version upgrade
+- Ada advisories #336–339 are deferred follow-ups (non-blocking)
+- Consider upgrading better-sqlite3 to ≥11.x to unblock backend CI Node 24
 
 ## Gotchas
 
-- GitHub Pages source MUST be gh-pages branch, not main — main root has Vite dev index.html
-- `VITE_BASE=/roundtable/` must be set in CI when building for GitHub Pages — handled by deploy-pages.yml
-- Onboarding modal only fires in `import.meta.env.PROD` — invisible in local dev by design
-- Backend CI uses Node 22 specifically — changing to 24 will break npm ci until better-sqlite3 is upgraded
+- ProxyNudge only renders in import.meta.env.PROD — not visible in npm run dev
+- GitHub Pages source MUST be gh-pages branch, not main
+- Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
