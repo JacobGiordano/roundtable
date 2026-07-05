@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
+import { ConversationEmptyState } from './ConversationEmptyState';
 // #235: getModelDotStyle resolves custom provider accent colors via roster
 // fallback — same import used in Sidebar, ModelSelectorPanel, ProviderSettingsPanel.
 import { getModelDotStyle } from './utils/modelColor';
@@ -40,6 +41,12 @@ interface MessageThreadProps {
    * can truncate at that point and re-send with edited content (#162).
    */
   onEditMessage?: (messageIndex: number) => void;
+  /**
+   * Called when the user clicks a suggestion chip in ConversationEmptyState.
+   * Receives the chip text; AppLayout stores it as prefillText and passes it
+   * to InputBar, which populates the textarea and focuses it. Issue #341.
+   */
+  onSuggestionSelect?: (text: string) => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -164,6 +171,7 @@ export function MessageThread({
   tokenCountVisibility,
   onExport,
   onEditMessage,
+  onSuggestionSelect,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Ref for the scrollable message list container. */
@@ -417,10 +425,13 @@ export function MessageThread({
 
       {allMessages.length === 0 ? (
         /* Empty state — new conversation with no messages yet.
-           ModelVisibilityBar above is still rendered (#323 fix). */
-        <div className="flex-1 flex items-center justify-center overflow-y-auto">
-          <p className="text-[13px] text-text-muted">Start a conversation</p>
-        </div>
+           ModelVisibilityBar above is still rendered (#323 fix).
+           ConversationEmptyState replaces the bare "Start a conversation"
+           placeholder with Luma's spec'd three-state design (#341). */
+        <ConversationEmptyState
+          models={models}
+          onSuggestionSelect={onSuggestionSelect ?? (() => {})}
+        />
       ) : (
         <>
           {/* Thread header — only shown when there are messages */}

@@ -68,6 +68,14 @@ interface InputBarProps {
   editingMessage?: { messageIndex: number; originalContent: string };
   /** Called when user clicks Cancel in edit mode or presses Escape. */
   onCancelEdit?: () => void;
+  /**
+   * When set to a non-empty string, InputBar populates the textarea with this
+   * text, focuses it, and calls onPrefillConsumed to reset. Used by
+   * ConversationEmptyState suggestion chips to pre-fill the input. Issue #341.
+   */
+  prefillText?: string;
+  /** Called after InputBar has consumed prefillText — resets it in AppLayout. */
+  onPrefillConsumed?: () => void;
 }
 
 /**
@@ -120,6 +128,8 @@ export function InputBar({
   textareaId,
   editingMessage,
   onCancelEdit,
+  prefillText,
+  onPrefillConsumed,
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -195,6 +205,28 @@ export function InputBar({
       });
     }
   }, [editingMessage, clearAll]);
+
+  // #341: Suggestion chip prefill — when AppLayout sets prefillText (via
+  // ConversationEmptyState chip click), populate the textarea, resize it,
+  // focus it, and immediately reset prefillText via onPrefillConsumed so a
+  // second chip click with the same text re-triggers this effect.
+  // onPrefillConsumed is wrapped in useCallback (stable reference) in AppLayout
+  // so including it in deps here is safe — it never causes spurious re-runs.
+  useEffect(() => {
+    if (!prefillText) return;
+    setValue(prefillText);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+    // Double rAF — same pattern as streaming stop/resume and edit-mode focus
+    // in this file — ensures focus lands after React has fully flushed the
+    // state update and the DOM reconciliation. Ada advisory #341.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    });
+    onPrefillConsumed?.();
+  }, [prefillText, onPrefillConsumed]);
 
   // Ghost mode tooltip — 600ms hover delay per tooltip.md §1 (#210).
   const [isGhostTooltipVisible, setIsGhostTooltipVisible] = useState(false);
