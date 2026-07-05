@@ -158,6 +158,13 @@ export default function App() {
     originalContent: string;
   } | null>(null);
 
+  // Interaction mode before any conversation exists (#340): captures the mode
+  // the user selects in the switcher before the first message is sent (no active
+  // conversation) or when New Chat resets the view. Applied to the next
+  // conversation created by handleNewConversation. Seeded as 'parallel' (the
+  // default) so the UI starts in a consistent state on every page load.
+  const [pendingMode, setPendingMode] = useState<InteractionMode>('parallel');
+
   // UserPreferences — reactive read via usePreferencesSync (#312).
   // usePreferencesSync subscribes to localStorage writes via a targeted setItem
   // patch, so tokenCountVisibility updates in real-time when TokenCountControl
@@ -537,7 +544,10 @@ export default function App() {
       id: `conv-${Date.now()}`,
       messages: [],
       models: models,
-      interactionMode: 'parallel',
+      // #340: seed with pendingMode so the user's pre-conversation mode selection
+      // (or the mode from the previous conversation) carries forward into the new
+      // conversation rather than hardcoding 'parallel' every time.
+      interactionMode: pendingMode,
       isGhost: isGlobalGhostMode,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -630,8 +640,16 @@ export default function App() {
   /** Persists the chosen interaction mode on the active conversation. */
   const handleModeChange = (mode: InteractionMode) => {
     const conv = store.getActiveConversation();
-    // Ghost-mode guard: skip storage writes for ghost conversations.
-    if (!conv || conv.isGhost) return;
+    // #340: No active conversation yet — capture the mode in pendingMode so it
+    // is applied when the next conversation is created (handleNewConversation or
+    // first send). Without this, clicking the mode switcher before the first
+    // message is silently dropped.
+    if (!conv) {
+      setPendingMode(mode);
+      return;
+    }
+    // Ghost-mode guard: ghost conversations are in-memory only; no storage write.
+    if (conv.isGhost) return;
     void store.updateConversation({ ...conv, interactionMode: mode, updatedAt: Date.now() });
   };
 
@@ -898,7 +916,9 @@ export default function App() {
         onSelectModelVersion: handleSelectModelVersion,
         onClearModelVersion: handleClearModelVersion,
         sessionUsage,
-        activeMode: activeConversation?.interactionMode ?? 'parallel',
+        // #340: fall back to pendingMode (not literal 'parallel') so the
+        // mode switcher reflects the user's selection before any conversation exists.
+        activeMode: activeConversation?.interactionMode ?? pendingMode,
         onModeChange: handleModeChange,
         isRosterEmpty,
         onRosterChange: handleRosterChange,
