@@ -6,34 +6,31 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#341 — Enhanced in-conversation empty state** — Shipped in e1b9a7b.
+**#342 — Persist last-used model roster and interaction mode** — Shipped in 3cb9f64.
 
-New `ConversationEmptyState` component replaces the single "Start a conversation" placeholder:
-- State A (0 active models): defensive fallback heading
-- State B (1 model): identity beacon + model name + "Ask [Name] anything"
-- State C (2+ models): staggered beacon row + heading + subtext + 3 suggestion chips
-- Chips pre-fill and focus the InputBar textarea on click
-- Entrance animation: content block 200ms fade+slide, beacons stagger at 150ms base + 50ms per beacon (offset to clear parent opacity ramp)
-- `prefers-reduced-motion` compliant — no animation at all
-- No new tokens; uses existing accent color system via `getModelDotStyle`
-
-**#342 — Model/mode persistence across new conversations** — Filed, not started.
+Three-agent wave (Arch → Vault + Aria in parallel):
+- Arch: `ConversationDefaults`, `GetConversationDefaultsFn`, `SaveConversationDefaultsFn` in types
+- Vault: `getConversationDefaults` / `saveConversationDefaults` — localStorage key `"roundtable:conversation-defaults"`
+- Aria: `useConversationDefaults` hook + App.tsx wiring (boot, toggle, mode change, new conversation)
+- Post-wave fix: `pendingMode` not synced on mode change with active conv, and boot effect skipped mode when active conv present — both patched in 3cb9f64
 
 ## Key decisions
 
-- Product tour rejected in favor of enhanced empty state — agent consensus (Luma, Aria, Spark)
-- Contextual first-use tooltips deferred until real user confusion is reported
+- `ConversationDefaults` implemented as standalone exported fns, not `StorageProvider` methods — it's a preferences/settings value like `ThemePreferences`, not a conversation entity
+- Ghost mode guard lives in Aria (skip save when `isGhost`), not Vault — Vault has no ghost context
 - GitHub Pages source: gh-pages branch → / (root) — must not change
-- Backend CI pinned to Node 22 LTS (better-sqlite3 prebuilt availability)
+- Backend CI pinned to Node 22 LTS
 
 ## Open bugs / known issues
 
+- #343: 2 pre-existing `aria-hidden` failures in `conversation-empty-state.test.tsx` (from #341 refactor) — Scout to fix
 - playwright.a11y.config.ts testDir points at keyboard/ with no .spec.ts — harmless
 - Chunk size warning on build (560 kB) — pre-existing
 
 ## What's next
 
-- #342: Persist last-used model roster + interaction mode as new conversation defaults (Vault + Aria + Arch)
+- #343: Scout fixes aria-hidden test failures
+- No other open issues — good time for a new issue triage pass
 
 ## Gotchas
 
