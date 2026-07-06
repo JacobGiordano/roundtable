@@ -25,3 +25,7 @@ export type { ExportFormat } from '@/types/index';
 // CURRENT_SCHEMA_VERSION is exported for diagnostic/testing use.
 // StoredConversation type is intentionally NOT exported — it is an internal envelope.
 export { MigrationError, CURRENT_SCHEMA_VERSION } from './migration';
+// Conversation defaults — last-used model roster + interaction mode persisted for
+// new conversation init. Aria calls these when creating a new conversation and when
+// leaving an existing one (ghost-mode guard belongs in Aria, not here).
+export { getConversationDefaults, saveConversationDefaults } from './conversationDefaults';
