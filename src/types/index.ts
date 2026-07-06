@@ -858,6 +858,75 @@ export interface ModelProvider {
   ): Promise<{ tokenUsage?: TokenUsage }>;
 }
 
+// ─── Conversation defaults — Vault stores, Aria consumes ─────────────────────
+
+/**
+ * The defaults applied when initializing a new conversation.
+ *
+ * Vault persists this under localStorage key "roundtable:conversation-defaults".
+ * Vault writes it at the end of every conversation session by calling
+ * `saveConversationDefaults`. Aria reads it via `getConversationDefaults` when
+ * initializing a new conversation — if present, pre-populates the active model
+ * roster and interaction mode with the last-used values. If absent (first run
+ * or storage cleared), Aria applies its own hardcoded fallback defaults.
+ *
+ * Ghost-mode state (`isGhost`) is intentionally excluded — ghost mode is a
+ * per-session opt-in and must never persist across conversation boundaries.
+ */
+export interface ConversationDefaults {
+  /**
+   * The model IDs that were active at the end of the last conversation.
+   * Aria uses this to pre-populate the model roster on new conversation init.
+   *
+   * Empty array is valid — the user had no active models. Aria treats this as
+   * "show the model-selector onboarding prompt" rather than initializing with
+   * a roster of zero models. Aria must not infer "missing defaults" from an
+   * empty array — an empty array is a legitimate stored state.
+   */
+  activeModelIds: ModelId[];
+  /**
+   * The interaction mode active at the end of the last conversation.
+   * Aria uses this to pre-select the mode switcher control on new conversation init.
+   */
+  interactionMode: InteractionMode;
+}
+
+/**
+ * Retrieve the stored conversation defaults.
+ *
+ * Returns `null` when no defaults have been saved yet (first run, storage
+ * cleared) and when the stored value is corrupt (parse failure). Callers must
+ * treat `null` as "no defaults available" — Aria applies its own hardcoded
+ * fallback defaults in that case.
+ *
+ * Does not throw. Vault stores this under localStorage key
+ * "roundtable:conversation-defaults".
+ *
+ * Vault implements; Aria calls this on new conversation init before constructing
+ * the initial model roster and mode switcher state.
+ */
+export type GetConversationDefaultsFn = () => Promise<ConversationDefaults | null>;
+
+/**
+ * Persist conversation defaults for use when initializing the next new
+ * conversation.
+ *
+ * Vault implements; Aria calls this when leaving a conversation — specifically
+ * when the user creates a new conversation or when the page is about to unload —
+ * passing the active model IDs and current interaction mode from the conversation
+ * being left.
+ *
+ * Ghost-mode guard: Aria must NOT call this when leaving a ghost conversation.
+ * Ghost state must never propagate into stored defaults. The guard belongs in
+ * Aria because `ConversationDefaults` carries no `isGhost` field from which
+ * Vault could detect it.
+ *
+ * Vault stores this under localStorage key "roundtable:conversation-defaults".
+ * Throws if the storage backend is full (QuotaExceededError). Aria should handle
+ * this gracefully — failure to save defaults is non-fatal.
+ */
+export type SaveConversationDefaultsFn = (defaults: ConversationDefaults) => Promise<void>;
+
 // ─── StorageProvider — Vault implements ───────────────────────────────────────
 
 /**
