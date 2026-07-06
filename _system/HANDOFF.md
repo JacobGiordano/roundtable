@@ -1,4 +1,4 @@
-Last updated: 2026-07-05
+Last updated: 2026-07-06
 
 ## Current phase
 
@@ -6,22 +6,23 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-**#336–#339 — ProxyNudge a11y advisory batch** — Shipped in c146229.
+**#341 — Enhanced in-conversation empty state** — Shipped in e1b9a7b.
 
-All four Ada advisories on ProxyNudge resolved in a single Aria session:
-- #336: Dismiss now returns focus to "Edit API key" button, not trash button
-- #337: All interactive elements include provider name in aria-label
-- #338: Focus rings normalized to `focus-visible:ring-2 focus-visible:ring-offset-2`
-- #339: CTA uses double RAF to survive panel CSS transitions
+New `ConversationEmptyState` component replaces the single "Start a conversation" placeholder:
+- State A (0 active models): defensive fallback heading
+- State B (1 model): identity beacon + model name + "Ask [Name] anything"
+- State C (2+ models): staggered beacon row + heading + subtext + 3 suggestion chips
+- Chips pre-fill and focus the InputBar textarea on click
+- Entrance animation: content block 200ms fade+slide, beacons stagger at 150ms base + 50ms per beacon (offset to clear parent opacity ramp)
+- `prefers-reduced-motion` compliant — no animation at all
+- No new tokens; uses existing accent color system via `getModelDotStyle`
 
-**#340 — Auto-chain mode ignored before first message** — Shipped in 054888a.
-
-**#335 — Proxy setup nudge in ProviderSettingsPanel** — Shipped in 5e4b08e.
+**#342 — Model/mode persistence across new conversations** — Filed, not started.
 
 ## Key decisions
 
-- Interaction mode default stays 'parallel' — tooltips make auto-chain discoverable
-- ProxyNudge fires during provider setup (not on send) — preserves send excitement
+- Product tour rejected in favor of enhanced empty state — agent consensus (Luma, Aria, Spark)
+- Contextual first-use tooltips deferred until real user confusion is reported
 - GitHub Pages source: gh-pages branch → / (root) — must not change
 - Backend CI pinned to Node 22 LTS (better-sqlite3 prebuilt availability)
 
@@ -32,11 +33,11 @@ All four Ada advisories on ProxyNudge resolved in a single Aria session:
 
 ## What's next
 
-- User to identify next priority
-- Consider upgrading better-sqlite3 to ≥11.x to unblock backend CI Node 24
+- #342: Persist last-used model roster + interaction mode as new conversation defaults (Vault + Aria + Arch)
 
 ## Gotchas
 
 - ProxyNudge only renders in import.meta.env.PROD — not visible in npm run dev
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
+- `ConversationEmptyState` beacon stagger: 150ms base delay is intentional — clears parent opacity ramp before beacons animate
