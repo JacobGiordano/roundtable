@@ -142,7 +142,13 @@ body {
 
 .beacon-enter {
   animation: beaconEnter 100ms ease-out both;
-  animation-delay: calc(var(--beacon-index, 0) * 50ms);
+  /* Base offset of 150ms lets the parent emptyStateEnter animation (~92% opacity
+     at 150ms with ease-out) reach sufficient opacity before each beacon animates.
+     Without the offset, the beacon scale/opacity transitions play while the parent
+     is nearly transparent, making them invisible to the user — the dots appear to
+     "pop in" at their final state once the parent becomes opaque.
+     Stagger: 50ms per beacon via --beacon-index (0, 50, 100, 150ms added to base). */
+  animation-delay: calc(150ms + var(--beacon-index, 0) * 50ms);
 }
 
 .pill-shake {

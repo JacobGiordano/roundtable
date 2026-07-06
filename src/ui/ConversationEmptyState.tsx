@@ -55,15 +55,13 @@ interface ConversationEmptyStateProps {
  */
 function ModelBeacon({ model, index }: { model: ModelConfig; index: number }) {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div
+      className="flex flex-col items-center gap-2 beacon-enter"
+      style={{ '--beacon-index': index } as React.CSSProperties}
+    >
       <span
-        className="w-5 h-5 rounded-full beacon-enter flex-shrink-0"
-        style={
-          {
-            ...getModelDotStyle(model.modelId),
-            '--beacon-index': index,
-          } as React.CSSProperties
-        }
+        className="w-5 h-5 rounded-full flex-shrink-0"
+        style={getModelDotStyle(model.modelId)}
         aria-hidden="true"
       />
       <span className="text-[12px] font-medium text-text-muted leading-none">
@@ -101,19 +99,19 @@ export function ConversationEmptyState({
         {/* ── State B: single model ───────────────────────────────────── */}
         {models.length === 1 && (
           <div className="flex flex-col items-center">
-            <span
-              className="w-5 h-5 rounded-full beacon-enter flex-shrink-0"
-              style={
-                {
-                  ...getModelDotStyle(models[0].modelId),
-                  '--beacon-index': 0,
-                } as React.CSSProperties
-              }
-              aria-hidden="true"
-            />
-            <p className="text-[12px] font-medium text-text-muted mt-2 leading-none">
-              {models[0].name}
-            </p>
+            <div
+              className="flex flex-col items-center gap-2 beacon-enter"
+              style={{ '--beacon-index': 0 } as React.CSSProperties}
+            >
+              <span
+                className="w-5 h-5 rounded-full flex-shrink-0"
+                style={getModelDotStyle(models[0].modelId)}
+                aria-hidden="true"
+              />
+              <p className="text-[12px] font-medium text-text-muted leading-none">
+                {models[0].name}
+              </p>
+            </div>
             <h2 className="text-[20px] font-semibold text-text-primary mt-4">
               Ask {models[0].name} anything
             </h2>
