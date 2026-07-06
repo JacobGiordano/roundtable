@@ -32,6 +32,12 @@ import { getModelVersion, setModelVersion, clearModelVersion, getProviderRoster,
 // useSyncExternalStore + a localStorage.setItem patch to give real-time reactivity
 // without crossing the /src/auth boundary.
 import { usePreferencesSync } from '@/ui/hooks/usePreferencesSync';
+// useConversationDefaults: UI-owned hook for loading/saving conversation defaults (#342).
+// Reads stored defaults on mount to seed the initial active-model roster and
+// interaction mode when there is no active conversation. Writes defaults whenever
+// the user changes the active model set or interaction mode, so the next session
+// starts with the same state.
+import { useConversationDefaults } from '@/ui/hooks/useConversationDefaults';
 // Vault cross-agent exception: useConversationStore is the persistence hook
 // exported from @/storage. Aria consumes it at the App root to provide real
 // persisted conversation state to the sidebar and message thread.
@@ -163,7 +169,21 @@ export default function App() {
   // conversation) or when New Chat resets the view. Applied to the next
   // conversation created by handleNewConversation. Seeded as 'parallel' (the
   // default) so the UI starts in a consistent state on every page load.
+  // (#342: overridden by stored defaults when getConversationDefaults() resolves
+  // and there is no active conversation — see the defaults-apply useEffect below.)
   const [pendingMode, setPendingMode] = useState<InteractionMode>('parallel');
+
+  // Conversation defaults (#342): loads last-used model roster + interaction mode
+  // from storage on mount. App applies these to seed the UI when there is no
+  // active conversation. Writes updated defaults whenever the user changes the
+  // model roster or interaction mode, so the next session inherits the current state.
+  const { defaults, defaultsLoaded, saveDefaults } = useConversationDefaults();
+
+  // Ref guard: ensures stored defaults are applied at most once per session.
+  // Without this guard, switching away from an active conversation (e.g. after
+  // deleting all conversations) would re-apply defaults and override whatever
+  // roster state the user had before the delete.
+  const defaultsAppliedRef = useRef(false);
 
   // UserPreferences — reactive read via usePreferencesSync (#312).
   // usePreferencesSync subscribes to localStorage writes via a targeted setItem
@@ -292,6 +312,35 @@ export default function App() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isLoading, activeConversation?.id]);
+
+  // Apply stored defaults (#342) to seed the model roster and interaction mode
+  // when there is no active conversation (fresh app load or after all conversations
+  // are deleted). This runs after the store finishes loading so we do not fight
+  // with the conversation-seeding effect above.
+  //
+  // Guard: the ref ensures defaults are applied at most once per session. We do
+  // not re-apply defaults every time activeConversation becomes null (e.g. after
+  // a delete) — one application per session is enough; subsequent roster/mode
+  // changes are already saved as new defaults.
+  //
+  // Priority: the conversation-seeding effect above runs when activeConversation
+  // is set and takes precedence over any defaults-applied state. If defaults are
+  // applied before the store finishes loading and then a conversation is restored,
+  // the conversation-seeding effect will correctly override the defaults-applied
+  // model state.
+  useEffect(() => {
+    if (store.isLoading || !defaultsLoaded) return;
+    if (defaultsAppliedRef.current) return;
+    if (defaults === null || activeConversation) return;
+
+    // All conditions met: apply defaults to the blank-slate UI.
+    defaultsAppliedRef.current = true;
+    const defaultActiveIds = new Set(defaults.activeModelIds);
+    setModels((prev) =>
+      prev.map((m) => ({ ...m, isActive: defaultActiveIds.has(m.modelId) })),
+    );
+    setPendingMode(defaults.interactionMode);
+  }, [store.isLoading, defaultsLoaded, defaults, activeConversation]);
 
   // Resolve ModelConfig for the pending directed-reply target (for pill display).
   const directedReplyTarget = pendingTargetModelId
@@ -540,6 +589,16 @@ export default function App() {
   };
 
   const handleNewConversation = () => {
+    // (#342) Persist the current roster + mode as defaults before creating the
+    // new conversation. This ensures that even if the user has not changed
+    // anything this session, the next session still inherits their last-used
+    // state. Ghost-mode guard is enforced inside saveDefaults.
+    saveDefaults(
+      models.filter((m) => m.isActive).map((m) => m.modelId),
+      activeConversation?.interactionMode ?? pendingMode,
+      activeConversation?.isGhost ?? false,
+    );
+
     const newConv: Conversation = {
       id: `conv-${Date.now()}`,
       messages: [],
@@ -594,47 +653,65 @@ export default function App() {
   }, []);
 
   const handleToggleModel = (modelId: ModelId) => {
-    setModels((prev) => {
-      const activeCount = prev.filter((m) => m.isActive).length;
-      const next = prev.map((m) => {
-        if (m.modelId !== modelId) return m;
-        // Guard: cannot deactivate the last active model
-        if (m.isActive && activeCount === 1) return m;
-        return { ...m, isActive: !m.isActive };
-      });
-
-      // Persist the updated models to the active conversation.
-      // Ghost-mode guard: skip storage writes for ghost conversations.
-      const conv = store.getActiveConversation();
-      if (conv && !conv.isGhost) {
-        void store.updateConversation({
-          ...conv,
-          models: next,
-          updatedAt: Date.now(),
-        });
-      }
-
-      return next;
+    // Compute the next model list directly (not via functional updater) so we
+    // can pass it to both setModels and saveDefaults in the same synchronous
+    // event handler. This is safe: handleToggleModel is only called from click
+    // handlers, so `models` from the closure is always current.
+    const activeCount = models.filter((m) => m.isActive).length;
+    const next = models.map((m) => {
+      if (m.modelId !== modelId) return m;
+      // Guard: cannot deactivate the last active model
+      if (m.isActive && activeCount === 1) return m;
+      return { ...m, isActive: !m.isActive };
     });
+
+    setModels(next);
+
+    // Persist the updated models to the active conversation.
+    // Ghost-mode guard: skip storage writes for ghost conversations.
+    const conv = store.getActiveConversation();
+    if (conv && !conv.isGhost) {
+      void store.updateConversation({
+        ...conv,
+        models: next,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // (#342) Save conversation defaults so the next new conversation inherits
+    // this model roster. Ghost-mode guard is enforced inside saveDefaults.
+    saveDefaults(
+      next.filter((m) => m.isActive).map((m) => m.modelId),
+      conv?.interactionMode ?? pendingMode,
+      conv?.isGhost ?? isGlobalGhostMode,
+    );
   };
 
   const handleAddModel = (modelId: ModelId) => {
-    setModels((prev) => {
-      const next = prev.map((m) => (m.modelId === modelId ? { ...m, isActive: true } : m));
+    // Compute next list directly (not via functional updater) — same rationale
+    // as handleToggleModel: called from click handlers only, so `models` is current.
+    const next = models.map((m) => (m.modelId === modelId ? { ...m, isActive: true } : m));
 
-      // Persist the updated models to the active conversation.
-      // Ghost-mode guard: skip storage writes for ghost conversations.
-      const conv = store.getActiveConversation();
-      if (conv && !conv.isGhost) {
-        void store.updateConversation({
-          ...conv,
-          models: next,
-          updatedAt: Date.now(),
-        });
-      }
+    setModels(next);
 
-      return next;
-    });
+    // Persist the updated models to the active conversation.
+    // Ghost-mode guard: skip storage writes for ghost conversations.
+    const conv = store.getActiveConversation();
+    if (conv && !conv.isGhost) {
+      void store.updateConversation({
+        ...conv,
+        models: next,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // (#342) Save conversation defaults so the next new conversation includes
+    // this model. Ghost-mode guard is enforced inside saveDefaults.
+    saveDefaults(
+      next.filter((m) => m.isActive).map((m) => m.modelId),
+      conv?.interactionMode ?? pendingMode,
+      conv?.isGhost ?? isGlobalGhostMode,
+    );
   };
 
   /** Persists the chosen interaction mode on the active conversation. */
@@ -646,11 +723,25 @@ export default function App() {
     // message is silently dropped.
     if (!conv) {
       setPendingMode(mode);
+      // (#342) No active conversation means we're not in ghost mode — save defaults
+      // so the next session starts with this mode pre-selected.
+      saveDefaults(
+        models.filter((m) => m.isActive).map((m) => m.modelId),
+        mode,
+        isGlobalGhostMode,
+      );
       return;
     }
     // Ghost-mode guard: ghost conversations are in-memory only; no storage write.
     if (conv.isGhost) return;
     void store.updateConversation({ ...conv, interactionMode: mode, updatedAt: Date.now() });
+    // (#342) Save defaults after mode change so the next new conversation inherits
+    // the updated mode. Ghost guard already handled above.
+    saveDefaults(
+      models.filter((m) => m.isActive).map((m) => m.modelId),
+      mode,
+      false,
+    );
   };
 
   const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {

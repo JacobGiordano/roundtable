@@ -100,6 +100,11 @@ vi.mock('@/storage', () => ({
     exportConversation: vi.fn(),
   })),
   downloadExportedConversation: vi.fn(),
+  // #342: useConversationDefaults imports these from @/storage.
+  // Plain arrow functions (not vi.fn()) so vi.restoreAllMocks() in afterEach
+  // does not reset them back to undefined between tests.
+  getConversationDefaults: () => Promise.resolve(null),
+  saveConversationDefaults: () => Promise.resolve(undefined),
   useGhostMode: vi.fn(() => ({
     isGhost: false,
     toggleGhostMode: mockToggleGhostMode,
