@@ -317,6 +317,19 @@ async function runParallel(
   signal?: AbortSignal,
   visionCapable?: Set<ModelId>
 ): Promise<void> {
+  // Emit dispatch-time priming chunks so Aria can render placeholder bubbles
+  // immediately when the user sends a message, before the first real content
+  // byte arrives from any provider. Issue #349.
+  //
+  // Note: emitErrorChunk (called on the error path inside each provider) also
+  // emits a priming non-done chunk. A provider that fails immediately will
+  // therefore produce two consecutive non-done chunks (content: ''), which is
+  // harmless — useStreamingMessages creates the accumulator entry on the first
+  // and no-ops on the second.
+  for (const provider of providers) {
+    onChunk({ modelId: provider.config.modelId, content: '', isDone: false });
+  }
+
   // Fire all providers in parallel. Promise.allSettled ensures every provider
   // runs to completion regardless of whether siblings succeed or fail.
   await Promise.allSettled(
@@ -412,6 +425,10 @@ async function runDirected(
   // Phase 5 (#285): strip attachments for providers that do not support vision.
   const isVision = visionCapable?.has(target.config.modelId) ?? false;
   const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
+
+  // Emit dispatch-time priming chunk so Aria can render a placeholder bubble
+  // immediately when the user sends a directed message. Issue #349.
+  onChunk({ modelId: target.config.modelId, content: '', isDone: false });
 
   await runProviderIsolated(target, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
 }
