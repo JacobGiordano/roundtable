@@ -242,7 +242,13 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       model: modelString,
       [tokenLimitKey]: this.maxTokens,
       stream: true,
-      // Request token usage in the final stream chunk (OpenAI-compatible extension)
+      // Request token usage in the final stream chunk (OpenAI-compatible extension).
+      //
+      // Spike #345 — confirmed safe with o1 and o1-mini:
+      // Both models support streaming (since Nov 2024) and stream_options.include_usage
+      // is documented by OpenAI as working with all streaming-capable Chat Completions
+      // requests. Tested against the o1-mini and o1 model pages on platform.openai.com
+      // — no known incompatibility. No per-model exclusion set needed.
       stream_options: { include_usage: true },
       messages: apiMessages,
     };
