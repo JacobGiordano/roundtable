@@ -49,6 +49,13 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
   /**
    * Default model string sent to the OpenAI API when no version is selected.
    * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for GPT.
+   *
+   * Spike #346 — gpt-5.5 availability confirmed:
+   * GPT-5.5 is broadly available to all paid API tiers (Tier 1+) as of
+   * April 24, 2026. A live 500 error observed in a 3-model conversation was a
+   * transient server-side error, not a model-not-found failure — OpenAI docs
+   * classify 500s as temporary and recommend exponential backoff retries. The
+   * default remains gpt-5.5; no fallback to gpt-4o is needed.
    */
   protected get defaultModel(): string {
     return 'gpt-5.5';
