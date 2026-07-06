@@ -339,6 +339,9 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
   if (isStreaming) {
     const stableContent = content.slice(0, prevLengthRef.current);
     const newChunk = content.slice(prevLengthRef.current);
+    // Capture offset before advancing — used as key so React unmounts/remounts
+    // the span on each chunk, re-triggering the chunkFadeIn CSS animation.
+    const chunkKey = prevLengthRef.current;
 
     // Advance the ref synchronously before React commits. Using a ref (not state)
     // avoids a re-render cycle; the value is read on the next render.
@@ -359,7 +362,7 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
           </ReactMarkdown>
         )}
         {newChunk && (
-          <span className="chunk-entering whitespace-pre-wrap">
+          <span key={chunkKey} className="chunk-entering whitespace-pre-wrap">
             {newChunk}
           </span>
         )}
