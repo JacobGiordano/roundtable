@@ -331,15 +331,20 @@ export default function App() {
   useEffect(() => {
     if (store.isLoading || !defaultsLoaded) return;
     if (defaultsAppliedRef.current) return;
-    if (defaults === null || activeConversation) return;
+    if (defaults === null) return;
 
-    // All conditions met: apply defaults to the blank-slate UI.
     defaultsAppliedRef.current = true;
-    const defaultActiveIds = new Set(defaults.activeModelIds);
-    setModels((prev) =>
-      prev.map((m) => ({ ...m, isActive: defaultActiveIds.has(m.modelId) })),
-    );
+    // Always seed pendingMode from defaults so new conversations inherit the
+    // stored mode even when a previous conversation is already active.
     setPendingMode(defaults.interactionMode);
+    // Only override the model roster when starting blank — an already-active
+    // conversation controls its own roster.
+    if (!activeConversation) {
+      const defaultActiveIds = new Set(defaults.activeModelIds);
+      setModels((prev) =>
+        prev.map((m) => ({ ...m, isActive: defaultActiveIds.has(m.modelId) })),
+      );
+    }
   }, [store.isLoading, defaultsLoaded, defaults, activeConversation]);
 
   // Resolve ModelConfig for the pending directed-reply target (for pill display).
@@ -716,15 +721,12 @@ export default function App() {
 
   /** Persists the chosen interaction mode on the active conversation. */
   const handleModeChange = (mode: InteractionMode) => {
+    // Always keep pendingMode in sync so new conversations inherit the correct
+    // mode regardless of whether a conversation is currently active.
+    setPendingMode(mode);
     const conv = store.getActiveConversation();
-    // #340: No active conversation yet — capture the mode in pendingMode so it
-    // is applied when the next conversation is created (handleNewConversation or
-    // first send). Without this, clicking the mode switcher before the first
-    // message is silently dropped.
+    // #340: No active conversation yet — pendingMode is the only state to update.
     if (!conv) {
-      setPendingMode(mode);
-      // (#342) No active conversation means we're not in ghost mode — save defaults
-      // so the next session starts with this mode pre-selected.
       saveDefaults(
         models.filter((m) => m.isActive).map((m) => m.modelId),
         mode,
@@ -735,8 +737,6 @@ export default function App() {
     // Ghost-mode guard: ghost conversations are in-memory only; no storage write.
     if (conv.isGhost) return;
     void store.updateConversation({ ...conv, interactionMode: mode, updatedAt: Date.now() });
-    // (#342) Save defaults after mode change so the next new conversation inherits
-    // the updated mode. Ghost guard already handled above.
     saveDefaults(
       models.filter((m) => m.isActive).map((m) => m.modelId),
       mode,
