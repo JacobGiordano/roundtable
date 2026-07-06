@@ -61,9 +61,14 @@ export function buildAttributedMessages(
     .filter((msg) => {
       // Skip in-flight streaming messages — partial content must never be sent
       if (msg.isStreaming === true) return false;
-      // Skip error sentinel: synthesized error assistant messages with
-      // content='Error' and error set are UI markers, not real content
-      if (msg.error !== undefined && msg.content === 'Error') return false;
+      // Skip error sentinel: assistant messages where error is set and content is
+      // empty or whitespace-only are synthesized UI markers that must never be
+      // transmitted to a provider. Uses the same predicate as filterMessagesForApi
+      // in openai-sse.ts so both filter paths behave identically.
+      // Prior predicate (msg.content === 'Error') was wrong in two directions:
+      //   - Did not strip content:'' error messages (the actual pattern from emitErrorChunk)
+      //   - Stripped content:'Error' messages which have real (if odd) content
+      if (msg.error && !msg.content.trim()) return false;
       return true;
     })
     .map((msg) => {
