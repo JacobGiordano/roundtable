@@ -15,6 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { PricingTable } from '@/types';
 import {
   getPricingTable,
   getPricingMetadata,
@@ -43,7 +44,7 @@ vi.stubGlobal('fetch', mockFetch);
 
 // ─── Test pricing data ────────────────────────────────────────────────────────
 
-const SAMPLE_TABLE = {
+const SAMPLE_TABLE: PricingTable = {
   'claude-sonnet-4-6': { inputPer1M: 3.0, outputPer1M: 15.0 },
   'gpt-4o': { inputPer1M: 2.5, outputPer1M: 10.0 },
 };
