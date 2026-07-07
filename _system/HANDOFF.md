@@ -6,18 +6,10 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Cost display feature back-end complete. All four foundation tickets shipped.
+Cost-reduction wave: CLAUDE.md trimmed 52%, SOP extracted, agent profiles tightened.
 
-**Shipped this session (cost display wave):**
-- `#350` — Arch: PricingEntry, PricingTable, PricingMetadata, PricingConfig, fn type aliases
-- `#351` — Gate: pricing cache (stale-while-revalidate, 24h TTL, runtime URL override, savePricingUrl)
-- `#352` — Atlas: pricing.json (20 models), cost computation at stream completion, estimatedCost on TokenUsage
-
-**Also shipped:**
-- `#343` — Scout: aria-hidden test selectors fixed
-- `#344` — Atlas: error-sentinel filter alignment
-- `#345/#346` — Atlas: stream_options and gpt-5.5 spikes
-- `#349` — Atlas: dispatch-time priming chunks
+**Shipped this session:**
+- `#354` — Arch: CLAUDE.md 292 → 141 lines; SOP + dev container extracted to `_system/SOP.md`; all 15 agent profile descriptions tightened; routing table merged into boundary table
 
 ## Key decisions
 
@@ -27,14 +19,17 @@ Cost display feature back-end complete. All four foundation tickets shipped.
 - generic.ts uses DI for getPricingTableFn (avoids @/auth import side-effects in tests)
 - AbortError early-termination paths do NOT get estimatedCost — partial streams report no cost
 - Cost display: session-scoped only (Phase 1), no retroactive recalculation
+- SOP detail lives in `_system/SOP.md` — CLAUDE.md has summary + pointer only
+- Dev container rules placed in `_system/SOP.md` (not a separate file)
 
 ## Open issues
 
-**Ready to start (Aria #353 unblocked):**
+**Ready to start (usage resets Wed 10am):**
 - #353: [Aria] SessionTokenSection cost column + staleness footer + pricing URL settings field
+- #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder *(batch with #353)*
 
-**Also unblocked:**
-- #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder
+**Also open:**
+- #355: [Arch] Update Coda agent profile — fork-first coordination pattern
 
 ## Gotchas
 
