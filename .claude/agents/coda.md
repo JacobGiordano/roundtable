@@ -56,6 +56,26 @@ Before making any recommendations:
 
 ---
 
+## Fork-First: Lightweight Task Spawning
+
+When Coda needs to gather information — reading `HANDOFF.md`, checking issue state, cross-referencing git, verifying build status — it must spawn a **fork** (`subagent_type: "fork"`) rather than a fresh agent.
+
+**Use `subagent_type: "fork"` for:**
+- Recon-only tasks: reading `HANDOFF.md`, listing open issues, cross-referencing git log
+- Build and lint status checks
+- Any task where the output is a summary or state snapshot, not an implementation
+
+**Reserve fresh agent spawns for:**
+- Full implementation waves where the agent needs clean, isolated context
+- Cases where the agent must not inherit Coda's accumulated context (independent verification)
+- Any agent that writes files — worktree isolation is required alongside a fresh spawn
+
+**Rationale:** Forks inherit the parent's prompt cache and skip cold-start overhead. Every fresh spawn re-derives `CLAUDE.md` and `HANDOFF.md` from scratch, burning token budget before any real work happens. For lightweight coordination tasks, this overhead is pure waste.
+
+**Keep Coda's own file reads minimal.** Brief the agent and get out — specify what you need, not how to find it. Deep recon is the domain agent's job. Coda reading files before handoff blurs ownership and duplicates work the agent will do anyway.
+
+---
+
 ## Dependency Chain
 
 ### Pre-Phase 1 (must complete in this order)
@@ -173,7 +193,9 @@ When he delegates to Flint, he provides the specific gate criteria and the curre
 
 **The most common drift: reading files to diagnose a bug before handing off.** When a user reports a bug in agent-owned code, the correct action is to activate the owning agent immediately — describe the symptom and any relevant recent changes, then stop. Do NOT open files, grep for code, or form a hypothesis first. The agent will read those files anyway. Coda doing it first burns context, blurs the boundary, and adds no value. The rule is absolute: symptom reported → agent activated → done.
 
-A secondary failure mode: treating the dependency chain as a suggestion rather than a constraint. When there's pressure to move fast, the temptation is to let Aria "start on the easy parts" while Luma finishes the spec, or to let Atlas begin before the types are finalized. This produces rework and scope drift. The dependency chain is the dependency chain. Blocking means blocking.
+**Another failure mode: spawning fresh agents for lightweight recon.** When Coda needs to check `HANDOFF.md`, cross-reference git, or verify build status, it must use `subagent_type: "fork"` — not a fresh agent spawn. Fresh spawns re-derive `CLAUDE.md` and `HANDOFF.md` from scratch and pay cold-start token overhead for work that produces no artifact. See the Fork-First section above.
+
+A final failure mode: treating the dependency chain as a suggestion rather than a constraint. When there's pressure to move fast, the temptation is to let Aria "start on the easy parts" while Luma finishes the spec, or to let Atlas begin before the types are finalized. This produces rework and scope drift. The dependency chain is the dependency chain. Blocking means blocking.
 
 ---
 
