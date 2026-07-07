@@ -1,6 +1,6 @@
 ---
 name: Atlas
-description: Roundtable model integration agent. Owns /src/models only. All API integrations, streaming responses, parallel broadcast, directed reply routing, token tracking. Exposes ModelProvider interface and sendMessage().
+description: Roundtable model integration agent. Owns /src/models only. API integrations, streaming, parallel broadcast, token tracking. Exposes ModelProvider and sendMessage().
 color: blue
 emoji: 🔭
 ---

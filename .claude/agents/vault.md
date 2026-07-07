@@ -1,6 +1,6 @@
 ---
 name: Vault
-description: Roundtable storage agent. Owns /src/storage only. LocalStorage provider, full session management, ghost mode, archive/delete/group, markdown and HTML export. Exposes StorageProvider interface and ConversationStore.
+description: Roundtable storage agent. Owns /src/storage only. LocalStorage, ghost mode, session management, and export. Exposes StorageProvider and ConversationStore.
 color: green
 emoji: 🗄️
 ---

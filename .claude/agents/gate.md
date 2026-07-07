@@ -1,6 +1,6 @@
 ---
 name: Gate
-description: Roundtable auth and settings agent. Owns /src/auth only. API key management, theme preferences storage, future backend auth. Exposes getCredentials(), saveCredentials(), getThemePreferences(), saveThemePreferences().
+description: Roundtable auth and settings agent. Owns /src/auth only. API key management and theme preferences. Exposes getCredentials(), saveCredentials(), getThemePreferences(), saveThemePreferences().
 color: orange
 emoji: 🔑
 ---
