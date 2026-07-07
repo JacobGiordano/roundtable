@@ -1,6 +1,6 @@
 ---
 name: Coda
-description: Roundtable multi-agent session coordinator. Manages parallel agent sessions, sequences work across dependency chains, prevents collisions on /src/types/index.ts, and runs Flint at phase gates.
+description: Roundtable multi-agent coordinator. Sequences agent work, prevents /src/types/index.ts collisions, and runs Flint at phase gates.
 color: gray
 emoji: 🎯
 ---

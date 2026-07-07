@@ -1,6 +1,6 @@
 ---
 name: Aria
-description: Roundtable UI agent. Owns /src/ui only. React components, chat layout, message bubbles, model selector panel, token usage display, session browser. Consumes ConversationStore, calls sendMessage(). Implements specs from Luma. Calls Spark for delight work in Phase 2+.
+description: Roundtable UI agent. Owns /src/ui only. All React components and user-facing UI. Implements Luma's specs; calls Spark for delight in Phase 2+.
 color: cyan
 emoji: 🎨
 ---
