@@ -139,8 +139,11 @@ describe('ConversationEmptyState — State B (1 model)', () => {
     );
     // The colored circle is purely decorative. Model identity is carried by the
     // visible name label below it — the dot must not appear in the a11y tree.
-    const dot = container.querySelector('.beacon-enter');
-    expect(dot).toBeTruthy();
+    // NOTE: .beacon-enter is the wrapper div that holds both the circle and the
+    // name label; aria-hidden lives on the inner circle <span>, not the wrapper.
+    const beacon = container.querySelector('.beacon-enter');
+    expect(beacon).toBeTruthy();
+    const dot = beacon?.querySelector('span');
     expect(dot?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -196,10 +199,13 @@ describe('ConversationEmptyState — State C (2+ models)', () => {
     const { container } = render(
       <ConversationEmptyState models={twoModels} onSuggestionSelect={vi.fn()} />,
     );
-    const dots = container.querySelectorAll('.beacon-enter');
-    expect(dots.length).toBeGreaterThanOrEqual(2);
-    dots.forEach((dot) => {
-      expect(dot.getAttribute('aria-hidden')).toBe('true');
+    // .beacon-enter is the wrapper div (circle + name label); aria-hidden lives
+    // on the inner circle <span> — the name label must remain in the a11y tree.
+    const beacons = container.querySelectorAll('.beacon-enter');
+    expect(beacons.length).toBeGreaterThanOrEqual(2);
+    beacons.forEach((beacon) => {
+      const dot = beacon.querySelector('span');
+      expect(dot?.getAttribute('aria-hidden')).toBe('true');
     });
   });
 
