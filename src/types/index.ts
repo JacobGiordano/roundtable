@@ -1371,3 +1371,84 @@ export type SaveProxyConfigFn = (config: ProxyConfig) => void;
 
 /** Gate implements. Aria calls this when the user clears the proxy URL. */
 export type ClearProxyConfigFn = () => void;
+
+// ─── Pricing — Gate implements, Atlas and Aria consume ────────────────────────
+
+/**
+ * Pricing for a single model variant in USD per 1 million tokens.
+ *
+ * Atlas reads this at send time to compute per-message cost:
+ *   cost = (inputPer1M × inputTokens / 1_000_000) + (outputPer1M × outputTokens / 1_000_000)
+ *
+ * Gate writes this as values in `PricingTable` when populating from the
+ * pricing JSON payload it fetches or loads from the bundled fallback.
+ */
+export interface PricingEntry {
+  /** Input token price in USD per 1 million tokens. */
+  inputPer1M: number;
+  /** Output token price in USD per 1 million tokens. */
+  outputPer1M: number;
+}
+
+/**
+ * Full pricing dataset keyed by API model string.
+ *
+ * Keys are the exact API-level model strings sent to provider endpoints
+ * (e.g. "claude-sonnet-4-6", "gpt-4o", "gemini-2.5-pro") — NOT `ModelId`
+ * values. This distinction is intentional: pricing is version-specific,
+ * and a single `ModelId` (e.g. "claude") may map to multiple versioned API
+ * strings with different prices depending on which version the user has selected.
+ *
+ * Gate stores this in localStorage (key: "roundtable:pricing-table") and
+ * exposes it via `GetPricingTableFn`. Atlas reads it at send time by looking up
+ * the resolved API model string for the current request. Aria does not consume
+ * `PricingTable` directly — it reads `PricingMetadata` for the staleness footer.
+ *
+ * Absence of a key means no pricing data is available for that model variant.
+ * Atlas must treat a missing entry as "cost unknown" and omit cost display for
+ * that model rather than blocking the send.
+ */
+export type PricingTable = Record<string, PricingEntry>;
+
+/**
+ * Freshness metadata for the pricing data currently in storage.
+ *
+ * Gate writes this alongside `PricingTable` whenever it performs a fetch or
+ * falls back to the bundled pricing data. Aria reads it via `GetPricingMetadataFn`
+ * to determine whether to render a staleness notice in `SessionTokenSection`.
+ *
+ * `lastFetched` is `null` when pricing has never been successfully fetched from
+ * the remote source — the app is running entirely on bundled fallback data and
+ * no prior fetch has ever succeeded.
+ *
+ * `source` discriminates how the current `PricingTable` was populated:
+ *   - 'remote'   — the table reflects a successful network fetch
+ *   - 'fallback' — the table reflects bundled data shipped with the build
+ *                  (either because no fetch has ever succeeded, or because
+ *                  the last fetch failed and the fallback was restored)
+ */
+export interface PricingMetadata {
+  /** ISO timestamp of the last successful remote fetch, or null if never fetched. */
+  lastFetched: string | null;
+  /** Whether prices came from a successful network fetch or from the bundled fallback. */
+  source: 'remote' | 'fallback';
+}
+
+/**
+ * Runtime pricing configuration. Gate resolves the effective URL from:
+ *   localStorage override → VITE_PRICING_URL env var → canonical default URL
+ *
+ * Gate uses this at fetch time to determine where to retrieve the pricing JSON.
+ * Aria may expose a settings field for the localStorage override (issue #353).
+ * This type carries the already-resolved URL; resolution logic lives in Gate.
+ */
+export interface PricingConfig {
+  /** Fully resolved pricing JSON URL. Gate resolves: localStorage override → VITE env var → canonical default. */
+  url: string;
+}
+
+/** Gate implements. Atlas and Aria call this to read the current pricing table. Returns null when no pricing data has been written yet. */
+export type GetPricingTableFn = () => PricingTable | null;
+
+/** Gate implements. Aria calls this to read pricing staleness metadata. Returns null when metadata has not been written yet. */
+export type GetPricingMetadataFn = () => PricingMetadata | null;
