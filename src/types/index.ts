@@ -138,6 +138,8 @@ export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Estimated cost in USD, computed by Atlas at stream completion using Gate's pricing table. Absent when pricing data is unavailable for the model. */
+  estimatedCost?: number;
 }
 
 /**

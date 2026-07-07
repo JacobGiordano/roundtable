@@ -21,6 +21,8 @@ import type {
 import { getCredentials } from '@/auth';
 // permitted cross-agent import — see ProxyConfig JSDoc in @/types
 import { getProxyConfig } from '@/auth';
+// permitted cross-agent import — pricing table read at send time per issue #352
+import { getPricingTable } from '@/auth';
 import { MAX_TOKENS_GEMINI } from './constants';
 import {
   mapHttpStatusToErrorCode,
@@ -327,6 +329,16 @@ export class GeminiModelProvider implements ModelProvider {
       outputTokens,
       totalTokens: inputTokens + outputTokens,
     };
+
+    // Compute estimated cost if pricing data is available for this model.
+    // Missing entry or null table means cost is unknown — do not set to 0.
+    const pricingTable = getPricingTable();
+    const pricingEntry = pricingTable?.[modelString];
+    if (pricingEntry) {
+      tokenUsage.estimatedCost =
+        (tokenUsage.inputTokens / 1_000_000) * pricingEntry.inputPer1M +
+        (tokenUsage.outputTokens / 1_000_000) * pricingEntry.outputPer1M;
+    }
 
     onChunk({
       modelId: this.config.modelId,
