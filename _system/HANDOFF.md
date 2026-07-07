@@ -1,4 +1,4 @@
-Last updated: 2026-07-06
+Last updated: 2026-07-07
 
 ## Current phase
 
@@ -6,10 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Cost-reduction wave: CLAUDE.md trimmed 52%, SOP extracted, agent profiles tightened.
+Cost-reduction wave complete. Both optimization tickets shipped.
 
 **Shipped this session:**
 - `#354` — Arch: CLAUDE.md 292 → 141 lines; SOP + dev container extracted to `_system/SOP.md`; all 15 agent profile descriptions tightened; routing table merged into boundary table
+- `#355` — Arch: Coda profile updated with fork-first coordination pattern; fresh-agent recon named as explicit failure mode
 
 ## Key decisions
 
@@ -21,15 +22,13 @@ Cost-reduction wave: CLAUDE.md trimmed 52%, SOP extracted, agent profiles tighte
 - Cost display: session-scoped only (Phase 1), no retroactive recalculation
 - SOP detail lives in `_system/SOP.md` — CLAUDE.md has summary + pointer only
 - Dev container rules placed in `_system/SOP.md` (not a separate file)
+- Coda uses fork-first for all recon tasks; fresh spawns reserved for implementation waves
 
 ## Open issues
 
 **Ready to start (usage resets Wed 10am):**
 - #353: [Aria] SessionTokenSection cost column + staleness footer + pricing URL settings field
 - #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder *(batch with #353)*
-
-**Also open:**
-- #355: [Arch] Update Coda agent profile — fork-first coordination pattern
 
 ## Gotchas
 
