@@ -30,7 +30,7 @@ import type {
   ModelId,
   SessionTokenUsage,
 } from '@/types';
-import { getProviderRoster, getCredentials } from '@/auth';
+import { getProviderRoster, getCredentials, getPricingTable } from '@/auth';
 import { PROVIDERS } from './registry';
 import { createCustomProvider } from './generic';
 import { emitErrorChunk, buildModelError } from './openai-sse';
@@ -145,10 +145,11 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
       if (customEntry.capabilities?.vision === true) {
         visionCapable.add(modelId);
       }
-      // Instantiate from config. Pass getCredentials from @/auth here rather
-      // than letting generic.ts import it directly, keeping the @/models
-      // boundary clean.
-      providers.push(createCustomProvider(customEntry, getCredentials));
+      // Instantiate from config. Pass getCredentials and getPricingTable from
+      // @/auth here rather than letting generic.ts import them directly, keeping
+      // the @/models boundary clean. getPricingTable enables cost computation
+      // for custom providers at stream completion (issue #352).
+      providers.push(createCustomProvider(customEntry, getCredentials, getPricingTable));
     } else {
       // Neither a built-in nor a roster-backed custom provider.
       // Caller will emit auth_failure and skip.

@@ -32,6 +32,7 @@ import type {
   TokenUsage,
   CustomProviderConfig,
   GetCredentialsFn,
+  GetPricingTableFn,
 } from '@/types';
 import { MAX_TOKENS_GENERIC } from './constants';
 import {
@@ -107,9 +108,19 @@ export class GenericOpenAIProvider implements ModelProvider {
    */
   private readonly getCredentialsFn: GetCredentialsFn;
 
-  constructor(customConfig: CustomProviderConfig, getCredentialsFn: GetCredentialsFn) {
+  /**
+   * Pricing table lookup injected at construction time (issue #352).
+   * Optional — when absent, cost computation is skipped for this provider.
+   * sendMessage.ts passes Gate's getPricingTable here. This follows the same
+   * dependency-injection rationale as getCredentialsFn: no @/auth import in
+   * this file, keeping the @/models boundary clean and preserving test isolation.
+   */
+  private readonly getPricingTableFn?: GetPricingTableFn;
+
+  constructor(customConfig: CustomProviderConfig, getCredentialsFn: GetCredentialsFn, getPricingTableFn?: GetPricingTableFn) {
     this.customConfig = customConfig;
     this.getCredentialsFn = getCredentialsFn;
+    this.getPricingTableFn = getPricingTableFn;
     this.config = {
       modelId: customConfig.id,
       name: customConfig.displayName,
@@ -391,6 +402,20 @@ export class GenericOpenAIProvider implements ModelProvider {
       totalTokens: inputTokens + outputTokens,
     };
 
+    // Compute estimated cost if pricing data is available for this model string.
+    // Missing entry or null table means cost is unknown — do not set to 0.
+    // getPricingTableFn is injected at construction time — absent when the caller
+    // does not supply it (e.g. tests that construct the provider directly).
+    if (this.getPricingTableFn) {
+      const pricingTable = this.getPricingTableFn();
+      const pricingEntry = pricingTable?.[resolvedModelString];
+      if (pricingEntry) {
+        tokenUsage.estimatedCost =
+          (tokenUsage.inputTokens / 1_000_000) * pricingEntry.inputPer1M +
+          (tokenUsage.outputTokens / 1_000_000) * pricingEntry.outputPer1M;
+      }
+    }
+
     onChunk({
       modelId,
       content: '',
@@ -412,7 +437,17 @@ export class GenericOpenAIProvider implements ModelProvider {
  * getCredentialsFn is Gate's getCredentials function, passed in by the caller
  * (sendMessage.ts) which already imports from @/auth. This avoids a
  * cross-boundary @/auth import here in @/models.
+ *
+ * getPricingTableFn is Gate's getPricingTable function, also passed by
+ * sendMessage.ts (issue #352). Optional — when absent, cost computation is
+ * skipped. Dependency-injected to keep generic.ts free of @/auth imports and
+ * to preserve test isolation (tests constructing GenericOpenAIProvider directly
+ * do not supply this and therefore never trigger a background pricing fetch).
  */
-export function createCustomProvider(config: CustomProviderConfig, getCredentialsFn: GetCredentialsFn): GenericOpenAIProvider {
-  return new GenericOpenAIProvider(config, getCredentialsFn);
+export function createCustomProvider(
+  config: CustomProviderConfig,
+  getCredentialsFn: GetCredentialsFn,
+  getPricingTableFn?: GetPricingTableFn,
+): GenericOpenAIProvider {
+  return new GenericOpenAIProvider(config, getCredentialsFn, getPricingTableFn);
 }
