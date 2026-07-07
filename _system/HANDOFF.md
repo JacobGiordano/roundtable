@@ -6,37 +6,35 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Long triage + planning session. Several fixes shipped, Atlas wave shipped, cost display feature fully specced and ticketed.
+Cost display feature back-end complete. All four foundation tickets shipped.
 
-**Shipped this session:**
-- `8338ce6` — fix(ui): chunk fade-in re-keyed so chunkFadeIn fires on every chunk
-- `dcbbd9d` — fix(models): align buildAttributedMessages error-sentinel predicate (#344)
-- `af570a1` — feat(models): dispatch-time priming chunks for placeholder bubbles (#349)
-- Spikes #345 (stream_options safe on o1/o1-mini) and #346 (gpt-5.5 broadly available)
-- Pricing types: PricingEntry, PricingTable, PricingMetadata, PricingConfig (#350)
-- fix(tests): aria-hidden selectors updated in conversation-empty-state.test.tsx (#343)
+**Shipped this session (cost display wave):**
+- `#350` — Arch: PricingEntry, PricingTable, PricingMetadata, PricingConfig, fn type aliases
+- `#351` — Gate: pricing cache (stale-while-revalidate, 24h TTL, runtime URL override, savePricingUrl)
+- `#352` — Atlas: pricing.json (20 models), cost computation at stream completion, estimatedCost on TokenUsage
+
+**Also shipped:**
+- `#343` — Scout: aria-hidden test selectors fixed
+- `#344` — Atlas: error-sentinel filter alignment
+- `#345/#346` — Atlas: stream_options and gpt-5.5 spikes
+- `#349` — Atlas: dispatch-time priming chunks
 
 ## Key decisions
 
 - GitHub Pages source: gh-pages branch → / (root) — must not change
 - Backend CI pinned to Node 22 LTS
-- gpt-5.5 confirmed available on all paid tiers since April 2026 — 500s were transient
-- stream_options.include_usage safe for all OpenAI models including o1/o1-mini
-- Pricing data: repo-hosted pricing.json (raw.githubusercontent.com), daily stale-while-revalidate fetch, runtime URL override in settings (localStorage) takes precedence over VITE_PRICING_URL env var
-- Cost display: session-scoped only (Phase 1), no retroactive recalculation, ~$X.XX format
-- Lifetime dashboard deferred to Phase 2
+- Pricing URL resolution: localStorage override → VITE_PRICING_URL → canonical default
+- generic.ts uses DI for getPricingTableFn (avoids @/auth import side-effects in tests)
+- AbortError early-termination paths do NOT get estimatedCost — partial streams report no cost
+- Cost display: session-scoped only (Phase 1), no retroactive recalculation
 
-## Open issues — cost display feature (do in order)
+## Open issues
 
-- #351: [Gate] Pricing cache: stale-while-revalidate fetch, localStorage, runtime URL override + savePricingUrl()
-- #352: [Atlas] Cost computation at send time + create pricing.json in repo root
+**Ready to start (Aria #353 unblocked):**
 - #353: [Aria] SessionTokenSection cost column + staleness footer + pricing URL settings field
 
-Gate (#351) and Atlas (#352) can run in parallel. Aria (#353) goes last.
-
-## Other open issues
-
-- #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder (unblocked — #349 shipped)
+**Also unblocked:**
+- #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder
 
 ## Gotchas
 
@@ -45,4 +43,6 @@ Gate (#351) and Atlas (#352) can run in parallel. Aria (#353) goes last.
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
 - ConversationEmptyState beacon stagger: 150ms base delay is intentional
 - Chunk size warning on build (560 kB) — pre-existing
-- playwright.a11y.config.ts testDir points at keyboard/ with no .spec.ts — harmless
+- pricing.json: o1-mini and open-mistral-nemo output rate are unverified estimates (flagged in _meta)
+- Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
+- DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
