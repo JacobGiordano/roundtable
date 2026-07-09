@@ -80,12 +80,16 @@ function isPricingEntry(value: unknown): boolean {
 }
 
 /**
- * Returns true iff the value is a PricingTable (object whose values are all
- * PricingEntry shapes). An empty object is valid.
+ * Returns true iff the value is a PricingTable (object whose non-underscore
+ * values are all PricingEntry shapes). Keys starting with "_" are metadata
+ * fields (e.g. "_meta") and are skipped during validation.
+ * An empty object (or one with only "_"-prefixed keys) is valid.
  */
 function isPricingTable(value: unknown): value is PricingTable {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  return Object.values(value as Record<string, unknown>).every(isPricingEntry);
+  return Object.entries(value as Record<string, unknown>)
+    .filter(([k]) => !k.startsWith('_'))
+    .every(([, v]) => isPricingEntry(v));
 }
 
 /**
