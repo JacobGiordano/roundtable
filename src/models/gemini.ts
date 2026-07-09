@@ -286,7 +286,7 @@ export class GeminiModelProvider implements ModelProvider {
         // Emit content deltas from candidates
         if (event.candidates) {
           for (const candidate of event.candidates) {
-            for (const part of candidate.content.parts) {
+            for (const part of candidate.content?.parts ?? []) {
               if (part.text) {
                 onChunk({
                   modelId: this.config.modelId,
