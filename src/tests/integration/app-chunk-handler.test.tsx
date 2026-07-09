@@ -136,6 +136,8 @@ vi.mock('@/auth', () => ({
   getUserPreferences: () => ({}),
   saveUserPreferences: () => {},
   getModelVersions: () => [],
+  // #353: App.tsx calls refreshPricing() on mount to prefetch pricing data.
+  refreshPricing: () => Promise.resolve(),
 }));
 
 // AppLayout spy — captures the props App passes down AND the context values

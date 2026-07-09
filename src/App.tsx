@@ -24,7 +24,7 @@ import { sendMessage, getSessionTokenUsage, MODEL_REGISTRY } from '@/models';
 // getActiveStorageProvider is Gate's StorageProvider factory — used here to
 // supply useGhostMode with the active provider without App needing to know
 // which concrete implementation (Local vs Server) is in use.
-import { getModelVersion, setModelVersion, clearModelVersion, getProviderRoster, getActiveStorageProvider } from '@/auth';
+import { getModelVersion, setModelVersion, clearModelVersion, getProviderRoster, getActiveStorageProvider, refreshPricing } from '@/auth';
 // usePreferencesSync: UI-owned reactive hook for UserPreferences (#312).
 // Replaces the former useUserPreferences() (Gate) call here. useUserPreferences
 // uses React useState — each call site owns its own state, so TokenCountControl's
@@ -233,6 +233,12 @@ export default function App() {
     storageProviderRef.current = getActiveStorageProvider();
     handleRosterChange();
   }, [handleRosterChange]);
+
+  // ── Pricing prefetch (#353) ───────────────────────────────────────────────
+  // Kick off a background pricing fetch on mount so the table is cached before
+  // the first done chunk fires. Fast models (Gemini) can finish streaming before
+  // the lazy getPricingTable() fetch completes if we wait until send time.
+  useEffect(() => { void refreshPricing(); }, []);
 
   // ── Pending user message (#270) ───────────────────────────────────────────
   // Tracks a user message that has been sent but whose store update may not yet
