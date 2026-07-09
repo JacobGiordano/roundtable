@@ -708,15 +708,22 @@ export function MessageBubble({
               {showTokenCount && (() => {
                 const costStr = formatCost(message.tokenUsage!.estimatedCost);
                 return (
+                  /* #360: aria-label is prohibited on role="generic" (ARIA 1.2 §6.2.6).
+                     Interpunct is hidden from AT via aria-hidden; cost is prefixed with
+                     an sr-only comma-phrase so screen readers announce it cleanly. */
                   <div
                     className="text-[11px] text-text-muted text-right"
                     title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
-                    aria-label={costStr !== null
-                      ? `${message.tokenUsage!.totalTokens.toLocaleString()} tokens, estimated cost ${costStr}`
-                      : `${message.tokenUsage!.totalTokens.toLocaleString()} tokens`}
                     aria-hidden={!rowVisible}
                   >
-                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens{costStr !== null ? ` · ${costStr}` : ''}
+                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                    {costStr !== null && (
+                      <>
+                        <span aria-hidden="true"> · </span>
+                        <span className="sr-only">, estimated cost </span>
+                        {costStr}
+                      </>
+                    )}
                   </div>
                 );
               })()}
@@ -872,15 +879,22 @@ export function MessageBubble({
               {showTokenCount && (() => {
                 const costStr = formatCost(message.tokenUsage!.estimatedCost);
                 return (
+                  /* #360: aria-label is prohibited on role="generic" (ARIA 1.2 §6.2.6).
+                     Interpunct is hidden from AT via aria-hidden; cost is prefixed with
+                     an sr-only comma-phrase so screen readers announce it cleanly. */
                   <div
                     className="text-[11px] text-text-muted text-right"
                     title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
-                    aria-label={costStr !== null
-                      ? `${message.tokenUsage!.totalTokens.toLocaleString()} tokens, estimated cost ${costStr}`
-                      : `${message.tokenUsage!.totalTokens.toLocaleString()} tokens`}
                     aria-hidden={!rowVisible}
                   >
-                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens{costStr !== null ? ` · ${costStr}` : ''}
+                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                    {costStr !== null && (
+                      <>
+                        <span aria-hidden="true"> · </span>
+                        <span className="sr-only">, estimated cost </span>
+                        {costStr}
+                      </>
+                    )}
                   </div>
                 );
               })()}
