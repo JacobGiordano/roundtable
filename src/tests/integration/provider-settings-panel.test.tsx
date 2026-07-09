@@ -53,6 +53,10 @@ vi.mock('@/auth', () => ({
   getActiveTheme: vi.fn(() => ({ source: 'builtin', name: 'slate' })),
   validateCustomTheme: vi.fn(() => ({ valid: true, errors: [] })),
   saveCustomTheme: vi.fn(),
+  // #353: PricingUrlField (added to ProviderSettingsPanel) calls these on mount/save.
+  getPricingUrl: vi.fn(() => null),
+  savePricingUrl: vi.fn(),
+  refreshPricing: vi.fn(() => Promise.resolve()),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────

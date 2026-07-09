@@ -1964,6 +1964,7 @@ function PricingUrlField() {
         />
         <button
           type="button"
+          aria-label={saveFlash ? 'Pricing URL saved' : isSaving ? 'Saving pricing URL' : 'Save pricing URL'}
           disabled={isSaving}
           onClick={handleSave}
           className={[

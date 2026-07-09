@@ -354,7 +354,7 @@ export default function App() {
 
   // Compute per-model session token totals for the active conversation.
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
-  const sessionUsageBase = activeConversation ? getSessionTokenUsage(activeConversation) : [];
+  const sessionUsageBase = (activeConversation ? getSessionTokenUsage(activeConversation) : null) ?? [];
   // #353: Enrich sessionUsage with per-model estimated costs from message-level
   // tokenUsage.estimatedCost. getSessionTokenUsage sums token counts only — this
   // pass fills in the estimatedCost field (already on SessionTokenUsage via TokenUsage)
