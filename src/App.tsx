@@ -354,7 +354,25 @@ export default function App() {
 
   // Compute per-model session token totals for the active conversation.
   // getSessionTokenUsage is a pure utility from @/models — documented cross-agent exception.
-  const sessionUsage = activeConversation ? getSessionTokenUsage(activeConversation) : [];
+  const sessionUsageBase = activeConversation ? getSessionTokenUsage(activeConversation) : [];
+  // #353: Enrich sessionUsage with per-model estimated costs from message-level
+  // tokenUsage.estimatedCost. getSessionTokenUsage sums token counts only — this
+  // pass fills in the estimatedCost field (already on SessionTokenUsage via TokenUsage)
+  // so SessionTokenSection can display the cost column.
+  const sessionUsage = (() => {
+    if (sessionUsageBase.length === 0) return sessionUsageBase;
+    const costByModel: Record<string, number> = {};
+    for (const msg of activeConversation?.messages ?? []) {
+      if (msg.tokenUsage?.estimatedCost !== undefined && msg.modelId) {
+        costByModel[msg.modelId] = (costByModel[msg.modelId] ?? 0) + msg.tokenUsage.estimatedCost;
+      }
+    }
+    return sessionUsageBase.map((u) =>
+      costByModel[u.modelId] !== undefined
+        ? { ...u, estimatedCost: costByModel[u.modelId] }
+        : u,
+    );
+  })();
 
   // ── Streaming cancellation (#159) ─────────────────────────────────────────
   // abortControllerRef holds the AbortController for the in-flight sendMessage
@@ -369,9 +387,35 @@ export default function App() {
   // reference for the entire lifetime of App — context consumers do not
   // re-render merely because a send started.
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // flushAbortedStreamsRef allows handleStopMessage ([] deps, stable) to call
+  // flushAbortedStreams without adding it to deps — flushAbortedStreams itself is
+  // stable (useCallback []) so the ref never goes stale; this just avoids the
+  // linter warning and prevents unnecessary context consumer re-renders.
+  const flushAbortedStreamsRef = useRef<((conversationId: string) => void) | null>(null);
+
+  // activeConversationIdRef mirrors store.activeConversationId so that
+  // handleStopMessage ([] deps, stable) can read the current value without
+  // capturing it reactively and without causing context-consumer re-renders.
+  // Updated on every render below (same pattern as flushAbortedStreamsRef).
+  const activeConversationIdRef = useRef<string | null>(null);
+
+  // handleStopMessage: stable StopMessageFn passed through context ([] deps).
+  // Aborts the in-flight request via abortControllerRef and cleans up any
+  // priming-chunk placeholder that won't receive a done chunk (#347).
+  // All reads go through stable refs — this callback never goes stale.
   const handleStopMessage = useCallback<StopMessageFn>(() => {
     abortControllerRef.current?.abort();
-  }, []);
+    // #347: Remove empty-content accumulator entries for the active conversation.
+    // When abort fires before the HTTP response arrives, Atlas swallows AbortError
+    // and emits no done chunk — the priming placeholder hangs forever in the
+    // streaming state map. flushAbortedStreams removes only entries with content===''
+    // so partial streams (which will still emit their own done chunk) are untouched.
+    const convId = activeConversationIdRef.current;
+    if (convId) {
+      flushAbortedStreamsRef.current?.(convId);
+    }
+  }, []); // stable: all state reads go through refs above
 
   // ── In-flight conversation ref (#270 root-cause fix) ─────────────────────
   // sentConversationRef holds the conversation object that was passed to
@@ -436,10 +480,15 @@ export default function App() {
     activeStreamingMessages,
     isStreaming: anyStreaming,
     handleChunk,
+    flushAbortedStreams,
   } = useStreamingMessages({
     activeConversationId: store.activeConversationId,
     onMessageComplete: handleMessageComplete,
   });
+  // Keep refs current so handleStopMessage (stable [] deps) can access the
+  // latest values without capturing them reactively or causing re-renders.
+  flushAbortedStreamsRef.current = flushAbortedStreams;
+  activeConversationIdRef.current = store.activeConversationId;
 
   const handleSend = (content: string, attachments: Attachment[] = []) => {
     // Snapshot the active conversation before state updates so sendMessage
