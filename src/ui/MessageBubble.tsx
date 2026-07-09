@@ -417,7 +417,7 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
       aria-live="off"
     >
       <ReactMarkdown
-        rehypePlugins={[rehypeSanitize]}
+        rehypePlugins={rehypePlugins}
         components={markdownComponents}
       >
         {content}
