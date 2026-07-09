@@ -6,10 +6,13 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Gemini guard fix shipped. Two new tickets opened.
+Aria wave: cost display + syntax highlighting shipped. Post-ship bug fixes applied inline.
 
 **Shipped this session:**
-- `#358` — Atlas: guard `candidate.content?.parts ?? []` in Gemini stream parser (safety-filtered/empty candidates no longer crash)
+- `#357` — Aria: per-message cost in bubble footer + session total cost in header chip
+- `#359` — Aria: syntax highlighting for code blocks (`rehype-highlight` + `atom-one-dark`)
+- Post-ship fix: `rehype-highlight`/`highlight.js` packages missing from workspace (worktree npm install doesn't carry over — see memory)
+- Post-ship fix: fenced code blocks with no language tag rendered as inline code; fixed via `node.position` block detection in `code` renderer
 
 ## Key decisions
 
@@ -25,12 +28,12 @@ Gemini guard fix shipped. Two new tickets opened.
 - pricing.json `_meta` key is filtered by isPricingTable (keys starting with `_` are skipped)
 - `public/pricing.json` is a copy of root `pricing.json` — keep in sync when pricing.json updates
 - VITE_PRICING_URL in .env.local points to /pricing.json for dev; production uses canonical GitHub raw URL
+- `isBlock` in code renderer uses `node.position` (start.line !== end.line), not `!!className` — unlabeled fenced blocks have no className
 
 ## Open issues
 
 - `#356` — Luma: Linen theme `semantic.warning` fails WCAG AA (4.03:1); `it.fails()` tests ready to auto-promote when fixed
-- `#357` — Aria: per-message cost in bubble footer + session total cost in header chip *(next Aria wave)*
-- `#359` — Aria: syntax highlighting for code blocks (`rehype-highlight`) *(batch with #357)*
+- `#360` — Aria: advisory — `aria-label` on generic div unreliable for suppressing child text in screen reader browse mode (non-blocking)
 
 ## Gotchas
 
@@ -43,4 +46,6 @@ Gemini guard fix shipped. Two new tickets opened.
 - Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
 - Cost column only appears after pricing fetch completes — app now prefetches on mount
-- Duplicate Ada run cost this wave (~87k tokens): Aria's internal Ada completed async; Coda spawned a second Ada before it landed. Fix in memory: wait for second notification on Aria's task before spawning Ada independently
+- Worktree npm installs don't carry over to workspace — always run `npm install` in /workspace after waves that add deps
+- atom-one-dark highlight theme: light themes (Linen/Chalk) get readable-but-not-ideal colors; theme-aware palette deferred
+- Unlabeled fenced blocks render as correct block but with no syntax coloring (expected — no language tag = no highlight.js detection)
