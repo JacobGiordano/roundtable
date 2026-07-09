@@ -1,4 +1,4 @@
-Last updated: 2026-07-07
+Last updated: 2026-07-09
 
 ## Current phase
 
@@ -6,11 +6,12 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Cost-reduction wave complete. Both optimization tickets shipped.
+Cost display wave complete. Both issues shipped plus several post-wave fixes.
 
 **Shipped this session:**
-- `#354` — Arch: CLAUDE.md 292 → 141 lines; SOP + dev container extracted to `_system/SOP.md`; all 15 agent profile descriptions tightened; routing table merged into boundary table
-- `#355` — Arch: Coda profile updated with fork-first coordination pattern; fresh-agent recon named as explicit failure mode
+- `#353` — Aria: cost column in SessionTokenSection (per-model + session total), staleness footer, pricing URL field in provider settings
+- `#347` — Aria: empty-bubble polish — flushAbortedStreams for zombie placeholder cleanup, error/abort states verified
+- Post-wave fixes (all on main): 69 test failures from mock gaps; pricing reactivity (custom event + useEffect); `_meta` key breaking isPricingTable validation; relative URL support for VITE_PRICING_URL; pricing prefetch on app mount so fast models get costs on first send
 
 ## Key decisions
 
@@ -23,12 +24,14 @@ Cost-reduction wave complete. Both optimization tickets shipped.
 - SOP detail lives in `_system/SOP.md` — CLAUDE.md has summary + pointer only
 - Dev container rules placed in `_system/SOP.md` (not a separate file)
 - Coda uses fork-first for all recon tasks; fresh spawns reserved for implementation waves
+- pricing.json `_meta` key is filtered by isPricingTable (keys starting with `_` are skipped)
+- `public/pricing.json` is a copy of root `pricing.json` — keep in sync when pricing.json updates
+- VITE_PRICING_URL in .env.local points to /pricing.json for dev; production uses canonical GitHub raw URL
 
 ## Open issues
 
-**Ready to start (usage resets Wed 10am):**
-- #353: [Aria] SessionTokenSection cost column + staleness footer + pricing URL settings field
-- #347: [Aria] Empty-bubble polish for pre-first-chunk placeholder *(batch with #353)*
+- `#356` — Luma: Linen theme `semantic.warning` fails WCAG AA (4.03:1); `it.fails()` tests ready to auto-promote when fixed
+- `#357` — Aria: per-message cost in bubble footer + session total cost in header chip *(next Aria wave)*
 
 ## Gotchas
 
@@ -36,7 +39,9 @@ Cost-reduction wave complete. Both optimization tickets shipped.
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
 - ConversationEmptyState beacon stagger: 150ms base delay is intentional
-- Chunk size warning on build (560 kB) — pre-existing
+- Chunk size warning on build (586 kB) — pre-existing
 - pricing.json: o1-mini and open-mistral-nemo output rate are unverified estimates (flagged in _meta)
 - Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
+- Cost column only appears after pricing fetch completes — app now prefetches on mount
+- Duplicate Ada run cost this wave (~87k tokens): Aria's internal Ada completed async; Coda spawned a second Ada before it landed. Fix in memory: wait for second notification on Aria's task before spawning Ada independently
