@@ -11,6 +11,8 @@
  *     persistence (Vault / ghost-mode) — those concerns stay in App.tsx.
  *   - Derives `activeStreamingMessages` for the current conversation.
  *   - Derives `isStreaming` (any in-flight message for the active conversation).
+ *   - Exposes `flushAbortedStreams` so App.tsx can clean up priming-chunk
+ *     placeholders on user-initiated stop. (#347)
  *
  * Parameters:
  *   @param activeConversationId  The ID of the conversation currently in view.
@@ -24,6 +26,8 @@
  *   @returns isStreaming              True when at least one message is live.
  *   @returns handleChunk             Stable chunk-handler callback — pass
  *                                    directly to `sendMessage()`.
+ *   @returns flushAbortedStreams     Removes empty-content accumulator entries
+ *                                    for a conversation after user-initiated stop.
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -53,6 +57,17 @@ export interface UseStreamingMessagesResult {
    * conversation switches do not corrupt the wrong thread.
    */
   handleChunk: (sendingConversationId: string) => (chunk: StreamChunk) => void;
+  /**
+   * Removes all accumulator entries for the given conversation that have empty
+   * content (content === ''). Called immediately after stopMessage() to clean up
+   * priming-chunk placeholders that won't receive a done chunk when abort fires
+   * before the HTTP response begins. (#347)
+   *
+   * Only removes empty-content entries — partial-content streams (where some
+   * real content already arrived) are left alone; they will complete normally
+   * via their own done chunk even after abort.
+   */
+  flushAbortedStreams: (conversationId: string) => void;
 }
 
 export function useStreamingMessages({
@@ -156,5 +171,28 @@ export function useStreamingMessages({
 
   const isStreaming = activeStreamingMessages.length > 0;
 
-  return { activeStreamingMessages, isStreaming, handleChunk };
+  // #347: Clean up priming-chunk placeholders that never received real content.
+  // When abort fires before the HTTP response starts, providers swallow the
+  // AbortError and emit no done chunk — empty accumulator entries hang forever.
+  // This function removes only entries where content === '' so partial-content
+  // streams (which will still emit their own done chunk) are left untouched.
+  const flushAbortedStreams = useCallback((conversationId: string) => {
+    const prefix = `${conversationId}:`;
+    const hasEmpty = Object.entries(accumulatorRef.current).some(
+      ([key, msg]) => key.startsWith(prefix) && msg.content === '',
+    );
+    if (!hasEmpty) return;
+
+    const next: Record<string, Message> = {};
+    for (const [key, msg] of Object.entries(accumulatorRef.current)) {
+      // Keep entries from other conversations OR entries that have real content.
+      if (!key.startsWith(prefix) || msg.content !== '') {
+        next[key] = msg;
+      }
+    }
+    accumulatorRef.current = next;
+    setStreamingMessages(next);
+  }, []);
+
+  return { activeStreamingMessages, isStreaming, handleChunk, flushAbortedStreams };
 }

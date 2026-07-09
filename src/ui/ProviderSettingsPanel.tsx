@@ -27,6 +27,12 @@ import {
   // here to decide whether to show the proxy setup nudge after a key save. Same pattern
   // as BaseOpenAIProvider and gemini.ts.
   getProxyConfig,
+  // #353: Pricing URL management — pure Gate persistence helpers. getPricingUrl reads
+  // the current override from localStorage; savePricingUrl writes it; refreshPricing
+  // triggers a background re-fetch. These are the cross-agent interface for Section 6.
+  getPricingUrl,
+  savePricingUrl,
+  refreshPricing,
 } from '@/auth';
 import type { TestResult } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
@@ -1838,6 +1844,170 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
   );
 }
 
+// ─── Pricing URL field (#353) ─────────────────────────────────────────────────
+
+/**
+ * PricingUrlField — input for overriding the pricing.json source URL.
+ *
+ * Lives in Section 6 "Data sources" of ProviderSettingsPanel.
+ *
+ * Behaviour:
+ *   - Starts populated with the current override (from getPricingUrl, empty when
+ *     using the canonical default).
+ *   - Save: validates URL (must be valid http(s) or empty string), then calls
+ *     savePricingUrl() and refreshPricing(). Shows a brief "Saved" flash.
+ *   - Empty field + Save = "Restore default" — clears the override and re-fetches
+ *     from the canonical URL.
+ *   - "Restore default" button: visible only when an override is active; clears
+ *     the field and immediately saves the empty string + refreshes.
+ *   - Validation: runs on blur and on Save attempt. Inline error shown under
+ *     the field. Empty is always valid (means "use default").
+ */
+const CANONICAL_PRICING_URL =
+  'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/pricing.json';
+
+function isValidPricingUrl(value: string): boolean {
+  if (value === '') return true; // empty = restore default
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function PricingUrlField() {
+  const [urlValue, setUrlValue] = useState(() => getPricingUrl() ?? '');
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasOverride = (getPricingUrl() ?? '') !== '';
+
+  const validate = useCallback((value: string): boolean => {
+    if (!isValidPricingUrl(value)) {
+      setError('Enter a valid http(s) URL, or leave empty to use the default.');
+      return false;
+    }
+    setError('');
+    return true;
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    validate(urlValue);
+  }, [validate, urlValue]);
+
+  const handleSave = useCallback(async () => {
+    if (!validate(urlValue)) return;
+    setIsSaving(true);
+    savePricingUrl(urlValue.trim());
+    await refreshPricing();
+    setIsSaving(false);
+    // Flash "Saved" for 2 seconds.
+    setSaveFlash(true);
+    if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => {
+      setSaveFlash(false);
+      flashTimerRef.current = null;
+    }, 2000);
+  }, [urlValue, validate]);
+
+  const handleRestoreDefault = useCallback(async () => {
+    setUrlValue('');
+    setError('');
+    setIsSaving(true);
+    savePricingUrl('');
+    await refreshPricing();
+    setIsSaving(false);
+    setSaveFlash(true);
+    if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => {
+      setSaveFlash(false);
+      flashTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  // Cleanup flash timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    };
+  }, []);
+
+  const inputId = 'pricing-url-input';
+
+  return (
+    <div>
+      <label htmlFor={inputId} className="block text-[12px] font-medium text-text-secondary mb-1.5">
+        Pricing source URL
+      </label>
+      <div className="flex gap-2">
+        <input
+          id={inputId}
+          type="url"
+          value={urlValue}
+          onChange={(e) => {
+            setUrlValue(e.target.value);
+            if (error) validate(e.target.value);
+          }}
+          onBlur={handleBlur}
+          placeholder={CANONICAL_PRICING_URL}
+          aria-describedby={error ? 'pricing-url-error' : 'pricing-url-hint'}
+          className={[
+            'flex-1 h-9 px-3 rounded-md text-[13px] text-text-primary placeholder:text-text-muted',
+            'bg-input border transition-colors duration-fast',
+            'focus:outline-none focus:border-border-strong',
+            'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+            error ? 'border-error' : 'border-border',
+          ].join(' ')}
+        />
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={handleSave}
+          className={[
+            'h-9 px-3 rounded-md text-[12px] font-medium flex-shrink-0',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            isSaving
+              ? 'bg-accent-claude/60 text-text-inverse cursor-not-allowed'
+              : saveFlash
+                ? 'bg-success text-text-inverse'
+                : 'bg-accent-claude text-text-inverse hover:brightness-110',
+          ].join(' ')}
+        >
+          {saveFlash ? 'Saved' : isSaving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {error ? (
+        <p id="pricing-url-error" role="alert" className="mt-1 text-[11px] text-error">
+          {error}
+        </p>
+      ) : (
+        <p id="pricing-url-hint" className="mt-1 text-[11px] text-text-muted">
+          Leave empty to use the default URL. Saving triggers a background re-fetch.
+        </p>
+      )}
+      {hasOverride && (
+        <button
+          type="button"
+          onClick={handleRestoreDefault}
+          disabled={isSaving}
+          className={[
+            'mt-1.5 text-[11px] text-text-muted underline',
+            'hover:text-text-secondary transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
+            isSaving ? 'opacity-50 cursor-not-allowed' : '',
+          ].join(' ')}
+        >
+          Restore default
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── ProviderSettingsPanel ────────────────────────────────────────────────────
 
 interface ProviderSettingsPanelProps {
@@ -2145,11 +2315,20 @@ export function ProviderSettingsPanel({
 
         {/* ── Section 5: Transfer setup ─────────────────────────────────── */}
         {/* Export/import API keys + custom providers + preferences (#305). */}
-        <section className="border-t border-border pt-8">
+        <section className="border-t border-border pt-8 mb-8">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
             Transfer setup
           </h3>
           <TransferSetupPanel onRosterRefresh={refreshRoster} />
+        </section>
+
+        {/* ── Section 6: Data sources (#353) ────────────────────────────── */}
+        {/* Pricing URL override — lets users point to a custom pricing.json. */}
+        <section className="border-t border-border pt-8">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
+            Data sources
+          </h3>
+          <PricingUrlField />
         </section>
       </div>
     </div>
