@@ -15,7 +15,7 @@
  * side-effects. Only the metadata is read; key management and API calls stay in Gate.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { ModelConfig, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // #150: shared ChevronIcon replaces the local copy.
 import { ChevronIcon } from '../ChevronIcon';
@@ -99,6 +99,13 @@ export function SessionTokenSection({
   tokenCountVisibility = 'active',
 }: SessionTokenSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  // Re-read pricing metadata when a background fetch lands (same-tab event).
+  const [, setPricingTick] = useState(0);
+  useEffect(() => {
+    const handler = () => setPricingTick((n) => n + 1);
+    window.addEventListener('roundtable:pricing-updated', handler);
+    return () => window.removeEventListener('roundtable:pricing-updated', handler);
+  }, []);
 
   const handleToggle = useCallback(() => setIsExpanded((prev) => !prev), []);
 

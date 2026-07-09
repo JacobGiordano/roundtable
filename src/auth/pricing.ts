@@ -188,6 +188,8 @@ async function fetchAndCache(url: string): Promise<void> {
     };
 
     writePayload(json, metadata);
+    // Notify same-tab listeners (e.g. SessionTokenSection) that pricing landed.
+    window.dispatchEvent(new CustomEvent('roundtable:pricing-updated'));
   } catch {
     // Network error or any unexpected failure — preserve stale data.
   } finally {
