@@ -1980,6 +1980,13 @@ function PricingUrlField() {
           {saveFlash ? 'Saved' : isSaving ? 'Saving…' : 'Save'}
         </button>
       </div>
+      {/* WCAG 4.1.3 — live region announces save state to screen readers.
+          The button label changes visually ("Save" → "Saved") but label changes
+          on buttons are not consistently announced; a dedicated live region
+          ensures the confirmation reaches all AT. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {saveFlash ? 'Pricing URL saved.' : isSaving ? 'Saving pricing URL.' : ''}
+      </span>
       {error ? (
         <p id="pricing-url-error" role="alert" className="mt-1 text-[11px] text-error">
           {error}

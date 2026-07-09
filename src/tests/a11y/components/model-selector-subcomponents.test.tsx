@@ -26,13 +26,30 @@
 import { render, fireEvent, act } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 
 import { ModelPill } from '@/ui/components/model-selector/ModelPill';
 import { SystemPromptRow } from '@/ui/components/model-selector/SystemPromptRow';
 import { ModelVersionRow } from '@/ui/components/model-selector/ModelVersionRow';
 import { SessionTokenSection } from '@/ui/components/model-selector/SessionTokenSection';
 import type { ModelConfig, ModelVersionOption } from '@/types';
+
+// ─── @/auth mock — passthrough with override capability ──────────────────────
+// SessionTokenSection imports getPricingMetadata from @/auth to read pricing
+// staleness. The mock passes through to the real implementation by default
+// (returns { lastFetched: null, source: 'fallback' } when localStorage is empty,
+// which maps to the 'never-fetched' staleness state → no cost column rendered).
+// Per-test overrides use vi.mocked(getPricingMetadata).mockReturnValueOnce(...).
+
+vi.mock('@/auth', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/auth')>();
+  return {
+    ...real,
+    getPricingMetadata: vi.fn(() => real.getPricingMetadata()),
+  };
+});
+
+import { getPricingMetadata } from '@/auth';
 
 // ─── jsdom setup ─────────────────────────────────────────────────────────────
 
@@ -781,5 +798,197 @@ describe('Icon system — aria-hidden="true" on all SVGs (#147, WCAG 4.1.2)', ()
     for (const svg of svgs) {
       expect(svg.getAttribute('aria-hidden')).toBe('true');
     }
+  });
+});
+
+// ─── SessionTokenSection — staleness footer (#353, WCAG 4.1.2 / 1.3.1) ───────
+//
+// The staleness footer renders when pricing data is stale-24h or stale-48h.
+// The stale-48h variant uses text-warning (semantic.warning token) and signals
+// that pricing estimates may be significantly outdated.
+//
+// Audit scope from #353:
+//   - stale-48h: span is keyboard-reachable (tabIndex=0), aria-label provides
+//     full information for screen readers without relying on the title= tooltip.
+//   - cost cells: no orphaned interpunct (·) read by screen reader — fixed with
+//     aria-label on the cost span (WCAG 1.3.1).
+//   - axe passes in both stale states when panel is expanded.
+
+const SESSION_USAGE_WITH_COST = [
+  { modelId: 'claude', inputTokens: 100, outputTokens: 200, totalTokens: 300, estimatedCost: 0.015 },
+  { modelId: 'gpt-4', inputTokens: 50, outputTokens: 150, totalTokens: 200, estimatedCost: 0.008 },
+];
+
+const ACTIVE_MODELS_FOR_COST: ModelConfig[] = [
+  { modelId: 'claude', name: 'Claude', color: 'accent-claude', isActive: true },
+  { modelId: 'gpt-4', name: 'GPT-4', color: 'accent-gpt', isActive: true },
+];
+
+describe('SessionTokenSection — staleness footer (#353, WCAG 4.1.2 / 1.3.1)', () => {
+  // ISO timestamp for stale-48h (>48h ago)
+  const STALE_48H_ISO = new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString();
+  // ISO timestamp for stale-24h (30h ago)
+  const STALE_24H_ISO = new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString();
+  // ISO timestamp for fresh (<24h ago)
+  const FRESH_ISO = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+
+  beforeEach(() => {
+    vi.mocked(getPricingMetadata).mockReset();
+  });
+
+  it('stale-48h footer is present in DOM', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    // The staleness footer renders as a <span> with block display below the panel.
+    // Its text contains "outdated" or "last updated".
+    const footer = container.querySelector('span[tabindex="0"]');
+    expect(footer).not.toBeNull();
+    expect(footer?.textContent).toContain('Pricing outdated');
+  });
+
+  it('stale-48h footer has tabIndex=0 (keyboard-reachable)', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]') as HTMLSpanElement | null;
+    expect(footer).not.toBeNull();
+    expect(footer?.tabIndex).toBe(0);
+  });
+
+  it('stale-48h footer has aria-label containing age and timestamp (WCAG 1.3.1)', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]') as HTMLSpanElement | null;
+    expect(footer).not.toBeNull();
+    const label = footer?.getAttribute('aria-label') ?? '';
+    // aria-label must include age info (not just rely on title= tooltip)
+    expect(label).toContain('Pricing data age');
+    expect(label).toContain('old');
+  });
+
+  it('stale-48h footer has focus-visible ring classes (WCAG 2.4.7)', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]') as HTMLSpanElement | null;
+    expect(footer).not.toBeNull();
+    expect(footer?.className).toContain('focus-visible:ring-2');
+    expect(footer?.className).toContain('focus-visible:ring-focus');
+  });
+
+  it('stale-24h footer renders with informational text (not "outdated")', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_24H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]');
+    expect(footer).not.toBeNull();
+    expect(footer?.textContent).toContain('last updated');
+    // soft warning — should NOT say "outdated"
+    expect(footer?.textContent).not.toContain('outdated');
+  });
+
+  it('no staleness footer when pricing data is fresh', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: FRESH_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]');
+    expect(footer).toBeNull();
+  });
+
+  it('no staleness footer when pricing data has never been fetched', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: null, source: 'fallback' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const footer = container.querySelector('span[tabindex="0"]');
+    expect(footer).toBeNull();
+  });
+
+  it('axe: no violations in stale-48h state (expanded)', async () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    // Expand the panel to render cost cells
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    fireEvent.click(toggleBtn);
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('axe: no violations in stale-24h state (expanded)', async () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_24H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    fireEvent.click(toggleBtn);
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
+// ─── SessionTokenSection — cost cells (#353, WCAG 1.3.1) ─────────────────────
+//
+// Cost cells display "· ~$X.XX" with a visual interpunct separator. Without
+// aria-label, screen readers announce the interpunct as "middle dot" or similar.
+// Fix (#353 audit): aria-label="Estimated cost: ~$X.XX" overrides the text
+// content for AT, providing a clean reading without orphaned punctuation.
+
+describe('SessionTokenSection — cost cell aria-label (#353, WCAG 1.3.1)', () => {
+  const STALE_48H_ISO = new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString();
+
+  beforeEach(() => {
+    vi.mocked(getPricingMetadata).mockReset();
+  });
+
+  it('per-model cost span has aria-label that replaces the interpunct (·)', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    // Expand to render cost cells
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    fireEvent.click(toggleBtn);
+
+    // There should be at least one cost span with aria-label starting "Estimated cost:"
+    const costSpans = Array.from(container.querySelectorAll('[aria-label^="Estimated cost:"]'));
+    expect(costSpans.length).toBeGreaterThan(0);
+  });
+
+  it('per-model cost span aria-label contains the formatted cost value', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    fireEvent.click(toggleBtn);
+
+    // Claude cost = $0.015 → formatted as "~$0.02". aria-label should contain the value.
+    const costSpans = Array.from(container.querySelectorAll('[aria-label^="Estimated cost:"]'));
+    const labels = costSpans.map((el) => el.getAttribute('aria-label') ?? '');
+    // At least one label must contain a dollar sign
+    expect(labels.some((l) => l.includes('$'))).toBe(true);
+  });
+
+  it('session total cost span has aria-label (WCAG 1.3.1)', () => {
+    vi.mocked(getPricingMetadata).mockReturnValue({ lastFetched: STALE_48H_ISO, source: 'remote' });
+    const { container } = render(
+      <SessionTokenSection sessionUsage={SESSION_USAGE_WITH_COST} activeModels={ACTIVE_MODELS_FOR_COST} />,
+    );
+    const toggleBtn = container.querySelector('button') as HTMLButtonElement;
+    fireEvent.click(toggleBtn);
+
+    // Session total row has "Session estimated cost: ..." label
+    const totalCostSpan = container.querySelector('[aria-label^="Session estimated cost:"]');
+    expect(totalCostSpan).not.toBeNull();
   });
 });

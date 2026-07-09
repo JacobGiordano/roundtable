@@ -204,10 +204,13 @@ export function SessionTokenSection({
                   {usage.totalTokens.toLocaleString()}
                 </span>
                 {/* #353: Cost cell — only rendered when pricing data is available */}
+                {/* aria-label overrides the visual "· $X.XX" for screen readers, */}
+                {/* removing the orphaned interpunct (·) from the announcement. */}
                 {costStr !== null && (
                   <span
-                    className="text-text-muted"
+                    aria-label={`Estimated cost: ${costStr}`}
                     title="Estimated cost this session"
+                    className="text-text-muted"
                   >
                     · {costStr}
                   </span>
@@ -228,7 +231,12 @@ export function SessionTokenSection({
                 {sessionTotal.toLocaleString()} tokens
               </span>
               {sessionTotalCostStr !== null && (
-                <span className="text-text-muted">· {sessionTotalCostStr}</span>
+                <span
+                  aria-label={`Session estimated cost: ${sessionTotalCostStr}`}
+                  className="text-text-muted"
+                >
+                  · {sessionTotalCostStr}
+                </span>
               )}
             </div>
           </div>

@@ -64,6 +64,15 @@ vi.mock('@/auth', async (importOriginal) => {
     saveCredentials: vi.fn(),
     clearCredentials: vi.fn(),
     getModelAccentColors: vi.fn(() => ({})),
+    // #353: PricingUrlField mocks — prevent real localStorage reads/writes and
+    // real fetch calls (refreshPricing) from running in the jsdom test environment.
+    getPricingUrl: vi.fn(() => ''),
+    savePricingUrl: vi.fn(),
+    refreshPricing: vi.fn(() => Promise.resolve()),
+    // getPricingMetadata: used by SessionTokenSection (not ProviderSettingsPanel),
+    // but included here so the spread doesn't accidentally import the real impl
+    // if ProviderSettingsPanel ever reads it in future. Real default is fine:
+    getPricingMetadata: vi.fn(() => ({ lastFetched: null, source: 'fallback' as const })),
   };
 });
 
@@ -624,7 +633,10 @@ describe('TestButton (#249) — aria-label and disabled semantics (WCAG 4.1.2 / 
     expect(liveRegion).not.toBeNull();
   });
 
-  it('sr-only live region is absent when there is no credentialKey (keyless provider)', async () => {
+  it('TestButton sr-only live region is absent inside provider rows when keyless (no credentialKey)', async () => {
+    // #353 note: ProviderSettingsPanel now has a panel-level live region in PricingUrlField
+    // (Section 6). This test checks the TestButton's live region specifically — it lives
+    // inside role="listitem" (ProviderRow), not in the pricing section.
     const { getProviderRoster, hasCredential } = await import('@/auth');
     vi.mocked(getProviderRoster).mockReturnValue(
       KEYLESS_CUSTOM_ROSTER as ReturnType<typeof getProviderRoster>,
@@ -639,8 +651,13 @@ describe('TestButton (#249) — aria-label and disabled semantics (WCAG 4.1.2 / 
       />,
     );
 
-    const liveRegion = container.querySelector('[role="status"][aria-live="polite"]');
-    expect(liveRegion).toBeNull();
+    // Scope to the provider list area (role="listitem") — not the full panel —
+    // to avoid matching the PricingUrlField save-status live region in Section 6.
+    const providerList = container.querySelector('[role="list"]');
+    const testBtnLiveRegion = providerList
+      ? providerList.querySelector('[role="status"][aria-live="polite"]')
+      : null;
+    expect(testBtnLiveRegion).toBeNull();
   });
 });
 
@@ -716,5 +733,211 @@ describe('Button row layout (#250) — Edit and Clear buttons retain accessible 
     );
     const results = await axe(container);
     assertNoViolations(results);
+  });
+});
+
+// ─── PricingUrlField (#353) — label, ARIA, and live-region tests ──────────────
+//
+// Section 6 "Data sources" in ProviderSettingsPanel contains PricingUrlField:
+//   - A labeled URL input with aria-describedby pointing to hint or error element
+//   - A "Save" button that changes to "Saved" on success (live region announcement)
+//   - A "Restore default" button (only visible when an override is active)
+//   - An inline error message with role="alert" when the URL is invalid
+//
+// WCAG criteria covered:
+//   1.3.1 Info and Relationships — label/input association
+//   4.1.2 Name, Role, Value — button accessible names
+//   4.1.3 Status Messages — save confirmation announced via aria-live
+//   1.3.5 (AA) — input has type="url" (autocomplete purpose)
+
+describe('PricingUrlField (#353) — label and input association (WCAG 1.3.1)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  it('Pricing source URL label is associated with the input via htmlFor/id', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const label = document.querySelector('label[for="pricing-url-input"]') as HTMLLabelElement | null;
+    expect(label).not.toBeNull();
+    expect(label?.textContent?.trim()).toBe('Pricing source URL');
+
+    const input = document.getElementById('pricing-url-input') as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input?.tagName.toLowerCase()).toBe('input');
+    expect(input?.type).toBe('url');
+  });
+
+  it('input has aria-describedby pointing to the hint element (no error state)', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const input = document.getElementById('pricing-url-input') as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    // In no-error state, aria-describedby points to the hint paragraph
+    expect(input?.getAttribute('aria-describedby')).toBe('pricing-url-hint');
+    // The hint element must exist in the DOM
+    const hint = document.getElementById('pricing-url-hint');
+    expect(hint).not.toBeNull();
+  });
+
+  it('has no axe violations in the default (no-override) state', async () => {
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
+describe('PricingUrlField (#353) — error state ARIA (WCAG 1.3.1 / 4.1.2)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  it('error message has role="alert" for immediate screen reader announcement', async () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const input = document.getElementById('pricing-url-input') as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+
+    // Type an invalid URL and blur to trigger validation
+    fireEvent.change(input!, { target: { value: 'not-a-url' } });
+    fireEvent.blur(input!);
+
+    // After blur, the error paragraph with role="alert" should appear
+    const errorEl = document.getElementById('pricing-url-error');
+    expect(errorEl).not.toBeNull();
+    expect(errorEl?.getAttribute('role')).toBe('alert');
+    expect(errorEl?.textContent).toContain('valid');
+  });
+
+  it('input aria-describedby switches to error element when error is active', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const input = document.getElementById('pricing-url-input') as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+
+    fireEvent.change(input!, { target: { value: 'bad-url' } });
+    fireEvent.blur(input!);
+
+    expect(input?.getAttribute('aria-describedby')).toBe('pricing-url-error');
+  });
+});
+
+describe('PricingUrlField (#353) — Save button and live region (WCAG 4.1.2 / 4.1.3)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  it('Save button has an accessible name ("Save" text content)', () => {
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    // The Save button is in Section 6. It must have visible text.
+    // We find it by looking for the button with "Save" text near the pricing URL input.
+    const pricingInput = document.getElementById('pricing-url-input');
+    expect(pricingInput).not.toBeNull();
+    // The Save button is a sibling of the input inside the flex container
+    const flexParent = pricingInput?.parentElement;
+    expect(flexParent).not.toBeNull();
+    const saveBtn = flexParent?.querySelector('button') as HTMLButtonElement | null;
+    expect(saveBtn).not.toBeNull();
+    expect(saveBtn?.textContent?.trim()).toBe('Save');
+    expect(saveBtn?.type).toBe('button');
+  });
+
+  it('live region (role=status, aria-live=polite) is present in PricingUrlField', () => {
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    // The sr-only live region announces save/saving state to screen readers.
+    // It lives inside the PricingUrlField component (Section 6).
+    // We find it by role="status" near the pricing-url-input.
+    const pricingSection = document.getElementById('pricing-url-input')?.closest('div');
+    // Walk up to find the section containing the live region
+    let el: Element | null = pricingSection ?? null;
+    let liveRegion: Element | null = null;
+    while (el && el !== container) {
+      liveRegion = el.querySelector('[role="status"][aria-live="polite"]');
+      if (liveRegion) break;
+      el = el.parentElement;
+    }
+    expect(liveRegion).not.toBeNull();
+  });
+
+  it('has no axe violations with Save button and live region present', async () => {
+    const { container } = render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
+describe('PricingUrlField (#353) — Restore default button (WCAG 4.1.2)', () => {
+  const triggerRef = { current: null } as React.RefObject<HTMLButtonElement>;
+
+  it('Restore default button is absent when no URL override is active', () => {
+    // getPricingUrl mock returns '' (no override) — Restore default should not render
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    // The button text is "Restore default" — it should not appear when no override
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const restoreBtn = buttons.find((b) => b.textContent?.trim() === 'Restore default');
+    expect(restoreBtn).toBeUndefined();
+  });
+
+  it('Restore default button has accessible text when an override is active', async () => {
+    const { getPricingUrl } = await import('@/auth');
+    vi.mocked(getPricingUrl).mockReturnValue('https://example.com/pricing.json');
+
+    render(
+      <ProviderSettingsPanel
+        isOpen={true}
+        onClose={noop}
+        triggerRef={triggerRef}
+      />,
+    );
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const restoreBtn = buttons.find((b) => b.textContent?.trim() === 'Restore default');
+    expect(restoreBtn).not.toBeUndefined();
+    expect(restoreBtn?.type).toBe('button');
+    // Button has visible text "Restore default" — that IS its accessible name
+    expect(restoreBtn?.textContent?.trim()).toBe('Restore default');
   });
 });

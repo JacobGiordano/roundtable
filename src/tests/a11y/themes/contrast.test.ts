@@ -66,6 +66,7 @@ interface ThemeTokens {
   errorBg: string;
   hover: string;
   focusRing: string;
+  warning: string;
 }
 
 const THEMES: Record<string, ThemeTokens> = {
@@ -75,7 +76,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#F59E0B', accentGpt: '#14B8A6', accentGemini: '#AF5FF8' /* #60 fix */,
     accentOther: '#F97316', accentGrok: '#38B2D8', accentDeepseek: '#5A82E1' /* #60 fix */,
     accentMistral: '#E0568A', error: '#FF5252' /* #119/#120 fix */, errorBg: '#C53030' /* #119 fix */,
-    hover: '#242838', focusRing: '#F59E0B',
+    hover: '#242838', focusRing: '#F59E0B', warning: '#EAB308',
   },
   linen: {
     bg: '#F5F0E8', card: '#FDFAF5', sidebar: '#EDE8DF', input: '#F9F5EE',
@@ -83,7 +84,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#7E22CE',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#B91C1C', errorBg: '#B91C1C' /* same value, light theme */,
-    hover: '#EDE6DA', focusRing: '#B45309',
+    hover: '#EDE6DA', focusRing: '#B45309', warning: '#A16207',
   },
   midnight: {
     bg: '#060B18', card: '#0D1525', sidebar: '#080D1E', input: '#111A2E',
@@ -91,7 +92,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#FBB034', accentGpt: '#00CDB8', accentGemini: '#B06EFF',
     accentOther: '#FF7A52', accentGrok: '#38B6F0', accentDeepseek: '#4A7FE8',
     accentMistral: '#F05090', error: '#F87171', errorBg: '#B82828' /* #119 fix */,
-    hover: '#121D30', focusRing: '#00CDB8',
+    hover: '#121D30', focusRing: '#00CDB8', warning: '#FBBF24',
   },
   ash: {
     bg: '#181A1C', card: '#22252A', sidebar: '#1B1D20', input: '#272B31',
@@ -99,7 +100,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#E8943A', accentGpt: '#3DB8A8', accentGemini: '#A278E1' /* #60 fix */,
     accentOther: '#E07060', accentGrok: '#4DA8D8', accentDeepseek: '#648ADC' /* #60 fix */,
     accentMistral: '#DC6294' /* #60 fix */, error: '#FF6060' /* #119/#120 fix */, errorBg: '#C03030' /* #119 fix */,
-    hover: '#2A2E33', focusRing: '#3DB8A8',
+    hover: '#2A2E33', focusRing: '#3DB8A8', warning: '#D4A82A',
   },
   ember: {
     bg: '#110D09', card: '#1D1712', sidebar: '#140F0A', input: '#231B14',
@@ -107,7 +108,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#F5A623', accentGpt: '#2DB8A8', accentGemini: '#C080F0',
     accentOther: '#E06840', accentGrok: '#56AEE0', accentDeepseek: '#5080D0',
     accentMistral: '#D85C90', error: '#FF5555' /* #119/#120 fix */, errorBg: '#C83428' /* #119 fix */,
-    hover: '#26201A', focusRing: '#F5A623',
+    hover: '#26201A', focusRing: '#F5A623', warning: '#DBA830',
   },
   chalk: {
     bg: '#F8F8F8', card: '#FFFFFF', sidebar: '#F0F0F0', input: '#FFFFFF',
@@ -115,7 +116,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#6D28D9',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#991B1B', errorBg: '#991B1B' /* same value, light theme */,
-    hover: '#F0F0F0', focusRing: '#6D28D9',
+    hover: '#F0F0F0', focusRing: '#6D28D9', warning: '#854D0E',
   },
   outrun: {
     bg: '#16141D', card: '#12203A', sidebar: '#0E1220', input: '#221E34',
@@ -123,7 +124,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#FFE600', accentGpt: '#2EE4B9', accentGemini: '#D060FF' /* #60 fix */,
     accentOther: '#FF8D77', accentGrok: '#C0CFFF', accentDeepseek: '#7AA0FF' /* #60 fix */,
     accentMistral: '#FF6090', error: '#FF5050' /* #119/#120 fix */, errorBg: '#CC2C2C' /* #119 fix */,
-    hover: '#1C2840', focusRing: '#2EE4B9',
+    hover: '#1C2840', focusRing: '#2EE4B9', warning: '#FFE259',
   },
 };
 
@@ -472,4 +473,73 @@ describe('theme contrast — error text on interactive.hover (WCAG 2.1 AA, 4.5:1
       expect(contrastRatio(t.error, t.hover)).toBeGreaterThanOrEqual(4.5);
     });
   }
+});
+
+// ─── semantic.warning text (#353 — staleness footer) ─────────────────────────
+// SessionTokenSection renders a staleness footer with `text-warning` (class maps
+// to semantic.warning CSS variable) when pricing data is 48h+ old. The footer
+// lives in ModelSelectorPanel which uses `bg-sidebar` (#321). The text is 10px
+// (0.75rem) — not large text — so the 4.5:1 normal-text threshold applies.
+//
+// Contrast measured at audit time (#353):
+//   slate:    #EAB308 on #13151C  9.51:1  PASS
+//   linen:    #A16207 on #EDE8DF  4.03:1  FAIL  ← ticket opened for Luma
+//   midnight: #FBBF24 on #080D1E  11.58:1 PASS
+//   ash:      #D4A82A on #1B1D20  7.59:1  PASS
+//   ember:    #DBA830 on #140F0A  8.76:1  PASS
+//   chalk:    #854D0E on #F0F0F0  6.01:1  PASS
+//   outrun:   #FFE259 on #0E1220  14.45:1 PASS
+//
+// The Linen failure is tracked in GitHub (issue opened by Ada for Luma to fix).
+// The it.fails() wrapper will auto-promote to a standard passing test once Luma
+// darkens semantic.warning in the Linen theme.
+
+describe('theme contrast — semantic.warning text on sidebar (WCAG 2.1 AA, 4.5:1)', () => {
+  it('slate: PASS', () => {
+    expect(contrastRatio(THEMES.slate.warning, THEMES.slate.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  // FAIL — #A16207 on #EDE8DF = 4.03:1. Ticket opened for Luma.
+  it.fails('linen: FAIL — #A16207 on #EDE8DF = 4.03:1 (needs Luma fix)', () => {
+    expect(contrastRatio(THEMES.linen.warning, THEMES.linen.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('midnight: PASS', () => {
+    expect(contrastRatio(THEMES.midnight.warning, THEMES.midnight.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ash: PASS', () => {
+    expect(contrastRatio(THEMES.ash.warning, THEMES.ash.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ember: PASS', () => {
+    expect(contrastRatio(THEMES.ember.warning, THEMES.ember.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('chalk: PASS', () => {
+    expect(contrastRatio(THEMES.chalk.warning, THEMES.chalk.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('outrun: PASS', () => {
+    expect(contrastRatio(THEMES.outrun.warning, THEMES.outrun.sidebar)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('theme contrast — semantic.warning text on background (WCAG 2.1 AA, 4.5:1)', () => {
+  it('slate: PASS', () => {
+    expect(contrastRatio(THEMES.slate.warning, THEMES.slate.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  // FAIL — #A16207 on #F5F0E8 = 4.34:1. Tracked by same Luma ticket.
+  it.fails('linen: FAIL — #A16207 on #F5F0E8 = 4.34:1 (needs Luma fix)', () => {
+    expect(contrastRatio(THEMES.linen.warning, THEMES.linen.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('midnight: PASS', () => {
+    expect(contrastRatio(THEMES.midnight.warning, THEMES.midnight.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ash: PASS', () => {
+    expect(contrastRatio(THEMES.ash.warning, THEMES.ash.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('ember: PASS', () => {
+    expect(contrastRatio(THEMES.ember.warning, THEMES.ember.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('chalk: PASS', () => {
+    expect(contrastRatio(THEMES.chalk.warning, THEMES.chalk.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('outrun: PASS', () => {
+    expect(contrastRatio(THEMES.outrun.warning, THEMES.outrun.bg)).toBeGreaterThanOrEqual(4.5);
+  });
 });
