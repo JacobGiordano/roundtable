@@ -84,7 +84,7 @@ const THEMES: Record<string, ThemeTokens> = {
     accentClaude: '#B45309', accentGpt: '#0F766E', accentGemini: '#7E22CE',
     accentOther: '#C2410C', accentGrok: '#1A6FA8', accentDeepseek: '#1E4FA0',
     accentMistral: '#A8285E', error: '#B91C1C', errorBg: '#B91C1C' /* same value, light theme */,
-    hover: '#EDE6DA', focusRing: '#B45309', warning: '#A16207',
+    hover: '#EDE6DA', focusRing: '#B45309', warning: '#8A4E00' /* #356 fix — was #A16207 (failed 4.03:1 on sidebar) */,
   },
   midnight: {
     bg: '#060B18', card: '#0D1525', sidebar: '#080D1E', input: '#111A2E',
@@ -483,23 +483,21 @@ describe('theme contrast — error text on interactive.hover (WCAG 2.1 AA, 4.5:1
 //
 // Contrast measured at audit time (#353):
 //   slate:    #EAB308 on #13151C  9.51:1  PASS
-//   linen:    #A16207 on #EDE8DF  4.03:1  FAIL  ← ticket opened for Luma
+//   linen:    #A16207 on #EDE8DF  4.03:1  FAIL  ← fixed in #356 (#8A4E00 → 5.18:1)
 //   midnight: #FBBF24 on #080D1E  11.58:1 PASS
 //   ash:      #D4A82A on #1B1D20  7.59:1  PASS
 //   ember:    #DBA830 on #140F0A  8.76:1  PASS
 //   chalk:    #854D0E on #F0F0F0  6.01:1  PASS
 //   outrun:   #FFE259 on #0E1220  14.45:1 PASS
 //
-// The Linen failure is tracked in GitHub (issue opened by Ada for Luma to fix).
-// The it.fails() wrapper will auto-promote to a standard passing test once Luma
-// darkens semantic.warning in the Linen theme.
+// All themes now pass. it.fails() wrappers removed after #356 merged.
 
 describe('theme contrast — semantic.warning text on sidebar (WCAG 2.1 AA, 4.5:1)', () => {
   it('slate: PASS', () => {
     expect(contrastRatio(THEMES.slate.warning, THEMES.slate.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
-  // FAIL — #A16207 on #EDE8DF = 4.03:1. Ticket opened for Luma.
-  it.fails('linen: FAIL — #A16207 on #EDE8DF = 4.03:1 (needs Luma fix)', () => {
+  // Fixed in #356: darkened #A16207 → #8A4E00; now 5.18:1 on sidebar.
+  it('linen: PASS (fixed #356 — #8A4E00 = 5.18:1 on sidebar)', () => {
     expect(contrastRatio(THEMES.linen.warning, THEMES.linen.sidebar)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS', () => {
@@ -523,8 +521,8 @@ describe('theme contrast — semantic.warning text on background (WCAG 2.1 AA, 4
   it('slate: PASS', () => {
     expect(contrastRatio(THEMES.slate.warning, THEMES.slate.bg)).toBeGreaterThanOrEqual(4.5);
   });
-  // FAIL — #A16207 on #F5F0E8 = 4.34:1. Tracked by same Luma ticket.
-  it.fails('linen: FAIL — #A16207 on #F5F0E8 = 4.34:1 (needs Luma fix)', () => {
+  // Fixed in #356: darkened #A16207 → #8A4E00; now 5.52:1 on background.
+  it('linen: PASS (fixed #356 — #8A4E00 = 5.52:1 on background)', () => {
     expect(contrastRatio(THEMES.linen.warning, THEMES.linen.bg)).toBeGreaterThanOrEqual(4.5);
   });
   it('midnight: PASS', () => {
