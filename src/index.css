@@ -300,6 +300,20 @@ body {
   }
 }
 
+/* ─── Syntax Highlighting (highlight.js / rehype-highlight, #359) ───────────── */
+/*
+ * atom-one-dark sets `.hljs { background: #282c34 }` globally.
+ * We reset it to transparent so the design system's `pre.bg-sidebar` Tailwind
+ * class controls the outer code block background across all 7 themes.
+ * Token colours (span.hljs-*) from the theme are preserved — only the background
+ * is overridden. This is a first-pass solution; a theme-aware highlight palette
+ * is deferred to a future issue.
+ */
+code.hljs {
+  background: transparent;
+  padding: 0;
+}
+
 /* ─── Theme Transition (applied to all elements during theme switch) ────────── */
 
 .theme-transitioning * {
