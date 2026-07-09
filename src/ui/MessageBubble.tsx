@@ -850,6 +850,37 @@ export function MessageBubble({
             hasError={false}
           />
 
+          {/* Attachment thumbnail strip — rendered below message text for user messages
+              that carry image attachments (Phase 5, issue #361).
+              base64 content has no data-URL prefix per the Attachment contract —
+              we prepend "data:{mimeType};base64," here at render time.
+              role="group" + aria-label is ARIA-compliant (group role allows an accessible
+              name from author); individual <img> alt text uses the filename when present,
+              and a numbered fallback for anonymous attachments in multi-image strips.
+              Thumbnails are purely visual — no interactive affordance in Phase 5. */}
+          {message.attachments && message.attachments.length > 0 && (
+            <div
+              role="group"
+              aria-label="Attached images"
+              className="mt-2 flex flex-wrap gap-2"
+            >
+              {message.attachments.map((attachment, idx) => (
+                <img
+                  key={attachment.id}
+                  src={`data:${attachment.mimeType};base64,${attachment.base64}`}
+                  alt={
+                    attachment.filename
+                      ? attachment.filename
+                      : message.attachments!.length > 1
+                        ? `Attached image ${idx + 1}`
+                        : 'Attached image'
+                  }
+                  className="w-16 h-16 object-cover rounded"
+                />
+              ))}
+            </div>
+          )}
+
           {/* Directed-to label — shown on user messages that have a targetModelId.
               Subtle indicator so the thread stays readable after the fact.
               Color is read from targetModelConfig — modelId passed for custom provider
