@@ -198,6 +198,63 @@ export interface Attachment {
   sizeBytes: number;
 }
 
+// ─── Generated images — model-returned image content ──────────────────────────
+
+/**
+ * A single image returned by a model in its response. Phase 5 (issue #363).
+ *
+ * This represents image content that a model generates or returns — distinct
+ * from `Attachment`, which represents images a user uploads with their message.
+ * The directional difference is load-bearing: `Attachment` flows user → model
+ * (input); `GeneratedImage` flows model → user (output).
+ *
+ * Structural consistency with `Attachment`:
+ *   `base64` is the raw base64-encoded image content — no data-URL prefix
+ *   (i.e. no "data:image/png;base64," preamble). This matches the convention
+ *   established by `Attachment.base64`. Atlas must strip any data-URL prefix
+ *   before populating this field; Aria prepends the appropriate prefix when
+ *   rendering the image in an `<img>` element.
+ *
+ * `mimeType` is an open `string` rather than a closed union. Unlike user
+ * attachments — where Roundtable controls which formats are accepted — the
+ * provider controls which formats it returns. Using a closed union here would
+ * require a types PR each time a provider adds a new output format.
+ * Aria's `<img>` element accepts any browser-supported MIME type.
+ *
+ * `altText` is an optional model-supplied description. When present, Aria
+ * uses it as the `alt` attribute on the rendered `<img>` element. When absent,
+ * Aria must supply a meaningful fallback (e.g. "Generated image") to maintain
+ * WCAG 2.1 AA compliance — never an empty `alt`.
+ *
+ * `width` and `height` are optional pixel dimensions as reported by the
+ * provider. Aria uses these as `width` / `height` hints to prevent layout
+ * shift while the image loads. When absent, Aria renders without explicit
+ * dimensions.
+ *
+ * Lifecycle:
+ *   - Atlas parses image content blocks from provider responses and creates
+ *     `GeneratedImage` objects (issue #364). Atlas emits them via
+ *     `StreamChunk.images` at stream completion.
+ *   - Vault persists `GeneratedImage` objects as part of `Message.generatedImages`
+ *     in localStorage; base64 content is stored verbatim (issue #365).
+ *   - Aria reads `Message.generatedImages` and renders each image below the
+ *     text content in assistant message bubbles (issue #366).
+ */
+export interface GeneratedImage {
+  /** Stable identifier for this image, assigned by Atlas when parsing the response. */
+  id: string;
+  /** MIME type of the image, e.g. "image/png", "image/jpeg", "image/webp". Open string — not a closed union. */
+  mimeType: string;
+  /** Raw base64-encoded image content, without a data-URL prefix. */
+  base64: string;
+  /** Optional description provided by the model. Aria uses this as the img alt attribute. */
+  altText?: string;
+  /** Optional image width in pixels, as reported by the provider. */
+  width?: number;
+  /** Optional image height in pixels, as reported by the provider. */
+  height?: number;
+}
+
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
 export interface Message {
@@ -221,6 +278,16 @@ export interface Message {
    * requests for vision-capable providers (Phase 5, issue #285).
    */
   attachments?: Attachment[];
+  /**
+   * Images returned by the model in this message. Present only on
+   * assistant-role messages; always absent on user-role messages — users
+   * send attachments (input), models return generated images (output).
+   * Atlas populates this from provider response image content blocks
+   * (issue #364). Vault persists this alongside the rest of the message
+   * (issue #365). Aria renders each image below the text content in the
+   * assistant bubble (issue #366).
+   */
+  generatedImages?: GeneratedImage[];
 }
 
 // ─── Model version selection ───────────────────────────────────────────────────
@@ -637,6 +704,15 @@ export interface StreamChunk {
   isDone: boolean;
   /** Present only when isDone is true. */
   tokenUsage?: TokenUsage;
+  /**
+   * Images returned by the model in this chunk. Typically populated only on
+   * the final chunk (when `isDone` is true), since providers return image
+   * content blocks as complete units rather than incrementally.
+   * Atlas emits this when parsing image content blocks from the provider
+   * response (issue #364). Aria accumulates these across chunks and writes
+   * the complete array to `Message.generatedImages` on stream completion.
+   */
+  images?: GeneratedImage[];
   error?: ModelError;
 }
 
