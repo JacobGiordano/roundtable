@@ -23,28 +23,8 @@ import { ChevronIcon } from '../ChevronIcon';
 import { getModelDotStyle } from '@/ui/utils/modelColor';
 // #353: Cross-agent Gate exception — pure synchronous read; see module docstring.
 import { getPricingMetadata } from '@/auth';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Returns a display string for an estimated cost, or null when the value should
- * be hidden (undefined or exactly 0 means "no cost data for this model").
- *
- * Format table:
- *   undefined | 0   → null (hide cell)
- *   > 0 and < 0.01  → '< $0.01'
- *   < 1000          → '~$X.XX'   (2 decimal places, no thousands separator)
- *   ≥ 1000          → '~$X,XXX.XX' (2 decimal places, with thousands separator)
- */
-function formatCost(cost: number | undefined): string | null {
-  if (cost === undefined || cost === 0) return null;
-  if (cost < 0.01) return '< $0.01';
-  if (cost < 1000) return `~$${cost.toFixed(2)}`;
-  return `~$${cost.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+// #357: formatCost extracted to shared util so MessageBubble can reuse it.
+import { formatCost } from '@/ui/utils/formatCost';
 
 type StalenessState = 'never-fetched' | 'fresh' | 'stale-24h' | 'stale-48h';
 
@@ -156,9 +136,16 @@ export function SessionTokenSection({
           Token usage
         </p>
         <div className="flex items-center gap-2">
-          {/* Session total — always visible as a quick summary */}
-          <span className="text-[11px] text-text-muted tabular-nums">
-            {sessionTotal.toLocaleString()} total
+          {/* Session total — always visible as a quick summary.
+              #357: append estimated cost when available (formatCost returns null for
+              undefined/zero, so the · separator only appears when cost data exists). */}
+          <span
+            className="text-[11px] text-text-muted tabular-nums"
+            aria-label={sessionTotalCostStr !== null
+              ? `${sessionTotal.toLocaleString()} tokens, estimated cost ${sessionTotalCostStr}`
+              : `${sessionTotal.toLocaleString()} tokens`}
+          >
+            {sessionTotal.toLocaleString()} tokens{sessionTotalCostStr !== null ? ` · ${sessionTotalCostStr}` : ''}
           </span>
           <ChevronIcon isOpen={isExpanded} />
         </div>

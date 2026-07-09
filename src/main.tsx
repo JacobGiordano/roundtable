@@ -1,6 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+// #359: Syntax highlighting theme for code blocks (atom-one-dark, neutral dark
+// first pass). Background is reset to transparent in index.css so the design
+// system's pre.bg-sidebar token controls the outer code block background.
+import 'highlight.js/styles/atom-one-dark.min.css';
 import App from './App';
 import { applyTheme, applyUserAccentColors, applyRosterAccentColors, applyUserMessageColor, THEME_MAP } from '@/ui/theme';
 // Gate cross-agent exception: getModelAccentColors reads the user's stored model

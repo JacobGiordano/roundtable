@@ -1,7 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+// #357: formatCost shared util — displays per-message estimated cost in the bubble footer.
+import { formatCost } from './utils/formatCost';
 // #294: resolveAccentCssColor is the shared single source of truth for accent
 // color resolution — custom providers route through var(--accent-custom-{id})
 // so AccentColorPicker live-session overrides are picked up at render time.
@@ -139,14 +142,43 @@ function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
 }
 
+// ─── Sanitize schema — extended for syntax highlighting ───────────────────────
+
+/**
+ * Extended rehype-sanitize schema for syntax highlighting (#359).
+ *
+ * rehype-highlight adds:
+ *   - `hljs` and `language-*` className on `<code>` elements
+ *   - `hljs-*` className on `<span>` elements wrapping individual tokens
+ *
+ * The default schema allows `language-*` on `code` via `/^language-./` but does
+ * not allow the `hljs` base class or any class on `span` elements. We extend the
+ * schema minimally: allow `hljs` on `code` and `hljs-*` on `span`.
+ *
+ * Plugin order is load-bearing: rehypeHighlight must run BEFORE rehypeSanitize so
+ * the highlight classes exist in the hast when sanitize evaluates them.
+ */
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    // Allow hljs base class alongside the existing language-* allowance.
+    code: [['className', /^language-./, 'hljs']],
+    // Allow individual token span wrappers added by rehype-highlight.
+    span: [...(defaultSchema.attributes?.span ?? []), ['className', /^hljs-/]],
+  },
+};
+
+/** Shared rehype plugin array for both the streaming and done ReactMarkdown instances. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rehypePlugins: any[] = [rehypeHighlight, [rehypeSanitize, sanitizeSchema]];
+
 // ─── Markdown component renderers ─────────────────────────────────────────────
 
 /**
  * Custom renderers for react-markdown. All styles use registered Tailwind tokens.
- * Code syntax highlighting is deferred to a future issue — blocks are rendered in
- * <pre><code> with bg-sidebar (sidebar surface) as the background. The sidebar
- * token is the most semantically neutral "slightly offset from card" surface in
- * the token system.
+ * Syntax highlighting via rehype-highlight — hljs-* classes on span tokens are
+ * styled by the highlight.js theme imported in main.tsx.
  *
  * Links: external links open in a new tab with rel="noopener noreferrer" for
  * security. Color uses text-link — the semantic link token (colors.link → --prose-link)
@@ -219,29 +251,34 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
       </a>
     );
   },
-  // Inline code
+  // Inline code + fenced code blocks.
+  // For fenced blocks, rehype-highlight adds hljs and language-* classes to the
+  // inner <code> element. className is passed through so the token colors take effect.
+  // text-text-primary is intentionally omitted for block code — the hljs theme
+  // CSS controls token colors via span.hljs-* selectors; a blanket foreground
+  // color would conflict with individual token colors.
   code({ children, className }) {
-    // react-markdown passes className="language-*" for fenced code blocks.
-    // When no className, this is an inline code span.
+    // className is set by react-markdown for fenced code blocks ("language-*" or
+    // "hljs language-*" after rehype-highlight). Inline code spans have no className.
     const isBlock = !!className;
     if (isBlock) {
-      // Fenced code blocks are handled by the `pre` renderer below.
-      // This branch renders the inner <code> inside <pre>.
+      // Fenced code block — render inner <code> and pass className through so
+      // rehype-highlight's hljs-* classes survive into the DOM for styling.
       return (
-        <code className="text-[13px] font-mono leading-[1.6] text-text-primary block overflow-x-auto">
+        <code className={['text-[13px] font-mono leading-[1.6] block overflow-x-auto', className].filter(Boolean).join(' ')}>
           {children}
         </code>
       );
     }
-    // Inline code
+    // Inline code — no syntax highlighting, use design-system surface tokens.
     return (
       <code className="bg-sidebar text-text-primary text-[13px] font-mono px-1 py-0.5 rounded-sm border border-border-subtle">
         {children}
       </code>
     );
   },
-  // Code blocks: rendered as <pre><code> with sidebar surface background.
-  // Syntax highlighting is explicitly deferred — no highlighter library added here.
+  // Code blocks: outer <pre> provides the surface background and rounded border.
+  // rehype-highlight colours the inner <code> token spans via hljs-* classes.
   pre({ children }) {
     return (
       <pre className="bg-sidebar border border-border-subtle rounded-md px-4 py-3 mb-3 last:mb-0 overflow-x-auto">
@@ -355,7 +392,7 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
       >
         {stableContent && (
           <ReactMarkdown
-            rehypePlugins={[rehypeSanitize]}
+            rehypePlugins={rehypePlugins}
             components={markdownComponents}
           >
             {stableContent}
@@ -663,16 +700,24 @@ export function MessageBubble({
               {/* Token count — right side.
                   'never': excluded from DOM entirely (showTokenCount guard above).
                   'always'/'active': rendered; aria-hidden when row is not visible since
-                  this is non-interactive supplementary data. */}
-              {showTokenCount && (
-                <div
-                  className="text-[11px] text-text-muted text-right"
-                  title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
-                  aria-hidden={!rowVisible}
-                >
-                  {message.tokenUsage!.totalTokens.toLocaleString()} tokens
-                </div>
-              )}
+                  this is non-interactive supplementary data.
+                  #357: estimated cost appended when available (formatCost returns null
+                  for undefined/zero, so the · separator only renders with real data). */}
+              {showTokenCount && (() => {
+                const costStr = formatCost(message.tokenUsage!.estimatedCost);
+                return (
+                  <div
+                    className="text-[11px] text-text-muted text-right"
+                    title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
+                    aria-label={costStr !== null
+                      ? `${message.tokenUsage!.totalTokens.toLocaleString()} tokens, estimated cost ${costStr}`
+                      : `${message.tokenUsage!.totalTokens.toLocaleString()} tokens`}
+                    aria-hidden={!rowVisible}
+                  >
+                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens{costStr !== null ? ` · ${costStr}` : ''}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -812,7 +857,8 @@ export function MessageBubble({
           )}
 
           {/* Bottom row — token count only (no directed-reply on user bubbles).
-              Visibility is driven by tokenCountVisibility same as assistant bubbles. */}
+              Visibility is driven by tokenCountVisibility same as assistant bubbles.
+              #357: estimated cost appended when available. */}
           {userShowBottomRow && (
             <div
               className={[
@@ -821,15 +867,21 @@ export function MessageBubble({
                 rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
               ].join(' ')}
             >
-              {showTokenCount && (
-                <div
-                  className="text-[11px] text-text-muted text-right"
-                  title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
-                  aria-hidden={!rowVisible}
-                >
-                  {message.tokenUsage!.totalTokens.toLocaleString()} tokens
-                </div>
-              )}
+              {showTokenCount && (() => {
+                const costStr = formatCost(message.tokenUsage!.estimatedCost);
+                return (
+                  <div
+                    className="text-[11px] text-text-muted text-right"
+                    title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
+                    aria-label={costStr !== null
+                      ? `${message.tokenUsage!.totalTokens.toLocaleString()} tokens, estimated cost ${costStr}`
+                      : `${message.tokenUsage!.totalTokens.toLocaleString()} tokens`}
+                    aria-hidden={!rowVisible}
+                  >
+                    {message.tokenUsage!.totalTokens.toLocaleString()} tokens{costStr !== null ? ` · ${costStr}` : ''}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
