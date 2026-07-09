@@ -6,13 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Aria wave: cost display + syntax highlighting shipped. Post-ship bug fixes applied inline.
+Shipped #356 (Linen semantic.warning WCAG AA fix) and #360 (sr-only interpunct fix in MessageBubble). Opened #361 for attachment rendering gap in user bubbles.
 
 **Shipped this session:**
-- `#357` — Aria: per-message cost in bubble footer + session total cost in header chip
-- `#359` — Aria: syntax highlighting for code blocks (`rehype-highlight` + `atom-one-dark`)
-- Post-ship fix: `rehype-highlight`/`highlight.js` packages missing from workspace (worktree npm install doesn't carry over — see memory)
-- Post-ship fix: fenced code blocks with no language tag rendered as inline code; fixed via `node.position` block detection in `code` renderer
+- `#356` — Luma: darken Linen `semantic.warning` `#A16207` → `#8A4E00`; Ada promoted both `it.fails()` contrast tests to passing
+- `#360` — Aria: replace `aria-label` on generic divs in MessageBubble bubble footers with `sr-only` span pattern (ARIA 1.2 §6.2.6)
 
 ## Key decisions
 
@@ -32,8 +30,7 @@ Aria wave: cost display + syntax highlighting shipped. Post-ship bug fixes appli
 
 ## Open issues
 
-- `#356` — Luma: Linen theme `semantic.warning` fails WCAG AA (4.03:1); `it.fails()` tests ready to auto-promote when fixed
-- `#360` — Aria: advisory — `aria-label` on generic div unreliable for suppressing child text in screen reader browse mode (non-blocking)
+- `#361` — Aria: render attachment images in user message bubbles (full pipeline exists; only MessageBubble display missing)
 
 ## Gotchas
 
@@ -49,3 +46,4 @@ Aria wave: cost display + syntax highlighting shipped. Post-ship bug fixes appli
 - Worktree npm installs don't carry over to workspace — always run `npm install` in /workspace after waves that add deps
 - atom-one-dark highlight theme: light themes (Linen/Chalk) get readable-but-not-ideal colors; theme-aware palette deferred
 - Unlabeled fenced blocks render as correct block but with no syntax coloring (expected — no language tag = no highlight.js detection)
+- Attachments: only user messages carry them; assistant bubbles are unaffected by #361
