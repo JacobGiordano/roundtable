@@ -35,7 +35,7 @@
   },
   "semantic": {
     "success": "#15803D",
-    "warning": "#A16207",
+    "warning": "#8A4E00",
     "error": "#B91C1C",
     "error-bg": "#B91C1C",
     "info": "#1D4ED8"
@@ -85,6 +85,15 @@
         "on-card-#FDFAF5": "5.46:1 PASS",
         "on-sidebar-#EDE8DF": "4.66:1 PASS",
         "on-hover-#EDE6DA": "4.58:1 PASS"
+      },
+      "wcag": "AA 4.5:1 normal text — all surfaces pass"
+    },
+    "semantic.warning": {
+      "fix": "Darkened #A16207 → #8A4E00 (#356). Previous value failed WCAG AA on all Linen surfaces (sidebar 4.03:1, background 4.34:1, hover 3.97:1). New value is a deep brown-amber that preserves the warm Linen character while clearing the 4.5:1 threshold.",
+      "ratios": {
+        "on-sidebar-#EDE8DF": "5.18:1 PASS",
+        "on-background-#F5F0E8": "5.52:1 PASS",
+        "on-hover-#EDE6DA": "5.13:1 PASS"
       },
       "wcag": "AA 4.5:1 normal text — all surfaces pass"
     }
