@@ -68,6 +68,8 @@ See the [deployment guide](docs/deployment.md) to get started.
 - **Client-side first** — API keys stay in your browser; never transmitted
   except directly to each provider's official API endpoint
 
+> **Image support:** Vision-capable models (Claude, OpenAI, Gemini, and compatible custom endpoints) accept image attachments via the clip button, drag-and-drop, or paste — a warning appears when targeting a non-vision provider. Models cannot return images; all responses are text only. Image generation (DALL-E, Imagen, etc.) is not supported.
+
 ## Quick start
 
 ### Prerequisites
