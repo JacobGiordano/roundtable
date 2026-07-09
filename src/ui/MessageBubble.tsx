@@ -257,20 +257,22 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
   // text-text-primary is intentionally omitted for block code — the hljs theme
   // CSS controls token colors via span.hljs-* selectors; a blanket foreground
   // color would conflict with individual token colors.
-  code({ children, className }) {
-    // className is set by react-markdown for fenced code blocks ("language-*" or
-    // "hljs language-*" after rehype-highlight). Inline code spans have no className.
-    const isBlock = !!className;
+  code({ children, className, node }) {
+    // Block detection: fenced code blocks always span multiple source lines
+    // (opening fence + content + closing fence), so start.line !== end.line.
+    // !!className alone misses fenced blocks with no language tag (className is
+    // undefined for those), so we use position as the primary discriminator.
+    const isBlock = node?.position?.start.line !== node?.position?.end.line;
     if (isBlock) {
-      // Fenced code block — render inner <code> and pass className through so
-      // rehype-highlight's hljs-* classes survive into the DOM for styling.
+      // Fenced block — pass className through so rehype-highlight's hljs-*
+      // classes survive into the DOM for token coloring.
       return (
         <code className={['text-[13px] font-mono leading-[1.6] block overflow-x-auto', className].filter(Boolean).join(' ')}>
           {children}
         </code>
       );
     }
-    // Inline code — no syntax highlighting, use design-system surface tokens.
+    // Inline code — design-system surface tokens, no syntax highlighting.
     return (
       <code className="bg-sidebar text-text-primary text-[13px] font-mono px-1 py-0.5 rounded-sm border border-border-subtle">
         {children}
