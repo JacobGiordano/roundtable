@@ -1,4 +1,4 @@
-Last updated: 2026-07-09
+Last updated: 2026-07-09 (evening)
 
 ## Current phase
 
@@ -6,12 +6,10 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Cost display wave complete. Both issues shipped plus several post-wave fixes.
+Gemini guard fix shipped. Two new tickets opened.
 
 **Shipped this session:**
-- `#353` — Aria: cost column in SessionTokenSection (per-model + session total), staleness footer, pricing URL field in provider settings
-- `#347` — Aria: empty-bubble polish — flushAbortedStreams for zombie placeholder cleanup, error/abort states verified
-- Post-wave fixes (all on main): 69 test failures from mock gaps; pricing reactivity (custom event + useEffect); `_meta` key breaking isPricingTable validation; relative URL support for VITE_PRICING_URL; pricing prefetch on app mount so fast models get costs on first send
+- `#358` — Atlas: guard `candidate.content?.parts ?? []` in Gemini stream parser (safety-filtered/empty candidates no longer crash)
 
 ## Key decisions
 
@@ -32,6 +30,7 @@ Cost display wave complete. Both issues shipped plus several post-wave fixes.
 
 - `#356` — Luma: Linen theme `semantic.warning` fails WCAG AA (4.03:1); `it.fails()` tests ready to auto-promote when fixed
 - `#357` — Aria: per-message cost in bubble footer + session total cost in header chip *(next Aria wave)*
+- `#359` — Aria: syntax highlighting for code blocks (`rehype-highlight`) *(batch with #357)*
 
 ## Gotchas
 
