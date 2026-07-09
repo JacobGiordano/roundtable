@@ -98,6 +98,8 @@ beforeEach(() => {
   localStorageMock.clear();
   mockFetch.mockReset();
   vi.unstubAllEnvs();
+  // Blank out VITE_PRICING_URL so .env.local overrides don't leak into tests.
+  vi.stubEnv('VITE_PRICING_URL', '');
   // Clear module-level de-duplication state so in-flight fetches from a prior
   // test cannot write into this test's localStorage.
   __resetInFlightFetchesForTesting();

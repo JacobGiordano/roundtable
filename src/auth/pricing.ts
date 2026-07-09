@@ -47,8 +47,7 @@ interface PricingPayload {
 
 /**
  * Returns true iff the string is a well-formed http:// or https:// URL.
- * Used to guard both the localStorage override and the VITE_PRICING_URL env var
- * before they are accepted into the URL resolution chain.
+ * Used to guard localStorage user input — full absolute URLs only.
  */
 function isValidHttpUrl(value: string): boolean {
   try {
@@ -57,6 +56,15 @@ function isValidHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Returns true iff the string is usable as a fetch() argument — either an
+ * absolute http/https URL or a root-relative path (e.g. /pricing.json).
+ * Used to validate VITE_PRICING_URL, which may be a relative path in dev.
+ */
+function isValidFetchTarget(value: string): boolean {
+  return isValidHttpUrl(value) || /^\/[^\s]*$/.test(value);
 }
 
 // ─── Shape validation ─────────────────────────────────────────────────────────
@@ -227,9 +235,9 @@ export function getPricingUrl(): string {
     // localStorage unavailable — fall through
   }
 
-  // 2. Build-time env var
+  // 2. Build-time env var (allows relative paths for dev server use)
   const envUrl = import.meta.env.VITE_PRICING_URL as string | undefined;
-  if (envUrl && envUrl.trim().length > 0 && isValidHttpUrl(envUrl.trim())) {
+  if (envUrl && envUrl.trim().length > 0 && isValidFetchTarget(envUrl.trim())) {
     return envUrl.trim();
   }
 

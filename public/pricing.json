@@ -1,0 +1,47 @@
+{
+  "_meta": {
+    "description": "Roundtable pricing fallback data. Gate fetches this file at runtime (stale-while-revalidate) and stores it in localStorage. Atlas reads the stored PricingTable at send time to compute per-message cost estimates.",
+    "asOf": "2026-07-06",
+    "currency": "USD",
+    "unit": "per 1M tokens",
+    "schema": "PricingTable — keys are exact API-level model strings sent to provider endpoints. Values are PricingEntry { inputPer1M, outputPer1M }.",
+    "unverifiedEstimates": [
+      "o1-mini — input $3.00, output $12.00 derived from 2025 pricing; verify at openai.com/api/pricing before relying on this figure",
+      "open-mistral-nemo — output $0.02 assumed symmetric with input; verify at mistral.ai/pricing"
+    ],
+    "notes": {
+      "grok-3": "Retired by xAI on May 15 2026; API alias silently redirects to grok-4.3, billed at $1.25/$2.50 (the prices recorded here).",
+      "grok-3-mini": "Deprecated; API alias silently redirects to grok-4.3, billed at $1.25/$2.50 (the prices recorded here).",
+      "grok-2": "Deprecated; API alias silently redirects to grok-4.3, billed at $1.25/$2.50 (the prices recorded here).",
+      "gemini-2.0-flash": "Scheduled for shutdown June 2026; model string kept in registry for backwards compatibility. Pricing may no longer apply.",
+      "deepseek-chat": "Compatibility alias for DeepSeek V4 Flash; alias scheduled for removal 2026-07-24. Prices reflect V4 Flash standard (non-cached) input rate.",
+      "deepseek-reasoner": "Compatibility alias for DeepSeek V4 Pro; alias scheduled for removal 2026-07-24. Prices reflect V4 Pro standard (non-cached) input rate."
+    }
+  },
+
+  "claude-opus-4-8":           { "inputPer1M": 5.00,  "outputPer1M": 25.00 },
+  "claude-sonnet-4-6":         { "inputPer1M": 3.00,  "outputPer1M": 15.00 },
+  "claude-haiku-4-5-20251001": { "inputPer1M": 1.00,  "outputPer1M": 5.00  },
+
+  "gpt-5.5":    { "inputPer1M": 5.00,  "outputPer1M": 30.00 },
+  "gpt-4o":     { "inputPer1M": 2.50,  "outputPer1M": 10.00 },
+  "gpt-4o-mini":{ "inputPer1M": 0.15,  "outputPer1M": 0.60  },
+  "o3":         { "inputPer1M": 2.00,  "outputPer1M": 8.00  },
+  "o1":         { "inputPer1M": 15.00, "outputPer1M": 60.00 },
+  "o1-mini":    { "inputPer1M": 3.00,  "outputPer1M": 12.00 },
+
+  "gemini-2.5-pro":   { "inputPer1M": 1.25, "outputPer1M": 10.00 },
+  "gemini-2.5-flash": { "inputPer1M": 0.30, "outputPer1M": 2.50  },
+  "gemini-2.0-flash": { "inputPer1M": 0.10, "outputPer1M": 0.40  },
+
+  "grok-3":      { "inputPer1M": 1.25, "outputPer1M": 2.50 },
+  "grok-3-mini": { "inputPer1M": 1.25, "outputPer1M": 2.50 },
+  "grok-2":      { "inputPer1M": 1.25, "outputPer1M": 2.50 },
+
+  "deepseek-chat":     { "inputPer1M": 0.14, "outputPer1M": 0.28 },
+  "deepseek-reasoner": { "inputPer1M": 1.74, "outputPer1M": 3.48 },
+
+  "mistral-large-latest": { "inputPer1M": 2.00, "outputPer1M": 6.00 },
+  "mistral-small-latest": { "inputPer1M": 0.10, "outputPer1M": 0.30 },
+  "open-mistral-nemo":    { "inputPer1M": 0.02, "outputPer1M": 0.02 }
+}
