@@ -475,6 +475,10 @@ export default function App() {
         if (updated.isGhost) {
           saveGhostConversation(updated);
         } else {
+          // Fire-and-forget: replaceInState inside updateConversation uses a
+          // stale-write guard (updatedAt comparison) so a late-resolving call
+          // from a prior auto-chain step cannot overwrite a newer snapshot
+          // that has already been applied to state (#374).
           void store.updateConversation(updated);
         }
       }

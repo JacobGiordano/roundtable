@@ -250,10 +250,25 @@ export function useConversationStore(injectedProvider?: StorageProvider): UseCon
   /**
    * Replace a single conversation in local React state without a full reload.
    * The list is re-sorted newest-first after the replacement.
+   *
+   * Stale-write guard: if the incoming snapshot has an `updatedAt` that is
+   * strictly older than the version already in state, the update is silently
+   * discarded. This prevents a late-resolving `updateConversation` call (e.g.
+   * from a prior auto-chain step) from overwriting state that was already
+   * advanced to a newer snapshot by a subsequent step (#374).
+   *
+   * Equal timestamps are allowed through — if two completions happen in the
+   * same millisecond, either ordering is acceptable and neither should be lost.
    */
   const replaceInState = useCallback((updated: Conversation): void => {
     setConversations((prev) => {
-      const next = prev.map((c) => (c.id === updated.id ? updated : c));
+      const next = prev.map((c) => {
+        if (c.id !== updated.id) return c;
+        // Discard stale updates: only replace when the incoming snapshot is
+        // at least as new as what we already have in state.
+        if (updated.updatedAt < c.updatedAt) return c;
+        return updated;
+      });
       // Re-sort newest-first so the list order stays consistent.
       next.sort((a, b) => b.updatedAt - a.updatedAt);
       return next;
