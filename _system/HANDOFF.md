@@ -1,4 +1,4 @@
-Last updated: 2026-07-09 (evening — post-#363 ship)
+Last updated: 2026-07-09 (evening — post-#371 ship)
 
 ## Current phase
 
@@ -6,9 +6,10 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #361 (Aria: attachment thumbnails in user bubbles), #362 (Quill: README image callout),
-#363 (Arch: GeneratedImage interface + Message/StreamChunk extensions). Added Rune (AppSec) and
-Vera (DPO) cross-cutting reviewer agents. Fixed attachment strip ordering (above text, not below).
+Shipped #364 (Atlas: image content block parsing from all 6 providers), #365 (Vault: persist +
+export generatedImages, ghost guard confirmed, 16 new tests), #371 (Aria: ThinkingIndicator —
+three-dot pulse + prefers-reduced-motion static fallback; Ada passed). Luma spec for #371 at
+`/_design/specs/thinking-indicator.md`. Rune + Vera agents now committed and active.
 
 ## Key decisions
 
@@ -26,17 +27,16 @@ Vera (DPO) cross-cutting reviewer agents. Fixed attachment strip ordering (above
 - VITE_PRICING_URL in .env.local points to /pricing.json for dev; production uses canonical GitHub raw URL
 - `isBlock` in code renderer uses `node.position` (start.line !== end.line), not `!!className`
 - Attachment strip renders above message text (mb-2) — UX convention; do not revert
+- ThinkingIndicator: 1.2s pulse cycle, 200ms stagger, static dots at opacity 0.6 under reduced-motion
+- generatedImages in exports: unconditional inline base64 (only copy of model-produced image)
 
 ## Open issues
 
-- `#371` — Bug: thinking indicator invisible before first token — Luma specs, Aria implements; must work without motion
-- `#364` — Atlas: parse image content blocks from all 6 providers (StreamChunk.images on final chunk)
-- `#365` — Vault: persist + export Message.generatedImages; verify deserialization doesn't strip unknown fields
-- `#370` — Atlas: backfill inputTokens + estimatedCost onto preceding user message after stream completes
-- `#366` — Aria: render message.generatedImages in assistant bubbles (depends on #364)
-- `#367` — Scout: regression tests for image content streaming pipeline (depends on #364)
-- `#368` — Aria: wire dragover/drop onto chat input; reuse attachment ingestion path
-- `#369` — Aria: lightbox/expand for attachment thumbnails (batch with #368)
+- `#370` — Atlas: backfill inputTokens + estimatedCost onto preceding user message after stream completes; skip on AbortError
+- `#366` — Aria: render message.generatedImages in assistant bubbles with streaming placeholder (depends on #364 ✓)
+- `#367` — Scout: regression tests for image content streaming pipeline (depends on #364 ✓)
+- `#368` — Aria: wire dragover/drop onto chat input; reuse attachment ingestion path (batch with #369)
+- `#369` — Aria: lightbox/expand for attachment thumbnails; a11y contract pre-specced (batch with #368)
 
 ## Gotchas
 
@@ -44,7 +44,7 @@ Vera (DPO) cross-cutting reviewer agents. Fixed attachment strip ordering (above
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
 - ConversationEmptyState beacon stagger: 150ms base delay is intentional
-- Chunk size warning on build (586 kB) — pre-existing
+- Chunk size warning on build (766 kB) — pre-existing, now 766 kB
 - pricing.json: o1-mini and open-mistral-nemo output rate are unverified estimates
 - Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
@@ -53,7 +53,7 @@ Vera (DPO) cross-cutting reviewer agents. Fixed attachment strip ordering (above
 - atom-one-dark highlight theme: light themes get readable-but-not-ideal colors; deferred
 - Unlabeled fenced blocks render as block with no syntax coloring (expected)
 - Attachments: only user messages carry them; assistant bubbles unaffected until #366 ships
-- prefers-reduced-motion kills bubble-entering and streaming-shimmer — #371 must not rely on motion
 - Agency-agents paths: always fetch directory listing first — forks hallucinate paths
 - Rune: called before any PR touching auth, API key handling, model output rendering, or backend routes
 - Vera: called when storage formats change, new data fields land, exports change, or analytics considered
+- #366 Aria: streaming placeholder needed — assistant bubble shows ThinkingIndicator then images appear
