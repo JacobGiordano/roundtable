@@ -1,4 +1,4 @@
-Last updated: 2026-07-09 (evening — post-#371 ship)
+Last updated: 2026-07-10 (morning — post-#370 ship)
 
 ## Current phase
 
@@ -6,10 +6,9 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #364 (Atlas: image content block parsing from all 6 providers), #365 (Vault: persist +
-export generatedImages, ghost guard confirmed, 16 new tests), #371 (Aria: ThinkingIndicator —
-three-dot pulse + prefers-reduced-motion static fallback; Ada passed). Luma spec for #371 at
-`/_design/specs/thinking-indicator.md`. Rune + Vera agents now committed and active.
+Shipped #370 (Atlas: backfill inputTokens + estimatedCost onto user message after stream via
+wrappedOnChunk interceptor in sendMessage.ts). Added Gauge (code reviewer, he/him) and Tempo
+(performance engineer, she/her) agent profiles.
 
 ## Key decisions
 
@@ -29,10 +28,10 @@ three-dot pulse + prefers-reduced-motion static fallback; Ada passed). Luma spec
 - Attachment strip renders above message text (mb-2) — UX convention; do not revert
 - ThinkingIndicator: 1.2s pulse cycle, 200ms stagger, static dots at opacity 0.6 under reduced-motion
 - generatedImages in exports: unconditional inline base64 (only copy of model-produced image)
+- User message tokenUsage backfill: mutate before onChunk fires so save captures it; first provider wins in parallel mode
 
 ## Open issues
 
-- `#370` — Atlas: backfill inputTokens + estimatedCost onto preceding user message after stream completes; skip on AbortError
 - `#366` — Aria: render message.generatedImages in assistant bubbles with streaming placeholder (depends on #364 ✓)
 - `#367` — Scout: regression tests for image content streaming pipeline (depends on #364 ✓)
 - `#368` — Aria: wire dragover/drop onto chat input; reuse attachment ingestion path (batch with #369)
@@ -44,7 +43,7 @@ three-dot pulse + prefers-reduced-motion static fallback; Ada passed). Luma spec
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
 - ConversationEmptyState beacon stagger: 150ms base delay is intentional
-- Chunk size warning on build (766 kB) — pre-existing, now 766 kB
+- Chunk size warning on build (766 kB) — pre-existing
 - pricing.json: o1-mini and open-mistral-nemo output rate are unverified estimates
 - Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
@@ -56,4 +55,7 @@ three-dot pulse + prefers-reduced-motion static fallback; Ada passed). Luma spec
 - Agency-agents paths: always fetch directory listing first — forks hallucinate paths
 - Rune: called before any PR touching auth, API key handling, model output rendering, or backend routes
 - Vera: called when storage formats change, new data fields land, exports change, or analytics considered
-- #366 Aria: streaming placeholder needed — assistant bubble shows ThinkingIndicator then images appear
+- Gauge: called on request or before PRs with non-trivial logic changes or refactors
+- Tempo: called when bundle size grows, streaming perf changes, or explicitly requested
+- #366 Aria: streaming placeholder needed — ThinkingIndicator shows, then images appear
+- Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
