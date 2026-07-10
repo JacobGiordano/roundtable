@@ -78,7 +78,19 @@ export function Lightbox({ src, alt, filename, onClose, returnFocusRef }: Lightb
         dialog.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         ),
-      ).filter((el) => !el.hasAttribute('disabled'));
+      ).filter(
+        (el) =>
+          !el.hasAttribute('disabled') &&
+          // The `button` part of the selector matches <button tabindex="-1"> even
+          // though the [tabindex]:not([-1]) clause doesn't exclude it — that clause
+          // only applies to non-natively-focusable elements. Explicitly exclude any
+          // element with tabindex="-1" so programmatic-only buttons never corrupt
+          // first/last boundary detection. (Gauge review — focus trap correctness.)
+          el.getAttribute('tabindex') !== '-1' &&
+          // Visually hidden elements appear in querySelectorAll results but cannot
+          // receive focus — Tab skips them, so they would produce incorrect boundaries.
+          (el.offsetWidth > 0 || el.offsetHeight > 0),
+      );
 
       if (focusable.length === 0) return;
 
