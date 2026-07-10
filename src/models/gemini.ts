@@ -12,6 +12,7 @@
  */
 
 import type {
+  GeneratedImage,
   ModelProvider,
   ModelProviderConfig,
   Message,
@@ -267,6 +268,12 @@ export class GeminiModelProvider implements ModelProvider {
 
     let inputTokens = 0;
     let outputTokens = 0;
+    // Accumulate image parts encountered across streamed candidate chunks.
+    // Gemini returns inline image data as `inlineData` parts alongside text parts.
+    // `inlineData.data` is raw base64 with no data-URL prefix — stored as-is,
+    // matching the GeneratedImage.base64 convention. Emitted on the final chunk
+    // only; undefined (not []) when no images were returned.
+    const collectedImages: GeneratedImage[] = [];
 
     try {
       for await (const data of parseSSEStream(response)) {
@@ -283,7 +290,7 @@ export class GeminiModelProvider implements ModelProvider {
           outputTokens = event.usageMetadata.candidatesTokenCount;
         }
 
-        // Emit content deltas from candidates
+        // Emit content deltas from candidates; collect inline image parts
         if (event.candidates) {
           for (const candidate of event.candidates) {
             for (const part of candidate.content?.parts ?? []) {
@@ -293,6 +300,14 @@ export class GeminiModelProvider implements ModelProvider {
                   content: part.text,
                   isDone: false,
                 });
+              } else if (part.inlineData) {
+                // Inline image data returned by the model (issue #364).
+                // `data` is raw base64 — no prefix to strip (unlike OpenAI data URLs).
+                collectedImages.push({
+                  id: crypto.randomUUID(),
+                  mimeType: part.inlineData.mimeType,
+                  base64: part.inlineData.data,
+                });
               }
             }
           }
@@ -300,8 +315,8 @@ export class GeminiModelProvider implements ModelProvider {
       }
     } catch (streamErr) {
       // AbortError — user triggered stop mid-stream.
-      // Emit a clean done chunk with whatever tokens were counted so far,
-      // then re-throw so runProviderIsolated can identify and swallow it.
+      // Emit a clean done chunk with whatever tokens and images were collected
+      // so far, then re-throw so runProviderIsolated can identify and swallow it.
       if (streamErr instanceof Error && streamErr.name === 'AbortError') {
         onChunk({
           modelId: this.config.modelId,
@@ -312,6 +327,7 @@ export class GeminiModelProvider implements ModelProvider {
             outputTokens,
             totalTokens: inputTokens + outputTokens,
           },
+          images: collectedImages.length > 0 ? collectedImages : undefined,
         });
         throw streamErr;
       }
@@ -323,7 +339,7 @@ export class GeminiModelProvider implements ModelProvider {
       return {};
     }
 
-    // Emit final done chunk with token usage
+    // Emit final done chunk with token usage and any images returned by the model.
     const tokenUsage: TokenUsage = {
       inputTokens,
       outputTokens,
@@ -345,6 +361,8 @@ export class GeminiModelProvider implements ModelProvider {
       content: '',
       isDone: true,
       tokenUsage,
+      // images is undefined (not []) when no images were returned, per StreamChunk contract.
+      images: collectedImages.length > 0 ? collectedImages : undefined,
     });
 
     return { tokenUsage };
