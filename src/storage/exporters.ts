@@ -8,6 +8,30 @@
  * Neither function triggers a browser download — they produce a serialized
  * string only. Download triggering is a DOM concern handled by
  * `downloadExportedConversation` in LocalStorageProvider.ts.
+ *
+ * ## Field coverage — Message.generatedImages (issue #365)
+ *
+ * Persistence: `Message.generatedImages` round-trips through LocalStorage
+ * automatically. `LocalStorageProvider.saveConversation` serialises the full
+ * `Conversation` object via `JSON.stringify` with no field allowlist, and
+ * `parseStoredConversation` in `migration.ts` deserialises via `JSON.parse`
+ * with no field stripping. `wrapForStorage()` wraps the Conversation object
+ * directly; the fast path in `parseStoredConversation()` returns
+ * `data as Conversation` without field filtering. No migration step removes
+ * unknown fields. The field survives the round-trip unchanged when present and
+ * remains absent when not set. No code change was needed for persistence.
+ *
+ * Exports: unlike user `Attachment` objects — where only metadata (filename
+ * and mimeType) is included because the original file lives on the user's
+ * device — `GeneratedImage.base64` is the only copy of model-produced image
+ * content. Both exporters embed it as an inline data-URI image so the exported
+ * file is fully self-contained and the model's response is not truncated.
+ *
+ * Privacy: `GeneratedImage.base64` is treated identically to `Message.content`
+ * — included in exports only when the user explicitly triggers an export, never
+ * logged, and excluded from ghost-mode sessions by the `isGhost` guard on
+ * `LocalStorageProvider.saveConversation` (which fires before any write,
+ * covering the entire `Conversation` object including `messages[].generatedImages`).
  */
 
 import type { Conversation, ExportedConversation, ExportFormat } from '@/types/index';
@@ -56,6 +80,13 @@ export type ExportOptions = {
  * has one `[Attachment: <name> (<mimeType>)]` line per attachment appended
  * after the message content. The attachment display name is `filename` when
  * present, otherwise `mimeType` (clipboard pastes carry no filename).
+ *
+ * `Message.generatedImages` (issue #365): model-returned images are rendered
+ * unconditionally as inline data-URI Markdown images
+ * (`![alt](data:mimeType;base64,…)`). These images are model output — not user
+ * uploads — and there is no external copy, so the base64 must be embedded for
+ * the export to be complete. The `]` character in `altText` is escaped to
+ * prevent it from prematurely closing the Markdown image alt-text bracket.
  */
 export function conversationToMarkdown(conv: Conversation, options?: ExportOptions): string {
   const includeAttachments = options?.includeAttachments ?? false;
@@ -84,6 +115,18 @@ export function conversationToMarkdown(conv: Conversation, options?: ExportOptio
     lines.push(`**${role}** — ${ts}`);
     lines.push('');
     lines.push(msg.content);
+
+    // Generated images — inline data-URI Markdown images (issue #365).
+    // Rendered unconditionally: the base64 data is the only copy of
+    // model-produced image content. altText `]` is escaped to preserve
+    // Markdown image syntax.
+    if (msg.generatedImages?.length) {
+      lines.push('');
+      for (const img of msg.generatedImages) {
+        const alt = (img.altText ?? 'Generated image').replace(/]/g, '\\]');
+        lines.push(`![${alt}](data:${img.mimeType};base64,${img.base64})`);
+      }
+    }
 
     // Attachment metadata — only on user messages, only when opted in.
     if (includeAttachments && msg.role === 'user' && msg.attachments?.length) {
@@ -114,6 +157,11 @@ export function conversationToMarkdown(conv: Conversation, options?: ExportOptio
  * appended after the message `<p>` element. No inline images are rendered;
  * only the identifying metadata is included. The `.attachment` class carries
  * minimal inline styling (pill shape, muted color).
+ *
+ * `Message.generatedImages` (issue #365): model-returned images are rendered
+ * unconditionally as `<img>` elements with inline data-URI `src` attributes.
+ * `altText` and `mimeType` are HTML-escaped; `base64` contains only the
+ * characters `[A-Za-z0-9+/=]` and requires no escaping.
  */
 export function conversationToHtml(conv: Conversation, options?: ExportOptions): string {
   const includeAttachments = options?.includeAttachments ?? false;
@@ -140,6 +188,22 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
       const ts = new Date(msg.timestamp).toLocaleTimeString();
       const content = escape(msg.content).replace(/\n/g, '<br>');
 
+      // Generated images — inline data-URI <img> elements (issue #365).
+      // Rendered unconditionally: the base64 data is the only copy of
+      // model-produced image content. mimeType is escaped; base64 is
+      // restricted to [A-Za-z0-9+/=] and needs no escaping.
+      let generatedImageHtml = '';
+      if (msg.generatedImages?.length) {
+        const imgs = msg.generatedImages
+          .map((img) => {
+            const alt = escape(img.altText ?? 'Generated image');
+            const mimeType = escape(img.mimeType);
+            return `<img src="data:${mimeType};base64,${img.base64}" alt="${alt}" style="max-width:100%;height:auto;display:block;margin:0.5rem 0;">`;
+          })
+          .join('\n');
+        generatedImageHtml = `<div class="generated-images">${imgs}</div>`;
+      }
+
       // Attachment pills — only on user messages, only when opted in.
       let attachmentHtml = '';
       if (includeAttachments && msg.role === 'user' && msg.attachments?.length) {
@@ -152,7 +216,7 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
         attachmentHtml = `<div class="attachments">${pills}</div>`;
       }
 
-      return `<div class="message ${msg.role}"><strong>${role}</strong> <small>${ts}</small><p>${content}</p>${attachmentHtml}</div>`;
+      return `<div class="message ${msg.role}"><strong>${role}</strong> <small>${ts}</small><p>${content}</p>${generatedImageHtml}${attachmentHtml}</div>`;
     })
     .join('\n');
 
@@ -168,6 +232,7 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
     .user { color: #1e40af; }
     .assistant { color: #065f46; }
     small { color: #6b7280; }
+    .generated-images { margin-top: 0.5rem; }
     .attachments { margin-top: 0.5rem; }
     .attachment { display: inline-block; font-size: 0.75rem; color: #374151; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 9999px; padding: 0.125rem 0.5rem; margin-right: 0.25rem; }
   </style>

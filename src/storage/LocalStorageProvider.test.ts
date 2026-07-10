@@ -17,11 +17,13 @@
  *   - quota exceeded error is surfaced as a readable Error
  *   - listConversations() cache: populated on first call, served from cache on
  *     subsequent calls, invalidated correctly by saveConversation / deleteConversation
+ *   - Message.generatedImages round-trip (issue #365): field survives
+ *     serialize → deserialize unchanged; rendered in markdown/html exports
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalStorageProvider } from './LocalStorageProvider';
-import type { Attachment, Conversation, Message, ModelConfig } from '@/types/index';
+import type { Attachment, Conversation, GeneratedImage, Message, ModelConfig } from '@/types/index';
 
 // ─── localStorage mock ────────────────────────────────────────────────────────
 
@@ -488,6 +490,191 @@ describe('corrupt load', () => {
     store.set('roundtable:conv:bad', '{ broken json }');
     const result = await provider.loadConversation('bad');
     expect(result).toBeNull();
+  });
+});
+
+// ─── Message.generatedImages round-trip and export (issue #365) ───────────────
+
+const GENERATED_IMAGE: GeneratedImage = {
+  id: 'img-1',
+  mimeType: 'image/png',
+  base64: 'iVBORw0KGgo=',
+  altText: 'A test image',
+  width: 256,
+  height: 256,
+};
+
+const GENERATED_IMAGE_NO_ALT: GeneratedImage = {
+  id: 'img-2',
+  mimeType: 'image/webp',
+  base64: 'UklGRg==',
+};
+
+function makeAssistantMessageWithImages(overrides: Partial<Message> = {}): Message {
+  return {
+    id: 'msg-img',
+    role: 'assistant',
+    content: 'Here is the image I generated.',
+    modelId: 'claude',
+    timestamp: 3000,
+    generatedImages: [GENERATED_IMAGE],
+    ...overrides,
+  };
+}
+
+describe('Message.generatedImages — LocalStorage round-trip (issue #365)', () => {
+  it('persists generatedImages and loads them back intact', async () => {
+    const msg = makeAssistantMessageWithImages();
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation('conv-1');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.messages[0].generatedImages).toEqual([GENERATED_IMAGE]);
+  });
+
+  it('preserves all GeneratedImage fields: id, mimeType, base64, altText, width, height', async () => {
+    const msg = makeAssistantMessageWithImages();
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation('conv-1');
+    const img = loaded!.messages[0].generatedImages![0];
+    expect(img.id).toBe('img-1');
+    expect(img.mimeType).toBe('image/png');
+    expect(img.base64).toBe('iVBORw0KGgo=');
+    expect(img.altText).toBe('A test image');
+    expect(img.width).toBe(256);
+    expect(img.height).toBe(256);
+  });
+
+  it('preserves multiple generatedImages on a single message', async () => {
+    const msg = makeAssistantMessageWithImages({
+      generatedImages: [GENERATED_IMAGE, GENERATED_IMAGE_NO_ALT],
+    });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation('conv-1');
+    expect(loaded!.messages[0].generatedImages).toHaveLength(2);
+    expect(loaded!.messages[0].generatedImages![1]).toEqual(GENERATED_IMAGE_NO_ALT);
+  });
+
+  it('keeps generatedImages absent (not defaulted to []) when not set', async () => {
+    const msg: Message = { id: 'msg-plain', role: 'assistant', content: 'No images', modelId: 'claude', timestamp: 1000 };
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation('conv-1');
+    // Must be undefined — not an empty array.
+    expect(loaded!.messages[0].generatedImages).toBeUndefined();
+  });
+
+  it('does not persist generatedImages when isGhost is true', async () => {
+    const msg = makeAssistantMessageWithImages();
+    const ghost = makeConversation({ isGhost: true, messages: [msg] });
+    await provider.saveConversation(ghost);
+    // Ghost conversations are never written to storage.
+    const loaded = await provider.loadConversation('conv-1');
+    expect(loaded).toBeNull();
+  });
+});
+
+describe('Message.generatedImages — markdown export (issue #365)', () => {
+  it('renders generatedImages as inline data-URI Markdown images', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).toContain('![A test image](data:image/png;base64,iVBORw0KGgo=)');
+  });
+
+  it('uses "Generated image" as alt text when altText is absent', async () => {
+    const msg = makeAssistantMessageWithImages({ generatedImages: [GENERATED_IMAGE_NO_ALT] });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).toContain('![Generated image](data:image/webp;base64,UklGRg==)');
+  });
+
+  it('escapes ] characters in altText to preserve Markdown image syntax', async () => {
+    const imgWithBracket: GeneratedImage = { id: 'img-3', mimeType: 'image/png', base64: 'abc=', altText: 'image [cropped]' };
+    const msg = makeAssistantMessageWithImages({ generatedImages: [imgWithBracket] });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).toContain('![image [cropped\\]](data:image/png;base64,abc=)');
+  });
+
+  it('renders one image line per generatedImage', async () => {
+    const msg = makeAssistantMessageWithImages({
+      generatedImages: [GENERATED_IMAGE, GENERATED_IMAGE_NO_ALT],
+    });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).toContain('![A test image](data:image/png;base64,iVBORw0KGgo=)');
+    expect(result!.content).toContain('![Generated image](data:image/webp;base64,UklGRg==)');
+  });
+
+  it('does not add image lines when generatedImages is absent', async () => {
+    const conv = makeConversation({
+      messages: [{ id: 'msg-plain', role: 'assistant', content: 'No images', modelId: 'claude', timestamp: 1000 }],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).not.toContain('data:');
+  });
+});
+
+describe('Message.generatedImages — HTML export (issue #365)', () => {
+  it('renders generatedImages as <img> elements with data-URI src', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).toContain('src="data:image/png;base64,iVBORw0KGgo="');
+    expect(result!.content).toContain('alt="A test image"');
+  });
+
+  it('uses "Generated image" as alt when altText is absent', async () => {
+    const msg = makeAssistantMessageWithImages({ generatedImages: [GENERATED_IMAGE_NO_ALT] });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).toContain('alt="Generated image"');
+    expect(result!.content).toContain('src="data:image/webp;base64,UklGRg=="');
+  });
+
+  it('HTML-escapes altText in the alt attribute', async () => {
+    const imgWithQuote: GeneratedImage = { id: 'img-4', mimeType: 'image/png', base64: 'def=', altText: 'image "quoted"' };
+    const msg = makeAssistantMessageWithImages({ generatedImages: [imgWithQuote] });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).toContain('alt="image &quot;quoted&quot;"');
+  });
+
+  it('renders one <img> per generatedImage', async () => {
+    const msg = makeAssistantMessageWithImages({
+      generatedImages: [GENERATED_IMAGE, GENERATED_IMAGE_NO_ALT],
+    });
+    const conv = makeConversation({ messages: [msg] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    const imgCount = (result!.content.match(/<img /g) ?? []).length;
+    expect(imgCount).toBe(2);
+  });
+
+  it('wraps images in a .generated-images div', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).toContain('class="generated-images"');
+  });
+
+  it('does not add image elements when generatedImages is absent', async () => {
+    const conv = makeConversation({
+      messages: [{ id: 'msg-plain', role: 'assistant', content: 'No images', modelId: 'claude', timestamp: 1000 }],
+    });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).not.toContain('<img ');
+    expect(result!.content).not.toContain('data:');
   });
 });
 
