@@ -13,6 +13,8 @@ import { resolveAccentCssColor } from './utils/modelColor';
 // #322: formatRelativeTime extracted to shared utility so ThreadRow and MessageBubble
 // both use the same relative-time formatting logic without duplication.
 import { formatRelativeTime } from './utils/timeFormat';
+// #371: three-dot thinking indicator for the pre-response streaming state.
+import { ThinkingIndicator } from './ThinkingIndicator';
 
 /** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app.
  *  Two <rect> elements with stroke outlines. Page interiors are filled with a
@@ -449,6 +451,42 @@ export function MessageBubble({
   // Copy-to-clipboard state: 'idle' | 'copied'. Reverts to 'idle' after 1.5s.
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
 
+  // ─── Thinking indicator state (#371) ─────────────────────────────────────
+  // ThinkingIndicator and MessageContent are mutually exclusive in the body zone.
+  // Render condition: assistant bubble, streaming, no content yet.
+  // Transition-out: 100ms opacity fade before unmount (instant under reduced-motion).
+  //
+  // isThinkingCondition: the raw derived boolean — true while we should be showing dots.
+  // thinkingMounted: whether ThinkingIndicator is in the DOM (trails isThinkingCondition
+  //   by up to 100ms for the fade-out, then snaps to false).
+  // thinkingFading: true only during the 100ms fade window; drives the opacity-0 class.
+  const isThinkingCondition = message.role === 'assistant' && isStreaming && (message.content ?? '') === '';
+  const [thinkingMounted, setThinkingMounted] = useState(() => isThinkingCondition);
+  const [thinkingFading, setThinkingFading] = useState(false);
+
+  useEffect(() => {
+    if (isThinkingCondition) {
+      // Condition became true (re-used bubble or mount) — ensure indicator is shown.
+      setThinkingMounted(true);
+      setThinkingFading(false);
+    } else if (thinkingMounted && !thinkingFading) {
+      // Condition just became false and we're not already fading — start fade.
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reducedMotion) {
+        // Instant swap per spec: same render tick, no delay.
+        setThinkingMounted(false);
+      } else {
+        // 100ms opacity fade then unmount (CSS transition-opacity duration-fast ease-out).
+        setThinkingFading(true);
+        const timer = setTimeout(() => {
+          setThinkingMounted(false);
+          setThinkingFading(false);
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isThinkingCondition, thinkingMounted, thinkingFading]);
+
   const handleCopy = useCallback(() => {
     if (!message.content || copyState === 'copied') return;
     navigator.clipboard.writeText(message.content).then(() => {
@@ -634,13 +672,25 @@ export function MessageBubble({
             Untinted bg-card surface below the nameplate. Contains message content,
             error detail, and the token count / directed-reply bottom row. */}
         <div className="px-4 pt-2 pb-3 bg-card">
-          {/* Message content — markdown-rendered via MessageContent.
-              aria-live/aria-atomic handling is encapsulated in MessageContent. */}
-          <MessageContent
-            message={message}
-            isStreaming={isStreaming}
-            hasError={hasError}
-          />
+          {/* Thinking indicator / message content — mutually exclusive (#371).
+              ThinkingIndicator is shown while streaming with no content yet.
+              thinkingMounted trails the condition by up to 100ms for the fade-out.
+              thinkingFading drives the opacity-0 transition class during that window. */}
+          {thinkingMounted ? (
+            <div
+              className={thinkingFading ? 'opacity-0 transition-opacity duration-fast ease-out' : ''}
+            >
+              <ThinkingIndicator modelName={modelConfig?.name ?? 'Assistant'} />
+            </div>
+          ) : (
+            /* Message content — markdown-rendered via MessageContent.
+               aria-live/aria-atomic handling is encapsulated in MessageContent. */
+            <MessageContent
+              message={message}
+              isStreaming={isStreaming}
+              hasError={hasError}
+            />
+          )}
 
           {/* Error detail — rendered in the body zone below any partial content.
               The divider (border-t) is only shown when there is visible body content.
