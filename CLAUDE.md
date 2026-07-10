@@ -48,6 +48,8 @@ automatically — no installation required.
 | Bastion 🛡️ | `/backend/tests/` | `/backend/src/**` (Atlas owns), `/src/**`, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
 | Rune 🔐 | *(none — cross-cutting security reviewer)* | owns nothing; reads all dirs, proposes fixes only — called before PRs touching auth, API key handling, model output rendering, or backend routes |
 | Vera ⚖️ | *(none — cross-cutting privacy advisor)* | owns nothing; reads all dirs, proposes fixes only — called when storage formats change, new data fields introduced, exports change, or analytics considered |
+| Reed 👁️ | *(none — cross-cutting code reviewer)* | owns nothing; reads all dirs, proposes fixes only — called on request or before PRs with non-trivial logic changes or refactors |
+| Tempo ⚡ | *(none — cross-cutting performance engineer)* | owns nothing; reads all dirs, proposes fixes only — called when bundle size grows, streaming perf changes, or explicitly requested |
 
 Cross-agent communication happens ONLY through the interfaces in `/src/types/index.ts`.
 If you need something from another agent's directory, you are doing it wrong —
