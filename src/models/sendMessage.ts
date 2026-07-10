@@ -31,7 +31,7 @@ import type {
   SessionTokenUsage,
 } from '@/types';
 import { getProviderRoster, getCredentials, getPricingTable } from '@/auth';
-import { PROVIDERS } from './registry';
+import { PROVIDERS, MODEL_REGISTRY } from './registry';
 import { createCustomProvider } from './generic';
 import { emitErrorChunk, buildModelError } from './openai-sse';
 import { buildAttributedMessages, buildAttributionSystemPrompt } from './attribution';
@@ -645,6 +645,101 @@ export async function sendMessage(
         },
       ];
 
+  // ── User message tokenUsage backfill (issue #370) ────────────────────────────
+  //
+  // After each provider stream completes successfully, backfill the preceding user
+  // message with the input token count and input-only estimated cost. Aria's
+  // MessageBubble already renders tokenUsage on user messages when it is set.
+  //
+  // Mechanics: lastUserMsg is a reference to the same object that lives in
+  // options.conversation.messages (shallow spread, not a deep copy). Mutating it
+  // in-place means the mutation is visible to App.tsx's handleMessageComplete via
+  // sentConversationRef.current, which spreads those same message references into
+  // the updated conversation before calling store.updateConversation. So the change
+  // persists to storage and propagates to React state without any extra save call.
+  //
+  // Order matters: the mutation must happen BEFORE calling onChunk so that
+  // handleMessageComplete reads the already-mutated tokenUsage when it builds the
+  // updated conversation.
+  //
+  // In parallel mode (multiple providers): the first provider to complete
+  // successfully claims the backfill. All subsequent providers find
+  // userMsgBackfilled === true and return early — the user message stores the
+  // first-completing provider's input token count. This is the simplest correct
+  // behaviour; all providers tokenize the same content so the counts are similar.
+  //
+  // Skip on AbortError: when the user clicks stop, signal.aborted is true before
+  // the provider emits its done chunk (abort fires on the AbortController which
+  // sets signal.aborted, then the provider catches the AbortError and emits a
+  // partial done chunk). We check signal?.aborted in wrappedOnChunk to guard this.
+  //
+  // Skip on error: chunk.error is set on authentication, network, or rate-limit
+  // failures. We never backfill from a failed stream.
+
+  // Find the current user message — always the last user-role message in the array.
+  // When a conversation is provided, App.tsx appends the user message to
+  // conversation.messages before calling sendMessage, so it is the last element.
+  const lastUserMsg = messages.slice().reverse().find((m) => m.role === 'user') ?? null;
+  let userMsgBackfilled = false;
+
+  /**
+   * Resolve the API-level model string for a given provider and optional version
+   * selection. This string is the pricing table key used to look up inputPer1M.
+   *
+   * Resolution order:
+   *   1. selectedVersionId — explicitly selected by the user (e.g. 'claude-opus-4-8')
+   *   2. Built-in registry — first availableVersions entry (the provider's default)
+   *   3. Roster custom entry — modelString field from the user-configured endpoint
+   *   4. undefined — no model string known; input cost is omitted
+   */
+  function getResolvedModelString(modelId: ModelId, selectedVersionId?: string): string | undefined {
+    if (selectedVersionId) return selectedVersionId;
+    // Built-in provider — use the first availableVersions entry (provider default).
+    const registryEntry = MODEL_REGISTRY.find((e) => e.modelId === modelId);
+    if (registryEntry) return registryEntry.availableVersions[0]?.id;
+    // Custom provider — read modelString from the roster entry.
+    const roster = getProviderRoster();
+    const customEntry = roster.find((e) => e.kind === 'custom' && e.id === modelId);
+    return customEntry?.kind === 'custom' ? customEntry.modelString : undefined;
+  }
+
+  /**
+   * Mutate the last user message with the input-token portion of a completed stream.
+   * Sets Message.tokenUsage with outputTokens:0 and the input-only estimatedCost.
+   * The guard (userMsgBackfilled) ensures this runs at most once across all providers.
+   */
+  function backfillUserMessage(inputTokens: number, resolvedModelString: string | undefined): void {
+    if (!lastUserMsg || userMsgBackfilled) return;
+    userMsgBackfilled = true;
+    const pricingTable = getPricingTable();
+    const pricingEntry = resolvedModelString ? pricingTable?.[resolvedModelString] : undefined;
+    // Input-only cost: exclude output tokens per issue #370 spec.
+    // When no pricing entry is found the estimatedCost field is omitted (undefined).
+    const estimatedCost =
+      pricingEntry != null ? (inputTokens / 1_000_000) * pricingEntry.inputPer1M : undefined;
+    lastUserMsg.tokenUsage = {
+      inputTokens,
+      outputTokens: 0,
+      totalTokens: inputTokens,
+      ...(estimatedCost !== undefined ? { estimatedCost } : {}),
+    };
+  }
+
+  // Wrap onChunk to intercept successful done chunks and backfill the user message.
+  // The backfill runs before forwarding the chunk to Aria so that when
+  // handleMessageComplete in App.tsx fires (triggered synchronously by the same
+  // onChunk call below), sentConversationRef already holds the mutated user message.
+  const wrappedOnChunk: StreamHandler = (chunk) => {
+    if (chunk.isDone && !chunk.error && !(signal?.aborted) && chunk.tokenUsage) {
+      const modelConfig = conversation?.models.find((m) => m.modelId === chunk.modelId);
+      backfillUserMessage(
+        chunk.tokenUsage.inputTokens,
+        getResolvedModelString(chunk.modelId, modelConfig?.selectedVersionId),
+      );
+    }
+    onChunk(chunk);
+  };
+
   // ── Mode selection ──────────────────────────────────────────────────────────
 
   // Auto-chain takes precedence — if chainConfig is supplied, sequence the steps.
@@ -653,20 +748,20 @@ export async function sendMessage(
     await runAutoChain(
       { ...options, conversation, systemPrompt },
       messages,
-      onChunk
+      wrappedOnChunk
     );
     return;
   }
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, onChunk, conversation, signal, visionCapable);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
     return;
   }
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, onChunk, conversation, signal, visionCapable);
+  await runParallel(activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
 }
 
 /**
