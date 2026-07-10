@@ -692,6 +692,48 @@ export function MessageBubble({
             />
           )}
 
+          {/* Generated image strip — rendered below message text when the model returned images.
+              Position: between MessageContent and the error detail / bottom row.
+              Condition: non-empty generatedImages array (safe during and after streaming —
+              images accumulate onto the message as chunks arrive via useStreamingMessages).
+              src: data-URL constructed here — base64 field per GeneratedImage contract has no
+              data-URL prefix (matches Attachment.base64 convention; Atlas strips any prefix).
+              alt: uses model-supplied altText when present. When absent: a numbered fallback
+              for multi-image strips so each is individually labeled (WCAG 2.1 AA — never empty).
+              width/height hints: prevent layout shift when the provider supplies dimensions.
+              Single image: max-w-full max-h-[280px] object-contain — preserves aspect ratio.
+              Multiple images: 140×140 object-cover thumbnails — consistent grid, prevents
+              tall images from dominating the thread.
+              No interactive elements — view-only in Phase 5. No focus/keyboard handling needed. */}
+          {message.generatedImages && message.generatedImages.length > 0 && (
+            <div
+              role="group"
+              aria-label="Model-generated images"
+              className="mt-2 flex flex-wrap gap-2"
+            >
+              {message.generatedImages.map((img, idx) => (
+                <img
+                  key={img.id}
+                  src={`data:${img.mimeType};base64,${img.base64}`}
+                  alt={
+                    img.altText
+                      ? img.altText
+                      : message.generatedImages!.length > 1
+                        ? `Generated image ${idx + 1}`
+                        : 'Model-generated image'
+                  }
+                  width={img.width}
+                  height={img.height}
+                  className={
+                    message.generatedImages!.length === 1
+                      ? 'max-w-full max-h-[280px] rounded object-contain'
+                      : 'w-[140px] h-[140px] rounded object-cover flex-shrink-0'
+                  }
+                />
+              ))}
+            </div>
+          )}
+
           {/* Error detail — rendered in the body zone below any partial content.
               The divider (border-t) is only shown when there is visible body content.
               When content is the synthesized sentinel 'Error', MessageContent returns

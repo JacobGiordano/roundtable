@@ -125,11 +125,20 @@ export function useStreamingMessages({
             return;
           }
 
+          // Merge images accumulated during streaming with any images on the done chunk.
+          // In practice, providers emit images as complete blocks only on the done chunk.
+          // The accumulation below handles both cases cleanly — whether images arrived on
+          // non-done chunks (rare), the done chunk (typical), or both.
+          const accumulatedImages = existing.generatedImages ?? [];
+          const doneImages = chunk.images ?? [];
+          const allImages = [...accumulatedImages, ...doneImages];
+
           const finalMsg: Message = {
             ...existing,
             isStreaming: false,
             tokenUsage: chunk.tokenUsage,
             ...(chunk.error ? { error: chunk.error } : {}),
+            ...(allImages.length > 0 ? { generatedImages: allImages } : {}),
           };
           // Remove from accumulator so it no longer appears as streaming.
           const next = { ...accumulatorRef.current };
@@ -141,10 +150,21 @@ export function useStreamingMessages({
           // from @/storage or touch ghost-mode logic directly.
           onMessageComplete(sendingConversationId, finalMsg);
         } else {
-          // Non-done chunk: accumulate content onto the in-progress message.
+          // Non-done chunk: accumulate content and any images onto the in-progress message.
+          // chunk.images is typically absent on non-done chunks — providers emit image
+          // content blocks as complete units in the final done chunk. We accumulate here
+          // anyway so that if a provider emits image blocks mid-stream, they surface
+          // immediately rather than being lost. Aria renders Message.generatedImages
+          // whenever the array is non-empty, regardless of streaming state.
           const existing = accumulatorRef.current[key];
           const streamMsg: Message = existing
-            ? { ...existing, content: existing.content + chunk.content }
+            ? {
+                ...existing,
+                content: existing.content + chunk.content,
+                ...(chunk.images?.length
+                  ? { generatedImages: [...(existing.generatedImages ?? []), ...chunk.images] }
+                  : {}),
+              }
             : {
                 id: `stream-${sendingConversationId}-${chunk.modelId}-${Date.now()}`,
                 role: 'assistant',
@@ -152,6 +172,7 @@ export function useStreamingMessages({
                 content: chunk.content,
                 timestamp: Date.now(),
                 isStreaming: true,
+                ...(chunk.images?.length ? { generatedImages: chunk.images } : {}),
               };
 
           const next = { ...accumulatorRef.current, [key]: streamMsg };
