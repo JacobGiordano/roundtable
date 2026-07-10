@@ -46,6 +46,8 @@ automatically — no installation required.
 | Ada ♿ | `/src/tests/a11y/` | application code in any agent directory, `/src/models`, `/src/storage`, `/src/auth`, `/src/types/index.ts`, `CLAUDE.md`, root-level docs |
 | Forge ⚙️ | `.github/workflows/` | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/src/**`, `/backend/src/**`, `CLAUDE.md`, `/_design`, root-level docs |
 | Bastion 🛡️ | `/backend/tests/` | `/backend/src/**` (Atlas owns), `/src/**`, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
+| Rune 🔐 | *(none — cross-cutting security reviewer)* | owns nothing; reads all dirs, proposes fixes only — called before PRs touching auth, API key handling, model output rendering, or backend routes |
+| Vera ⚖️ | *(none — cross-cutting privacy advisor)* | owns nothing; reads all dirs, proposes fixes only — called when storage formats change, new data fields introduced, exports change, or analytics considered |
 
 Cross-agent communication happens ONLY through the interfaces in `/src/types/index.ts`.
 If you need something from another agent's directory, you are doing it wrong —
