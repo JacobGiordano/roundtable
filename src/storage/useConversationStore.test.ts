@@ -185,3 +185,77 @@ describe('useConversationStore — auto-select on initial load (#124)', () => {
     expect(result.current.activeConversationId).toBe('manual');
   });
 });
+
+// ─── Stale-write guard in replaceInState (#374) ───────────────────────────────
+
+describe('useConversationStore — stale-write guard in updateConversation (#374)', () => {
+  it('does not overwrite state with a stale (older updatedAt) snapshot', async () => {
+    const conv = makeConv({ id: 'target', updatedAt: 1000 });
+    const provider = makeProvider([conv]);
+
+    const { result } = renderHook(() => useConversationStore(provider));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const newerSnapshot = { ...conv, updatedAt: 3000, title: 'newer' };
+    const olderSnapshot = { ...conv, updatedAt: 2000, title: 'older' };
+
+    // Apply the newer snapshot first.
+    await act(async () => {
+      await result.current.updateConversation(newerSnapshot);
+    });
+
+    expect(result.current.getConversation('target')?.title).toBe('newer');
+    expect(result.current.getConversation('target')?.updatedAt).toBe(3000);
+
+    // Simulate a late-resolving call with an older snapshot.
+    await act(async () => {
+      await result.current.updateConversation(olderSnapshot);
+    });
+
+    // State must remain at the newer snapshot — the stale write should be discarded.
+    expect(result.current.getConversation('target')?.title).toBe('newer');
+    expect(result.current.getConversation('target')?.updatedAt).toBe(3000);
+  });
+
+  it('allows an update with the same updatedAt through (equal timestamps are not stale)', async () => {
+    const conv = makeConv({ id: 'target', updatedAt: 5000 });
+    const provider = makeProvider([conv]);
+
+    const { result } = renderHook(() => useConversationStore(provider));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const sameTimestamp = { ...conv, updatedAt: 5000, title: 'same-ts' };
+
+    await act(async () => {
+      await result.current.updateConversation(sameTimestamp);
+    });
+
+    // Same-timestamp update should be applied — equal timestamps are not stale.
+    expect(result.current.getConversation('target')?.title).toBe('same-ts');
+  });
+
+  it('applies a newer snapshot after an older one has already been set', async () => {
+    const conv = makeConv({ id: 'target', updatedAt: 1000 });
+    const provider = makeProvider([conv]);
+
+    const { result } = renderHook(() => useConversationStore(provider));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const olderSnapshot = { ...conv, updatedAt: 2000, title: 'older' };
+    const newerSnapshot = { ...conv, updatedAt: 4000, title: 'newer' };
+
+    await act(async () => {
+      await result.current.updateConversation(olderSnapshot);
+    });
+
+    expect(result.current.getConversation('target')?.title).toBe('older');
+
+    await act(async () => {
+      await result.current.updateConversation(newerSnapshot);
+    });
+
+    // Newer snapshot must win.
+    expect(result.current.getConversation('target')?.title).toBe('newer');
+    expect(result.current.getConversation('target')?.updatedAt).toBe(4000);
+  });
+});
