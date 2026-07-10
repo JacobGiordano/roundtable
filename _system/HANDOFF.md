@@ -1,4 +1,4 @@
-Last updated: 2026-07-10 (afternoon — post-#366–#369 ship)
+Last updated: 2026-07-10 (afternoon — post-#373 ship)
 
 ## Current phase
 
@@ -10,7 +10,8 @@ Shipped #366 (Aria: render generatedImages in assistant bubbles, streaming via u
 #367 (Scout: 34 regression tests for image pipeline — streaming, storage round-trip, regression guards),
 #368 (Aria: drag-and-drop ARIA live region — DnD+paste were already implemented; added sr-only
 announcer), #369 (Aria: lightbox for attachment thumbnails — portal, focus trap, Gauge-reviewed,
-Ada PASS 14/14).
+Ada PASS 14/14). #373 (Atlas: fix directed reply silently ignored in auto-chain mode — swap
+targetModelId / chainConfig check order so directed reply always takes priority).
 
 ## Key decisions
 
@@ -36,7 +37,7 @@ Ada PASS 14/14).
 
 ## Open issues
 
-None.
+- `#372` — Aria: move `→ Model` directed-reply label above user message text (batch with next Aria issue)
 
 ## Gotchas
 
