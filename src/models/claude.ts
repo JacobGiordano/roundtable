@@ -12,6 +12,7 @@
  */
 
 import type {
+  GeneratedImage,
   ModelProvider,
   ModelProviderConfig,
   Message,
@@ -156,8 +157,34 @@ interface AnthropicMessageStart {
   };
 }
 
+/**
+ * Anthropic image content block, returned as part of a `content_block_start`
+ * event when the model response includes an image (e.g. from a tool result or
+ * a model that natively generates image content). The full image arrives in the
+ * start event — images are not streamed incrementally via content_block_delta.
+ *
+ * `source.data` is raw base64 with no data-URL prefix, matching the
+ * `GeneratedImage.base64` convention: Atlas stores it as-is; Aria prepends the
+ * appropriate prefix when rendering.
+ */
+interface AnthropicImageContentBlock {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: string; // e.g. "image/png"
+    data: string;       // raw base64, no "data:...;base64," prefix
+  };
+}
+
+interface AnthropicContentBlockStart {
+  type: 'content_block_start';
+  index: number;
+  content_block: { type: string } | AnthropicImageContentBlock;
+}
+
 type AnthropicStreamEvent =
   | AnthropicMessageStart
+  | AnthropicContentBlockStart
   | AnthropicContentBlockDelta
   | AnthropicMessageDelta
   | { type: string };
@@ -265,6 +292,10 @@ export class ClaudeModelProvider implements ModelProvider {
 
     let inputTokens = 0;
     let outputTokens = 0;
+    // Accumulate image content blocks encountered during streaming.
+    // Images arrive complete in content_block_start events — never as incremental deltas.
+    // Emitted on the final chunk only; undefined (not []) when no images were returned.
+    const collectedImages: GeneratedImage[] = [];
 
     try {
       for await (const data of parseSSEStream(response)) {
@@ -279,6 +310,22 @@ export class ClaudeModelProvider implements ModelProvider {
           const start = event as AnthropicMessageStart;
           inputTokens = start.message.usage.input_tokens;
           outputTokens = start.message.usage.output_tokens;
+        } else if (event.type === 'content_block_start') {
+          // Detect image content blocks. The full image data arrives here —
+          // Anthropic does not stream image bytes incrementally via content_block_delta.
+          // Only base64-source blocks are handled; URL-source blocks are skipped
+          // because downloading remote URLs is out of scope for this client.
+          const blockStart = event as AnthropicContentBlockStart;
+          if (blockStart.content_block.type === 'image') {
+            const block = blockStart.content_block as AnthropicImageContentBlock;
+            if (block.source.type === 'base64') {
+              collectedImages.push({
+                id: crypto.randomUUID(),
+                mimeType: block.source.media_type,
+                base64: block.source.data,
+              });
+            }
+          }
         } else if (event.type === 'content_block_delta') {
           const delta = event as AnthropicContentBlockDelta;
           if (delta.delta.type === 'text_delta') {
@@ -295,8 +342,8 @@ export class ClaudeModelProvider implements ModelProvider {
       }
     } catch (streamErr) {
       // AbortError — user triggered stop mid-stream.
-      // Emit a clean done chunk with whatever tokens were counted so far,
-      // then re-throw so runProviderIsolated can identify and swallow it.
+      // Emit a clean done chunk with whatever tokens and images were collected
+      // so far, then re-throw so runProviderIsolated can identify and swallow it.
       if (streamErr instanceof Error && streamErr.name === 'AbortError') {
         onChunk({
           modelId: this.config.modelId,
@@ -307,6 +354,7 @@ export class ClaudeModelProvider implements ModelProvider {
             outputTokens,
             totalTokens: inputTokens + outputTokens,
           },
+          images: collectedImages.length > 0 ? collectedImages : undefined,
         });
         throw streamErr;
       }
@@ -318,7 +366,7 @@ export class ClaudeModelProvider implements ModelProvider {
       return {};
     }
 
-    // Emit final done chunk with token usage
+    // Emit final done chunk with token usage and any images returned by the model.
     const tokenUsage: TokenUsage = {
       inputTokens,
       outputTokens,
@@ -340,6 +388,8 @@ export class ClaudeModelProvider implements ModelProvider {
       content: '',
       isDone: true,
       tokenUsage,
+      // images is undefined (not []) when no images were returned, per StreamChunk contract.
+      images: collectedImages.length > 0 ? collectedImages : undefined,
     });
 
     return { tokenUsage };

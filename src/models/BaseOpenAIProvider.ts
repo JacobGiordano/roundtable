@@ -24,6 +24,7 @@
  */
 
 import type {
+  GeneratedImage,
   ModelProvider,
   ModelProviderConfig,
   Message,
@@ -70,7 +71,16 @@ type OpenAIContentPart = OpenAITextPart | OpenAIImageUrlPart;
 // All four built-in OpenAI-compatible providers share this exact wire format.
 
 interface OpenAIChoiceDelta {
-  content?: string | null;
+  /**
+   * Content delta from the model. Normally a `string` (text token), `null`
+   * (non-text chunk, e.g. finish-reason chunk), or absent.
+   *
+   * Newer multimodal-output models may return an array of typed content parts
+   * instead of a plain string — the same `OpenAIContentPart` shape defined
+   * above for inputs. We handle `image_url` parts with data-URL values here to
+   * extract base64 image content when a model returns generated images inline.
+   */
+  content?: string | null | OpenAIContentPart[];
   role?: string;
 }
 
@@ -304,6 +314,11 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
 
     let inputTokens = 0;
     let outputTokens = 0;
+    // Accumulate image content encountered in multimodal-output delta chunks.
+    // OpenAI-compatible providers may return image_url content parts with data
+    // URLs when a model generates images. Emitted on the final chunk only;
+    // undefined (not []) when no images were returned.
+    const collectedImages: GeneratedImage[] = [];
 
     try {
       for await (const data of parseSSEStream(response)) {
@@ -320,22 +335,42 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
           outputTokens = event.usage.completion_tokens;
         }
 
-        // Emit content deltas
+        // Emit content deltas and collect any image content parts
         for (const choice of event.choices) {
-          const text = choice.delta.content;
-          if (text) {
+          const deltaContent = choice.delta.content;
+          if (typeof deltaContent === 'string' && deltaContent) {
+            // Common path: plain text delta
             onChunk({
               modelId: this.config.modelId,
-              content: text,
+              content: deltaContent,
               isDone: false,
             });
+          } else if (Array.isArray(deltaContent)) {
+            // Multimodal-output path: content parts array.
+            // Extract base64 image_url parts; skip text parts (emitted as plain
+            // string deltas in conformant chunks) and non-base64 URL references
+            // (downloading remote URLs is out of scope for this client).
+            for (const part of deltaContent) {
+              if (part.type === 'image_url') {
+                const url = (part as OpenAIImageUrlPart).image_url.url;
+                // Only handle data URLs — format: "data:<mimeType>;base64,<data>"
+                const match = url.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                  collectedImages.push({
+                    id: crypto.randomUUID(),
+                    mimeType: match[1],
+                    base64: match[2],
+                  });
+                }
+              }
+            }
           }
         }
       }
     } catch (streamErr) {
       // AbortError — user triggered stop mid-stream.
-      // Emit a clean done chunk with whatever tokens were counted so far,
-      // then re-throw so runProviderIsolated can identify and swallow it.
+      // Emit a clean done chunk with whatever tokens and images were collected
+      // so far, then re-throw so runProviderIsolated can identify and swallow it.
       if (streamErr instanceof Error && streamErr.name === 'AbortError') {
         onChunk({
           modelId: this.config.modelId,
@@ -346,6 +381,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
             outputTokens,
             totalTokens: inputTokens + outputTokens,
           },
+          images: collectedImages.length > 0 ? collectedImages : undefined,
         });
         throw streamErr;
       }
@@ -357,7 +393,7 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       return {};
     }
 
-    // Emit final done chunk with token usage
+    // Emit final done chunk with token usage and any images returned by the model.
     const tokenUsage: TokenUsage = {
       inputTokens,
       outputTokens,
@@ -379,6 +415,8 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       content: '',
       isDone: true,
       tokenUsage,
+      // images is undefined (not []) when no images were returned, per StreamChunk contract.
+      images: collectedImages.length > 0 ? collectedImages : undefined,
     });
 
     return { tokenUsage };
