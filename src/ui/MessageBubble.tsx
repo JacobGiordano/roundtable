@@ -843,14 +843,7 @@ export function MessageBubble({
 
         {/* Body zone — same structure as model bubble body zone. */}
         <div className="px-4 pt-2 pb-3 bg-card">
-          {/* Message body — plain whitespace-preserving text for user messages. */}
-          <MessageContent
-            message={message}
-            isStreaming={isStreaming}
-            hasError={false}
-          />
-
-          {/* Attachment thumbnail strip — rendered below message text for user messages
+          {/* Attachment thumbnail strip — rendered above message text for user messages
               that carry image attachments (Phase 5, issue #361).
               base64 content has no data-URL prefix per the Attachment contract —
               we prepend "data:{mimeType};base64," here at render time.
@@ -862,7 +855,7 @@ export function MessageBubble({
             <div
               role="group"
               aria-label="Attached images"
-              className="mt-2 flex flex-wrap gap-2"
+              className="mb-2 flex flex-wrap gap-2"
             >
               {message.attachments.map((attachment, idx) => (
                 <img
@@ -880,6 +873,13 @@ export function MessageBubble({
               ))}
             </div>
           )}
+
+          {/* Message body — plain whitespace-preserving text for user messages. */}
+          <MessageContent
+            message={message}
+            isStreaming={isStreaming}
+            hasError={false}
+          />
 
           {/* Directed-to label — shown on user messages that have a targetModelId.
               Subtle indicator so the thread stays readable after the fact.
