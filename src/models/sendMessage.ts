@@ -741,8 +741,21 @@ export async function sendMessage(
   };
 
   // ── Mode selection ──────────────────────────────────────────────────────────
+  // Priority order: directed reply > auto-chain > parallel broadcast.
+  //
+  // targetModelId is checked first: a directed reply is an explicit per-message
+  // override that must take precedence regardless of whether an auto-chain config
+  // is also present. In auto-chain mode chainConfig is always built from all active
+  // models, so checking it before targetModelId would silently swallow directed
+  // replies and fan out to every model instead — the bug fixed in issue #373.
 
-  // Auto-chain takes precedence — if chainConfig is supplied, sequence the steps.
+  // Directed reply — route to a single model.
+  if (targetModelId) {
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
+    return;
+  }
+
+  // Auto-chain — if chainConfig is supplied, sequence the steps.
   // runAutoChain performs its own roster resolution and missing-entry handling.
   if (chainConfig) {
     await runAutoChain(
@@ -750,12 +763,6 @@ export async function sendMessage(
       messages,
       wrappedOnChunk
     );
-    return;
-  }
-
-  // Directed reply — route to a single model.
-  if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
     return;
   }
 
