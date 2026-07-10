@@ -1,4 +1,4 @@
-Last updated: 2026-07-10 (morning — post-#370 ship)
+Last updated: 2026-07-10 (afternoon — post-#366–#369 ship)
 
 ## Current phase
 
@@ -6,9 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #370 (Atlas: backfill inputTokens + estimatedCost onto user message after stream via
-wrappedOnChunk interceptor in sendMessage.ts). Added Gauge (code reviewer, he/him) and Tempo
-(performance engineer, she/her) agent profiles.
+Shipped #366 (Aria: render generatedImages in assistant bubbles, streaming via useStreamingMessages),
+#367 (Scout: 34 regression tests for image pipeline — streaming, storage round-trip, regression guards),
+#368 (Aria: drag-and-drop ARIA live region — DnD+paste were already implemented; added sr-only
+announcer), #369 (Aria: lightbox for attachment thumbnails — portal, focus trap, Gauge-reviewed,
+Ada PASS 14/14).
 
 ## Key decisions
 
@@ -29,13 +31,12 @@ wrappedOnChunk interceptor in sendMessage.ts). Added Gauge (code reviewer, he/hi
 - ThinkingIndicator: 1.2s pulse cycle, 200ms stagger, static dots at opacity 0.6 under reduced-motion
 - generatedImages in exports: unconditional inline base64 (only copy of model-produced image)
 - User message tokenUsage backfill: mutate before onChunk fires so save captures it; first provider wins in parallel mode
+- Lightbox focus trap: filters disabled + tabindex="-1" + zero-dimension elements (Gauge fix, #369)
+- sr-only aria-live announcer for attachments is pre-mounted (not conditional) so first-drop fires
 
 ## Open issues
 
-- `#366` — Aria: render message.generatedImages in assistant bubbles with streaming placeholder (depends on #364 ✓)
-- `#367` — Scout: regression tests for image content streaming pipeline (depends on #364 ✓)
-- `#368` — Aria: wire dragover/drop onto chat input; reuse attachment ingestion path (batch with #369)
-- `#369` — Aria: lightbox/expand for attachment thumbnails; a11y contract pre-specced (batch with #368)
+None.
 
 ## Gotchas
 
@@ -43,7 +44,7 @@ wrappedOnChunk interceptor in sendMessage.ts). Added Gauge (code reviewer, he/hi
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
 - ConversationEmptyState beacon stagger: 150ms base delay is intentional
-- Chunk size warning on build (766 kB) — pre-existing
+- Chunk size warning on build (772 kB) — pre-existing, grew slightly with Lightbox component
 - pricing.json: o1-mini and open-mistral-nemo output rate are unverified estimates
 - Grok entries are deprecated aliases that silently redirect to grok-4.3 billing
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
@@ -51,11 +52,10 @@ wrappedOnChunk interceptor in sendMessage.ts). Added Gauge (code reviewer, he/hi
 - Worktree npm installs don't carry over to workspace — run `npm install` in /workspace after dep-adding waves
 - atom-one-dark highlight theme: light themes get readable-but-not-ideal colors; deferred
 - Unlabeled fenced blocks render as block with no syntax coloring (expected)
-- Attachments: only user messages carry them; assistant bubbles unaffected until #366 ships
+- Lightbox for generatedImages on assistant bubbles is not yet implemented (out of scope for #369)
 - Agency-agents paths: always fetch directory listing first — forks hallucinate paths
 - Rune: called before any PR touching auth, API key handling, model output rendering, or backend routes
 - Vera: called when storage formats change, new data fields land, exports change, or analytics considered
 - Gauge: called on request or before PRs with non-trivial logic changes or refactors
 - Tempo: called when bundle size grows, streaming perf changes, or explicitly requested
-- #366 Aria: streaming placeholder needed — ThinkingIndicator shows, then images appear
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
