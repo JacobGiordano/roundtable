@@ -150,7 +150,16 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     availableVersions: [
       { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', description: 'Most capable — complex tasks and long context' },
       { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', description: 'Fast and efficient — default' },
-      { id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', description: 'Stable prior-generation fast model' },
+      // Issue #375 — native image generation (opt-in by version selection).
+      // gemini-2.5-flash-image ("Nano Banana") is the GA image-gen model that supports
+      // responseModalities: ["TEXT", "IMAGE"] in generationConfig. Selecting this version
+      // opts in to image output — the Gemini provider includes responseModalities only
+      // when the resolved model string is in IMAGE_GEN_MODEL_STRINGS (gemini.ts).
+      // The existing inlineData parser handles the returned image content blocks (#364/#366).
+      // Only this model string is confirmed to support image output via responseModalities.
+      // gemini-2.5-pro and gemini-2.5-flash are text-only; image output is unconfirmed.
+      // gemini-2.0-flash was removed — it was shut down June 1, 2026.
+      { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image', description: 'Native image generation ("Nano Banana") — produces text + images' },
     ],
   },
   {

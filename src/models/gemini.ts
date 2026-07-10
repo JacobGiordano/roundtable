@@ -80,6 +80,31 @@ function buildGeminiUrl(modelString: string): string {
   return `${resolveGeminiBase()}/v1beta/models/${modelString}:streamGenerateContent`;
 }
 
+// ─── Image-generation capable model strings ───────────────────────────────────
+
+/**
+ * Model strings that support `responseModalities: ["TEXT", "IMAGE"]` in the
+ * Gemini generationConfig. These are dedicated image-generation variants of the
+ * Gemini model family. When the resolved model string is in this set,
+ * `buildGeminiRequest` includes the responseModalities parameter — the user's
+ * selection of an image-gen version is the opt-in signal. No types change or
+ * additional SendMessageOptions field is required.
+ *
+ * Confirmed to support native image generation via responseModalities (as of 2026-07):
+ *   - gemini-2.5-flash-image — GA image-gen model ("Nano Banana"), confirmed.
+ *
+ * NOT included (per verification):
+ *   - gemini-2.0-flash — shut down June 1, 2026; removed from registry.
+ *   - gemini-2.5-flash — general-purpose chat model; image output not confirmed.
+ *   - gemini-2.5-pro   — general-purpose chat model; image output not confirmed.
+ *
+ * When Google confirms additional model strings support responseModalities IMAGE,
+ * add them here and add a corresponding ModelVersionOption to MODEL_REGISTRY.
+ */
+const IMAGE_GEN_MODEL_STRINGS = new Set<string>([
+  'gemini-2.5-flash-image',
+]);
+
 // ─── Google API response types ────────────────────────────────────────────────
 
 interface GeminiContentPart {
@@ -129,10 +154,17 @@ interface GeminiStreamChunk {
  * Note: The Google API does have a `system_instruction` field in the request body
  * at the root level for the generateContent endpoint. We use that approach here
  * for clean separation of system context from the conversation history.
+ *
+ * @param modelString — the resolved API model string (e.g. "gemini-2.5-flash-image").
+ *   When this string is in IMAGE_GEN_MODEL_STRINGS, `responseModalities` is added to
+ *   generationConfig so the model returns both text and images. This is opt-in by
+ *   model-version selection — the user choosing an image-gen version is the signal.
+ *   No SendMessageOptions extension needed; no types change required.
  */
 function buildGeminiRequest(
   messages: Message[],
-  systemPrompt: string | undefined
+  systemPrompt: string | undefined,
+  modelString: string
 ): Record<string, unknown> {
   // Phase 5 (#285): user messages with attachments include inlineData parts.
   // sendMessage.ts strips attachments before dispatch for non-vision providers,
@@ -165,11 +197,23 @@ function buildGeminiRequest(
     };
   });
 
+  // Issue #375 — image generation opt-in.
+  // When the resolved model string is a known image-gen model, include
+  // responseModalities so the API returns both text and image content blocks.
+  // The inlineData parser below already handles whatever the model returns —
+  // no new response parsing is needed. Non-image models must NOT receive this
+  // field; the Google API returns an error if responseModalities is sent to a
+  // model that does not support it.
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: MAX_TOKENS_GEMINI,
+  };
+  if (IMAGE_GEN_MODEL_STRINGS.has(modelString)) {
+    generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+  }
+
   const request: Record<string, unknown> = {
     contents,
-    generationConfig: {
-      maxOutputTokens: MAX_TOKENS_GEMINI,
-    },
+    generationConfig,
   };
 
   if (systemPrompt) {
@@ -210,7 +254,7 @@ export class GeminiModelProvider implements ModelProvider {
     // filterMessagesForApi strips them to prevent corrupt API calls.
     const filteredMessages = filterMessagesForApi(messages);
 
-    const requestBody = buildGeminiRequest(filteredMessages, systemPrompt);
+    const requestBody = buildGeminiRequest(filteredMessages, systemPrompt, modelString);
 
     // Google API key is passed as a query parameter (not a header) for the REST API.
     // The key is appended to the URL — never logged, never stored.
