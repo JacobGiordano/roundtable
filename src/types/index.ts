@@ -488,6 +488,28 @@ export interface ProviderCapabilities {
    * implemented by conformant endpoints.
    */
   systemPrompt?: boolean;
+
+  /**
+   * Whether the provider supports native image generation (model-produced images).
+   *
+   * When `true`, Atlas may request image output from the provider — for example
+   * by including `responseModalities: ["TEXT", "IMAGE"]` in Gemini's generation
+   * config, or by routing to a dedicated image-generation endpoint for providers
+   * that separate image gen from chat completions. When `false` (or absent),
+   * Atlas must not send image-generation parameters — endpoints that lack this
+   * capability will return errors or ignore the field silently.
+   *
+   * This is distinct from `vision` (which controls image *input*). A provider
+   * may support vision without supporting image generation, and vice versa.
+   * Atlas is responsible for gating image-generation request parameters on this
+   * flag and for routing the output to `StreamChunk.images` via the existing
+   * `GeneratedImage` pipeline.
+   *
+   * Default (when absent): `false`. Conservative — image generation is an
+   * optional, provider-specific capability. Explicit `true` opts in; absence
+   * suppresses all image-gen request parameters.
+   */
+  imageGeneration?: boolean;
 }
 
 /**
