@@ -158,6 +158,15 @@ export function InputBar({
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef(0);
 
+  // ── Attachment addition announcement (#368) ───────────────────────────────
+  // The attachment chip list's aria-live="polite" is inside a conditionally-rendered
+  // container — when the first file is dropped, both the live region and the new
+  // content enter the DOM simultaneously, so AT won't reliably announce it.
+  // This pre-mounted sr-only live region fires whenever attachments.length increases,
+  // ensuring screen readers announce every addition regardless of first-mount timing.
+  const prevAttachLengthRef = useRef(0);
+  const [attachmentAnnouncement, setAttachmentAnnouncement] = useState('');
+
   // Vision warning modal: holds the pending send payload when a confirmation is required.
   // Cleared when the user confirms ("Send anyway") or cancels.
   const [pendingVisionSend, setPendingVisionSend] = useState<{
@@ -227,6 +236,25 @@ export function InputBar({
     });
     onPrefillConsumed?.();
   }, [prefillText, onPrefillConsumed]);
+
+  // Announce attachment additions to screen readers (#368).
+  // Watches attachments.length — when it increases (file added via drop, paste, or picker),
+  // populate the pre-mounted sr-only live region so AT announces the count.
+  // The announcement clears after 3 s to avoid stale text in the live region.
+  useEffect(() => {
+    const prev = prevAttachLengthRef.current;
+    const curr = attachments.length;
+    prevAttachLengthRef.current = curr;
+
+    if (curr > prev) {
+      const added = curr - prev;
+      setAttachmentAnnouncement(
+        `${added} image${added > 1 ? 's' : ''} added. ${curr} of 5 attached.`,
+      );
+      const timer = setTimeout(() => setAttachmentAnnouncement(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [attachments]);
 
   // Ghost mode tooltip — 600ms hover delay per tooltip.md §1 (#210).
   const [isGhostTooltipVisible, setIsGhostTooltipVisible] = useState(false);
@@ -823,6 +851,12 @@ export function InputBar({
             {directedReplyTarget
               ? `Directed reply mode: sending to ${directedReplyTarget.name}`
               : ''}
+          </span>
+          {/* Attachment addition announcer (#368) — pre-mounted so screen readers
+              reliably announce drops and pastes even when the chip list is first entering
+              the DOM. Populated by the attachments useEffect above. */}
+          <span aria-live="polite" aria-atomic="true" className="sr-only">
+            {attachmentAnnouncement}
           </span>
 
           {/* Attach button (#285) — opens the file picker.

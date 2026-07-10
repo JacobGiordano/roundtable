@@ -2,7 +2,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import type { Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+import type { Attachment, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+// #369: Lightbox — full-size image viewer for attachment thumbnails.
+import { Lightbox } from './components/Lightbox';
 // #357: formatCost shared util — displays per-message estimated cost in the bubble footer.
 import { formatCost } from './utils/formatCost';
 // #294: resolveAccentCssColor is the shared single source of truth for accent
@@ -450,6 +452,14 @@ export function MessageBubble({
   const [isHovered, setIsHovered] = useState(false);
   // Copy-to-clipboard state: 'idle' | 'copied'. Reverts to 'idle' after 1.5s.
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+
+  // ── Lightbox state (#369) ─────────────────────────────────────────────────
+  // Tracks which attachment (if any) is open in the full-size lightbox.
+  // null = closed. Non-null = the Attachment whose thumbnail was clicked.
+  // lightboxReturnRef: the trigger button that opened the lightbox — focus is
+  // restored here when the lightbox closes (WCAG 2.4.3).
+  const [lightboxAttachment, setLightboxAttachment] = useState<Attachment | null>(null);
+  const lightboxReturnRef = useRef<HTMLElement | null>(null);
 
   // ─── Thinking indicator state (#371) ─────────────────────────────────────
   // ThinkingIndicator and MessageContent are mutually exclusive in the body zone.
@@ -937,33 +947,71 @@ export function MessageBubble({
         <div className="px-4 pt-2 pb-3 bg-card">
           {/* Attachment thumbnail strip — rendered above message text for user messages
               that carry image attachments (Phase 5, issue #361).
+              #369: each thumbnail is now wrapped in a <button> that opens the Lightbox.
               base64 content has no data-URL prefix per the Attachment contract —
               we prepend "data:{mimeType};base64," here at render time.
               role="group" + aria-label is ARIA-compliant (group role allows an accessible
               name from author); individual <img> alt text uses the filename when present,
               and a numbered fallback for anonymous attachments in multi-image strips.
-              Thumbnails are purely visual — no interactive affordance in Phase 5. */}
+              Trigger button aria-label: "View full size: {filename}" per #369 spec. */}
           {message.attachments && message.attachments.length > 0 && (
             <div
               role="group"
               aria-label="Attached images"
               className="mb-2 flex flex-wrap gap-2"
             >
-              {message.attachments.map((attachment, idx) => (
-                <img
-                  key={attachment.id}
-                  src={`data:${attachment.mimeType};base64,${attachment.base64}`}
-                  alt={
-                    attachment.filename
-                      ? attachment.filename
-                      : message.attachments!.length > 1
-                        ? `Attached image ${idx + 1}`
-                        : 'Attached image'
-                  }
-                  className="w-16 h-16 object-cover rounded"
-                />
-              ))}
+              {message.attachments.map((attachment, idx) => {
+                const imgSrc = `data:${attachment.mimeType};base64,${attachment.base64}`;
+                const imgAlt = attachment.filename
+                  ? attachment.filename
+                  : message.attachments!.length > 1
+                    ? `Attached image ${idx + 1}`
+                    : 'Attached image';
+                const triggerLabel = attachment.filename
+                  ? `View full size: ${attachment.filename}`
+                  : 'View full size';
+
+                return (
+                  <button
+                    key={attachment.id}
+                    type="button"
+                    aria-label={triggerLabel}
+                    onClick={(e) => {
+                      // Capture trigger element for focus restoration on lightbox close.
+                      lightboxReturnRef.current = e.currentTarget;
+                      setLightboxAttachment(attachment);
+                    }}
+                    className={[
+                      'relative rounded overflow-hidden cursor-zoom-in',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    ].join(' ')}
+                  >
+                    <img
+                      src={imgSrc}
+                      alt={imgAlt}
+                      className="w-16 h-16 object-cover block"
+                    />
+                  </button>
+                );
+              })}
             </div>
+          )}
+
+          {/* Lightbox (#369) — renders as a portal to document.body when open.
+              Only one attachment can be open at a time. Focus is trapped inside
+              the dialog and restored to the trigger button on close. */}
+          {lightboxAttachment && (
+            <Lightbox
+              src={`data:${lightboxAttachment.mimeType};base64,${lightboxAttachment.base64}`}
+              alt={
+                lightboxAttachment.filename
+                  ? lightboxAttachment.filename
+                  : 'Attached image'
+              }
+              filename={lightboxAttachment.filename}
+              onClose={() => setLightboxAttachment(null)}
+              returnFocusRef={lightboxReturnRef as React.RefObject<HTMLElement | null>}
+            />
           )}
 
           {/* Message body — plain whitespace-preserving text for user messages. */}
