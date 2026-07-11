@@ -30,12 +30,32 @@ type RemoteCatalogEntry = {
 /**
  * Single model entry as returned by the OpenRouter `/api/v1/models` endpoint.
  * Only the fields we consume are listed; the API returns many more.
+ *
+ * `input_modalities` and `output_modalities` are arrays of capability strings
+ * (e.g. ["text", "image"]). These indicate what media types the model can
+ * accept and produce — relevant for gating vision and image-generation features.
+ *
+ * TYPE GAP NOTE: `ModelCatalogEntry` (in /src/types/index.ts) has no capability
+ * fields to carry vision/imageGeneration flags. Until Arch adds an optional
+ * `capabilities?: ProviderCapabilities` field to `ModelCatalogEntry`, modality
+ * data from OpenRouter is parsed but can only surface in `description`.
+ * Tracked: capability fields needed on ModelCatalogEntry for full implementation.
+ *
+ * `supported_parameters` is an array of parameter name strings indicating which
+ * API parameters the model accepts. Used for capability gating (e.g. "tools"
+ * presence indicates function-calling support).
  */
 type OpenRouterModel = {
   id: string;
   name: string;
   description?: string;
   context_length?: number;
+  /** Media types accepted as input, e.g. ["text", "image"]. */
+  input_modalities?: string[];
+  /** Media types produced as output, e.g. ["text", "image"]. */
+  output_modalities?: string[];
+  /** API parameter names this model supports, e.g. ["tools", "temperature"]. */
+  supported_parameters?: string[];
 };
 
 /**
@@ -43,6 +63,79 @@ type OpenRouterModel = {
  */
 type OpenRouterModelsResponse = {
   data: OpenRouterModel[];
+};
+
+// ─── Anthropic live-API response shape (not exported) ─────────────────────────
+
+/**
+ * Single model entry as returned by the Anthropic `GET /v1/models` endpoint.
+ * Requires `x-api-key` and `anthropic-version: 2023-06-01` headers.
+ *
+ * `capabilities` contains feature flags for the model:
+ *   - `image_input`: whether the model accepts image inputs (vision)
+ *   - `thinking`: whether the model supports extended thinking / reasoning
+ *   - `structured_outputs`: whether the model supports structured output schemas
+ *   - `tool_use`: whether the model supports function calling
+ *
+ * TYPE GAP NOTE: `ModelCatalogEntry` has no `capabilities` field to carry
+ * these flags. Until Arch adds `capabilities?: ProviderCapabilities` to
+ * `ModelCatalogEntry`, only `max_input_tokens` (→ `contextWindow`) is surfaced.
+ * Tracked: capability fields needed on ModelCatalogEntry for full implementation.
+ */
+type AnthropicModel = {
+  id: string;
+  display_name: string;
+  created_at?: string;
+  max_input_tokens?: number;
+  max_tokens?: number;
+  capabilities?: {
+    image_input?: boolean;
+    thinking?: boolean;
+    structured_outputs?: boolean;
+    tool_use?: boolean;
+    /** Extended context management (200k+ window handling). */
+    context_management?: boolean;
+  };
+};
+
+/**
+ * Top-level response body from the Anthropic `GET /v1/models` endpoint.
+ */
+type AnthropicModelsResponse = {
+  data: AnthropicModel[];
+  has_more?: boolean;
+  first_id?: string | null;
+  last_id?: string | null;
+};
+
+// ─── Gemini live-API response shape (not exported) ────────────────────────────
+
+/**
+ * Single model entry as returned by the Google Generative Language
+ * `GET /v1beta/models?key={apiKey}` endpoint.
+ *
+ * `name` is the resource name, e.g. "models/gemini-2.5-flash". The API-level
+ * model string (used in request URLs) is the suffix after "models/".
+ *
+ * `supportedGenerationMethods` lists the methods this model supports, e.g.
+ * ["generateContent", "countTokens", "bidiGenerateContent"]. Only models with
+ * "generateContent" are usable for chat completions — others are filtered out.
+ */
+type GeminiModelEntry = {
+  name: string;           // e.g. "models/gemini-2.5-flash"
+  displayName: string;    // e.g. "Gemini 2.5 Flash"
+  description?: string;
+  inputTokenLimit?: number;
+  outputTokenLimit?: number;
+  supportedGenerationMethods?: string[];
+};
+
+/**
+ * Top-level response body from the Gemini `GET /v1beta/models` endpoint.
+ */
+type GeminiModelsResponse = {
+  models: GeminiModelEntry[];
+  nextPageToken?: string;
 };
 
 // ─── Type guards ──────────────────────────────────────────────────────────────
@@ -64,6 +157,36 @@ function isOpenRouterModelsResponse(value: unknown): value is OpenRouterModelsRe
         item !== null &&
         typeof (item as Record<string, unknown>)['id'] === 'string' &&
         typeof (item as Record<string, unknown>)['name'] === 'string'
+    )
+  );
+}
+
+function isAnthropicModelsResponse(value: unknown): value is AnthropicModelsResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    Array.isArray(v['data']) &&
+    v['data'].every(
+      (item: unknown) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as Record<string, unknown>)['id'] === 'string' &&
+        typeof (item as Record<string, unknown>)['display_name'] === 'string'
+    )
+  );
+}
+
+function isGeminiModelsResponse(value: unknown): value is GeminiModelsResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    Array.isArray(v['models']) &&
+    v['models'].every(
+      (item: unknown) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as Record<string, unknown>)['name'] === 'string' &&
+        typeof (item as Record<string, unknown>)['displayName'] === 'string'
     )
   );
 }
@@ -209,13 +332,34 @@ export async function fetchLiveApiCatalog(
     return [];
   }
 
-  return raw.data.map((model): ModelCatalogEntry => ({
-    id: model.id,
-    displayName: model.name,
-    ...(model.description !== undefined ? { description: model.description } : {}),
-    ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
-    source: 'live-api',
-  }));
+  return raw.data.map((model): ModelCatalogEntry => {
+    // Build a description that incorporates the provider-supplied description
+    // plus modality annotations when present.
+    //
+    // TYPE GAP: `ModelCatalogEntry` has no `capabilities` field to carry
+    // vision/imageGeneration flags derived from `input_modalities` /
+    // `output_modalities`. Until Arch adds `capabilities?: ProviderCapabilities`
+    // to `ModelCatalogEntry`, we surface modality info via description only.
+    // When that field lands, this mapping should be updated to populate it.
+    let description = model.description;
+    const hasVisionInput = model.input_modalities?.includes('image');
+    const hasImageOutput = model.output_modalities?.includes('image');
+    if (hasVisionInput || hasImageOutput) {
+      const modalityTags: string[] = [];
+      if (hasVisionInput) modalityTags.push('vision');
+      if (hasImageOutput) modalityTags.push('image generation');
+      const modalityNote = modalityTags.join(', ');
+      description = description ? `${description} [${modalityNote}]` : `[${modalityNote}]`;
+    }
+
+    return {
+      id: model.id,
+      displayName: model.name,
+      ...(description !== undefined ? { description } : {}),
+      ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
+      source: 'live-api',
+    };
+  });
 }
 
 // ─── Resolver utilities — consumed by Aria via models/index.ts ────────────────
@@ -247,6 +391,17 @@ export async function resolveVersionCatalog(
   apiKey?: string
 ): Promise<ModelCatalogEntry[]> {
   if (entry.liveApiEndpoint !== undefined && apiKey !== undefined) {
+    // Dispatch to the provider-specific fetcher when `liveApiProvider` is set.
+    // The generic `fetchLiveApiCatalog` is OpenRouter wire format and does not
+    // work for Anthropic or Gemini, which use different auth schemes and response
+    // shapes.
+    if (entry.liveApiProvider === 'anthropic') {
+      return fetchAnthropicCatalog(apiKey);
+    }
+    if (entry.liveApiProvider === 'gemini') {
+      return fetchGeminiCatalog(apiKey);
+    }
+    // Default: OpenRouter / generic OpenAI-compatible /models endpoint.
     return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
   }
 
@@ -283,4 +438,159 @@ export async function resolveCustomProviderCatalog(
   apiKey: string
 ): Promise<ModelCatalogEntry[]> {
   return fetchLiveApiCatalog(liveApiEndpoint, apiKey);
+}
+
+/**
+ * Fetches available models from the Anthropic `GET /v1/models` endpoint.
+ *
+ * Authentication: `x-api-key: <apiKey>` + `anthropic-version: 2023-06-01`.
+ * The key is passed by the caller (Gate-mediated) — never read from storage here.
+ *
+ * Fields mapped:
+ *   `id`               → `id`            (exact API model string)
+ *   `display_name`     → `displayName`
+ *   `max_input_tokens` → `contextWindow`  (input context limit)
+ *
+ * TYPE GAP: `ModelCatalogEntry` has no `capabilities` field. The `capabilities`
+ * object from the API (`image_input`, `thinking`, `tool_use`, `structured_outputs`)
+ * cannot be surfaced until Arch adds `capabilities?: ProviderCapabilities` to
+ * `ModelCatalogEntry` in /src/types/index.ts.
+ *
+ * On any error (network, non-2xx, unexpected shape): logs a console.warn and
+ * returns []. Never throws.
+ *
+ * @param apiKey - Anthropic API key. Passed by Gate; never stored or logged here.
+ */
+export async function fetchAnthropicCatalog(apiKey: string): Promise<ModelCatalogEntry[]> {
+  const url = 'https://api.anthropic.com/v1/models';
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchAnthropicCatalog: network error fetching', url, err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn(
+      '[Atlas/catalog] fetchAnthropicCatalog: non-2xx response',
+      response.status,
+      'from',
+      url
+    );
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchAnthropicCatalog: JSON parse failure from', url, err);
+    return [];
+  }
+
+  if (!isAnthropicModelsResponse(raw)) {
+    console.warn(
+      '[Atlas/catalog] fetchAnthropicCatalog: unexpected response shape from',
+      url,
+      raw
+    );
+    return [];
+  }
+
+  return raw.data.map((model): ModelCatalogEntry => ({
+    id: model.id,
+    displayName: model.display_name,
+    // max_input_tokens is the context window size for this model version.
+    ...(model.max_input_tokens !== undefined ? { contextWindow: model.max_input_tokens } : {}),
+    source: 'live-api',
+  }));
+}
+
+/**
+ * Fetches available models from the Google Generative Language
+ * `GET /v1beta/models?key={apiKey}` endpoint.
+ *
+ * Only models that support "generateContent" are returned — others (e.g.
+ * embedding-only models) are filtered out since they cannot be used for chat.
+ *
+ * Fields mapped:
+ *   `name`            → `id`             (suffix after "models/", e.g. "gemini-2.5-flash")
+ *   `displayName`     → `displayName`
+ *   `description`     → `description`
+ *   `inputTokenLimit` → `contextWindow`
+ *
+ * On any error (network, non-2xx, unexpected shape): logs a console.warn and
+ * returns []. Never throws.
+ *
+ * @param apiKey - Google API key. Passed by Gate; never stored or logged here.
+ */
+export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEntry[]> {
+  // apiKey is a query parameter for the Google API — not sent as a header.
+  // The key is appended to the URL and transmitted only to googleapis.com.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchGeminiCatalog: network error fetching models endpoint', err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn(
+      '[Atlas/catalog] fetchGeminiCatalog: non-2xx response',
+      response.status
+    );
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchGeminiCatalog: JSON parse failure', err);
+    return [];
+  }
+
+  if (!isGeminiModelsResponse(raw)) {
+    console.warn(
+      '[Atlas/catalog] fetchGeminiCatalog: unexpected response shape',
+      raw
+    );
+    return [];
+  }
+
+  // Filter to only models that support generateContent — chat-capable models only.
+  // Embedding models, code execution models, etc. use different endpoints and are
+  // not usable in the Roundtable chat pipeline.
+  const chatModels = raw.models.filter(
+    (m) => m.supportedGenerationMethods?.includes('generateContent') ?? false
+  );
+
+  return chatModels.map((model): ModelCatalogEntry => {
+    // `name` is the resource path, e.g. "models/gemini-2.5-flash".
+    // The API-level model string is the segment after the "models/" prefix.
+    const id = model.name.startsWith('models/') ? model.name.slice('models/'.length) : model.name;
+
+    return {
+      id,
+      displayName: model.displayName,
+      ...(model.description !== undefined ? { description: model.description } : {}),
+      ...(model.inputTokenLimit !== undefined ? { contextWindow: model.inputTokenLimit } : {}),
+      source: 'live-api',
+    };
+  });
 }
