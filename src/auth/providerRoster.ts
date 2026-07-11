@@ -191,16 +191,11 @@ function readRoster(): ProviderRoster {
   const result: ProviderRoster = [];
   for (const entry of parsed) {
     if (isValidBuiltInConfig(entry)) {
-      // Migration: if a stored BuiltInProviderConfig is missing `capabilities`
-      // (e.g. a record written before Wave 2 of issue #285), backfill from
-      // BUILTIN_CAPABILITIES_MAP. This is a transparent on-read upgrade — no
-      // write-back is needed here; the backfilled value is returned in memory
-      // and will be persisted the next time the roster is written.
-      if (entry.capabilities === undefined) {
-        result.push({ ...entry, capabilities: BUILTIN_CAPABILITIES_MAP[entry.modelId] });
-      } else {
-        result.push(entry);
-      }
+      // Always use BUILTIN_CAPABILITIES_MAP as the authoritative source for
+      // built-in capabilities. Stored values may be stale (missing flags added
+      // in later releases, e.g. imageGeneration added in #379). The map is
+      // code-defined and always current; localStorage is just a cache.
+      result.push({ ...entry, capabilities: BUILTIN_CAPABILITIES_MAP[entry.modelId] });
     } else if (isValidCustomConfig(entry)) {
       result.push(entry);
     }
