@@ -15,7 +15,7 @@
  *   6. Add a ModelRegistryEntry to MODEL_REGISTRY
  */
 
-import type { ModelId, ModelVersionOption, ModelCatalogEntry } from '@/types';
+import type { ModelId, ModelVersionOption } from '@/types';
 import type { ModelProvider } from '@/types';
 import { claudeProvider, CLAUDE_CONFIG } from './claude';
 import { gpt55Provider, GPT55_CONFIG } from './gpt';
