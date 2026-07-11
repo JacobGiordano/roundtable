@@ -65,7 +65,7 @@ const BUILTIN_CAPABILITIES_MAP: Record<BuiltInModelId, ProviderCapabilities> = {
   'gpt-5.5': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
   // Google Gemini: vision + tools + system prompts; no streamUsage (streaming
   // token counts not available via the OpenAI-compat endpoint Gate uses).
-  'gemini': { vision: true, streamUsage: false, toolUse: true, systemPrompt: true },
+  'gemini': { vision: true, streamUsage: false, toolUse: true, systemPrompt: true, imageGeneration: true },
   // xAI Grok: vision support unconfirmed — conservative default.
   'grok': { vision: false },
   // DeepSeek: vision support unconfirmed — conservative default.
