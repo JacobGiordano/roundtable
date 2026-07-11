@@ -94,6 +94,11 @@ Read this at session start. It is the operative procedure for every agent sessio
     all active agents — agents handle this review with each other; the user does
     not need to be in the approval loop.
 
+19. Run `git worktree prune` after every wave. Stale worktrees left behind by
+    agent sessions contaminate `tsc` — it follows worktree source paths and
+    reports type errors from old agent code as if they were in the current
+    workspace. Pruning takes one second and prevents false build failures.
+
 **The rule:** `HANDOFF.md` is a whiteboard. Erase and rewrite at ship time.
 Git is the log.
 
