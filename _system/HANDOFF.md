@@ -1,4 +1,4 @@
-Last updated: 2026-07-10 (evening — post-#366–#369, #373 ship; image-gen spec pending)
+Last updated: 2026-07-11 (post-#372, #375, #376, #378, #380 ship)
 
 ## Current phase
 
@@ -6,11 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #366 (Aria: render generatedImages in assistant bubbles), #367 (Scout: 34 regression tests
-for image pipeline), #368 (Aria: DnD ARIA live region — DnD+paste already existed; added sr-only
-announcer), #369 (Aria: lightbox for attachment thumbnails — portal, focus trap, Gauge-reviewed,
-Ada PASS 14/14), #373 (Atlas: fix directed reply swallowed by auto-chain — targetModelId now
-checked before chainConfig; priority: directed reply > auto-chain > parallel).
+Shipped #372 (Aria: directed-reply label above message text, "Directed to {name}" visible text),
+#375 (Atlas: Gemini image generation via responseModalities), #376 (Atlas: OpenRouter image
+generation via chat completions modalities), #378 (Atlas+Arch: live model discovery for OpenRouter/
+Anthropic/Gemini with full capability flags — `ModelCatalogEntry.capabilities` added to types),
+#380 (Aria: lightbox for generated images in assistant bubbles, Ada PASS).
 
 ## Key decisions
 
@@ -29,40 +29,27 @@ checked before chainConfig; priority: directed reply > auto-chain > parallel).
 - Lightbox focus trap: filters disabled + tabindex="-1" + zero-dimension elements (Gauge fix, #369)
 - sr-only aria-live announcer for attachments is pre-mounted (not conditional) so first-drop fires
 - sendMessage mode priority: directed reply > auto-chain > parallel broadcast (fixed #373)
-
-## Image generation — research findings (tickets not yet filed)
-
-Gemini 2.0 Flash can generate images natively — add `responseModalities: ["TEXT", "IMAGE"]` to
-`generationConfig` in the Gemini provider. The #364/#366 inlineData pipeline already handles the
-response format. Delta: Atlas adds the config param + a registry flag (`supportsImageGeneration`)
-on capable versions; image output should be opt-in (not sent on every request). gemini-2.5-pro/flash
-may not yet support this — verify before adding to registry.
-
-OpenAI image generation requires DALL-E 3 via a separate `/v1/images/generations` endpoint — not
-wired to the current chat completions path. Significantly more work; park for later.
-
-Claude has no image generation API. Not possible.
+- Live model discovery: registry uses `liveApiProvider: 'anthropic'|'gemini'` discriminator
+- `ModelCatalogEntry.capabilities?: ProviderCapabilities` — only set on `source: 'live-api'` entries
+- Gemini live fetch: CORS-blocked in browser without proxy; degrades to bundled fallback silently
+- OpenAI /v1/models returns no capability data — static registry only
 
 ## Open issues
 
-- `#372` — Aria: move `→ Model` directed-reply label above user message text (batch with next Aria issue)
-- `#374` — Atlas/Vault: assistant bubble shows empty content until page reload in auto-chain mode
-  (suspected: void store.updateConversation between sequential chain steps races with replaceInState;
-  now reduced for directed-reply flows post-#373 since only one model responds)
-- Image generation tickets: to be filed next session (Gemini first; OpenAI deferred)
+- `#379` — Aria: image generation opt-in toggle per model (depends on #376 ✓)
+- `#381` — Atlas: programmatic capability discovery for OpenAI, Mistral, DeepSeek (research-first)
+- `#377` — Atlas: OpenAI image generation via gpt-image-2 [deferred]
 
 ## Gotchas
 
 - ProxyNudge only renders in import.meta.env.PROD — not visible in npm run dev
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
-- Chunk size warning on build (772 kB) — pre-existing, grew with Lightbox (#369)
+- Chunk size warning on build (773 kB) — pre-existing, grew with Lightbox (#369/#380)
 - Container DNS: OpenAI CDN IPs baked into ipset at container start — ENOTFOUND on api.openai.com
   means restart the CONTAINER (not just dev server) to re-resolve; SOP §"Dev container" has details
 - pricing.json: o1-mini and open-mistral-nemo output rates are unverified estimates
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
-- Worktree npm installs don't carry over to workspace — run `npm install` in /workspace after dep-adding waves
-- Lightbox for generatedImages on assistant bubbles not yet implemented (out of scope for #369)
 - Rune: called before any PR touching auth, API key handling, model output rendering, or backend routes
 - Gauge: called on request or before PRs with non-trivial logic changes or refactors
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
