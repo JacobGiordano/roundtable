@@ -29,35 +29,28 @@ type RemoteCatalogEntry = {
 
 /**
  * Single model entry as returned by the OpenRouter `/api/v1/models` endpoint.
- * Capability-relevant fields (`input_modalities`, `output_modalities`,
- * `supported_parameters`, `pricing`) are captured but not mapped into
- * `ModelCatalogEntry` — that type has no `capabilities` field.
+ * Only the fields we consume are listed; the API returns many more.
  *
- * NOTE — capability surfacing gap (flag for Arch, issue #378):
- *   Derived capability hints (vision from input_modalities, imageGeneration from
- *   output_modalities) are returned via `fetchOpenRouterCapabilities` for Atlas-
- *   internal use. A types PR adding `capabilities?: ProviderCapabilities` to
- *   `ModelCatalogEntry` is required before Aria can display per-model capability
- *   badges from live data.
+ * `input_modalities` and `output_modalities` are arrays of capability strings
+ * (e.g. ["text", "image"]). These indicate what media types the model can
+ * accept and produce — mapped to `ModelCatalogEntry.capabilities.vision` and
+ * `ModelCatalogEntry.capabilities.imageGeneration` respectively.
+ *
+ * `supported_parameters` is an array of parameter name strings indicating which
+ * API parameters the model accepts. Used for capability gating (e.g. "tools"
+ * presence indicates function-calling support).
  */
 type OpenRouterModel = {
   id: string;
   name: string;
   description?: string;
   context_length?: number;
-  /** Modalities this model accepts as input, e.g. ["text", "image"]. */
+  /** Media types accepted as input, e.g. ["text", "image"]. */
   input_modalities?: string[];
-  /** Modalities this model can produce as output, e.g. ["text", "image"]. */
+  /** Media types produced as output, e.g. ["text", "image"]. */
   output_modalities?: string[];
-  /** Parameters supported by this model (informational; not currently mapped). */
+  /** API parameter names this model supports, e.g. ["tools", "temperature"]. */
   supported_parameters?: string[];
-  /** Pricing data for this model (informational — not mapped to catalog). */
-  pricing?: {
-    prompt?: string;
-    completion?: string;
-    image?: string;
-    request?: string;
-  };
 };
 
 /**
@@ -67,82 +60,76 @@ type OpenRouterModelsResponse = {
   data: OpenRouterModel[];
 };
 
-// ─── OpenRouter capability hints (Atlas-internal only) ────────────────────────
-
-/**
- * Capability hints derived from OpenRouter's per-model modality fields.
- * Atlas-internal — not part of the cross-agent ModelCatalogEntry contract.
- *
- * Exported so Atlas consumers (e.g. future custom-provider sync logic) can
- * receive per-model capability data from the live OpenRouter endpoint without
- * going through the public `fetchLiveApiCatalog` path (which strips these fields).
- *
- * Once Arch adds `capabilities?: ProviderCapabilities` to `ModelCatalogEntry`
- * in `/src/types/index.ts`, these hints can be folded into the standard catalog
- * return value and this type retired.
- */
-export type OpenRouterCapabilityHints = {
-  /** True when `input_modalities` includes "image". */
-  vision: boolean;
-  /** True when `output_modalities` includes "image". */
-  imageGeneration: boolean;
-};
-
 // ─── Anthropic live-API response shape (not exported) ─────────────────────────
 
 /**
  * Single model entry as returned by the Anthropic `GET /v1/models` endpoint.
- * Only consumed fields are listed.
+ * Requires `x-api-key` and `anthropic-version: 2023-06-01` headers.
  *
- * NOTE — capability surfacing gap (flag for Arch, issue #378):
- *   `capabilities.image_input` maps to `ProviderCapabilities.vision` and
- *   `capabilities.thinking` maps to a thinking flag. Neither can be returned
- *   via `ModelCatalogEntry` without a types PR adding a `capabilities` field.
+ * `capabilities` contains feature flags for the model:
+ *   - `image_input`:          → `ModelCatalogEntry.capabilities.vision`
+ *   - `tool_use`:             → `ModelCatalogEntry.capabilities.toolUse`
+ *   - `thinking`:             → `ModelCatalogEntry.capabilities.thinking`
+ *   - `structured_outputs`:   → `ModelCatalogEntry.capabilities.structuredOutputs`
+ *   - `context_management`:   → `ModelCatalogEntry.capabilities.contextManagement`
+ *
+ * The `capabilities` field on the returned `ModelCatalogEntry` is omitted
+ * entirely when `model.capabilities` is absent.
  */
 type AnthropicModel = {
   id: string;
   display_name: string;
-  /** Maximum input tokens — mapped to ModelCatalogEntry.contextWindow. */
+  created_at?: string;
   max_input_tokens?: number;
   max_tokens?: number;
-  /** Capability flags as declared by Anthropic. Retained for future use. */
   capabilities?: {
     image_input?: boolean;
     thinking?: boolean;
-    effort?: boolean;
     structured_outputs?: boolean;
+    tool_use?: boolean;
+    /** Extended context management (200k+ window handling). */
     context_management?: boolean;
   };
 };
 
+/**
+ * Top-level response body from the Anthropic `GET /v1/models` endpoint.
+ */
 type AnthropicModelsResponse = {
   data: AnthropicModel[];
+  has_more?: boolean;
+  first_id?: string | null;
+  last_id?: string | null;
 };
 
 // ─── Gemini live-API response shape (not exported) ────────────────────────────
 
 /**
  * Single model entry as returned by the Google Generative Language
- * `GET /v1beta/models?key=<key>` endpoint.
- * Only consumed fields are listed.
+ * `GET /v1beta/models?key={apiKey}` endpoint.
  *
- * NOTE — no image-gen signal (issue #378 constraint):
- *   `supportedGenerationMethods` does not cleanly indicate image-gen capability.
- *   Image-gen for Gemini is managed statically via IMAGE_GEN_MODEL_STRINGS in gemini.ts.
+ * `name` is the resource name, e.g. "models/gemini-2.5-flash". The API-level
+ * model string (used in request URLs) is the suffix after "models/".
+ *
+ * `supportedGenerationMethods` lists the methods this model supports, e.g.
+ * ["generateContent", "countTokens", "bidiGenerateContent"]. Only models with
+ * "generateContent" are usable for chat completions — others are filtered out.
  */
-type GeminiModel = {
-  /** Fully qualified name, e.g. "models/gemini-2.5-pro". */
-  name: string;
-  displayName: string;
+type GeminiModelEntry = {
+  name: string;           // e.g. "models/gemini-2.5-flash"
+  displayName: string;    // e.g. "Gemini 2.5 Flash"
   description?: string;
-  /** Maximum input token context limit — mapped to ModelCatalogEntry.contextWindow. */
   inputTokenLimit?: number;
   outputTokenLimit?: number;
   supportedGenerationMethods?: string[];
 };
 
+/**
+ * Top-level response body from the Gemini `GET /v1beta/models` endpoint.
+ */
 type GeminiModelsResponse = {
-  models: GeminiModel[];
+  models: GeminiModelEntry[];
+  nextPageToken?: string;
 };
 
 // ─── Type guards ──────────────────────────────────────────────────────────────
@@ -287,11 +274,6 @@ export async function fetchRemoteCatalog(url: string): Promise<ModelCatalogEntry
  * Fields mapped: `id` → `id`, `name` → `displayName`, `description` → `description`,
  * `context_length` → `contextWindow`.
  *
- * Capability-relevant fields (`input_modalities`, `output_modalities`) are parsed
- * from the response but cannot be returned here — `ModelCatalogEntry` has no
- * `capabilities` field. Use `fetchOpenRouterCapabilities` to obtain per-model
- * capability hints separately (Atlas-internal use only).
- *
  * On any error (network failure, non-2xx response, unexpected response shape):
  * logs a console.warn and returns []. Never throws.
  *
@@ -344,115 +326,120 @@ export async function fetchLiveApiCatalog(
     return [];
   }
 
-  return raw.data.map((model): ModelCatalogEntry => ({
-    id: model.id,
-    displayName: model.name,
-    ...(model.description !== undefined ? { description: model.description } : {}),
-    ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
-    source: 'live-api',
-  }));
+  return raw.data.map((model): ModelCatalogEntry => {
+    const hasVision = model.input_modalities?.includes('image') ?? false;
+    const hasImageGen = model.output_modalities?.includes('image') ?? false;
+    const hasCapabilities = hasVision || hasImageGen;
+
+    return {
+      id: model.id,
+      displayName: model.name,
+      ...(model.description !== undefined ? { description: model.description } : {}),
+      ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
+      ...(hasCapabilities ? { capabilities: {
+        vision: hasVision,
+        imageGeneration: hasImageGen,
+      } } : {}),
+      source: 'live-api',
+    };
+  });
 }
 
+// ─── Resolver utilities — consumed by Aria via models/index.ts ────────────────
+
 /**
- * Fetches capability hints for all models at an OpenRouter-compatible endpoint.
+ * Resolves the version catalog for a registry entry using the best available
+ * source, in priority order:
  *
- * Returns a `Map<modelId, OpenRouterCapabilityHints>` where:
- *   - `vision` is true when the model's `input_modalities` includes "image"
- *   - `imageGeneration` is true when the model's `output_modalities` includes "image"
+ *   1. Live API  — if `entry.liveApiEndpoint` is set AND `apiKey` is provided,
+ *                  calls `fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey)`.
+ *                  Returns the result (may be [] if network is blocked).
+ *   2. Remote    — if `entry.remoteCatalogUrl` is set, calls
+ *                  `fetchRemoteCatalog(entry.remoteCatalogUrl)`.
+ *                  Returns the result (may be [] if fetch fails).
+ *   3. Bundled   — falls back to `entry.availableVersions` mapped to
+ *                  `ModelCatalogEntry[]` with `source: 'bundled'`.
  *
- * This is a separate function from `fetchLiveApiCatalog` because `ModelCatalogEntry`
- * has no `capabilities` field — these hints cannot be included in the standard
- * catalog return value without a types PR (Arch sign-off required, issue #378).
+ * Never throws. Graceful degradation is the contract: a failed remote/live
+ * fetch produces the bundled list, not an error.
  *
- * Atlas-internal use only. Not re-exported via models/index.ts to avoid
- * exposing an Atlas-internal type to Aria.
+ * Aria calls this (documented cross-agent exception — see models/index.ts).
  *
- * On any error: logs a console.warn and returns an empty Map. Never throws.
- *
- * @param endpoint - Base URL of the provider's API (e.g. `https://openrouter.ai/api/v1`).
- * @param apiKey   - Bearer token for authorization. Passed by Gate; never stored here.
+ * @param entry  - A `ModelRegistryEntry` from `MODEL_REGISTRY`.
+ * @param apiKey - Optional API key for live endpoint auth (Gate-mediated; never
+ *                 stored or logged here). Required for path 1 to activate.
  */
-export async function fetchOpenRouterCapabilities(
-  endpoint: string,
-  apiKey: string
-): Promise<Map<string, OpenRouterCapabilityHints>> {
-  const url = endpoint.endsWith('/models') ? endpoint : `${endpoint}/models`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (err) {
-    console.warn('[Atlas/catalog] fetchOpenRouterCapabilities: network error fetching', url, err);
-    return new Map();
+export async function resolveVersionCatalog(
+  entry: ModelRegistryEntry,
+  apiKey?: string
+): Promise<ModelCatalogEntry[]> {
+  if (entry.liveApiEndpoint !== undefined && apiKey !== undefined) {
+    // Dispatch to the provider-specific fetcher when `liveApiProvider` is set.
+    // The generic `fetchLiveApiCatalog` is OpenRouter wire format and does not
+    // work for Anthropic or Gemini, which use different auth schemes and response
+    // shapes.
+    if (entry.liveApiProvider === 'anthropic') {
+      return fetchAnthropicCatalog(apiKey);
+    }
+    if (entry.liveApiProvider === 'gemini') {
+      return fetchGeminiCatalog(apiKey);
+    }
+    // Default: OpenRouter / generic OpenAI-compatible /models endpoint.
+    return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
   }
 
-  if (!response.ok) {
-    console.warn(
-      '[Atlas/catalog] fetchOpenRouterCapabilities: non-2xx response',
-      response.status,
-      'from',
-      url
-    );
-    return new Map();
+  if (entry.remoteCatalogUrl !== undefined) {
+    return fetchRemoteCatalog(entry.remoteCatalogUrl);
   }
 
-  let raw: unknown;
-  try {
-    raw = await response.json();
-  } catch (err) {
-    console.warn(
-      '[Atlas/catalog] fetchOpenRouterCapabilities: JSON parse failure from',
-      url,
-      err
-    );
-    return new Map();
-  }
-
-  if (!isOpenRouterModelsResponse(raw)) {
-    console.warn(
-      '[Atlas/catalog] fetchOpenRouterCapabilities: unexpected response shape from',
-      url,
-      raw
-    );
-    return new Map();
-  }
-
-  const result = new Map<string, OpenRouterCapabilityHints>();
-  for (const model of raw.data) {
-    result.set(model.id, {
-      vision: Array.isArray(model.input_modalities) && model.input_modalities.includes('image'),
-      imageGeneration:
-        Array.isArray(model.output_modalities) && model.output_modalities.includes('image'),
-    });
-  }
-  return result;
+  // Bundled fallback — map static ModelVersionOption[] to ModelCatalogEntry[]
+  return entry.availableVersions.map(
+    (v): ModelCatalogEntry => ({
+      id: v.id,
+      displayName: v.displayName,
+      ...(v.description !== undefined ? { description: v.description } : {}),
+      source: 'bundled' as const,
+    })
+  );
 }
 
 /**
- * Fetches available models from the Anthropic `GET /v1/models` endpoint and
- * returns them as `ModelCatalogEntry[]` with `source: 'live-api'`.
+ * Fetches the model catalog for a custom (non-registry) provider via its live
+ * API endpoint. Delegates to `fetchLiveApiCatalog`.
  *
- * Auth: `x-api-key: <apiKey>` and `anthropic-version: 2023-06-01` headers.
- * The key is passed by the caller (Gate-mediated) — never stored here.
+ * This is the named entry point Aria uses for custom providers (OpenRouter-style)
+ * so that it never reaches into catalog.ts directly and remains decoupled from
+ * the internal fetch implementation.
+ *
+ * Aria calls this (documented cross-agent exception — see models/index.ts).
+ *
+ * @param liveApiEndpoint - Base URL of the provider's API (e.g. `https://openrouter.ai/api/v1`).
+ * @param apiKey          - Bearer token for authorization. Passed by Gate; never stored here.
+ */
+export async function resolveCustomProviderCatalog(
+  liveApiEndpoint: string,
+  apiKey: string
+): Promise<ModelCatalogEntry[]> {
+  return fetchLiveApiCatalog(liveApiEndpoint, apiKey);
+}
+
+/**
+ * Fetches available models from the Anthropic `GET /v1/models` endpoint.
+ *
+ * Authentication: `x-api-key: <apiKey>` + `anthropic-version: 2023-06-01`.
+ * The key is passed by the caller (Gate-mediated) — never read from storage here.
  *
  * Fields mapped:
- *   `id`               → `id`
+ *   `id`               → `id`            (exact API model string)
  *   `display_name`     → `displayName`
- *   `max_input_tokens` → `contextWindow`
+ *   `max_input_tokens` → `contextWindow`  (input context limit)
+ *   `capabilities`     → `capabilities`  (when present; see `AnthropicModel` for
+ *                                          the field-by-field mapping)
  *
- * NOTE — capability surfacing gap (flag for Arch, issue #378):
- *   `capabilities.image_input` maps to vision, `capabilities.thinking` maps to
- *   a thinking flag. These cannot be returned via `ModelCatalogEntry` without a
- *   types PR adding `capabilities?: ProviderCapabilities` to that interface.
+ * On any error (network, non-2xx, unexpected shape): logs a console.warn and
+ * returns []. Never throws.
  *
- * On any error: logs a console.warn and returns []. Never throws.
- *
- * @param apiKey - Anthropic API key. Passed by Gate; never stored here.
+ * @param apiKey - Anthropic API key. Passed by Gate; never stored or logged here.
  */
 export async function fetchAnthropicCatalog(apiKey: string): Promise<ModelCatalogEntry[]> {
   const url = 'https://api.anthropic.com/v1/models';
@@ -501,39 +488,40 @@ export async function fetchAnthropicCatalog(apiKey: string): Promise<ModelCatalo
   return raw.data.map((model): ModelCatalogEntry => ({
     id: model.id,
     displayName: model.display_name,
-    // max_input_tokens is the input context limit — the most informative context window value.
+    // max_input_tokens is the context window size for this model version.
     ...(model.max_input_tokens !== undefined ? { contextWindow: model.max_input_tokens } : {}),
+    ...(model.capabilities !== undefined ? { capabilities: {
+      vision: model.capabilities.image_input ?? false,
+      toolUse: model.capabilities.tool_use ?? false,
+      thinking: model.capabilities.thinking ?? false,
+      structuredOutputs: model.capabilities.structured_outputs ?? false,
+      contextManagement: model.capabilities.context_management ?? false,
+    } } : {}),
     source: 'live-api',
   }));
 }
 
 /**
  * Fetches available models from the Google Generative Language
- * `GET /v1beta/models?key=<apiKey>` endpoint and returns them as
- * `ModelCatalogEntry[]` with `source: 'live-api'`.
+ * `GET /v1beta/models?key={apiKey}` endpoint.
  *
- * The API key is passed as a query parameter (Google's required auth mechanism
- * for this endpoint). Passed by the caller (Gate-mediated) — never stored here.
+ * Only models that support "generateContent" are returned — others (e.g.
+ * embedding-only models) are filtered out since they cannot be used for chat.
  *
  * Fields mapped:
- *   `name`            → `id` (strips "models/" prefix:
- *                        "models/gemini-2.5-pro" → "gemini-2.5-pro")
+ *   `name`            → `id`             (suffix after "models/", e.g. "gemini-2.5-flash")
  *   `displayName`     → `displayName`
  *   `description`     → `description`
  *   `inputTokenLimit` → `contextWindow`
  *
- * NOTE — no image-gen signal (issue #378 constraint):
- *   `supportedGenerationMethods` does not cleanly indicate image-gen capability.
- *   Image-gen for Gemini is managed statically via IMAGE_GEN_MODEL_STRINGS in gemini.ts.
- *   Do not attempt to derive `imageGeneration` from this endpoint's response.
+ * On any error (network, non-2xx, unexpected shape): logs a console.warn and
+ * returns []. Never throws.
  *
- * On any error: logs a console.warn and returns []. Never throws.
- *
- * @param apiKey - Google API key. Passed by Gate; never stored here.
+ * @param apiKey - Google API key. Passed by Gate; never stored or logged here.
  */
 export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEntry[]> {
-  // Google's models endpoint authenticates via query parameter, not a Bearer token.
-  // The key is never logged — only transmitted to the official Google endpoint.
+  // apiKey is a query parameter for the Google API — not sent as a header.
+  // The key is appended to the URL and transmitted only to googleapis.com.
   const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
 
   let response: Response;
@@ -551,8 +539,7 @@ export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEn
   if (!response.ok) {
     console.warn(
       '[Atlas/catalog] fetchGeminiCatalog: non-2xx response',
-      response.status,
-      'from Gemini models endpoint'
+      response.status
     );
     return [];
   }
@@ -561,107 +548,36 @@ export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEn
   try {
     raw = await response.json();
   } catch (err) {
-    console.warn(
-      '[Atlas/catalog] fetchGeminiCatalog: JSON parse failure from models endpoint',
-      err
-    );
+    console.warn('[Atlas/catalog] fetchGeminiCatalog: JSON parse failure', err);
     return [];
   }
 
   if (!isGeminiModelsResponse(raw)) {
     console.warn(
-      '[Atlas/catalog] fetchGeminiCatalog: unexpected response shape from models endpoint',
+      '[Atlas/catalog] fetchGeminiCatalog: unexpected response shape',
       raw
     );
     return [];
   }
 
-  return raw.models.map((model): ModelCatalogEntry => ({
-    // Strip the "models/" prefix from the fully-qualified name to get the bare API model string.
-    // e.g. "models/gemini-2.5-pro" → "gemini-2.5-pro"
-    id: model.name.startsWith('models/') ? model.name.slice('models/'.length) : model.name,
-    displayName: model.displayName,
-    ...(model.description !== undefined ? { description: model.description } : {}),
-    ...(model.inputTokenLimit !== undefined ? { contextWindow: model.inputTokenLimit } : {}),
-    source: 'live-api',
-  }));
-}
-
-// ─── Resolver utilities — consumed by Aria via models/index.ts ────────────────
-
-/**
- * Resolves the version catalog for a registry entry using the best available
- * source, in priority order:
- *
- *   1. Provider-specific live fetch — if `entry.liveApiFetchFn` is set AND
- *                  `apiKey` is provided, calls `entry.liveApiFetchFn(apiKey)`.
- *                  Used for providers (Anthropic, Gemini) whose live endpoints
- *                  require non-OpenRouter auth or response shapes.
- *                  Returns the result (may be [] if network is blocked).
- *   2. Generic live API — if `entry.liveApiEndpoint` is set AND `apiKey` is
- *                  provided, calls `fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey)`.
- *                  Used for OpenRouter-compatible endpoints.
- *                  Returns the result (may be [] if network is blocked).
- *   3. Remote    — if `entry.remoteCatalogUrl` is set, calls
- *                  `fetchRemoteCatalog(entry.remoteCatalogUrl)`.
- *                  Returns the result (may be [] if fetch fails).
- *   4. Bundled   — falls back to `entry.availableVersions` mapped to
- *                  `ModelCatalogEntry[]` with `source: 'bundled'`.
- *
- * Never throws. Graceful degradation is the contract: a failed remote/live
- * fetch produces the bundled list, not an error.
- *
- * Aria calls this (documented cross-agent exception — see models/index.ts).
- *
- * @param entry  - A `ModelRegistryEntry` from `MODEL_REGISTRY`.
- * @param apiKey - Optional API key for live endpoint auth (Gate-mediated; never
- *                 stored or logged here). Required for paths 1-2 to activate.
- */
-export async function resolveVersionCatalog(
-  entry: ModelRegistryEntry,
-  apiKey?: string
-): Promise<ModelCatalogEntry[]> {
-  // Path 1: provider-specific live fetch (Anthropic, Gemini — non-OpenRouter format).
-  if (entry.liveApiFetchFn !== undefined && apiKey !== undefined) {
-    return entry.liveApiFetchFn(apiKey);
-  }
-
-  // Path 2: generic OpenRouter-compatible live endpoint.
-  if (entry.liveApiEndpoint !== undefined && apiKey !== undefined) {
-    return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
-  }
-
-  if (entry.remoteCatalogUrl !== undefined) {
-    return fetchRemoteCatalog(entry.remoteCatalogUrl);
-  }
-
-  // Bundled fallback — map static ModelVersionOption[] to ModelCatalogEntry[]
-  return entry.availableVersions.map(
-    (v): ModelCatalogEntry => ({
-      id: v.id,
-      displayName: v.displayName,
-      ...(v.description !== undefined ? { description: v.description } : {}),
-      source: 'bundled' as const,
-    })
+  // Filter to only models that support generateContent — chat-capable models only.
+  // Embedding models, code execution models, etc. use different endpoints and are
+  // not usable in the Roundtable chat pipeline.
+  const chatModels = raw.models.filter(
+    (m) => m.supportedGenerationMethods?.includes('generateContent') ?? false
   );
-}
 
-/**
- * Fetches the model catalog for a custom (non-registry) provider via its live
- * API endpoint. Delegates to `fetchLiveApiCatalog`.
- *
- * This is the named entry point Aria uses for custom providers (OpenRouter-style)
- * so that it never reaches into catalog.ts directly and remains decoupled from
- * the internal fetch implementation.
- *
- * Aria calls this (documented cross-agent exception — see models/index.ts).
- *
- * @param liveApiEndpoint - Base URL of the provider's API (e.g. `https://openrouter.ai/api/v1`).
- * @param apiKey          - Bearer token for authorization. Passed by Gate; never stored here.
- */
-export async function resolveCustomProviderCatalog(
-  liveApiEndpoint: string,
-  apiKey: string
-): Promise<ModelCatalogEntry[]> {
-  return fetchLiveApiCatalog(liveApiEndpoint, apiKey);
+  return chatModels.map((model): ModelCatalogEntry => {
+    // `name` is the resource path, e.g. "models/gemini-2.5-flash".
+    // The API-level model string is the segment after the "models/" prefix.
+    const id = model.name.startsWith('models/') ? model.name.slice('models/'.length) : model.name;
+
+    return {
+      id,
+      displayName: model.displayName,
+      ...(model.description !== undefined ? { description: model.description } : {}),
+      ...(model.inputTokenLimit !== undefined ? { contextWindow: model.inputTokenLimit } : {}),
+      source: 'live-api',
+    };
+  });
 }

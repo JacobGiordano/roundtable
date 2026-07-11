@@ -23,7 +23,7 @@ import { geminiProvider, GEMINI_CONFIG } from './gemini';
 import { grokProvider, GROK_CONFIG } from './grok';
 import { deepseekProvider, DEEPSEEK_CONFIG } from './deepseek';
 import { mistralProvider, MISTRAL_CONFIG } from './mistral';
-import { fetchAnthropicCatalog, fetchGeminiCatalog } from './catalog';
+
 
 // ─── Provider list — consumed by sendMessage.ts ───────────────────────────────
 
@@ -103,28 +103,26 @@ export interface ModelRegistryEntry {
    * Example: `"https://openrouter.ai/api/v1"` (note: openrouter.ai is NOT on
    * the dev-container firewall allowlist — live fetch degrades to [] in dev).
    *
-   * Not set on Anthropic or Gemini entries — those use `liveApiFetchFn` instead,
-   * because their endpoints require non-OpenRouter auth headers and response shapes.
+   * When `liveApiProvider` is also set, `resolveVersionCatalog` dispatches to
+   * the matching provider-specific fetcher instead of the generic OpenRouter
+   * fetcher (`fetchLiveApiCatalog`). In that case this field serves as a
+   * documentation note about the endpoint rather than being passed to `fetchLiveApiCatalog`.
    */
   liveApiEndpoint?: string;
   /**
-   * Provider-specific live catalog fetch function for endpoints that require
-   * non-OpenRouter auth or response parsing (Anthropic, Gemini).
+   * Identifies which provider-specific live catalog fetcher to use when
+   * `liveApiEndpoint` is set. When absent, `fetchLiveApiCatalog` (OpenRouter
+   * wire format) is used. When set, `resolveVersionCatalog` dispatches to the
+   * matching named fetcher in catalog.ts.
    *
-   * When present (and `apiKey` is provided), `resolveVersionCatalog` calls
-   * this function in preference to the generic `fetchLiveApiCatalog` path.
-   * This is an Atlas-internal field — not exported through the cross-agent
-   * interface in `/src/types/index.ts`.
+   *   'anthropic' — `fetchAnthropicCatalog(apiKey)` (Anthropic `/v1/models`)
+   *   'gemini'    — `fetchGeminiCatalog(apiKey)` (Google `/v1beta/models`)
    *
-   * The function must never store or log the key — it is passed by Gate and
-   * forwarded only to the provider's official API endpoint.
-   *
-   * On any error: must return [] and never throw. Graceful degradation is the
-   * contract; callers fall back to bundled versions when [] is returned.
-   *
-   * @param apiKey - Provider API key. Passed by Gate; never stored here.
+   * Custom providers always use the OpenRouter wire format via
+   * `resolveCustomProviderCatalog` — this field is only for built-in registry
+   * entries whose provider API differs from the OpenRouter shape.
    */
-  liveApiFetchFn?: (apiKey: string) => Promise<ModelCatalogEntry[]>;
+  liveApiProvider?: 'anthropic' | 'gemini';
 }
 
 /**
@@ -147,12 +145,12 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4', description: 'Balanced capability and speed — default' },
       { id: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4', description: 'Fastest and most compact' },
     ],
-    // Live catalog from Anthropic GET /v1/models — returns id, display_name, max_input_tokens.
-    // Uses x-api-key auth header (not Bearer), so liveApiFetchFn is used instead of liveApiEndpoint.
-    // Note: api.anthropic.com is on the dev-container firewall allowlist.
-    // Capability data (image_input, thinking) from the Anthropic response cannot be surfaced
-    // via ModelCatalogEntry without a types PR adding capabilities to that interface (Arch, #378).
-    liveApiFetchFn: fetchAnthropicCatalog,
+    // Live model discovery via Anthropic's /v1/models endpoint.
+    // Surfaces max_input_tokens as contextWindow per model version.
+    // Note: Anthropic's API is CORS-blocked in browser without a proxy — live
+    // fetch degrades to [] (bundled fallback) when no proxy is configured.
+    liveApiEndpoint: 'https://api.anthropic.com/v1/models',
+    liveApiProvider: 'anthropic' as const,
   },
   {
     modelId: GPT55_CONFIG.modelId,
@@ -189,13 +187,13 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       // gemini-2.0-flash was removed — it was shut down June 1, 2026.
       { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image', description: 'Native image generation ("Nano Banana") — produces text + images' },
     ],
-    // Live catalog from Google GET /v1beta/models — returns name, displayName, inputTokenLimit.
-    // Uses ?key=<apiKey> query-param auth (not Bearer), so liveApiFetchFn is used instead of
-    // liveApiEndpoint. Strips "models/" prefix from returned names to get bare model strings.
-    // Note: generativelanguage.googleapis.com is NOT on the dev-container firewall allowlist
-    // — live fetch will degrade to [] in dev (bundled versions remain the fallback).
-    // No image-gen signal from this endpoint — image-gen capability is static in gemini.ts.
-    liveApiFetchFn: fetchGeminiCatalog,
+    // Live model discovery via Google's /v1beta/models endpoint.
+    // Surfaces inputTokenLimit as contextWindow; filters to generateContent-capable
+    // models only (chat models, not embedding or code-execution only).
+    // Note: the Google API uses key-as-query-param auth — fetchGeminiCatalog
+    // handles this internally. The endpoint listed here is for documentation only.
+    liveApiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+    liveApiProvider: 'gemini' as const,
   },
   {
     modelId: GROK_CONFIG.modelId,
