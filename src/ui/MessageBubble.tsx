@@ -461,6 +461,13 @@ export function MessageBubble({
   const [lightboxAttachment, setLightboxAttachment] = useState<Attachment | null>(null);
   const lightboxReturnRef = useRef<HTMLElement | null>(null);
 
+  // ── Generated-image lightbox state (#380) ────────────────────────────────
+  // Tracks which generated image index (if any) is open in the full-size lightbox.
+  // null = closed. Non-null = the index into message.generatedImages[].
+  // generatedImageLightboxReturnRef: trigger button for focus restoration on close.
+  const [lightboxGeneratedImageIdx, setLightboxGeneratedImageIdx] = useState<number | null>(null);
+  const generatedImageLightboxReturnRef = useRef<HTMLElement | null>(null);
+
   // ─── Thinking indicator state (#371) ─────────────────────────────────────
   // ThinkingIndicator and MessageContent are mutually exclusive in the body zone.
   // Render condition: assistant bubble, streaming, no content yet.
@@ -714,35 +721,86 @@ export function MessageBubble({
               Single image: max-w-full max-h-[280px] object-contain — preserves aspect ratio.
               Multiple images: 140×140 object-cover thumbnails — consistent grid, prevents
               tall images from dominating the thread.
-              No interactive elements — view-only in Phase 5. No focus/keyboard handling needed. */}
+              #380: each image is wrapped in a <button> that opens the Lightbox (same pattern
+              as attachment thumbnails in #369). Focus returns to trigger on close. */}
           {message.generatedImages && message.generatedImages.length > 0 && (
             <div
               role="group"
               aria-label="Model-generated images"
               className="mt-2 flex flex-wrap gap-2"
             >
-              {message.generatedImages.map((img, idx) => (
-                <img
-                  key={img.id}
-                  src={`data:${img.mimeType};base64,${img.base64}`}
-                  alt={
-                    img.altText
-                      ? img.altText
-                      : message.generatedImages!.length > 1
-                        ? `Generated image ${idx + 1}`
-                        : 'Model-generated image'
-                  }
-                  width={img.width}
-                  height={img.height}
-                  className={
-                    message.generatedImages!.length === 1
-                      ? 'max-w-full max-h-[280px] rounded object-contain'
-                      : 'w-[140px] h-[140px] rounded object-cover flex-shrink-0'
-                  }
-                />
-              ))}
+              {message.generatedImages.map((img, idx) => {
+                const imgSrc = `data:${img.mimeType};base64,${img.base64}`;
+                const imgAlt = img.altText
+                  ? img.altText
+                  : message.generatedImages!.length > 1
+                    ? `Generated image ${idx + 1}`
+                    : 'Model-generated image';
+                const triggerLabel = img.altText
+                  ? `View full size: ${img.altText}`
+                  : message.generatedImages!.length > 1
+                    ? `View full size: Generated image ${idx + 1}`
+                    : 'View full size: Model-generated image';
+                const isSingle = message.generatedImages!.length === 1;
+                return (
+                  <button
+                    key={img.id}
+                    type="button"
+                    aria-label={triggerLabel}
+                    onClick={(e) => {
+                      generatedImageLightboxReturnRef.current = e.currentTarget;
+                      setLightboxGeneratedImageIdx(idx);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        generatedImageLightboxReturnRef.current = e.currentTarget;
+                        setLightboxGeneratedImageIdx(idx);
+                      }
+                    }}
+                    className={[
+                      'relative rounded overflow-hidden cursor-zoom-in',
+                      isSingle ? 'block' : 'flex-shrink-0',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                    ].join(' ')}
+                  >
+                    <img
+                      src={imgSrc}
+                      alt={imgAlt}
+                      width={img.width}
+                      height={img.height}
+                      className={
+                        isSingle
+                          ? 'max-w-full max-h-[280px] rounded object-contain'
+                          : 'w-[140px] h-[140px] rounded object-cover'
+                      }
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
+
+          {/* Generated-image Lightbox (#380) — portal to document.body when open.
+              Only one generated image can be open at a time. Focus is trapped inside
+              the dialog and restored to the trigger button on close (WCAG 2.4.3).
+              Inline base64 is the only copy — no external URL fallback. */}
+          {lightboxGeneratedImageIdx !== null && message.generatedImages?.[lightboxGeneratedImageIdx] && (() => {
+            const img = message.generatedImages![lightboxGeneratedImageIdx];
+            const lightboxAlt = img.altText
+              ? img.altText
+              : message.generatedImages!.length > 1
+                ? `Generated image ${lightboxGeneratedImageIdx + 1}`
+                : 'Model-generated image';
+            return (
+              <Lightbox
+                src={`data:${img.mimeType};base64,${img.base64}`}
+                alt={lightboxAlt}
+                onClose={() => setLightboxGeneratedImageIdx(null)}
+                returnFocusRef={generatedImageLightboxReturnRef as React.RefObject<HTMLElement | null>}
+              />
+            );
+          })()}
 
           {/* Error detail — rendered in the body zone below any partial content.
               The divider (border-t) is only shown when there is visible body content.
@@ -1014,20 +1072,14 @@ export function MessageBubble({
             />
           )}
 
-          {/* Message body — plain whitespace-preserving text for user messages. */}
-          <MessageContent
-            message={message}
-            isStreaming={isStreaming}
-            hasError={false}
-          />
-
-          {/* Directed-to label — shown on user messages that have a targetModelId.
-              Subtle indicator so the thread stays readable after the fact.
+          {/* Directed-to label — shown above message text on user messages that have a targetModelId.
+              Conventional UX pattern: label/context first, then content. (#372)
+              mb-2 spacing separates the label from the message body below it.
               Color is read from targetModelConfig — modelId passed for custom provider
               CSS var routing. (#286) */}
           {targetModelConfig && (
             <div
-              className="mt-1.5 flex items-center gap-1 text-[11px] font-medium"
+              className="mb-2 flex items-center gap-1 text-[11px] font-medium"
               style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
               aria-label={`Directed to ${targetModelConfig.name}`}
             >
@@ -1035,6 +1087,13 @@ export function MessageBubble({
               <span>{targetModelConfig.name}</span>
             </div>
           )}
+
+          {/* Message body — plain whitespace-preserving text for user messages. */}
+          <MessageContent
+            message={message}
+            isStreaming={isStreaming}
+            hasError={false}
+          />
 
           {/* Bottom row — token count only (no directed-reply on user bubbles).
               Visibility is driven by tokenCountVisibility same as assistant bubbles.
