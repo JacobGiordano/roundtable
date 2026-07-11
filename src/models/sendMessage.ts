@@ -41,17 +41,22 @@ type Provider = typeof PROVIDERS[number];
 
 /**
  * Narrow internal interface that extends ModelProvider with the optional
- * selectedVersionId and signal parameters. All concrete provider classes accept
- * these extra optional args — their implementations remain compatible with
- * ModelProvider (extra optional params are additive). sendMessage.ts casts to
- * this type at the call site so the version and abort signal can be threaded
- * through without modifying the ModelProvider interface contract in
- * /src/types/index.ts.
+ * selectedVersionId, signal, and requestImageGeneration parameters. All concrete
+ * provider classes accept these extra optional args — their implementations remain
+ * compatible with ModelProvider (extra optional params are additive). sendMessage.ts
+ * casts to this type at the call site so the version, abort signal, and image-gen
+ * opt-in can be threaded through without modifying the ModelProvider interface
+ * contract in /src/types/index.ts.
  *
  * The signal originates from SendMessageOptions.signal (set by Aria via an
  * AbortController) and flows down through runProviderIsolated to each provider's
  * fetch call. When the signal fires, fetch rejects and the provider resolves
  * cleanly (no error chunk) with whatever partial token usage was accumulated.
+ *
+ * requestImageGeneration carries the per-model opt-in from ModelConfig.imageGenerationEnabled
+ * (stored by Aria when the user toggles image gen). Only providers that support image
+ * generation (generic.ts, gemini.ts) read this parameter — others ignore it safely
+ * because it is optional and additive.
  *
  * This is entirely internal to /src/models — no other agent sees this type.
  */
@@ -61,7 +66,8 @@ interface VersionAwareProvider extends Provider {
     systemPrompt: Parameters<Provider['sendMessage']>[1],
     onChunk: Parameters<Provider['sendMessage']>[2],
     selectedVersionId?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    requestImageGeneration?: boolean
   ): ReturnType<Provider['sendMessage']>;
 }
 
@@ -75,11 +81,17 @@ interface VersionAwareProvider extends Provider {
  * `visionCapable` — modelIds whose ProviderConfig has `capabilities.vision === true`.
  *   sendMessage.ts strips attachments from messages before dispatching to any
  *   provider NOT in this set (Phase 5, issue #285).
+ * `imageGenEnabled` — modelIds where ModelConfig.imageGenerationEnabled === true.
+ *   sendMessage.ts passes requestImageGeneration: true to providers in this set.
+ *   Providers NOT in this set receive requestImageGeneration: false (or undefined),
+ *   which suppresses image output regardless of provider capability. Defaults to an
+ *   empty set when no conversation is provided (legacy/test path — safe default).
  */
 interface ResolvedProviders {
   providers: Provider[];
   missing: ModelId[];
   visionCapable: Set<ModelId>;
+  imageGenEnabled: Set<ModelId>;
 }
 
 /**
@@ -103,18 +115,27 @@ interface ResolvedProviders {
  * The static PROVIDERS array is never modified.
  */
 function getActiveProviders(conversation: Conversation): ResolvedProviders {
-  const activeIds = conversation.models
-    .filter((m) => m.isActive)
-    .map((m) => m.modelId);
+  const activeModels = conversation.models.filter((m) => m.isActive);
+  const activeIds = activeModels.map((m) => m.modelId);
 
   if (activeIds.length === 0) {
-    return { providers: [], missing: [], visionCapable: new Set() };
+    return { providers: [], missing: [], visionCapable: new Set(), imageGenEnabled: new Set() };
   }
 
   const roster = getProviderRoster();
   const providers: Provider[] = [];
   const missing: ModelId[] = [];
   const visionCapable = new Set<ModelId>();
+
+  // Issue #379 — image-gen opt-in gate.
+  // imageGenerationEnabled is a per-model user toggle stored in ModelConfig by Aria.
+  // Only models where the toggle is explicitly true are included — absent/undefined
+  // is treated as false (opt-in, not opt-out).
+  const imageGenEnabled = new Set<ModelId>(
+    activeModels
+      .filter((m) => m.imageGenerationEnabled === true)
+      .map((m) => m.modelId)
+  );
 
   for (const modelId of activeIds) {
     // Check the static PROVIDERS array first — built-ins are always resolvable
@@ -157,7 +178,7 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
     }
   }
 
-  return { providers, missing, visionCapable };
+  return { providers, missing, visionCapable, imageGenEnabled };
 }
 
 /**
@@ -201,10 +222,11 @@ async function runProviderIsolated(
   systemPrompt: string | undefined,
   onChunk: StreamHandler,
   selectedVersionId?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  requestImageGeneration?: boolean
 ): Promise<void> {
   try {
-    await (provider as VersionAwareProvider).sendMessage(messages, systemPrompt, onChunk, selectedVersionId, signal);
+    await (provider as VersionAwareProvider).sendMessage(messages, systemPrompt, onChunk, selectedVersionId, signal, requestImageGeneration);
   } catch (err) {
     // AbortError — user initiated stop. The provider should have emitted a
     // clean done chunk already. If it didn't (e.g., abort fired before any
@@ -308,6 +330,10 @@ function shuffleArray<T>(arr: T[]): T[] {
  *
  * visionCapable — set of modelIds whose roster config has capabilities.vision true.
  * Providers not in this set receive messages with attachments stripped (Phase 5 #285).
+ *
+ * imageGenEnabled — set of modelIds where ModelConfig.imageGenerationEnabled === true.
+ * Each provider receives requestImageGeneration: true only when it appears in this set
+ * (issue #379). Empty set by default — safe when no conversation is provided.
  */
 async function runParallel(
   providers: Provider[],
@@ -316,7 +342,8 @@ async function runParallel(
   onChunk: StreamHandler,
   conversation?: Conversation,
   signal?: AbortSignal,
-  visionCapable?: Set<ModelId>
+  visionCapable?: Set<ModelId>,
+  imageGenEnabled?: Set<ModelId>
 ): Promise<void> {
   // Emit dispatch-time priming chunks so Aria can render placeholder bubbles
   // immediately when the user sends a message, before the first real content
@@ -366,7 +393,11 @@ async function runParallel(
       const isVision = visionCapable?.has(provider.config.modelId) ?? false;
       const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
 
-      return runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+      // Issue #379: pass requestImageGeneration only when the user has explicitly
+      // enabled image gen for this model via the per-model toggle in Aria.
+      const requestImageGeneration = imageGenEnabled?.has(provider.config.modelId) ?? false;
+
+      return runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal, requestImageGeneration);
     })
   );
 }
@@ -382,6 +413,10 @@ async function runParallel(
  * visionCapable — set of modelIds whose roster config has capabilities.vision true.
  * The target provider receives messages with attachments stripped if not vision-capable
  * (Phase 5, issue #285).
+ *
+ * imageGenEnabled — set of modelIds where ModelConfig.imageGenerationEnabled === true.
+ * The target provider receives requestImageGeneration: true only when present in this
+ * set (issue #379).
  */
 async function runDirected(
   targetModelId: ModelId,
@@ -391,7 +426,8 @@ async function runDirected(
   onChunk: StreamHandler,
   conversation?: Conversation,
   signal?: AbortSignal,
-  visionCapable?: Set<ModelId>
+  visionCapable?: Set<ModelId>,
+  imageGenEnabled?: Set<ModelId>
 ): Promise<void> {
   const target = activeProviders.find((p) => p.config.modelId === targetModelId);
 
@@ -427,11 +463,15 @@ async function runDirected(
   const isVision = visionCapable?.has(target.config.modelId) ?? false;
   const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
 
+  // Issue #379: pass requestImageGeneration only when the user has explicitly
+  // enabled image gen for this model via the per-model toggle in Aria.
+  const requestImageGeneration = imageGenEnabled?.has(target.config.modelId) ?? false;
+
   // Emit dispatch-time priming chunk so Aria can render a placeholder bubble
   // immediately when the user sends a directed message. Issue #349.
   onChunk({ modelId: target.config.modelId, content: '', isDone: false });
 
-  await runProviderIsolated(target, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+  await runProviderIsolated(target, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal, requestImageGeneration);
 }
 
 /**
@@ -462,11 +502,13 @@ async function runAutoChain(
   let activeProviders: Provider[];
   let missingIds: ModelId[];
   let visionCapable = new Set<ModelId>();
+  let imageGenEnabled = new Set<ModelId>();
   if (conversation) {
     const resolved = getActiveProviders(conversation);
     activeProviders = resolved.providers;
     missingIds = resolved.missing;
     visionCapable = resolved.visionCapable;
+    imageGenEnabled = resolved.imageGenEnabled;
     // Emit missing-provider errors upfront (before any step runs).
     emitMissingProviderErrors(missingIds, onChunk);
   } else {
@@ -533,10 +575,14 @@ async function runAutoChain(
       const isVision = visionCapable.has(step.modelId);
       const providerMessages = isVision ? attributedMessages : stripAttachments(attributedMessages);
 
+      // Issue #379: pass requestImageGeneration only when the user has explicitly
+      // enabled image gen for this model via the per-model toggle in Aria.
+      const requestImageGeneration = imageGenEnabled.has(step.modelId);
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);
-        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, handler, selectedVersionId, signal);
+        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, handler, selectedVersionId, signal, requestImageGeneration);
 
         // Append the raw response to sharedMessages (not attributedMessages) so
         // subsequent steps accumulate real content, not re-attributed wire format.
@@ -555,7 +601,7 @@ async function runAutoChain(
         }
       } else {
         // Run in isolation against current context — do not extend shared context.
-        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal);
+        await runProviderIsolated(provider, providerMessages, effectiveSystemPrompt, onChunk, selectedVersionId, signal, requestImageGeneration);
       }
     }
   }
@@ -605,14 +651,17 @@ export async function sendMessage(
   // Resolve active providers from the ProviderRoster when a conversation is available.
   // The PROVIDERS fallback (no conversation) preserves existing behavior for callers
   // that do not pass a conversation — e.g. legacy call sites and some tests.
-  // visionCapable is empty in the fallback path: messages built without a conversation
-  // never carry attachments, so capability gating is a no-op there.
+  // visionCapable and imageGenEnabled are empty in the fallback path: messages built
+  // without a conversation never carry attachments, and no image gen is requested,
+  // so both capability gates are no-ops there.
   let activeProviders: Provider[];
   let visionCapable = new Set<ModelId>();
+  let imageGenEnabled = new Set<ModelId>();
   if (conversation) {
     const resolved = getActiveProviders(conversation);
     activeProviders = resolved.providers;
     visionCapable = resolved.visionCapable;
+    imageGenEnabled = resolved.imageGenEnabled;
     // Emit auth_failure chunks for any active modelIds missing from the roster
     // before routing — this happens for all modes except auto-chain (which handles
     // its own per-step emission in runAutoChain).
@@ -751,7 +800,7 @@ export async function sendMessage(
 
   // Directed reply — route to a single model.
   if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
+    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
     return;
   }
 
@@ -768,7 +817,7 @@ export async function sendMessage(
 
   // Default — parallel broadcast.
   if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable);
+  await runParallel(activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
 }
 
 /**

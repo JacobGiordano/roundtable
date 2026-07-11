@@ -23,21 +23,21 @@
  * via CustomProviderConfig in a future phase. For now MAX_TOKENS_GENERIC is used
  * as a conservative default (see /src/models/constants.ts).
  *
- * Image generation (issue #376):
- *   When CustomProviderConfig.capabilities.imageGeneration === true, this provider
- *   includes modalities: ["image", "text"] in the request body. OpenRouter returns
- *   generated images in choices[].delta.images[] on the streaming chunks. This provider
+ * Image generation (issues #376, #379):
+ *   When CustomProviderConfig.capabilities.imageGeneration === true AND the caller
+ *   passes requestImageGeneration === true, this provider includes
+ *   modalities: ["image", "text"] in the request body. OpenRouter returns generated
+ *   images in choices[].delta.images[] on the streaming chunks. This provider
  *   collects those images and emits them via StreamChunk.images on the final done chunk.
  *
- *   Opt-in gate: both conditions must be true to enable image gen:
- *     1. capabilities.imageGeneration === true on the provider config
- *     2. The model itself supports image output (enforced by condition 1 — no static
- *        model in the registry has this flag; it must be explicitly set by Gate/user)
+ *   Opt-in gate: BOTH conditions must be true to enable image gen:
+ *     1. capabilities.imageGeneration === true on the provider config (static capability)
+ *     2. requestImageGeneration === true passed at call time (user's per-message toggle,
+ *        originating from ModelConfig.imageGenerationEnabled stored by Aria)
  *
- *   TODO(Arch, #379): When Aria ships the image-gen toggle (#379), add an opt-in field
- *   to SendMessageOptions (e.g. requestImageGeneration?: boolean) so user intent flows
- *   through without relying solely on the provider capability flag. The flag here keeps
- *   the feature dormant by default and unblocks the request/response wiring now.
+ *   This two-condition gate ensures that even when a provider declares image capability,
+ *   no image output is requested unless the user has explicitly enabled the toggle for
+ *   that model in the current conversation.
  */
 
 import type {
@@ -174,7 +174,8 @@ export class GenericOpenAIProvider implements ModelProvider {
     systemPrompt: string | undefined,
     onChunk: StreamHandler,
     selectedVersionId?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    requestImageGeneration?: boolean
   ): Promise<{ tokenUsage?: TokenUsage }> {
     const { endpointUrl, modelString: defaultModelString, credentialKey, id: modelId } = this.customConfig;
 
@@ -263,24 +264,20 @@ export class GenericOpenAIProvider implements ModelProvider {
     // the cost of requiring the user to declare incompatibility at config time.
     const includeStreamOptions = this.customConfig.capabilities?.streamUsage !== false;
 
-    // Image generation opt-in (issue #376).
+    // Image generation opt-in (issues #376, #379).
     //
-    // When capabilities.imageGeneration === true, include modalities: ["image", "text"]
-    // in the request body so OpenRouter routes to an image-capable model variant and
-    // returns image output alongside text in the streaming response.
-    //
-    // Both conditions must be true:
+    // Both conditions must be true to include modalities: ["image", "text"] in the request:
     //   1. capabilities.imageGeneration === true (static declaration on the provider config)
-    //   2. Implicit: the model string itself must support image output — enforced by the
-    //      provider config (no static registry model has this flag; it requires explicit
-    //      configuration by the user or Gate).
+    //   2. requestImageGeneration === true (per-message user opt-in from ModelConfig.imageGenerationEnabled)
     //
-    // TODO(Arch, #379): Once Aria's image-gen toggle ships, gate this on
-    //   SendMessageOptions.requestImageGeneration === true in addition to the capability
-    //   flag. The capability flag alone keeps the feature dormant (no default registry
-    //   model enables it) but doesn't reflect real user intent. Arch must add the field
-    //   to SendMessageOptions before this provider can read it — no types change here.
-    const imageGenEnabled = this.customConfig.capabilities?.imageGeneration === true;
+    // The two-condition gate ensures image output is only requested when the user has
+    // explicitly enabled the toggle AND the provider declares image capability. Neither
+    // condition alone is sufficient — the capability flag without user intent could request
+    // images the user didn't want; user intent without capability would be silently ignored
+    // by the provider.
+    const imageGenEnabled =
+      this.customConfig.capabilities?.imageGeneration === true &&
+      requestImageGeneration === true;
 
     // Build a request body with or without stream_options.
     // stream_options.include_usage requests token counts in the final SSE chunk.
