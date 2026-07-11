@@ -476,6 +476,80 @@ The model selector is a **panel that slides up from above the input bar**, not a
 
 When zero models are available to add (all configured models are already active), the "Add model" button is hidden. At least one model will always be active (enforced by pill toggle behavior).
 
+### Image Generation Section
+
+Rendered below the System Prompts section in the panel. Only visible when at least one active model has `capabilities.imageGeneration === true` in the provider roster. When no active model supports image generation, the entire section — label and all rows — is omitted from the DOM.
+
+#### Design Ruling: Toggle vs. Checkbox for Image Generation Opt-In
+
+**Verdict: the pill toggle (`role="switch"`) is the correct control. Do not revert to a checkbox.**
+
+Rationale: the toggle/checkbox distinction is not about visual style, it is about semantics and effect timing.
+
+A **checkbox** signals a form-like, deferred preference: the user checks a box, then submits or saves. It implies the value is part of a form state that will be applied later. It also carries no visual affordance of on/off state in a compact row — it is a square that is either checked or not.
+
+A **toggle switch** (`role="switch"`) signals an immediate, stateful preference: the current value is live. It is the correct control for settings that take effect immediately without a submit action. It also communicates binary state more clearly in a compact row than a checkbox does.
+
+Image generation opt-in is not a form preference deferred until the next save. It takes effect on the very next message sent to that model — the user enables it, sends a message, Atlas reads `imageGenerationEnabled` and includes the image output modality parameter in the request. There is no intermediate submit step. This is precisely the use case toggles are designed for.
+
+The toggle stays. Coda does not need to revert anything.
+
+#### Section Label
+
+- **Text**: "Image generation"
+- **Typography**: `11px`, `font-weight: 600`, `{text.muted}`, `letter-spacing: 0.06em`, `text-transform: uppercase`. `margin-bottom: 8px`.
+
+#### Row Container
+
+- **Layout**: A grouped list of per-model rows. `border-radius: {radius.md}`. `border: 1px solid {borders.subtle}`. `overflow: hidden` to clip borders at rounded corners.
+- **One row per image-capable active model.**
+- **Row separator**: `border-bottom: 1px solid {borders.subtle}` on all rows except the last (`last:border-b-0`).
+
+#### Per-Model Row
+
+- **Height**: `36px` fixed.
+- **Padding**: `0 4px` horizontal (tight — the toggle is a compact control).
+- **Layout**: Horizontal flex row, `align-items: center`, `gap: 8px`.
+- **Hover**: `{interactive.hover}` background, `{radius.md}` corners, `timing.fast` transition.
+
+Row contents (left to right):
+
+1. **Model color dot**: `7px` diameter, `border-radius: {radius.full}`, `background: {accents.model-*}` for this model. Same dot spec as Model Identity Pill. `flex-shrink: 0`. `aria-hidden="true"`.
+2. **Model name label**: `13px`, `font-weight: 500`, `{text.primary}`. `flex: 1` (fills remaining space). `select-none`.
+3. **Toggle switch**: Right-aligned. See Toggle Switch spec below.
+
+#### Toggle Switch
+
+The toggle is implemented as a `<button type="button" role="switch" aria-checked={isEnabled}>`.
+
+- **Track size**: `36px` wide, `20px` tall (W9 × H5 in Tailwind 4px scale: `w-9 h-5`).
+- **Track border-radius**: `{radius.full}` (9999px) — fully pill-shaped.
+- **Track color (ON)**: `{semantic.success}` — uses the success semantic token, not a model accent. Image generation is a capability state, not a model identity signal. Using the model's accent color would create a false visual link between "model is active" and "image gen is on."
+- **Track color (OFF)**: `{borders.subtle}` — muted, clearly inactive.
+- **Track transition**: `background-color` at `200ms ease` (`timing.medium`).
+- **Thumb**: `16px` × `16px` circle (`w-4 h-4`), `border-radius: {radius.full}`, `background: #FFFFFF` (white in all themes — contrast against both success green and subtle gray is reliable). `box-shadow: {shadow.sm}`. Absolutely positioned within the track. `pointer-events: none`. `aria-hidden="true"`.
+- **Thumb position (ON)**: `translate-x: 16px` (`translate-x-4`). `top: 2px`.
+- **Thumb position (OFF)**: `translate-x: 2px` (`translate-x-0.5`). `top: 2px`.
+- **Thumb transition**: `transform` at `200ms ease` (`timing.medium`). Same duration as track color so the two animate together.
+- **Focus ring**: `2px solid {interactive.focusRing}`, `2px offset`, `border-radius: {radius.full}`. Applied via `focus-visible:` — never on `:focus` alone.
+- **Cursor**: `pointer`.
+- **aria-label**: "Generate images for [model name]" — the model name is included so each toggle is distinguishable in a screen reader context where multiple rows may be present.
+
+#### Behavior
+
+- **Immediate effect**: toggling writes `imageGenerationEnabled` to `ModelConfig` in the active conversation. Atlas reads this field on the next `sendMessage` call. There is no intermediate save step.
+- **Default state**: `false` (off) when `ModelConfig.imageGenerationEnabled` is `undefined` or not set. Users must explicitly opt in.
+- **Persistence**: The value persists for the lifetime of the conversation. Vault writes it as part of the existing `saveConversation` path. A new conversation starts with `imageGenerationEnabled: false` for all models.
+- **Mid-conversation change**: Changing the toggle mid-conversation affects the next message only. In-flight responses are not affected.
+
+#### Section Footer Note
+
+Below the row container (when the section is visible):
+
+- **Text**: "When enabled, this model will include image output alongside text."
+- **Typography**: `11px`, `{text.muted}`. `margin-top: 6px`.
+- No icon. Plain descriptive text.
+
 ---
 
 ## 5. Sidebar Thread List
