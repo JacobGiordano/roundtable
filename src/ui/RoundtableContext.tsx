@@ -81,6 +81,13 @@ export interface RoundtableContextValue {
   onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
   onSelectModelVersion: (modelId: ModelId, versionId: string) => void;
   onClearModelVersion: (modelId: ModelId) => void;
+  /**
+   * Persists the user's image generation opt-in for a model.
+   * Writes to ModelConfig.imageGenerationEnabled in the active conversation.
+   * Only meaningful for models with capabilities.imageGeneration === true.
+   * Atlas reads this field in sendMessage.ts to gate image output modality params.
+   */
+  onToggleImageGeneration: (modelId: ModelId, enabled: boolean) => void;
   sessionUsage: SessionTokenUsage[];
 
   // ── Interaction mode (InteractionModeSwitcher) ───────────────────────────
