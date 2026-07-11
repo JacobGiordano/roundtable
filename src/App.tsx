@@ -829,40 +829,6 @@ export default function App() {
   };
 
   /**
-   * Persists the user's image generation opt-in for a model (#379).
-   *
-   * Mirrors the toggle into both the top-level models state (for immediate
-   * UI reflection) and the active conversation's ModelConfig (so Atlas reads
-   * the updated flag in sendMessage.ts on the next send). Mirrors the pattern
-   * established by handleUpdateSystemPrompt.
-   *
-   * Ghost-mode guard: skips storage writes for ghost conversations (same as
-   * handleUpdateSystemPrompt — non-ghost conversations still get persisted
-   * immediately; ghost state is never written to localStorage).
-   */
-  const handleToggleImageGeneration = (modelId: ModelId, enabled: boolean) => {
-    // Keep top-level models mirror in sync.
-    setModels((prev) =>
-      prev.map((m) =>
-        m.modelId === modelId ? { ...m, imageGenerationEnabled: enabled } : m,
-      ),
-    );
-
-    // Sync into the active conversation's models so the flag survives persistence
-    // and is available to sendMessage when it reads conversation.models.
-    const conv = store.getActiveConversation();
-    if (conv && !conv.isGhost) {
-      void store.updateConversation({
-        ...conv,
-        models: conv.models.map((m) =>
-          m.modelId === modelId ? { ...m, imageGenerationEnabled: enabled } : m,
-        ),
-        updatedAt: Date.now(),
-      });
-    }
-  };
-
-  /**
    * Persists the user's version choice for a model (Gate) and mirrors it into
    * local ModelConfig state so the picker reflects the selection immediately.
    */
@@ -1099,7 +1065,6 @@ export default function App() {
         onUpdateSystemPrompt: handleUpdateSystemPrompt,
         onSelectModelVersion: handleSelectModelVersion,
         onClearModelVersion: handleClearModelVersion,
-        onToggleImageGeneration: handleToggleImageGeneration,
         sessionUsage,
         // #340: fall back to pendingMode (not literal 'parallel') so the
         // mode switcher reflects the user's selection before any conversation exists.
