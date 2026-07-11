@@ -156,15 +156,18 @@ interface GeminiStreamChunk {
  * for clean separation of system context from the conversation history.
  *
  * @param modelString — the resolved API model string (e.g. "gemini-2.5-flash-image").
- *   When this string is in IMAGE_GEN_MODEL_STRINGS, `responseModalities` is added to
- *   generationConfig so the model returns both text and images. This is opt-in by
- *   model-version selection — the user choosing an image-gen version is the signal.
- *   No SendMessageOptions extension needed; no types change required.
+ *   When this string is in IMAGE_GEN_MODEL_STRINGS AND requestImageGeneration is true,
+ *   `responseModalities` is added to generationConfig so the model returns both text
+ *   and images. The two-condition gate ensures image output is only requested when
+ *   both the model supports it AND the user has explicitly enabled the toggle (issue #379).
+ * @param requestImageGeneration — the per-message user opt-in from ModelConfig.imageGenerationEnabled,
+ *   threaded through sendMessage.ts. When false or absent, responseModalities is never sent.
  */
 function buildGeminiRequest(
   messages: Message[],
   systemPrompt: string | undefined,
-  modelString: string
+  modelString: string,
+  requestImageGeneration?: boolean
 ): Record<string, unknown> {
   // Phase 5 (#285): user messages with attachments include inlineData parts.
   // sendMessage.ts strips attachments before dispatch for non-vision providers,
@@ -197,17 +200,20 @@ function buildGeminiRequest(
     };
   });
 
-  // Issue #375 — image generation opt-in.
-  // When the resolved model string is a known image-gen model, include
-  // responseModalities so the API returns both text and image content blocks.
-  // The inlineData parser below already handles whatever the model returns —
-  // no new response parsing is needed. Non-image models must NOT receive this
-  // field; the Google API returns an error if responseModalities is sent to a
-  // model that does not support it.
+  // Issues #375, #379 — image generation opt-in.
+  // Both conditions must be true to include responseModalities in generationConfig:
+  //   1. The resolved model string is in IMAGE_GEN_MODEL_STRINGS (static capability)
+  //   2. requestImageGeneration === true (per-message user opt-in from ModelConfig.imageGenerationEnabled)
+  //
+  // Non-image models must NOT receive responseModalities — the Google API returns an
+  // error if this field is sent to a model that does not support it. The second
+  // condition ensures the user's explicit toggle governs actual request behavior even
+  // when an image-gen capable model version is selected.
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: MAX_TOKENS_GEMINI,
   };
-  if (IMAGE_GEN_MODEL_STRINGS.has(modelString)) {
+  const useImageGen = IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true;
+  if (useImageGen) {
     generationConfig.responseModalities = ['TEXT', 'IMAGE'];
   }
 
@@ -235,7 +241,8 @@ export class GeminiModelProvider implements ModelProvider {
     systemPrompt: string | undefined,
     onChunk: StreamHandler,
     selectedVersionId?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    requestImageGeneration?: boolean
   ): Promise<{ tokenUsage?: TokenUsage }> {
     // Retrieve API key at call-time — never store in state
     const apiKey = getCredentials(GEMINI_CONFIG.credentialKey);
@@ -254,7 +261,10 @@ export class GeminiModelProvider implements ModelProvider {
     // filterMessagesForApi strips them to prevent corrupt API calls.
     const filteredMessages = filterMessagesForApi(messages);
 
-    const requestBody = buildGeminiRequest(filteredMessages, systemPrompt, modelString);
+    // Pass requestImageGeneration through so buildGeminiRequest applies the two-condition
+    // gate: model must be in IMAGE_GEN_MODEL_STRINGS AND the user must have enabled the
+    // toggle for this model (issue #379).
+    const requestBody = buildGeminiRequest(filteredMessages, systemPrompt, modelString, requestImageGeneration);
 
     // Google API key is passed as a query parameter (not a header) for the REST API.
     // The key is appended to the URL — never logged, never stored.
