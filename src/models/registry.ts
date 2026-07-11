@@ -101,8 +101,27 @@ export interface ModelRegistryEntry {
    *
    * Example: `"https://openrouter.ai/api/v1"` (note: openrouter.ai is NOT on
    * the dev-container firewall allowlist — live fetch degrades to [] in dev).
+   *
+   * When `liveApiProvider` is also set, `resolveVersionCatalog` dispatches to
+   * the matching provider-specific fetcher instead of the generic OpenRouter
+   * fetcher (`fetchLiveApiCatalog`). In that case this field serves as a
+   * documentation note about the endpoint rather than being passed to `fetchLiveApiCatalog`.
    */
   liveApiEndpoint?: string;
+  /**
+   * Identifies which provider-specific live catalog fetcher to use when
+   * `liveApiEndpoint` is set. When absent, `fetchLiveApiCatalog` (OpenRouter
+   * wire format) is used. When set, `resolveVersionCatalog` dispatches to the
+   * matching named fetcher in catalog.ts.
+   *
+   *   'anthropic' — `fetchAnthropicCatalog(apiKey)` (Anthropic `/v1/models`)
+   *   'gemini'    — `fetchGeminiCatalog(apiKey)` (Google `/v1beta/models`)
+   *
+   * Custom providers always use the OpenRouter wire format via
+   * `resolveCustomProviderCatalog` — this field is only for built-in registry
+   * entries whose provider API differs from the OpenRouter shape.
+   */
+  liveApiProvider?: 'anthropic' | 'gemini';
 }
 
 /**
@@ -125,6 +144,12 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4', description: 'Balanced capability and speed — default' },
       { id: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4', description: 'Fastest and most compact' },
     ],
+    // Live model discovery via Anthropic's /v1/models endpoint.
+    // Surfaces max_input_tokens as contextWindow per model version.
+    // Note: Anthropic's API is CORS-blocked in browser without a proxy — live
+    // fetch degrades to [] (bundled fallback) when no proxy is configured.
+    liveApiEndpoint: 'https://api.anthropic.com/v1/models',
+    liveApiProvider: 'anthropic' as const,
   },
   {
     modelId: GPT55_CONFIG.modelId,
@@ -161,6 +186,13 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       // gemini-2.0-flash was removed — it was shut down June 1, 2026.
       { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image', description: 'Native image generation ("Nano Banana") — produces text + images' },
     ],
+    // Live model discovery via Google's /v1beta/models endpoint.
+    // Surfaces inputTokenLimit as contextWindow; filters to generateContent-capable
+    // models only (chat models, not embedding or code-execution only).
+    // Note: the Google API uses key-as-query-param auth — fetchGeminiCatalog
+    // handles this internally. The endpoint listed here is for documentation only.
+    liveApiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+    liveApiProvider: 'gemini' as const,
   },
   {
     modelId: GROK_CONFIG.modelId,

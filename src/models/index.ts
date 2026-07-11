@@ -23,15 +23,21 @@ export type { ModelRegistryEntry } from './registry';
 // model lists. ModelCatalogEntry is defined in @/types — no new types exported here.
 //
 //   fetchRemoteCatalog(url)              — fetches a remote models.json
-//   fetchLiveApiCatalog(endpoint, key)   — fetches a live provider /models endpoint
+//   fetchLiveApiCatalog(endpoint, key)   — fetches a live provider /models endpoint (OpenRouter)
+//   fetchAnthropicCatalog(key)           — fetches Anthropic /v1/models with x-api-key auth
+//   fetchGeminiCatalog(key)              — fetches Google /v1beta/models with key-as-query-param
 //   resolveVersionCatalog(entry, key?)   — resolver: live API → remote → bundled fallback
 //   resolveCustomProviderCatalog(ep, key) — resolver for custom (non-registry) providers
 //
 // Aria should call resolveVersionCatalog for built-in registry entries and
-// resolveCustomProviderCatalog for custom providers — not fetchLiveApiCatalog directly.
+// resolveCustomProviderCatalog for custom providers — not the individual fetch
+// functions directly. Provider routing is handled inside resolveVersionCatalog
+// based on ModelRegistryEntry.liveApiProvider.
 export {
   fetchRemoteCatalog,
   fetchLiveApiCatalog,
+  fetchAnthropicCatalog,
+  fetchGeminiCatalog,
   resolveVersionCatalog,
   resolveCustomProviderCatalog,
 } from './catalog';
