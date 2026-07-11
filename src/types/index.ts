@@ -505,11 +505,68 @@ export interface ProviderCapabilities {
    * flag and for routing the output to `StreamChunk.images` via the existing
    * `GeneratedImage` pipeline.
    *
+   * Populated on `ModelCatalogEntry.capabilities` by the OpenRouter and Gemini
+   * live-API parsers when `output_modalities` includes `"image"`.
+   *
    * Default (when absent): `false`. Conservative — image generation is an
    * optional, provider-specific capability. Explicit `true` opts in; absence
    * suppresses all image-gen request parameters.
    */
   imageGeneration?: boolean;
+
+  /**
+   * Whether the model supports extended thinking / reasoning (chain-of-thought).
+   *
+   * When `true`, the model can produce an internal reasoning trace before its
+   * final response. Populated on `ModelCatalogEntry.capabilities` by the
+   * Anthropic live-API parser when the `thinking` flag is set in the
+   * `AnthropicModel.capabilities` response object.
+   *
+   * Other providers may expose an equivalent capability under different API
+   * fields; Atlas is responsible for normalizing to this field.
+   *
+   * Default (when absent): `false`. Conservative — thinking is an opt-in
+   * feature that requires provider-specific request parameters; absence
+   * suppresses them.
+   */
+  thinking?: boolean;
+
+  /**
+   * Whether the model supports structured output schemas (JSON mode / response
+   * format constraints).
+   *
+   * When `true`, Atlas may include a `response_format` or equivalent schema
+   * constraint in the request body to guarantee structured JSON output. When
+   * `false` (or absent), Atlas must not send schema constraints.
+   *
+   * Populated on `ModelCatalogEntry.capabilities` by the Anthropic live-API
+   * parser when the `structured_outputs` flag is set in the
+   * `AnthropicModel.capabilities` response object. Field name is camelCased
+   * to match the existing convention on this interface.
+   *
+   * Default (when absent): `false`. Conservative — structured output is an
+   * optional capability not universally supported.
+   */
+  structuredOutputs?: boolean;
+
+  /**
+   * Whether the model supports extended context management (200k+ token handling).
+   *
+   * When `true`, the provider applies special handling for very large contexts —
+   * for example, Anthropic's context window management that gracefully compresses
+   * or summarizes history before the context limit is reached. When `false` (or
+   * absent), no special context management is applied; the provider returns a
+   * `context_length_exceeded` error when the window is full.
+   *
+   * Populated on `ModelCatalogEntry.capabilities` by the Anthropic live-API
+   * parser when the `context_management` flag is set in the
+   * `AnthropicModel.capabilities` response object. Field name is camelCased
+   * to match the existing convention on this interface.
+   *
+   * Default (when absent): `false`. Conservative — context management is an
+   * Anthropic-specific capability; absence means standard context handling applies.
+   */
+  contextManagement?: boolean;
 }
 
 /**
@@ -649,6 +706,28 @@ export interface ModelCatalogEntry {
   source: ModelCatalogSource;
   /** Optional context window size in tokens, shown in the version picker if present. */
   contextWindow?: number;
+  /**
+   * Optional capability flags discovered from a live-API response for this
+   * specific model version. Present only on `source: 'live-api'` entries where
+   * the provider's models endpoint returns capability data; absent on
+   * `source: 'bundled'` and `source: 'remote'` entries.
+   *
+   * Atlas populates this during live-API catalog fetch:
+   *   - OpenRouter parser: sets `vision` when `input_modalities` includes `"image"`;
+   *     sets `imageGeneration` when `output_modalities` includes `"image"`.
+   *   - Anthropic parser: maps `image_input` → `vision`, `thinking` → `thinking`,
+   *     `tool_use` → `toolUse`, `structured_outputs` → `structuredOutputs`,
+   *     `context_management` → `contextManagement` from the API capabilities object.
+   *   - Gemini parser: no capability fields — context limits map to `contextWindow`.
+   *
+   * Consumers: Aria may read this to annotate model versions in the picker with
+   * capability badges. Atlas may read this to gate per-version feature flags.
+   * Absent `capabilities` means "no capability data available for this version" —
+   * callers fall back to provider-level `ProviderCapabilities` on `ProviderConfig`.
+   *
+   * @see ProviderCapabilities for field-by-field semantics and defaults.
+   */
+  capabilities?: ProviderCapabilities;
 }
 
 // ─── Conversation ─────────────────────────────────────────────────────────────
