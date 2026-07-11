@@ -33,13 +33,8 @@ type RemoteCatalogEntry = {
  *
  * `input_modalities` and `output_modalities` are arrays of capability strings
  * (e.g. ["text", "image"]). These indicate what media types the model can
- * accept and produce — relevant for gating vision and image-generation features.
- *
- * TYPE GAP NOTE: `ModelCatalogEntry` (in /src/types/index.ts) has no capability
- * fields to carry vision/imageGeneration flags. Until Arch adds an optional
- * `capabilities?: ProviderCapabilities` field to `ModelCatalogEntry`, modality
- * data from OpenRouter is parsed but can only surface in `description`.
- * Tracked: capability fields needed on ModelCatalogEntry for full implementation.
+ * accept and produce — mapped to `ModelCatalogEntry.capabilities.vision` and
+ * `ModelCatalogEntry.capabilities.imageGeneration` respectively.
  *
  * `supported_parameters` is an array of parameter name strings indicating which
  * API parameters the model accepts. Used for capability gating (e.g. "tools"
@@ -72,15 +67,14 @@ type OpenRouterModelsResponse = {
  * Requires `x-api-key` and `anthropic-version: 2023-06-01` headers.
  *
  * `capabilities` contains feature flags for the model:
- *   - `image_input`: whether the model accepts image inputs (vision)
- *   - `thinking`: whether the model supports extended thinking / reasoning
- *   - `structured_outputs`: whether the model supports structured output schemas
- *   - `tool_use`: whether the model supports function calling
+ *   - `image_input`:          → `ModelCatalogEntry.capabilities.vision`
+ *   - `tool_use`:             → `ModelCatalogEntry.capabilities.toolUse`
+ *   - `thinking`:             → `ModelCatalogEntry.capabilities.thinking`
+ *   - `structured_outputs`:   → `ModelCatalogEntry.capabilities.structuredOutputs`
+ *   - `context_management`:   → `ModelCatalogEntry.capabilities.contextManagement`
  *
- * TYPE GAP NOTE: `ModelCatalogEntry` has no `capabilities` field to carry
- * these flags. Until Arch adds `capabilities?: ProviderCapabilities` to
- * `ModelCatalogEntry`, only `max_input_tokens` (→ `contextWindow`) is surfaced.
- * Tracked: capability fields needed on ModelCatalogEntry for full implementation.
+ * The `capabilities` field on the returned `ModelCatalogEntry` is omitted
+ * entirely when `model.capabilities` is absent.
  */
 type AnthropicModel = {
   id: string;
@@ -333,30 +327,19 @@ export async function fetchLiveApiCatalog(
   }
 
   return raw.data.map((model): ModelCatalogEntry => {
-    // Build a description that incorporates the provider-supplied description
-    // plus modality annotations when present.
-    //
-    // TYPE GAP: `ModelCatalogEntry` has no `capabilities` field to carry
-    // vision/imageGeneration flags derived from `input_modalities` /
-    // `output_modalities`. Until Arch adds `capabilities?: ProviderCapabilities`
-    // to `ModelCatalogEntry`, we surface modality info via description only.
-    // When that field lands, this mapping should be updated to populate it.
-    let description = model.description;
-    const hasVisionInput = model.input_modalities?.includes('image');
-    const hasImageOutput = model.output_modalities?.includes('image');
-    if (hasVisionInput || hasImageOutput) {
-      const modalityTags: string[] = [];
-      if (hasVisionInput) modalityTags.push('vision');
-      if (hasImageOutput) modalityTags.push('image generation');
-      const modalityNote = modalityTags.join(', ');
-      description = description ? `${description} [${modalityNote}]` : `[${modalityNote}]`;
-    }
+    const hasVision = model.input_modalities?.includes('image') ?? false;
+    const hasImageGen = model.output_modalities?.includes('image') ?? false;
+    const hasCapabilities = hasVision || hasImageGen;
 
     return {
       id: model.id,
       displayName: model.name,
-      ...(description !== undefined ? { description } : {}),
+      ...(model.description !== undefined ? { description: model.description } : {}),
       ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
+      ...(hasCapabilities ? { capabilities: {
+        vision: hasVision,
+        imageGeneration: hasImageGen,
+      } } : {}),
       source: 'live-api',
     };
   });
@@ -450,11 +433,8 @@ export async function resolveCustomProviderCatalog(
  *   `id`               → `id`            (exact API model string)
  *   `display_name`     → `displayName`
  *   `max_input_tokens` → `contextWindow`  (input context limit)
- *
- * TYPE GAP: `ModelCatalogEntry` has no `capabilities` field. The `capabilities`
- * object from the API (`image_input`, `thinking`, `tool_use`, `structured_outputs`)
- * cannot be surfaced until Arch adds `capabilities?: ProviderCapabilities` to
- * `ModelCatalogEntry` in /src/types/index.ts.
+ *   `capabilities`     → `capabilities`  (when present; see `AnthropicModel` for
+ *                                          the field-by-field mapping)
  *
  * On any error (network, non-2xx, unexpected shape): logs a console.warn and
  * returns []. Never throws.
@@ -510,6 +490,13 @@ export async function fetchAnthropicCatalog(apiKey: string): Promise<ModelCatalo
     displayName: model.display_name,
     // max_input_tokens is the context window size for this model version.
     ...(model.max_input_tokens !== undefined ? { contextWindow: model.max_input_tokens } : {}),
+    ...(model.capabilities !== undefined ? { capabilities: {
+      vision: model.capabilities.image_input ?? false,
+      toolUse: model.capabilities.tool_use ?? false,
+      thinking: model.capabilities.thinking ?? false,
+      structuredOutputs: model.capabilities.structured_outputs ?? false,
+      contextManagement: model.capabilities.context_management ?? false,
+    } } : {}),
     source: 'live-api',
   }));
 }
