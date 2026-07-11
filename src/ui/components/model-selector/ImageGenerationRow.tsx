@@ -73,13 +73,16 @@ export function ImageGenerationRow({ model, onToggle }: ImageGenerationRowProps)
           </span>
         )}
 
-        {/* Checkbox — labelled by the enclosing <label htmlFor> (model.name).
-            No aria-label needed: the <label> association provides the accessible name. */}
+        {/* Checkbox — aria-label overrides the computed name from <label htmlFor>
+            so the accessible name is fully self-describing ("Generate images for
+            Gemini") rather than relying on the visual section heading for context.
+            The <label htmlFor> still handles click association. */}
         <input
           id={checkboxId}
           type="checkbox"
           checked={isEnabled}
           onChange={handleChange}
+          aria-label={`Generate images for ${model.name}`}
           className={[
             'w-4 h-4 rounded cursor-pointer flex-shrink-0',
             'accent-[var(--accent-claude)]',
