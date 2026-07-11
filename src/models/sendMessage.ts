@@ -126,16 +126,11 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
   const providers: Provider[] = [];
   const missing: ModelId[] = [];
   const visionCapable = new Set<ModelId>();
-
-  // Issue #379 — image-gen opt-in gate.
-  // imageGenerationEnabled is a per-model user toggle stored in ModelConfig by Aria.
-  // Only models where the toggle is explicitly true are included — absent/undefined
-  // is treated as false (opt-in, not opt-out).
-  const imageGenEnabled = new Set<ModelId>(
-    activeModels
-      .filter((m) => m.imageGenerationEnabled === true)
-      .map((m) => m.modelId)
-  );
+  // Issue #379 — always-on for capable models. Built from roster capabilities so
+  // any active provider declaring imageGeneration: true always receives image
+  // output modalities. No per-turn user toggle — the model/version selection is
+  // the opt-in signal.
+  const imageGenEnabled = new Set<ModelId>();
 
   for (const modelId of activeIds) {
     // Check the static PROVIDERS array first — built-ins are always resolvable
@@ -152,6 +147,9 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
       if (rosterEntry?.capabilities?.vision === true) {
         visionCapable.add(modelId);
       }
+      if (rosterEntry?.capabilities?.imageGeneration === true) {
+        imageGenEnabled.add(modelId);
+      }
       providers.push(builtIn);
       continue;
     }
@@ -162,9 +160,12 @@ function getActiveProviders(conversation: Conversation): ResolvedProviders {
     );
 
     if (customEntry && customEntry.kind === 'custom') {
-      // Custom provider — check capabilities.vision before instantiating.
+      // Custom provider — check capabilities before instantiating.
       if (customEntry.capabilities?.vision === true) {
         visionCapable.add(modelId);
+      }
+      if (customEntry.capabilities?.imageGeneration === true) {
+        imageGenEnabled.add(modelId);
       }
       // Instantiate from config. Pass getCredentials and getPricingTable from
       // @/auth here rather than letting generic.ts import them directly, keeping
