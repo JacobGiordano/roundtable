@@ -784,7 +784,10 @@ export function MessageBubble({
           {/* Generated-image Lightbox (#380) — portal to document.body when open.
               Only one generated image can be open at a time. Focus is trapped inside
               the dialog and restored to the trigger button on close (WCAG 2.4.3).
-              Inline base64 is the only copy — no external URL fallback. */}
+              Inline base64 is the only copy — no external URL fallback.
+              filename={lightboxAlt}: propagates alt text into the dialog aria-label
+              so screen readers announce "Full size: {description}" rather than the
+              generic "Full size image" fallback. */}
           {lightboxGeneratedImageIdx !== null && message.generatedImages?.[lightboxGeneratedImageIdx] && (() => {
             const img = message.generatedImages![lightboxGeneratedImageIdx];
             const lightboxAlt = img.altText
@@ -796,6 +799,7 @@ export function MessageBubble({
               <Lightbox
                 src={`data:${img.mimeType};base64,${img.base64}`}
                 alt={lightboxAlt}
+                filename={lightboxAlt}
                 onClose={() => setLightboxGeneratedImageIdx(null)}
                 returnFocusRef={generatedImageLightboxReturnRef as React.RefObject<HTMLElement | null>}
               />
@@ -1076,15 +1080,17 @@ export function MessageBubble({
               Conventional UX pattern: label/context first, then content. (#372)
               mb-2 spacing separates the label from the message body below it.
               Color is read from targetModelConfig — modelId passed for custom provider
-              CSS var routing. (#286) */}
+              CSS var routing. (#286)
+              A11y: aria-label is prohibited on role="generic" (plain <div>, ARIA 1.2 §6.2.6).
+              "Directed to" framing is expressed as visible text so screen readers announce the
+              full context. The → glyph remains decorative (aria-hidden). */}
           {targetModelConfig && (
             <div
               className="mb-2 flex items-center gap-1 text-[11px] font-medium"
               style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
-              aria-label={`Directed to ${targetModelConfig.name}`}
             >
               <span aria-hidden="true">→</span>
-              <span>{targetModelConfig.name}</span>
+              <span>Directed to {targetModelConfig.name}</span>
             </div>
           )}
 
