@@ -3,16 +3,18 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronIcon } from './components/ChevronIcon';
 // #147: shared icon system — GearIcon and PlusIcon replace inline SVGs.
 import { GearIcon, PlusIcon } from './icons';
-import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
+import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, ProviderConfig, SessionTokenUsage, TokenCountVisibility } from '@/types';
 // Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
 // read-only registry of all model display metadata including providerName and
 // availableVersions. Imported so ModelSelectorPanel can render version pickers
 // without requiring these static lists to be threaded through ModelConfig.
 import { MODEL_REGISTRY } from '@/models';
-// Gate cross-agent exception: getModelAccentColors is called to seed the
-// initial accentColors state and to refresh it after any color save/clear
-// triggered by AccentColorPicker. Aria reads the result; Gate owns the store.
-import { getModelAccentColors } from '@/auth';
+// Gate cross-agent exceptions:
+// getModelAccentColors is called to seed the initial accentColors state and to
+// refresh it after any color save/clear triggered by AccentColorPicker.
+// getProviderRoster is read at panel-open time to resolve image-generation
+// capability per model. Same pattern as InputBar.tsx §getNonVisionModelNames.
+import { getModelAccentColors, getProviderRoster } from '@/auth';
 import { AccentColorPicker } from './AccentColorPicker';
 
 // #146: sub-components extracted from ModelSelectorPanel.tsx for maintainability.
@@ -21,6 +23,8 @@ import { AddModelButton } from './components/model-selector/AddModelButton';
 import { SystemPromptRow } from './components/model-selector/SystemPromptRow';
 import { ModelVersionRow } from './components/model-selector/ModelVersionRow';
 import { SessionTokenSection } from './components/model-selector/SessionTokenSection';
+// #379: per-model image generation opt-in toggle.
+import { ImageGenerationRow } from './components/model-selector/ImageGenerationRow';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +36,22 @@ import { SessionTokenSection } from './components/model-selector/SessionTokenSec
 const AVAILABLE_VERSIONS_BY_MODEL_ID = new Map<ModelId, ModelVersionOption[]>(
   MODEL_REGISTRY.map((entry) => [entry.modelId, entry.availableVersions]),
 );
+
+/**
+ * Returns a Set of modelIds for which the provider roster declares
+ * `capabilities.imageGeneration === true`. Called synchronously at panel-open
+ * time — the roster is stable while the panel is open. Same pattern as
+ * InputBar.tsx §getNonVisionModelNames (#379).
+ */
+function getImageCapableModelIds(roster: ProviderConfig[]): Set<ModelId> {
+  const ids = new Set<ModelId>();
+  for (const config of roster) {
+    if (config.capabilities?.imageGeneration === true) {
+      ids.add(config.kind === 'builtin' ? config.modelId : config.id);
+    }
+  }
+  return ids;
+}
 
 // ─── ModelSelectorPanel ───────────────────────────────────────────────────────
 
@@ -52,6 +72,14 @@ interface ModelSelectorPanelProps {
    * App calls clearModelVersion (Gate) and sets selectedVersionId to undefined.
    */
   onClearModelVersion: (modelId: ModelId) => void;
+  /**
+   * Called when the user toggles image generation for a model.
+   * Only rendered for models whose provider has capabilities.imageGeneration === true.
+   * App persists the value to ModelConfig.imageGenerationEnabled in the active conversation.
+   * Atlas reads this field in sendMessage.ts to gate image output modality params (#379).
+   * Optional: defaults to a no-op so existing test renders without this prop still compile.
+   */
+  onToggleImageGeneration?: (modelId: ModelId, enabled: boolean) => void;
   /**
    * Per-model token usage totals for the current session.
    * Computed by App via getSessionTokenUsage() from @/models (documented exception).
@@ -85,6 +113,7 @@ export function ModelSelectorPanel({
   onUpdateSystemPrompt,
   onSelectModelVersion,
   onClearModelVersion,
+  onToggleImageGeneration = () => {},
   sessionUsage,
   tokenCountVisibility,
   onOpenProviderSettings,
@@ -97,6 +126,14 @@ export function ModelSelectorPanel({
   // saves or clears a color so that pill icons update without a full page reload.
   const [accentColors, setAccentColors] = useState<ModelAccentColors>(
     () => getModelAccentColors(),
+  );
+
+  // ── Image-gen capability snapshot ─────────────────────────────────────────
+  // Read the roster synchronously at panel-open time. Refreshed whenever the
+  // panel opens so it picks up roster changes from ProviderSettingsPanel.
+  // Stored as a Set<ModelId> for O(1) membership tests in the render pass.
+  const [imageCapableIds, setImageCapableIds] = useState<Set<ModelId>>(
+    () => getImageCapableModelIds(getProviderRoster()),
   );
 
   // Which model's color picker is open, and its anchor rect.
@@ -224,6 +261,9 @@ export function ModelSelectorPanel({
       setIsOpen(true);
       // Refresh accent color snapshot when the panel opens.
       setAccentColors(getModelAccentColors());
+      // Refresh image-gen capability snapshot when the panel opens so roster
+      // changes made in ProviderSettingsPanel are reflected immediately.
+      setImageCapableIds(getImageCapableModelIds(getProviderRoster()));
     }
   }, [isOpen]);
 
@@ -418,6 +458,34 @@ export function ModelSelectorPanel({
               ))}
             </div>
           </div>
+
+          {/* ── Image generation section (#379) ──
+               Only rendered when at least one active model supports image generation.
+               Capability derived from provider roster; toggling writes to
+               ModelConfig.imageGenerationEnabled via onToggleImageGeneration. */}
+          {(() => {
+            const imageGenModels = activeModels.filter((m) => imageCapableIds.has(m.modelId));
+            if (imageGenModels.length === 0) return null;
+            return (
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
+                  Image generation
+                </p>
+                <div className="rounded-md border border-border-subtle overflow-hidden">
+                  {imageGenModels.map((model) => (
+                    <ImageGenerationRow
+                      key={model.modelId}
+                      model={model}
+                      onToggle={onToggleImageGeneration}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-text-muted">
+                  When enabled, this model will include image output alongside text.
+                </p>
+              </div>
+            );
+          })()}
 
           {/* ── Token usage section ── */}
           <SessionTokenSection
