@@ -108,10 +108,10 @@ function builtInConfig(overrides: Partial<BuiltInProviderConfig> = {}): BuiltInP
     // lacks the field (on-read migration added in Gate #285 Wave 2). The default
     // modelId is 'claude', whose canonical capabilities are:
     //   { vision: true, streamUsage: true, toolUse: true, systemPrompt: true }
-    // gpt-5.5 shares these values, so tests that override modelId to 'gpt-5.5'
-    // also round-trip correctly without needing their own capabilities override.
-    // Tests that override modelId to gemini/grok/deepseek/mistral and assert
-    // full structural equality must override capabilities to match that model.
+    // Tests that override modelId (gpt-5.5, gemini, grok, deepseek, mistral) and
+    // assert full structural equality must override capabilities to match that
+    // model's BUILTIN_CAPABILITIES_MAP entry exactly — the map is authoritative
+    // (e.g. gpt-5.5 gained imageGeneration: true in #379/#384).
     capabilities: { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
     ...overrides,
   };
@@ -284,7 +284,13 @@ describe('getProviderRoster', () => {
 
   it('preserves array ordering', () => {
     const first = builtInConfig({ modelId: 'claude' });
-    const second = builtInConfig({ modelId: 'gpt-5.5', credentialKey: 'openai' });
+    // gpt-5.5 has imageGeneration: true in BUILTIN_CAPABILITIES_MAP (#379/#384);
+    // readRoster() always uses the map as the authoritative source for capabilities.
+    const second = builtInConfig({
+      modelId: 'gpt-5.5',
+      credentialKey: 'openai',
+      capabilities: { vision: true, streamUsage: true, toolUse: true, systemPrompt: true, imageGeneration: true },
+    });
     const third = customConfig({ id: 'custom:z', displayName: 'Z Provider' });
     setRaw(JSON.stringify([first, second, third]));
     const roster = getProviderRoster();

@@ -303,7 +303,7 @@ describe('chunk handler — done chunk finalization', () => {
     expect(getStreamingMessages()).toHaveLength(0);
   });
 
-  it('isStreaming flips to false after the done chunk', () => {
+  it('isStreaming flips to false after the done chunk', async () => {
     render(<App />);
     triggerSend('hello');
 
@@ -311,6 +311,11 @@ describe('chunk handler — done chunk finalization', () => {
     expect(isStreaming()).toBe(true);
 
     pushChunk({ modelId: 'claude', content: '', isDone: true });
+    // Flush the sendMessage().finally(() => setIsPending(false)) microtask so
+    // isPending clears before we assert. The mock sendMessage() resolves
+    // immediately, but .finally() runs as a microtask — synchronous act() does
+    // not drain the microtask queue. (#389)
+    await act(async () => {});
 
     expect(isStreaming()).toBe(false);
   });
@@ -392,7 +397,7 @@ describe('chunk handler — error propagation', () => {
     expect(assistantMsg.error).toEqual({ code: 'rate_limit', message: 'Too many requests', source: 'model' });
   });
 
-  it('error on done chunk still clears the streaming message from state', () => {
+  it('error on done chunk still clears the streaming message from state', async () => {
     render(<App />);
     triggerSend('hello');
 
@@ -403,6 +408,9 @@ describe('chunk handler — error propagation', () => {
       isDone: true,
       error: { code: 'network_error', message: 'Connection lost', source: 'model' as const },
     });
+    // Flush the sendMessage().finally(() => setIsPending(false)) microtask so
+    // isPending clears before we assert on isStreaming. (#389)
+    await act(async () => {});
 
     expect(getStreamingMessages()).toHaveLength(0);
     expect(isStreaming()).toBe(false);
@@ -589,7 +597,7 @@ describe('chunk handler — multi-model parallel streaming', () => {
     expect(isStreaming()).toBe(true);
   });
 
-  it('isStreaming only reaches false when ALL models send isDone', () => {
+  it('isStreaming only reaches false when ALL models send isDone', async () => {
     mockActiveConversation = makeTestConversation({
       models: [
         { modelId: 'claude', name: 'Claude', color: 'accent-claude', isActive: true },
@@ -609,6 +617,9 @@ describe('chunk handler — multi-model parallel streaming', () => {
 
     // Now gpt-5.5 done.
     pushChunk({ modelId: 'gpt-5.5', content: '', isDone: true });
+    // Flush the sendMessage().finally(() => setIsPending(false)) microtask so
+    // isPending clears before we assert on isStreaming. (#389)
+    await act(async () => {});
     expect(isStreaming()).toBe(false); // both done
   });
 });
