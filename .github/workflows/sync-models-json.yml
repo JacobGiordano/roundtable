@@ -1,0 +1,115 @@
+# .github/workflows/sync-models-json.yml
+#
+# Nightly sync of models.json (and public/models.json) from the OpenRouter
+# public model catalog. Runs at 06:00 UTC daily and is also dispatchable
+# manually from the Actions tab.
+#
+# What it does:
+#   1. Fetches https://openrouter.ai/api/v1/models (public, no auth required).
+#   2. Filters to the five built-in provider prefixes Roundtable supports:
+#      anthropic/, openai/, google/, mistralai/, deepseek/.
+#   3. Writes the parsed result as models.json and public/models.json.
+#   4. Diffs against the committed files — if nothing changed, the job exits
+#      cleanly without a commit.
+#   5. If changed, commits both files to main with "[skip ci]" so this commit
+#      does not re-trigger the CI workflow.
+#
+# Secrets required: none.
+#   GITHUB_TOKEN is auto-provided by Actions and is used only for the push step.
+#
+# Expected runtime: ~30 seconds (single network fetch, no build steps).
+
+name: Sync models.json from OpenRouter
+
+on:
+  schedule:
+    # 06:00 UTC daily
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Fetch and sync models.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Use the auto-provided token so the push step can write to main.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # Fetch, parse, and write models.json + public/models.json in one Node
+      # script. Using node --input-type=module keeps the logic self-contained
+      # in this YAML file — no extra script file to maintain.
+      - name: Fetch OpenRouter model catalog and write models.json
+        run: |
+          node --input-type=module << 'EOF'
+          import { writeFileSync } from 'fs';
+
+          const PROVIDERS = ['anthropic', 'openai', 'google', 'mistralai', 'deepseek'];
+
+          // Fetch the OpenRouter public model list (no API key required).
+          const res = await fetch('https://openrouter.ai/api/v1/models');
+          if (!res.ok) {
+            throw new Error(`OpenRouter fetch failed: ${res.status} ${res.statusText}`);
+          }
+          const { data } = await res.json();
+
+          // Build per-provider model arrays.
+          const providers = {};
+          for (const provider of PROVIDERS) {
+            providers[provider] = [];
+          }
+
+          for (const model of data) {
+            const id = model.id ?? '';
+            const slashIdx = id.indexOf('/');
+            if (slashIdx === -1) continue;
+
+            const prefix = id.slice(0, slashIdx);
+            if (!PROVIDERS.includes(prefix)) continue;
+
+            const nativeId = id.slice(slashIdx + 1);
+            // OpenRouter's `name` field is a human-readable label (e.g. "Claude Opus 4").
+            // Fall back to the native ID when name is absent.
+            const displayName = (model.name ?? nativeId).trim();
+
+            providers[prefix].push({ id: nativeId, displayName });
+          }
+
+          const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          const output = JSON.stringify({ updated: today, providers }, null, 2) + '\n';
+
+          writeFileSync('models.json', output, 'utf8');
+          writeFileSync('public/models.json', output, 'utf8');
+
+          console.log('models.json written. Provider counts:');
+          for (const [p, models] of Object.entries(providers)) {
+            console.log(`  ${p}: ${models.length} models`);
+          }
+          EOF
+
+      # Only commit when the content actually changed. `git diff --cached --quiet`
+      # exits 0 (no diff) after staging — if the file was already identical, git
+      # add produces no staged change and the commit step is skipped cleanly.
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add models.json public/models.json
+
+          if git diff --cached --quiet; then
+            echo "models.json is already up to date — no commit needed."
+            exit 0
+          fi
+
+          git commit -m "chore(models): sync models.json from OpenRouter [skip ci]"
+          git push origin main
+          echo "Committed and pushed updated models.json."
