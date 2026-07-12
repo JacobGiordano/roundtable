@@ -91,6 +91,7 @@ describe('addBuiltInProvider — capabilities field (issue #285 Wave 2)', () => 
       streamUsage: true,
       toolUse: true,
       systemPrompt: true,
+      imageGeneration: true,
     });
   });
 
@@ -101,6 +102,7 @@ describe('addBuiltInProvider — capabilities field (issue #285 Wave 2)', () => 
       streamUsage: false,
       toolUse: true,
       systemPrompt: true,
+      imageGeneration: true,
     });
   });
 
@@ -174,6 +176,7 @@ describe('getProviderRoster — built-in capabilities migration (issue #285 Wave
       streamUsage: false,
       toolUse: true,
       systemPrompt: true,
+      imageGeneration: true,
     });
   });
 
@@ -247,6 +250,7 @@ describe('getProviderRoster — built-in capabilities migration (issue #285 Wave
       streamUsage: true,
       toolUse: true,
       systemPrompt: true,
+      imageGeneration: true,
     });
 
     const custom = roster.find((p) => p.kind === 'custom') as CustomProviderConfig;
