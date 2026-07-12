@@ -1,4 +1,4 @@
-Last updated: 2026-07-11 (post-#381 + #382 ship)
+Last updated: 2026-07-12 (post-#383 ship)
 
 ## Current phase
 
@@ -6,11 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #381 (Atlas: capability discovery) and #382 (Aria: @mention autocomplete) as a parallel wave.
+Shipped #383 (Atlas + Aria: abort/cancel in-flight model responses).
 
-**#381**: Mistral wired to live API (`fetchMistralCatalog` → `/v1/models`, maps vision/toolUse/contextWindow). OpenAI and DeepSeek get model-ID heuristics (`inferOpenAICapabilities`, `inferDeepSeekCapabilities`) in new `src/models/capabilities.ts`. No type changes — all in Atlas-owned files.
+Atlas wired an internal `AbortController` per `sendMessage` call, combined with Aria's external signal via `AbortSignal.any()`. Exports `stopMessage: StopMessageFn` from `@/models`. All six providers already had AbortError paths from #159; no provider changes needed.
 
-**#382**: `@` in InputBar opens a popover above the input listing active models (filter, keyboard nav, click-away). `@ModelName ` gets a model-accent highlight overlay. On send: token stripped, routes exclusively to the mentioned model. "→ ModelName" label in receiving bubble nameplate. Ada 43/43 pass.
+Aria (existing, from #159): stop button in InputBar replaces send button while `isStreaming`. Fix this session: `isPending` state flips true at dispatch time (not first-chunk time), so the stop button is visible during the full pre-stream window.
 
 ## Key decisions
 
@@ -41,10 +41,11 @@ Shipped #381 (Atlas: capability discovery) and #382 (Aria: @mention autocomplete
 - @mention token is routing metadata — stripped before send, never delivered to model
 - @mention popover positions above input bar (viewport-bottom constraint)
 - `capabilityHeuristic` field lives in `ModelRegistryEntry` (registry.ts) — not in types/index.ts
+- Stop button: `isPending` covers dispatch→first-chunk window; `isStreaming` covers streaming window
+- `stopMessage` in `@/models` uses `AbortSignal.any()` — external (Aria) + internal signals both cancel
 
 ## Open issues
 
-- `#383` — Atlas+Aria: abort/cancel button for in-flight model responses
 - `#377` — Atlas: OpenAI image generation via gpt-image-2 [deferred]
 
 ## Gotchas
