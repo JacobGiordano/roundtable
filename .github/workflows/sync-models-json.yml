@@ -6,8 +6,8 @@
 #
 # What it does:
 #   1. Fetches https://openrouter.ai/api/v1/models (public, no auth required).
-#   2. Filters to the five built-in provider prefixes Roundtable supports:
-#      anthropic/, openai/, google/, mistralai/, deepseek/.
+#   2. Filters to the six built-in provider prefixes Roundtable supports:
+#      anthropic/, openai/, google/, mistralai/, deepseek/, x-ai/.
 #   3. Writes the parsed result as models.json and public/models.json.
 #   4. Diffs against the committed files — if nothing changed, the job exits
 #      cleanly without a commit.
@@ -52,7 +52,7 @@ jobs:
           node --input-type=module << 'EOF'
           import { writeFileSync } from 'fs';
 
-          const PROVIDERS = ['anthropic', 'openai', 'google', 'mistralai', 'deepseek'];
+          const PROVIDERS = ['anthropic', 'openai', 'google', 'mistralai', 'deepseek', 'x-ai'];
 
           // Fetch the OpenRouter public model list (no API key required).
           const res = await fetch('https://openrouter.ai/api/v1/models');
