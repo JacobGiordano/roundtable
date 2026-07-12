@@ -1,4 +1,4 @@
-Last updated: 2026-07-12 (post-#384 ship)
+Last updated: 2026-07-12 (post-#386 + #389 ship)
 
 ## Current phase
 
@@ -6,21 +6,23 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #384 (Gate: extend `isValidCapabilities` `knownFields` to cover all `ProviderCapabilities` fields — `imageGeneration`, `thinking`, `structuredOutputs`, `contextManagement` added). `Array<keyof ProviderCapabilities>` type annotation now catches future drift at compile time.
+Shipped #386 (Atlas + Forge + Scout: OpenRouter-based live model discovery for built-in providers). Three-tier chain per provider: OpenRouter live fetch → `models.json` GitHub raw URL → bundled `availableVersions`. `models.json` and `public/models.json` created. Nightly `sync-models-json.yml` workflow syncs from OpenRouter and auto-commits both files. Rune reviewed: yellow → Finding 4 (x-ai missing from workflow PROVIDERS) fixed before ship; #387 (model ID sanitization, prerequisite for UI wire-up) and #388 (console.warn body truncation) opened as deferred.
 
-Also shipped #385 (Atlas: gpt-5.6 registry entry) and #377 (Atlas + Gate + Scout: OpenAI image generation via gpt-image-2).
+Shipped #389 (Gate + Scout + Ada: pre-existing CI test failures). Root causes: stale `imageGeneration: true` missing from capability assertions (Gate + Scout), `isStreaming` tests needed `await act(async () => {})` for microtask flush after `isPending` was added to context (Scout), directed-to label assertion updated for Aria's ARIA 1.2 §6.2.6 fix (Ada). Full suite now 2114 passed / 7 skipped / 0 failed.
 
-Atlas added `generateImage()` to `GPT55ModelProvider` in `gpt.ts` — routes to `/v1/images/generations` when `IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true`. Parses `b64_json` response into `GeneratedImage[]`; emits a single done chunk with `images` populated and no token usage (endpoint returns none). Gate added `imageGeneration: true` to `BUILTIN_CAPABILITIES_MAP['gpt-5.5']` to enable the UI toggle and satisfy the gate in `sendMessage.ts`. Scout added 40 integration tests covering all paths. Rune: green.
+Opened #390 (feat: image action controls — download, copy, lightbox metadata). Team design brief posted: Aria recommends hover overlay (download icon) + full controls in lightbox, altText as tooltip and collapsible info panel, PNG-only copy-to-clipboard. Atlas confirmed altText absent for ALL Gemini images and conditional for GPT; derive file ext from mimeType; filename `roundtable-image-<timestamp>.<ext>`.
 
 ## Key decisions
 
-- `IMAGE_GEN_MODEL_STRINGS` in `gpt.ts` gates which model versions use `/v1/images/generations` vs chat completions
-- `gpt-image-2` MIME type hardcoded to `image/png` (API returns no MIME type for b64_json responses)
-- `revised_prompt` from OpenAI response → `GeneratedImage.altText` (OpenAI may rewrite prompts)
-- `tokenUsage` is `undefined` for image gen responses — images endpoint returns no token counts
-- `gpt-image-1` kept in `IMAGE_GEN_MODEL_STRINGS` until Oct 23 2026 (OpenAI deprecation date); no runtime UI
-- `BUILTIN_CAPABILITIES_MAP['gpt-5.5']` now includes `imageGeneration: true` (same pattern as gemini)
-- `isValidCapabilities()` `knownFields` missing `imageGeneration`/`thinking`/`structuredOutputs`/`contextManagement` — Gate ticket opened (#384), not a blocker
+- OpenRouter prefix map: anthropic → `anthropic`, GPT → `openai`, Gemini → `google`, Grok → `x-ai`, DeepSeek → `deepseek`, Mistral → `mistralai`
+- `openrouterPrefix` lives on `ModelRegistryEntry` in `registry.ts` (Atlas-owned) — no types/index.ts change needed
+- Capabilities NOT sourced from OpenRouter — `BUILTIN_CAPABILITIES_MAP` remains authoritative
+- `models.json` / `public/models.json` pattern mirrors `pricing.json` / `public/pricing.json`
+- sync-models-json.yml uses `[skip ci]` on auto-commits to avoid re-triggering CI
+- #387 (model ID sanitization) is a hard prerequisite before any PR wires live catalog into the version picker UI
+- altText absent for ALL Gemini images, conditional for GPT (only when prompt was revised) — treat as always optional
+- Download filename: `roundtable-image-<timestamp>.<ext>`, ext derived from mimeType
+- Copy-to-clipboard: PNG-only gate required (ClipboardItem JPEG support inconsistent across browsers)
 - GitHub Pages source: gh-pages branch → / (root) — must not change
 - Backend CI pinned to Node 22 LTS
 - Pricing URL resolution: localStorage override → VITE_PRICING_URL → canonical default
@@ -53,18 +55,22 @@ Atlas added `generateImage()` to `GPT55ModelProvider` in `gpt.ts` — routes to 
 
 ## Open issues
 
-- `#386` — Atlas + Forge: OpenRouter-based live model discovery for built-in providers
+- `#387` — Atlas: sanitize model IDs from external sources before use (prerequisite for UI wire-up of live discovery)
+- `#388` — Atlas: replace verbatim external response body in console.warn validation failures
+- `#390` — Aria + Ada + Scout: image action controls (download, copy, lightbox metadata) — design brief posted
 
 ## Gotchas
 
 - ProxyNudge only renders in import.meta.env.PROD — not visible in npm run dev
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically — changing to 24 breaks npm ci
-- Chunk size warning on build (780 kB) — pre-existing, grew with @mention overlay components
+- Chunk size warning on build (783 kB) — pre-existing, grew with @mention overlay components
 - Container DNS: OpenAI CDN IPs baked into ipset at container start — ENOTFOUND on api.openai.com
   means restart the CONTAINER (not just dev server) to re-resolve; SOP §"Dev container" has details
 - pricing.json: o1-mini and open-mistral-nemo output rates are unverified estimates
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after that date
+- OpenRouter fetch in dev container: openrouter.ai not on firewall allowlist — tier 1 silently returns [] in dev, falls through to models.json (tier 2) or bundled (tier 3) — expected behavior
+- #387 is a hard prerequisite before any PR wires live catalog results into the version picker UI
 - Rune: called before any PR touching auth, API key handling, model output rendering, or backend routes
 - Gauge: called on request or before PRs with non-trivial logic changes or refactors
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
