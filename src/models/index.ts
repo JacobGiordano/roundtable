@@ -7,7 +7,10 @@ export { GrokModelProvider, grokProvider, GROK_CONFIG } from './grok';
 export { DeepSeekModelProvider, deepseekProvider, DEEPSEEK_CONFIG } from './deepseek';
 export { MistralModelProvider, mistralProvider, MISTRAL_CONFIG } from './mistral';
 export { GenericOpenAIProvider, createCustomProvider } from './generic';
-export { sendMessage, getSessionTokenUsage } from './sendMessage';
+export { sendMessage, stopMessage, getSessionTokenUsage } from './sendMessage';
+// stopMessage — Aria may import this to wire the stop button. Cross-agent exception:
+// Atlas installs the real implementation when sendMessage dispatches and resets to
+// a no-op once all streams settle. Documented exception per CLAUDE.md. (#383)
 
 // Central model registry — Aria may import MODEL_REGISTRY and buildDefaultModelConfigs
 // to populate the model selector (documented cross-agent exception per CLAUDE.md).

@@ -24,6 +24,7 @@
 
 import type {
   SendMessageOptions,
+  StopMessageFn,
   StreamHandler,
   Conversation,
   Message,
@@ -608,6 +609,31 @@ async function runAutoChain(
   }
 }
 
+// ─── stopMessage — Atlas-owned abort control (#383) ──────────────────────────
+
+/**
+ * Abort all active streams for the current sendMessage fan-out.
+ *
+ * Starts as a no-op. The real implementation is installed atomically at the
+ * moment sendMessage() begins dispatching (before any provider fetch fires),
+ * and reset to a no-op in the finally block once all streams settle.
+ *
+ * Design: sendMessage creates an internal AbortController per call. When
+ * options.signal is also provided (Aria's controller), the two signals are
+ * combined via AbortSignal.any() so either path — calling stopMessage() here
+ * OR aborting via options.signal — cancels all in-flight provider streams.
+ *
+ * Concurrency: Roundtable dispatches at most one sendMessage call at a time.
+ * A new send cancels the previous one (via the stop button or auto-replace);
+ * parallel waves are not supported in Phase 1–5. Module-level state is therefore
+ * safe here — no two concurrent calls compete over this variable.
+ *
+ * Cross-agent exception: Aria may import stopMessage from @/models (documented
+ * here per the same pattern as getSessionTokenUsage). It is the only StopMessageFn
+ * implementation in /src/models — no other agent needs to supply one. (#383)
+ */
+export let stopMessage: StopMessageFn = () => {};
+
 // ─── SendMessageFn ────────────────────────────────────────────────────────────
 
 /**
@@ -631,9 +657,11 @@ async function runAutoChain(
  *   directly as before — no roster lookup occurs.
  *
  * Usage by Aria:
- *   import { sendMessage } from '@/models';
+ *   import { sendMessage, stopMessage } from '@/models';
  *   // Parallel:
  *   await sendMessage({ conversationId, content }, onChunk);
+ *   // Stop:
+ *   stopMessage();
  *   // Directed:
  *   await sendMessage({ conversationId, content, targetModelId: 'claude' }, onChunk);
  *   // Auto-chain:
@@ -642,12 +670,37 @@ async function runAutoChain(
  * Note: The extended signature accepts an optional conversation parameter so callers
  * can scope active providers to a specific conversation. If omitted, all
  * registered providers are used.
+ *
+ * Cancellation (#383): creates an internal AbortController per call and installs
+ * the real stopMessage before dispatch. options.signal (if provided) is combined
+ * with the internal signal via AbortSignal.any() so both abort paths work. After
+ * all streams settle, stopMessage is reset to the no-op stub.
  */
 export async function sendMessage(
   options: SendMessageOptions & { conversation?: Conversation; systemPrompt?: string },
   onChunk: StreamHandler
 ): Promise<void> {
-  const { conversation, systemPrompt, content, targetModelId, chainConfig, signal } = options;
+  // ── Abort signal setup (#383) ───────────────────────────────────────────────
+  //
+  // Create a fresh AbortController per call. This is the controller stopMessage
+  // will fire. If the caller also passes options.signal (Aria's own controller),
+  // combine both signals via AbortSignal.any() so either path cancels the streams.
+  //
+  // AbortSignal.any() is available in Node 20+, Chrome 116+, Firefox 124+, Safari
+  // 17.4+ — all within this project's minimum browser/runtime targets.
+  const internalController = new AbortController();
+  const effectiveSignal = options.signal
+    ? AbortSignal.any([options.signal, internalController.signal])
+    : internalController.signal;
+
+  // Install the real stopMessage before any provider fetch fires. This is
+  // intentionally synchronous (before any await) so there is no window between
+  // the call site and dispatch where stopMessage is still the no-op stub.
+  stopMessage = () => { internalController.abort(); };
+
+  const { conversation, systemPrompt, content, targetModelId, chainConfig } = options;
+  // Use effectiveSignal (combines options.signal + internal) for all dispatch paths.
+  const signal = effectiveSignal;
 
   // Resolve active providers from the ProviderRoster when a conversation is available.
   // The PROVIDERS fallback (no conversation) preserves existing behavior for callers
@@ -798,27 +851,35 @@ export async function sendMessage(
   // is also present. In auto-chain mode chainConfig is always built from all active
   // models, so checking it before targetModelId would silently swallow directed
   // replies and fan out to every model instead — the bug fixed in issue #373.
+  //
+  // The try/finally ensures stopMessage is always reset to the no-op stub once
+  // all streams settle — whether by normal completion, abort, or unexpected throw.
+  // This makes post-dispatch calls to stopMessage safe no-ops. (#383)
+  try {
+    // Directed reply — route to a single model.
+    if (targetModelId) {
+      await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
+      return;
+    }
 
-  // Directed reply — route to a single model.
-  if (targetModelId) {
-    await runDirected(targetModelId, activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
-    return;
+    // Auto-chain — if chainConfig is supplied, sequence the steps.
+    // runAutoChain performs its own roster resolution and missing-entry handling.
+    if (chainConfig) {
+      await runAutoChain(
+        { ...options, conversation, systemPrompt, signal },
+        messages,
+        wrappedOnChunk
+      );
+      return;
+    }
+
+    // Default — parallel broadcast.
+    if (activeProviders.length === 0) return;
+    await runParallel(activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
+  } finally {
+    // Reset to the no-op stub so post-dispatch calls are safe. (#383)
+    stopMessage = () => {};
   }
-
-  // Auto-chain — if chainConfig is supplied, sequence the steps.
-  // runAutoChain performs its own roster resolution and missing-entry handling.
-  if (chainConfig) {
-    await runAutoChain(
-      { ...options, conversation, systemPrompt },
-      messages,
-      wrappedOnChunk
-    );
-    return;
-  }
-
-  // Default — parallel broadcast.
-  if (activeProviders.length === 0) return;
-  await runParallel(activeProviders, messages, systemPrompt, wrappedOnChunk, conversation, signal, visionCapable, imageGenEnabled);
 }
 
 /**
