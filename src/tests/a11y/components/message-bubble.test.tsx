@@ -588,18 +588,20 @@ describe('MessageBubble — Fix #275: Custom provider hex color path (WCAG 4.1.2
   });
 
   it('directed-to label communicates model name with hex accent color', () => {
-    const { container } = render(
+    render(
       <MessageBubble
         message={USER_DIRECTED_MESSAGE}
         targetModelConfig={CUSTOM_CONFIG}
         tokenCountVisibility="never"
       />
     );
-    // The directed-to label div has aria-label="Directed to Local LLM" regardless
-    // of whether the accent color resolves via CSS var or raw hex.
-    const directedLabel = container.querySelector('[aria-label^="Directed to"]');
-    expect(directedLabel).not.toBeNull();
-    expect(directedLabel?.getAttribute('aria-label')).toBe('Directed to Local LLM');
+    // The directed-to label expresses "Directed to {name}" as visible text in a
+    // <span> (ARIA 1.2 §6.2.6 prohibits aria-label on role="generic" elements).
+    // Screen readers announce the span text directly — no aria-label is needed.
+    // The → glyph is aria-hidden="true" (decorative only).
+    const directedSpan = screen.getByText('Directed to Local LLM');
+    expect(directedSpan).toBeTruthy();
+    expect(directedSpan.tagName.toLowerCase()).toBe('span');
   });
 });
 
