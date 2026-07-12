@@ -5,6 +5,10 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Attachment, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
+// #390: downloadImage shared utility — used in the generated-image thumbnail hover
+// overlay. Extracted to utils/ so both Lightbox and MessageBubble share the same
+// download implementation without cross-component imports.
+import { downloadImage } from './utils/imageActions';
 // #357: formatCost shared util — displays per-message estimated cost in the bubble footer.
 import { formatCost } from './utils/formatCost';
 // #294: resolveAccentCssColor is the shared single source of truth for accent
@@ -92,6 +96,38 @@ function EditIcon() {
         d="M9.5 2.5L11.5 4.5L5 11H3V9L9.5 2.5Z"
         stroke="currentColor"
         strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Download arrow icon — 16×16 SVG, for the generated-image thumbnail hover overlay (#390).
+ *  Single-use in MessageBubble — not shared with Lightbox which uses a larger 20×20 variant.
+ *  aria-hidden: parent button carries the accessible label.
+ */
+function ThumbnailDownloadIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className="flex-shrink-0"
+    >
+      <path
+        d="M8 2.5v7m0 0L5.5 7m2.5 2.5L10.5 7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 11.5v1a1.5 1.5 0 001.5 1.5h7A1.5 1.5 0 0013 12.5v-1"
+        stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -749,51 +785,139 @@ export function MessageBubble({
             >
               {message.generatedImages.map((img, idx) => {
                 const imgSrc = `data:${img.mimeType};base64,${img.base64}`;
+                const totalImages = message.generatedImages!.length;
                 const imgAlt = img.altText
                   ? img.altText
-                  : message.generatedImages!.length > 1
+                  : totalImages > 1
                     ? `Generated image ${idx + 1}`
                     : 'Model-generated image';
                 const triggerLabel = img.altText
                   ? `View full size: ${img.altText}`
-                  : message.generatedImages!.length > 1
+                  : totalImages > 1
                     ? `View full size: Generated image ${idx + 1}`
                     : 'View full size: Model-generated image';
-                const isSingle = message.generatedImages!.length === 1;
+                const isSingle = totalImages === 1;
+
+                // ── Download button aria-label (#390 spec) ───────────────────
+                // Four variants based on altText presence and single vs. multi-strip:
+                //   "Download generated image"                          // no alt, single
+                //   "Download: {altText}"                               // alt, single (~60 chars)
+                //   "Download generated image {n} of {total}"          // no alt, multi
+                //   "Download: {altText} (image {n} of {total})"       // alt, multi
+                const downloadLabel = (() => {
+                  const altSnippet = img.altText?.slice(0, 60);
+                  if (altSnippet && totalImages > 1) {
+                    return `Download: ${altSnippet} (image ${idx + 1} of ${totalImages})`;
+                  }
+                  if (altSnippet) return `Download: ${altSnippet}`;
+                  if (totalImages > 1) return `Download generated image ${idx + 1} of ${totalImages}`;
+                  return 'Download generated image';
+                })();
+
+                // ── altText tooltip via aria-describedby (#390 spec) ────────
+                // Visually hidden span with truncated alt text (max 120 chars).
+                // Points thumbnail trigger button's aria-describedby at this span.
+                // Only rendered when altText is present. Never uses title attribute.
+                const tooltipId = img.altText ? `gen-img-tooltip-${img.id}` : undefined;
+
                 return (
-                  <button
+                  // Thumbnail wrapper: `group` enables group-hover on the overlay.
+                  // `relative` allows the overlay to be positioned against this wrapper.
+                  // The overlay is a sibling of the trigger button — not nested inside —
+                  // because interactive elements (<button>) cannot be nested inside <button>.
+                  <div
                     key={img.id}
-                    type="button"
-                    aria-label={triggerLabel}
-                    onClick={(e) => {
-                      generatedImageLightboxReturnRef.current = e.currentTarget;
-                      setLightboxGeneratedImageIdx(idx);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        generatedImageLightboxReturnRef.current = e.currentTarget;
-                        setLightboxGeneratedImageIdx(idx);
-                      }
-                    }}
                     className={[
-                      'relative rounded overflow-hidden cursor-zoom-in',
+                      'relative group',
                       isSingle ? 'block' : 'flex-shrink-0',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                     ].join(' ')}
                   >
-                    <img
-                      src={imgSrc}
-                      alt={imgAlt}
-                      width={img.width}
-                      height={img.height}
-                      className={
-                        isSingle
-                          ? 'max-w-full max-h-[280px] rounded object-contain'
-                          : 'w-[140px] h-[140px] rounded object-cover'
-                      }
-                    />
-                  </button>
+                    {/* Visually hidden tooltip span (#390) — aria-describedby target.
+                        sr-only keeps it out of the visual layout; screen readers
+                        announce it as supplementary description on the trigger button.
+                        Only rendered when altText is present on this image.
+                        Never uses title attribute — unreliable with screen readers. */}
+                    {tooltipId && (
+                      <span id={tooltipId} className="sr-only">
+                        {img.altText!.slice(0, 120)}
+                      </span>
+                    )}
+
+                    {/* Lightbox trigger button — whole thumbnail is the zoom trigger.
+                        aria-describedby: points at the hidden altText span when present,
+                        giving screen readers additional context beyond the aria-label. */}
+                    <button
+                      type="button"
+                      aria-label={triggerLabel}
+                      {...(tooltipId ? { 'aria-describedby': tooltipId } : {})}
+                      onClick={(e) => {
+                        generatedImageLightboxReturnRef.current = e.currentTarget;
+                        setLightboxGeneratedImageIdx(idx);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          generatedImageLightboxReturnRef.current = e.currentTarget;
+                          setLightboxGeneratedImageIdx(idx);
+                        }
+                      }}
+                      className={[
+                        'block rounded overflow-hidden cursor-zoom-in',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                      ].join(' ')}
+                    >
+                      <img
+                        src={imgSrc}
+                        alt={imgAlt}
+                        width={img.width}
+                        height={img.height}
+                        className={
+                          isSingle
+                            ? 'max-w-full max-h-[280px] rounded object-contain'
+                            : 'w-[140px] h-[140px] rounded object-cover'
+                        }
+                      />
+                    </button>
+
+                    {/* Hover overlay — download icon bar at bottom of thumbnail (#390).
+                        `group-hover:flex` / `hidden`: visible only when wrapper is hovered.
+                        absolute positioning overlaps the trigger button thumbnail.
+                        bg-black/50 is hardcoded (theme-independent per issue spec).
+                        This overlay is a sibling of the trigger — not nested inside it —
+                        because <button> inside <button> is invalid HTML.
+                        The download button here stops propagation so no lightbox opens. */}
+                    <div
+                      className={[
+                        'absolute bottom-0 inset-x-0',
+                        'bg-black/50 px-2 py-1',
+                        'flex items-center justify-end',
+                        'hidden group-hover:flex',
+                        // pointer-events-none would block click; we want clicks here
+                        // to land on the download button, not fall through to the trigger.
+                      ].join(' ')}
+                    >
+                      {/* Download icon button — only action in the thumbnail overlay.
+                          tabIndex={-1}: explicitly excludes from keyboard Tab order.
+                          Keyboard users access download via the lightbox dialog's download
+                          button. Explicit tabIndex={-1} is defensive — not left to depend
+                          on the parent overlay's display:none CSS state, which could change
+                          if the overlay is later refactored to use opacity-0/visibility:hidden
+                          for a fade animation. (Ada WARN-1, #390.)
+                          Elements with tabIndex={-1} receive focus:outline-none only — no ring. */}
+                      <button
+                        type="button"
+                        aria-label={downloadLabel}
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadImage(img);
+                        }}
+                        className="text-white rounded p-0.5 focus:outline-none"
+                      >
+                        <ThumbnailDownloadIcon />
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -808,18 +932,25 @@ export function MessageBubble({
               generic "Full size image" fallback. */}
           {lightboxGeneratedImageIdx !== null && message.generatedImages?.[lightboxGeneratedImageIdx] && (() => {
             const img = message.generatedImages![lightboxGeneratedImageIdx];
+            const totalImages = message.generatedImages!.length;
             const lightboxAlt = img.altText
               ? img.altText
-              : message.generatedImages!.length > 1
+              : totalImages > 1
                 ? `Generated image ${lightboxGeneratedImageIdx + 1}`
                 : 'Model-generated image';
             return (
+              // #390: generatedImage prop enables download/copy/info controls in the lightbox.
+              // imageIndex and imageTotal provide context for the download button aria-label
+              // in multi-image strips (spec: "Download generated image {n} of {total}").
               <Lightbox
                 src={`data:${img.mimeType};base64,${img.base64}`}
                 alt={lightboxAlt}
                 filename={lightboxAlt}
                 onClose={() => setLightboxGeneratedImageIdx(null)}
                 returnFocusRef={generatedImageLightboxReturnRef as React.RefObject<HTMLElement | null>}
+                generatedImage={img}
+                imageIndex={lightboxGeneratedImageIdx}
+                imageTotal={totalImages}
               />
             );
           })()}
