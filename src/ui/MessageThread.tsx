@@ -449,8 +449,33 @@ export function MessageThread({
               {allMessages.map((message, index) => {
                 const modelConfig = findModelConfig(message.modelId, models);
                 // Resolve the ModelConfig for the message's targetModelId (if any).
-                // Used to render the "→ [Model]" directed-to label on user messages.
-                const targetModelConfig = findModelConfig(message.targetModelId, models);
+                // For user messages: used to render the "→ [Model]" directed-to label.
+                // For assistant messages (#382): derive from the preceding user message's
+                // targetModelId so the routing label "→ ModelName" appears in the assistant
+                // bubble's nameplate when the message was a directed-reply response.
+                // Atlas does not stamp targetModelId on assistant messages, so we derive it
+                // from the thread context instead: find the nearest preceding user message
+                // and check if its targetModelId matches this assistant bubble's modelId.
+                const targetModelConfig = (() => {
+                  if (message.targetModelId) {
+                    return findModelConfig(message.targetModelId, models);
+                  }
+                  if (message.role === 'assistant' && message.modelId) {
+                    // Look back for the preceding user message.
+                    for (let j = index - 1; j >= 0; j--) {
+                      const prev = allMessages[j];
+                      if (prev.role === 'user') {
+                        // If the user message was directed at this specific model,
+                        // show the routing label on this assistant bubble.
+                        if (prev.targetModelId === message.modelId) {
+                          return findModelConfig(prev.targetModelId, models);
+                        }
+                        break;
+                      }
+                    }
+                  }
+                  return undefined;
+                })();
                 const entranceIndex = getEntranceIndex(allMessages, index);
 
                 // Gap between bubbles: spec says 8px same-model, 16px different model.

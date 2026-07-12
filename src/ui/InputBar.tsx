@@ -1,5 +1,9 @@
 import { useRef, useState, useCallback, useId, useEffect } from 'react';
-import type { Attachment, ModelConfig, BuiltInModelId } from '@/types';
+import type { Attachment, ModelConfig, ModelId, BuiltInModelId } from '@/types';
+// #382: AtMentionAutocomplete — popover for @model autocomplete in the textarea.
+import { AtMentionAutocomplete, filterModels } from './components/AtMentionAutocomplete';
+// #382: MentionHighlightOverlay — shows tinted @ModelName highlight over the textarea.
+import { MentionHighlightOverlay } from './components/MentionHighlightOverlay';
 // #147: shared icon system — GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon.
 // #321: PhotoIcon replaces PaperclipIcon — image-specific icon per Luma spec update 2026-07-02.
 import { GhostIcon, StopIcon, SendIcon, SmallCloseIcon, PhotoIcon } from './icons';
@@ -24,7 +28,13 @@ import { ProxyOnboardingModal } from './components/ProxyOnboardingModal';
 import { getProviderRoster, BUILTIN_MODEL_IDS, getProxyConfig, saveProxyConfig } from '@/auth';
 
 interface InputBarProps {
-  onSend: (content: string, attachments: Attachment[]) => void;
+  /**
+   * Called when the user submits a message.
+   * `targetModelId` is set when the user typed an @mention — InputBar strips
+   * the @ModelName token from content before passing it here. Atlas uses this
+   * to route only to the mentioned model. Issue #382.
+   */
+  onSend: (content: string, attachments: Attachment[], targetModelId?: ModelId) => void;
   /** When true, the send button and Enter-to-submit are disabled. Atlas sets this. */
   isStreaming?: boolean;
   /**
@@ -137,6 +147,26 @@ export function InputBar({
   const attachButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // ── @mention autocomplete state (#382) ────────────────────────────────────
+  // mentionQuery: the text typed after "@" at the current cursor position.
+  // null = popover is closed. '' = "@" just typed (show all active models).
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  // mentionActiveIndex: which item in the filtered list is highlighted. -1 = none.
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(-1);
+  // mentionedModel: the model the user selected via @mention, cleared on send.
+  // When set, send strips "@ModelName" from content and routes to this model.
+  const [mentionedModel, setMentionedModel] = useState<ModelConfig | null>(null);
+  // mentionStartIndex: where in the value string the "@" trigger begins.
+  const mentionStartIndexRef = useRef<number>(-1);
+  // Stable listbox id — generated once per InputBar mount.
+  const mentionListboxId = useId();
+  // comboboxRef: ref to the div[role="combobox"] wrapper around the textarea.
+  // AtMentionAutocomplete sets aria-expanded, aria-controls, aria-haspopup, and
+  // aria-activedescendant on THIS element — not the textarea — because those
+  // attributes are only valid on combobox-role elements per axe-core aria-allowed-attr.
+  // Issue #382.
+  const comboboxRef = useRef<HTMLDivElement>(null);
 
   // Track whether streaming has ever been active so the focus-return branch
   // (isStreaming → false) does not fire on initial render. We only want to
@@ -297,7 +327,13 @@ export function InputBar({
 
   // canSend: true when there is text OR attachments (or both), not streaming,
   // and at least one model is active (when the model count gate is wired).
-  const hasContent = value.trim().length > 0 || attachments.length > 0;
+  // #382: when a model is selected via @mention, check that stripping the mention
+  // token leaves non-empty content (or attachments are present). This prevents
+  // sending an empty message when the user types only "@ModelName" with nothing else.
+  const effectiveContent = mentionedModel
+    ? value.trim().replace(`@${mentionedModel.name}`, '').trim()
+    : value.trim();
+  const hasContent = effectiveContent.length > 0 || attachments.length > 0;
   const canSend =
     hasContent && !isStreaming && (activeModelCount === undefined || activeModelCount > 0);
 
@@ -409,9 +445,49 @@ export function InputBar({
     return !!activeModels?.some((m) => BUILTIN_MODEL_IDS.has(m.modelId as BuiltInModelId));
   }, [activeModels]);
 
+  // ── @mention strip helper (#382) ─────────────────────────────────────────
+  /**
+   * When a model was selected via @mention, strip the "@ModelName" token from
+   * the content before sending. The mention is routing metadata, not message
+   * content (Luma spec: at-mention.md §Q1). Strips the first occurrence of
+   * "@ModelName" (with optional surrounding whitespace) from the trimmed content.
+   */
+  const stripMentionFromContent = useCallback(
+    (content: string, model: ModelConfig | null): { stripped: string; targetId: ModelId | undefined } => {
+      if (!model) return { stripped: content, targetId: undefined };
+      const mentionToken = `@${model.name}`;
+      // Strip the token and any space immediately following it.
+      const stripped = content.replace(mentionToken, '').replace(/\s{2,}/g, ' ').trim();
+      return { stripped, targetId: model.modelId };
+    },
+    [],
+  );
+
+  // ── @mention core callbacks (#382) ───────────────────────────────────────
+  // These are declared before handleSend/handleKeyDown because those callbacks
+  // reference them in their dependency arrays and bodies.
+
+  /** Dismiss the @mention popover and reset all related state. */
+  const dismissMention = useCallback(() => {
+    setMentionQuery(null);
+    setMentionActiveIndex(-1);
+    mentionStartIndexRef.current = -1;
+  }, []);
+
+  /**
+   * Gets the active models filtered for @mention use.
+   * Excludes models not currently active in the conversation.
+   */
+  const getMentionCandidates = useCallback((): ModelConfig[] => {
+    return (activeModels ?? []).filter((m) => m.isActive);
+  }, [activeModels]);
+
   const handleSend = useCallback(() => {
     if (!canSend) return;
-    const content = value.trim();
+    const rawContent = value.trim();
+
+    // #382: strip @mention token and resolve targetModelId before any guard check.
+    const { stripped: content, targetId: mentionTargetId } = stripMentionFromContent(rawContent, mentionedModel);
 
     // If attachments are pending, check for non-vision models.
     if (attachments.length > 0) {
@@ -432,12 +508,14 @@ export function InputBar({
     }
 
     // All guards passed — send immediately.
-    onSend(content, attachments);
+    onSend(content, attachments, mentionTargetId);
+    setMentionedModel(null);
+    dismissMention();
     clearAll();
     setValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [canSend, value, attachments, onSend, clearAll, getNonVisionModelNames, shouldShowProxyOnboarding]);
+  }, [canSend, value, mentionedModel, attachments, onSend, clearAll, getNonVisionModelNames, shouldShowProxyOnboarding, stripMentionFromContent, dismissMention]);
 
   const handleVisionModalSend = useCallback(() => {
     if (!pendingVisionSend) return;
@@ -451,13 +529,17 @@ export function InputBar({
       return;
     }
 
-    onSend(pendingVisionSend.content, attachments);
+    // #382: pass mentionTargetId if a mention was active at vision-send time.
+    const { targetId: mentionTargetId } = stripMentionFromContent(pendingVisionSend.content, mentionedModel);
+    onSend(pendingVisionSend.content, attachments, mentionTargetId);
+    setMentionedModel(null);
+    dismissMention();
     clearAll();
     setValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setPendingVisionSend(null);
     // Focus restores via VisionWarningModal's cleanup useEffect (returnFocusRef).
-  }, [pendingVisionSend, attachments, onSend, clearAll, shouldShowProxyOnboarding]);
+  }, [pendingVisionSend, mentionedModel, attachments, onSend, clearAll, shouldShowProxyOnboarding, stripMentionFromContent, dismissMention]);
 
   const handleVisionModalCancel = useCallback(() => {
     setPendingVisionSend(null);
@@ -476,15 +558,19 @@ export function InputBar({
       if (!pendingProxySend) return;
       // Save proxy config via Gate — Atlas will read this at call time.
       saveProxyConfig({ url: proxyUrl });
+      // #382: pass mentionTargetId if a mention was active at proxy-send time.
+      const { targetId: mentionTargetId } = stripMentionFromContent(pendingProxySend.content, mentionedModel);
       // Re-submit the original message. Attachments are still in state (not cleared yet).
-      onSend(pendingProxySend.content, attachments);
+      onSend(pendingProxySend.content, attachments, mentionTargetId);
+      setMentionedModel(null);
+      dismissMention();
       clearAll();
       setValue('');
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
       setPendingProxySend(null);
       // Focus restores via ProxyOnboardingModal's cleanup useEffect (returnFocusRef).
     },
-    [pendingProxySend, attachments, onSend, clearAll],
+    [pendingProxySend, mentionedModel, attachments, onSend, clearAll, stripMentionFromContent, dismissMention],
   );
 
   /**
@@ -516,8 +602,78 @@ export function InputBar({
     [removeAttachment],
   );
 
+  /**
+   * Called when the user selects a model from the @mention autocomplete.
+   * Replaces the "@<query>" token in the textarea with "@ModelName " and
+   * records the selected model so the send handler can strip it and route.
+   */
+  const handleMentionSelect = useCallback((model: ModelConfig) => {
+    const textarea = textareaRef.current;
+    if (!textarea || mentionStartIndexRef.current < 0) return;
+
+    const before = value.slice(0, mentionStartIndexRef.current);
+    const after = value.slice(textarea.selectionStart);
+    const mention = `@${model.name}`;
+    const newValue = `${before}${mention}${after}`;
+
+    setValue(newValue);
+    setMentionedModel(model);
+    dismissMention();
+
+    // Resize textarea and restore cursor to after the inserted mention.
+    const newCursorPos = before.length + mention.length;
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) return;
+      const el = textareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+      el.setSelectionRange(newCursorPos, newCursorPos);
+      el.focus();
+    });
+  }, [value, dismissMention]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // ── @mention popover keyboard handling (#382) ─────────────────────────
+      // When the popover is open, ↑ ↓ navigate the list, Enter selects,
+      // Escape dismisses. These intercept before the normal Enter-to-send logic.
+      if (mentionQuery !== null) {
+        const candidates = getMentionCandidates();
+        const filtered = filterModels(candidates, mentionQuery);
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setMentionActiveIndex((prev) => {
+            const next = prev + 1;
+            return next >= filtered.length ? 0 : next;
+          });
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setMentionActiveIndex((prev) => {
+            const next = prev - 1;
+            return next < 0 ? filtered.length - 1 : next;
+          });
+          return;
+        }
+        if (e.key === 'Enter' && mentionActiveIndex >= 0 && mentionActiveIndex < filtered.length) {
+          e.preventDefault();
+          handleMentionSelect(filtered[mentionActiveIndex]);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          dismissMention();
+          return;
+        }
+        // Tab closes the popover without selecting.
+        if (e.key === 'Tab') {
+          dismissMention();
+          // Don't return — allow default Tab behavior.
+        }
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSend();
@@ -532,15 +688,106 @@ export function InputBar({
         onClearDirectedReply?.();
       }
     },
-    [handleSend, editingMessage, onCancelEdit, directedReplyTarget, onClearDirectedReply],
+    [mentionQuery, mentionActiveIndex, getMentionCandidates, handleMentionSelect, dismissMention, handleSend, editingMessage, onCancelEdit, directedReplyTarget, onClearDirectedReply],
   );
 
+  // ── @mention helpers (#382) ───────────────────────────────────────────────
+
+  /**
+   * Returns true when the cursor position `pos` in `text` is inside a backtick-
+   * delimited inline code span or a fenced code block. Used to suppress @mention
+   * trigger inside code blocks per spec.
+   */
+  function isInsideCodeBlock(text: string, pos: number): boolean {
+    // Check fenced code blocks (``` ... ```)
+    const fenceRegex = /```[\s\S]*?```/g;
+    let match: RegExpExecArray | null;
+    while ((match = fenceRegex.exec(text)) !== null) {
+      if (pos > match.index && pos < match.index + match[0].length) return true;
+    }
+    // Check inline code spans (` ... `)
+    const inlineRegex = /`[^`]+`/g;
+    while ((match = inlineRegex.exec(text)) !== null) {
+      if (pos > match.index && pos < match.index + match[0].length) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Detect whether there is an active @mention trigger at the current cursor position.
+   * Returns { query, startIndex } when active, null otherwise.
+   *
+   * Rules:
+   *   - There must be an "@" character before the cursor with no space between it
+   *     and the cursor (i.e. the user is actively typing the mention).
+   *   - The "@" must not be inside a backtick-delimited code block.
+   *   - The query is the text between "@" and the cursor.
+   */
+  function detectMentionAtCursor(
+    text: string,
+    cursorPos: number,
+  ): { query: string; startIndex: number } | null {
+    if (isInsideCodeBlock(text, cursorPos)) return null;
+
+    // Scan backwards from cursor to find the nearest "@"
+    let i = cursorPos - 1;
+    while (i >= 0) {
+      const ch = text[i];
+      if (ch === '@') {
+        // Found "@" — the query is everything between "@" and cursor.
+        const query = text.slice(i + 1, cursorPos);
+        // Reject if the query contains a space (user moved past the mention token).
+        if (query.includes(' ')) return null;
+        return { query, startIndex: i };
+      }
+      // Stop scanning if we hit whitespace before reaching "@".
+      if (ch === ' ' || ch === '\n' || ch === '\t') return null;
+      i--;
+    }
+    return null;
+  }
+
+  /**
+   * Handles textarea value changes for @mention detection.
+   * Separated from the main handleChange so the logic is easy to follow.
+   */
+  const handleMentionOnChange = useCallback((text: string, cursorPos: number) => {
+    const detected = detectMentionAtCursor(text, cursorPos);
+    if (detected) {
+      mentionStartIndexRef.current = detected.startIndex;
+      setMentionQuery(detected.query);
+      setMentionActiveIndex(-1);
+
+      // If the mentionedModel no longer matches the current @token, clear it.
+      // This handles the case where the user edits after placing a mention.
+      setMentionedModel((prev) => {
+        if (!prev) return prev;
+        if (`@${prev.name}` !== text.slice(detected.startIndex, cursorPos)) return null;
+        return prev;
+      });
+    } else {
+      // Check if the user deleted or edited the mention token they had selected.
+      if (mentionedModel !== null) {
+        // If the mention text is no longer present, clear the selection.
+        const mentionText = `@${mentionedModel.name}`;
+        if (!text.includes(mentionText)) {
+          setMentionedModel(null);
+        }
+      }
+      dismissMention();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentionedModel, dismissMention]);
+
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setValue(e.target.value);
+    const newValue = e.target.value;
+    const cursorPos = e.target.selectionStart ?? newValue.length;
+    setValue(newValue);
+    handleMentionOnChange(newValue, cursorPos);
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, []);
+  }, [handleMentionOnChange]);
 
   const placeholderText = editingMessage
     ? 'Edit your message…'
@@ -555,6 +802,10 @@ export function InputBar({
   const hasTopSection =
     !!directedReplyTarget || !!editingMessage || attachments.length > 0 || !!attachError;
 
+  // ── @mention popover rendering data (#382) ────────────────────────────────
+  const mentionCandidates = getMentionCandidates();
+  const showMentionPopover = mentionQuery !== null && !isStreaming;
+
   return (
     <div
       className="w-full relative"
@@ -564,6 +815,23 @@ export function InputBar({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {/* @mention autocomplete popover (#382) — positions above the input bar.
+          Renders inside the InputBar's relative container so bottom-full positions
+          it correctly above the entire InputBar (including any top sections).
+          Only shown when a "@" trigger is active and not streaming. */}
+      {showMentionPopover && (
+        <AtMentionAutocomplete
+          models={mentionCandidates}
+          query={mentionQuery!}
+          activeIndex={mentionActiveIndex}
+          onSelect={handleMentionSelect}
+          onDismiss={dismissMention}
+          textareaRef={textareaRef}
+          comboboxRef={comboboxRef}
+          listboxId={mentionListboxId}
+        />
+      )}
+
       {/* Drag-over visual overlay (#285) — signals droppable zone to the user.
           pointer-events-none so it doesn't intercept the drop event on the container. */}
       {isDragOver && (
@@ -915,7 +1183,33 @@ export function InputBar({
             </div>
           )}
 
-          {/* Textarea */}
+          {/* Textarea — wrapped in a combobox container for two reasons:
+              1. The relative positioning allows the mention highlight overlay to be
+                 absolutely positioned over the textarea. (#382)
+              2. The div carries role="combobox" and ARIA combobox state attributes
+                 (set by AtMentionAutocomplete via comboboxRef). Placing role="combobox"
+                 on the <textarea> itself would violate axe-core's aria-allowed-role rule.
+                 aria-activedescendant on a textbox-role element would also violate
+                 aria-allowed-attr. The div wrapper is the ARIA 1.2 §3.8 compliant approach.
+                 (#382) */}
+          <div
+            ref={comboboxRef}
+            role="combobox"
+            aria-expanded="false"
+            aria-label="Message input combobox"
+            className="relative flex-1 self-end min-h-[36px]"
+          >
+          {/* Mention highlight overlay (#382) — shown when a model has been
+              selected via @mention. Absolutely positions a mirror div over the
+              textarea that shows a tinted highlight behind the @ModelName token.
+              pointer-events:none so all interaction passes through to the textarea. */}
+          {mentionedModel && (
+            <MentionHighlightOverlay
+              value={value}
+              model={mentionedModel}
+              textareaRef={textareaRef}
+            />
+          )}
           <textarea
             ref={textareaRef}
             id={textareaId}
@@ -928,7 +1222,7 @@ export function InputBar({
             placeholder={placeholderText}
             rows={1}
             className={[
-              'flex-1 resize-none bg-transparent border-none outline-none',
+              'w-full resize-none bg-transparent border-none outline-none',
               'text-[15px] font-normal leading-[1.5] text-text-primary',
               'placeholder:text-text-muted',
               // py-[3px] overrides the browser-default textarea padding (~2px top in Chrome,
@@ -939,7 +1233,6 @@ export function InputBar({
               //   text center  = 8 + 3 (pad-top) + 11.25 (lineHeight/2) = 22.25px
               //   button icon  = 44 / 2 = 22px  → delta ≈ 0.25px (imperceptible). #321
               'min-h-[36px] max-h-[200px] py-[3px]',
-              'self-end',
               'focus-visible:outline-none',
               isStreaming ? 'cursor-text' : '',
             ].join(' ')}
@@ -947,6 +1240,7 @@ export function InputBar({
             aria-label="Message input"
             aria-multiline="true"
           />
+          </div>{/* end textarea wrapper */}
 
           {/* Stop button (streaming) / Send button */}
           {isStreaming && onStopMessage ? (

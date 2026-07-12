@@ -2,17 +2,30 @@
  * AtMentionAutocomplete — popover that appears when the user types "@" in the
  * InputBar textarea. Lists active models and supports keyboard navigation.
  *
- * Accessibility pattern: combobox/listbox (ARIA 1.2 §3.8).
- *   - The textarea gets role="combobox", aria-expanded, aria-controls, aria-activedescendant.
+ * Accessibility pattern: ARIA 1.2 §3.8 combobox with listbox popup.
+ *
+ * ARIA structure:
+ *   - A wrapper <div role="combobox"> carries aria-expanded, aria-controls,
+ *     aria-haspopup, and aria-activedescendant. This is the ARIA 1.2 §3.8 pattern.
+ *   - The <textarea> inside keeps its implicit "textbox" role and only carries
+ *     aria-autocomplete="list" (valid on textbox). It does NOT get role="combobox"
+ *     (axe-core aria-allowed-role violation) or aria-activedescendant (axe-core
+ *     aria-allowed-attr violation on textbox-role elements).
  *   - The popover is role="listbox" with a matching id.
  *   - Each option is role="option" with aria-selected on the highlighted item.
- *   - Focus stays in the textarea; options are navigated via aria-activedescendant,
- *     NOT by moving DOM focus into the list.
+ *   - Focus stays in the textarea; options are navigated via aria-activedescendant
+ *     on the combobox wrapper, NOT by moving DOM focus into the list.
+ *
+ * Why comboboxRef instead of textareaRef for ARIA?
+ *   axe-core's aria-allowed-attr rule prohibits aria-activedescendant on elements
+ *   with role="textbox". It IS allowed on role="combobox". Since role="combobox"
+ *   is also not valid on <textarea> (aria-allowed-role), the correct solution is
+ *   a wrapper <div role="combobox"> that the textarea lives inside.
  *
  * Issue #382.
  */
 
-import { useEffect, useRef, useId } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ModelConfig } from '@/types';
 import { resolveAccentCssColor } from '../utils/modelColor';
 
@@ -29,20 +42,16 @@ export interface AtMentionAutocompleteProps {
   onDismiss: () => void;
   /**
    * The textarea element that triggered the autocomplete. Used to:
-   *   1. Return DOM focus on dismiss (focus never leaves the textarea).
-   *   2. Exclude from click-away dismissal.
+   *   1. Exclude from click-away dismissal (pointerdown handler).
+   *   2. Set aria-autocomplete="list" — the only ARIA attribute valid on textbox.
    */
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   /**
-   * The div[role="combobox"] wrapper that owns the textarea. The ARIA combobox
-   * attributes (aria-expanded, aria-controls, aria-autocomplete, aria-haspopup,
-   * aria-activedescendant) are set on THIS element, not the textarea.
-   *
-   * Per ARIA 1.2 §3.8 and axe-core's aria-allowed-attr rule:
-   *   - aria-activedescendant is NOT allowed on elements with role="textbox"
-   *   - It IS allowed on elements with role="combobox"
-   * The combobox wrapper is a <div> that the textarea lives inside; this keeps
-   * axe-core's aria-allowed-role and aria-allowed-attr rules clean.
+   * The div[role="combobox"] wrapper that contains the textarea. This element
+   * receives the combobox ARIA state: aria-expanded, aria-controls, aria-haspopup,
+   * aria-activedescendant. These attributes are NOT placed on the textarea because:
+   *   - role="combobox" on <textarea> → axe aria-allowed-role violation
+   *   - aria-activedescendant on textbox-role element → axe aria-allowed-attr violation
    */
   comboboxRef: React.RefObject<HTMLDivElement | null>;
   /** Stable DOM id to use for the listbox element. */
@@ -51,8 +60,10 @@ export interface AtMentionAutocompleteProps {
 
 /**
  * ID for a specific option element.
- * Consumed by aria-activedescendant on the textarea.
+ * Consumed by aria-activedescendant on the combobox wrapper div.
+ * Exported for use in InputBar.tsx (keyboard nav) and tests.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function getOptionId(listboxId: string, index: number): string {
   return `${listboxId}-option-${index}`;
 }
@@ -60,7 +71,9 @@ export function getOptionId(listboxId: string, index: number): string {
 /**
  * Filters and sorts models by display name prefix match then substring match.
  * Returns at most 5 results (per spec: "Maximum 5 items visible without scroll").
+ * Exported for use in InputBar.tsx (mention candidate computation) and tests.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function filterModels(models: ModelConfig[], query: string): ModelConfig[] {
   const q = query.toLowerCase();
   if (!q) return models.slice(0, 5);
@@ -87,43 +100,54 @@ export function AtMentionAutocomplete({
   onSelect,
   onDismiss,
   textareaRef,
+  comboboxRef,
   listboxId,
 }: AtMentionAutocompleteProps) {
   const listboxRef = useRef<HTMLDivElement>(null);
   const filtered = filterModels(models, query);
 
-  // Set ARIA attributes on the textarea while the popover is open.
+  // Set ARIA attributes on the div[role="combobox"] wrapper while the popover is open.
   //
-  // ARIA pattern: the <textarea> keeps its implicit "textbox" role.
-  // We do NOT add role="combobox" — axe and ARIA 1.2 flag that as invalid
-  // for <textarea> elements. Instead, we apply the combobox affordance via
-  // aria-expanded, aria-controls, aria-autocomplete, aria-haspopup, and
-  // aria-activedescendant directly on the textarea. This is the correct
-  // pattern for a textarea-based autocomplete (per WAI-ARIA APG).
+  // ARIA 1.2 §3.8: the combobox wrapper div carries all combobox state attributes.
+  // The textarea inside only receives aria-autocomplete="list" (valid on textbox-role).
+  //
+  // aria-activedescendant on the combobox wrapper points to the virtually "focused"
+  // option element. AT announces the option name without DOM focus leaving the textarea.
   useEffect(() => {
+    const combobox = comboboxRef.current;
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (!combobox) return;
 
-    textarea.setAttribute('aria-expanded', 'true');
-    textarea.setAttribute('aria-controls', listboxId);
-    textarea.setAttribute('aria-autocomplete', 'list');
-    textarea.setAttribute('aria-haspopup', 'listbox');
+    combobox.setAttribute('aria-expanded', 'true');
+    combobox.setAttribute('aria-controls', listboxId);
+    combobox.setAttribute('aria-haspopup', 'listbox');
 
     if (activeIndex >= 0 && activeIndex < filtered.length) {
-      textarea.setAttribute('aria-activedescendant', getOptionId(listboxId, activeIndex));
+      combobox.setAttribute('aria-activedescendant', getOptionId(listboxId, activeIndex));
     } else {
-      textarea.removeAttribute('aria-activedescendant');
+      combobox.removeAttribute('aria-activedescendant');
+    }
+
+    // aria-autocomplete="list" is valid on role="textbox" — set it on the textarea.
+    if (textarea) {
+      textarea.setAttribute('aria-autocomplete', 'list');
     }
 
     return () => {
-      // Clean up ARIA attributes when the popover unmounts.
-      textarea.removeAttribute('aria-expanded');
-      textarea.removeAttribute('aria-controls');
-      textarea.removeAttribute('aria-autocomplete');
-      textarea.removeAttribute('aria-haspopup');
-      textarea.removeAttribute('aria-activedescendant');
+      // Restore the closed-state ARIA attributes when the popover unmounts.
+      // aria-expanded is set to "false" (not removed) because role="combobox"
+      // requires aria-expanded to be present — removing it would trigger an
+      // axe aria-required-attr violation. The div always has role="combobox"
+      // with aria-expanded="false" when closed.
+      combobox.setAttribute('aria-expanded', 'false');
+      combobox.removeAttribute('aria-controls');
+      combobox.removeAttribute('aria-haspopup');
+      combobox.removeAttribute('aria-activedescendant');
+      if (textarea) {
+        textarea.removeAttribute('aria-autocomplete');
+      }
     };
-  }, [textareaRef, listboxId, activeIndex, filtered.length]);
+  }, [comboboxRef, textareaRef, listboxId, activeIndex, filtered.length]);
 
   // Scroll the active option into view within the listbox when it changes.
   // Guard against jsdom environments that do not implement scrollIntoView.

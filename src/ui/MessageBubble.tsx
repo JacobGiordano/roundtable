@@ -671,6 +671,24 @@ export function MessageBubble({
             {modelConfig?.name ?? message.modelId ?? 'Model'}
           </span>
 
+          {/* Routing label (#382) — shown when this assistant message was a directed-reply
+              response. "→ ModelName" rendered in text-muted at 11px per Luma spec
+              (at-mention.md §Routing indicator spec). Position: after model name label,
+              before the ml-auto right group. Inherits gap-2 from the flex row.
+              The → glyph is decorative (aria-hidden); "Directed to X" framing is via
+              sr-only text so screen readers announce the routing context cleanly.
+              Note: targetModelConfig here is the model that was @mentioned by the user,
+              which is the same model rendering this bubble (i.e. message.modelId). We
+              show its display name rather than re-deriving it from modelConfig to be
+              explicit about the data source. */}
+          {targetModelConfig && (
+            <span className="text-[11px] font-normal text-text-muted shrink-0 flex items-center gap-0.5">
+              <span aria-hidden="true">→</span>
+              <span className="sr-only">Directed to</span>
+              <span>{targetModelConfig.name}</span>
+            </span>
+          )}
+
           {/* Right group: copy + timestamp — always flush-right as a unit.
               ml-auto on the group pushes everything right; gap-2 spaces copy from timestamp.
               This keeps the copy button at a consistent position regardless of name length. */}

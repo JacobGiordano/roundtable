@@ -123,7 +123,6 @@ export function MentionHighlightOverlay({
         'overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words',
       ].join(' ')}
       style={{ scrollbarWidth: 'none' }}
-      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );

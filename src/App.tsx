@@ -500,7 +500,7 @@ export default function App() {
   flushAbortedStreamsRef.current = flushAbortedStreams;
   activeConversationIdRef.current = store.activeConversationId;
 
-  const handleSend = (content: string, attachments: Attachment[] = []) => {
+  const handleSend = (content: string, attachments: Attachment[] = [], atMentionTargetId?: ModelId) => {
     // Snapshot the active conversation before state updates so sendMessage
     // receives a consistent view and we have a base to build the updated conv from.
     const conversationSnapshot = store.getActiveConversation() ??
@@ -548,12 +548,14 @@ export default function App() {
       });
     } else {
       // ── Normal send path ───────────────────────────────────────────────────
+      // #382: @mention targeting takes precedence over the directed-reply pill target.
+      const resolvedTargetModelId = atMentionTargetId ?? pendingTargetModelId ?? undefined;
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
         content,
         // Stamp targetModelId onto the user message so it persists in the thread.
-        targetModelId: pendingTargetModelId ?? undefined,
+        targetModelId: resolvedTargetModelId,
         timestamp: Date.now(),
         // #285: attach image attachments to the user message for persistence and replay.
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -637,7 +639,8 @@ export default function App() {
         conversationId: sendingConversationId,
         content,
         // Thread targetModelId into SendMessageOptions so Atlas routes to only that model.
-        targetModelId: pendingTargetModelId ?? undefined,
+        // #382: atMentionTargetId (from @mention) takes precedence over pendingTargetModelId (from pill).
+        targetModelId: atMentionTargetId ?? pendingTargetModelId ?? undefined,
         chainConfig,
         conversation: updatedConversation,
         signal: controller.signal,

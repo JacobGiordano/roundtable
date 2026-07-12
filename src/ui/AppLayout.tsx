@@ -39,8 +39,10 @@ interface AppLayoutProps {
    * Called when the user submits a message. `attachments` is always an array
    * (empty for text-only sends). Issue #285 extended the signature from
    * `(content: string) => void` to include attachments.
+   * Issue #382: `targetModelId` is set when the user typed an @mention —
+   * InputBar strips the @ModelName token from content before this is called.
    */
-  onSend: (content: string, attachments: import('@/types').Attachment[]) => void;
+  onSend: (content: string, attachments: import('@/types').Attachment[], targetModelId?: import('@/types').ModelId) => void;
   /** Called after the user logs in or out of a backend server — refreshes the active storage provider. */
   onBackendConnectionChange?: () => void;
 }

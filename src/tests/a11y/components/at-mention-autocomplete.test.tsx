@@ -10,6 +10,13 @@
  *   6. MentionHighlightOverlay is aria-hidden (purely decorative mirror div)
  *   7. Axe scans on all rendered states
  *
+ * ARIA structure verified:
+ *   - div[role="combobox"] wrapper (comboboxRef) carries: aria-expanded, aria-controls,
+ *     aria-haspopup, aria-activedescendant
+ *   - textarea inside keeps implicit "textbox" role, carries only aria-autocomplete="list"
+ *   - listbox div carries: role="listbox", aria-label
+ *   - option divs carry: role="option", aria-selected
+ *
  * WCAG criteria:
  *   1.3.1 — Info and Relationships: routing context communicated as text, not color alone
  *   1.4.1 — Use of Color: → glyph aria-hidden; sr-only text provides non-color cue
@@ -98,8 +105,14 @@ const USER_DIRECTED_MESSAGE: Message = {
 };
 
 // ─── Wrapper component for AtMentionAutocomplete ──────────────────────────────
-// AtMentionAutocomplete takes a textareaRef, so we need a component that
-// mounts a real textarea alongside the autocomplete and passes the ref.
+// The correct ARIA 1.2 §3.8 structure:
+//   <div role="combobox" aria-expanded="false" ref={comboboxRef}>
+//     <textarea aria-label="Message input" ref={textareaRef} />
+//   </div>
+//   <AtMentionAutocomplete ... comboboxRef={comboboxRef} textareaRef={textareaRef} />
+//
+// The combobox div carries: aria-expanded, aria-controls, aria-haspopup, aria-activedescendant
+// The textarea carries only: aria-autocomplete="list" (valid on textbox-role)
 
 interface WrapperProps {
   models?: ModelConfig[];
@@ -119,9 +132,19 @@ function AutocompleteWrapper({
   listboxId = 'test-listbox',
 }: WrapperProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const comboboxRef = useRef<HTMLDivElement>(null);
   return (
     <div style={{ position: 'relative' }}>
-      <textarea ref={textareaRef} aria-label="Message input" />
+      {/* div[role="combobox"] wraps the textarea — ARIA 1.2 §3.8 combobox pattern.
+          aria-expanded="false" is the initial state; AtMentionAutocomplete sets "true". */}
+      <div
+        ref={comboboxRef}
+        role="combobox"
+        aria-expanded="false"
+        aria-label="Message input combobox"
+      >
+        <textarea ref={textareaRef} aria-label="Message input" />
+      </div>
       <AtMentionAutocomplete
         models={models}
         query={query}
@@ -129,6 +152,7 @@ function AutocompleteWrapper({
         onSelect={onSelect}
         onDismiss={onDismiss}
         textareaRef={textareaRef}
+        comboboxRef={comboboxRef}
         listboxId={listboxId}
       />
     </div>
@@ -171,31 +195,17 @@ describe('AtMentionAutocomplete — ARIA structure (WCAG 4.1.2 / ARIA 1.2 §3.8)
   beforeEach(() => { restoreScrollIntoView = stubScrollIntoView(); });
   afterEach(() => { restoreScrollIntoView(); });
 
-  // NOTE: The axe scans below are skipped pending fix of issue #382-a11y-combobox-role.
-  //
-  // Root cause: WAI-ARIA 1.2 §3.8 (combobox pattern) requires either:
-  //   (a) A native <input> with role="combobox", or
-  //   (b) A wrapper element with role="combobox" that owns the textbox via aria-owns
-  //
-  // The current implementation sets role="combobox" + autocomplete attributes via
-  // useEffect on the <textarea> itself. This fails two axe rules simultaneously:
-  //   - aria-allowed-role (minor): "combobox" is not in axe's allowlist for <textarea>
-  //   - aria-allowed-attr (critical): when role="combobox" is removed, attributes like
-  //     aria-expanded/aria-activedescendant become disallowed on the plain textarea
-  //
-  // Recommended fix for Aria: wrap the textarea in a <div role="combobox"> and move
-  // the ARIA attributes there, or switch to a pattern that avoids the role override.
-  // An alternative: use a visually-hidden combobox container via the ARIA 1.2 pattern.
-  //
-  // These tests are left in the suite (skipped) so they become the pass gate
-  // once Aria applies the structural fix. They cover the post-fix clean state.
-  it.skip('has no axe violations in the open state (blocked by #382-a11y-combobox-role)', async () => {
+  // Axe scans verify the complete ARIA structure is clean after the fix:
+  // - div[role="combobox"] wrapper carries all combobox state attributes
+  // - textarea keeps implicit textbox role with only aria-autocomplete="list"
+  // - No aria-allowed-role or aria-allowed-attr violations
+  it('has no axe violations in the open state', async () => {
     const { container } = render(<AutocompleteWrapper />);
     const results = await axe(container);
     assertNoViolations(results);
   });
 
-  it.skip('has no axe violations with a highlighted (active) option (blocked by #382-a11y-combobox-role)', async () => {
+  it('has no axe violations with a highlighted (active) option', async () => {
     const { container } = render(<AutocompleteWrapper activeIndex={0} />);
     const results = await axe(container);
     assertNoViolations(results);
@@ -259,79 +269,110 @@ describe('AtMentionAutocomplete — ARIA structure (WCAG 4.1.2 / ARIA 1.2 §3.8)
   });
 });
 
-// ─── Textarea autocomplete ARIA attributes (set via useEffect) ───────────────
+// ─── Combobox div and textarea ARIA attributes (set via useEffect) ─────────────
 //
-// The component sets combobox-state ARIA attributes directly on the textarea
-// (aria-expanded, aria-controls, aria-autocomplete, aria-haspopup, aria-activedescendant).
-// role="combobox" is NOT set — it is not valid on <textarea> per axe-core.
-// The textarea keeps its implicit "textbox" role.
+// ARIA structure:
+//   div[role="combobox"]:
+//     - aria-expanded: "true" (set on mount)
+//     - aria-controls: the listbox id
+//     - aria-haspopup: "listbox"
+//     - aria-activedescendant: option id (when activeIndex >= 0)
+//   textarea (implicit textbox role):
+//     - aria-autocomplete: "list" (set on mount)
+//     - NO role override (aria-allowed-role would be violated)
+//     - NO aria-expanded/aria-controls/aria-activedescendant (aria-allowed-attr would be violated)
 
-describe('AtMentionAutocomplete — textarea autocomplete ARIA attributes (WCAG 4.1.2)', () => {
+describe('AtMentionAutocomplete — combobox/textarea ARIA attributes (WCAG 4.1.2)', () => {
   let restoreScrollIntoView: () => void;
   beforeEach(() => { restoreScrollIntoView = stubScrollIntoView(); });
   afterEach(() => { restoreScrollIntoView(); });
 
-  it('textarea does NOT have role="combobox" — keeps implicit textbox role (ARIA 1.2 / axe fix)', () => {
+  it('textarea does NOT have role="combobox" — keeps implicit textbox role', () => {
     const { container } = render(<AutocompleteWrapper />);
-    // role="combobox" is NOT valid on <textarea> per axe-core's aria-allowed-role rule.
-    // The fix removed setAttribute('role', 'combobox'). The textarea keeps its implicit
-    // "textbox" role. Combobox state is conveyed via aria-expanded/aria-controls/
-    // aria-autocomplete/aria-haspopup/aria-activedescendant — all valid on textbox.
     const textarea = container.querySelector('textarea');
+    // role="combobox" on <textarea> violates axe aria-allowed-role — must be null
     expect(textarea?.getAttribute('role')).toBeNull();
-    // Verify Testing Library sees it as textbox (the native implicit role).
+    // Testing Library still resolves it as textbox (the native implicit role)
     expect(screen.getByRole('textbox')).toBe(textarea);
   });
 
-  it('sets aria-expanded="true" on the textarea when open', () => {
+  it('the combobox wrapper div has role="combobox"', () => {
     render(<AutocompleteWrapper />);
-    const textarea = screen.getByRole('textbox');
-    expect(textarea.getAttribute('aria-expanded')).toBe('true');
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.tagName.toLowerCase()).toBe('div');
   });
 
-  it('sets aria-controls pointing to the listbox id', () => {
+  it('sets aria-expanded="true" on the combobox wrapper div when open', () => {
+    render(<AutocompleteWrapper />);
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('sets aria-controls on the combobox wrapper div, pointing to the listbox id', () => {
     render(<AutocompleteWrapper listboxId="ctrl-listbox" />);
-    const textarea = screen.getByRole('textbox');
-    expect(textarea.getAttribute('aria-controls')).toBe('ctrl-listbox');
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.getAttribute('aria-controls')).toBe('ctrl-listbox');
   });
 
-  it('sets aria-autocomplete="list" on the textarea', () => {
+  it('sets aria-haspopup="listbox" on the combobox wrapper div', () => {
+    render(<AutocompleteWrapper />);
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.getAttribute('aria-haspopup')).toBe('listbox');
+  });
+
+  it('sets aria-autocomplete="list" on the textarea (valid on textbox role)', () => {
     render(<AutocompleteWrapper />);
     const textarea = screen.getByRole('textbox');
     expect(textarea.getAttribute('aria-autocomplete')).toBe('list');
   });
 
-  it('sets aria-haspopup="listbox" on the textarea', () => {
+  it('textarea does NOT get aria-expanded (invalid on textbox role)', () => {
     render(<AutocompleteWrapper />);
     const textarea = screen.getByRole('textbox');
-    expect(textarea.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(textarea.getAttribute('aria-expanded')).toBeNull();
   });
 
-  it('sets aria-activedescendant to the active option id when activeIndex >= 0', () => {
+  it('sets aria-activedescendant on the combobox div when activeIndex >= 0', () => {
     render(<AutocompleteWrapper activeIndex={0} listboxId="act-listbox" />);
-    const textarea = screen.getByRole('textbox');
-    expect(textarea.getAttribute('aria-activedescendant')).toBe('act-listbox-option-0');
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.getAttribute('aria-activedescendant')).toBe('act-listbox-option-0');
   });
 
-  it('removes aria-activedescendant when activeIndex is -1', () => {
+  it('removes aria-activedescendant from the combobox div when activeIndex is -1', () => {
     render(<AutocompleteWrapper activeIndex={-1} />);
+    const combobox = screen.getByRole('combobox');
+    expect(combobox.getAttribute('aria-activedescendant')).toBeNull();
+  });
+
+  it('textarea does NOT get aria-activedescendant (invalid on textbox role)', () => {
+    render(<AutocompleteWrapper activeIndex={0} listboxId="no-ad-listbox" />);
     const textarea = screen.getByRole('textbox');
     expect(textarea.getAttribute('aria-activedescendant')).toBeNull();
   });
 
-  it('active option element id matches aria-activedescendant', () => {
+  it('active option element id matches combobox aria-activedescendant', () => {
     render(<AutocompleteWrapper activeIndex={2} listboxId="check-listbox" />);
-    const textarea = screen.getByRole('textbox');
-    const activeDescendantId = textarea.getAttribute('aria-activedescendant');
+    const combobox = screen.getByRole('combobox');
+    const activeDescendantId = combobox.getAttribute('aria-activedescendant');
     expect(activeDescendantId).toBe('check-listbox-option-2');
     const activeOption = document.getElementById(activeDescendantId!);
     expect(activeOption).not.toBeNull();
     expect(activeOption?.getAttribute('role')).toBe('option');
   });
 
-  it('removes autocomplete ARIA attributes from textarea on unmount', () => {
+  it('restores aria-expanded="false" on the combobox div after unmount', () => {
+    // Create the combobox div as it would exist in InputBar: always present,
+    // aria-expanded="false" by default. AtMentionAutocomplete sets "true" on mount
+    // and restores "false" on unmount (not remove — role="combobox" requires it).
+    const comboboxEl = document.createElement('div');
+    comboboxEl.setAttribute('role', 'combobox');
+    comboboxEl.setAttribute('aria-expanded', 'false');
+    document.body.appendChild(comboboxEl);
+
     const textareaEl = document.createElement('textarea');
-    document.body.appendChild(textareaEl);
+    comboboxEl.appendChild(textareaEl);
+
+    const comboboxRef = { current: comboboxEl };
     const textareaRef = { current: textareaEl };
 
     const { unmount } = render(
@@ -342,25 +383,32 @@ describe('AtMentionAutocomplete — textarea autocomplete ARIA attributes (WCAG 
         onSelect={vi.fn()}
         onDismiss={vi.fn()}
         textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement | null>}
+        comboboxRef={comboboxRef as React.RefObject<HTMLDivElement | null>}
         listboxId="unmount-listbox"
       />
     );
 
-    // Attributes must be present while mounted (no role="combobox" — see note above)
-    expect(textareaEl.getAttribute('aria-expanded')).toBe('true');
-    expect(textareaEl.getAttribute('aria-controls')).toBe('unmount-listbox');
+    // Combobox div gets aria-expanded="true" while popover is mounted
+    expect(comboboxEl.getAttribute('aria-expanded')).toBe('true');
+    expect(comboboxEl.getAttribute('aria-controls')).toBe('unmount-listbox');
+    // Textarea gets aria-autocomplete="list" only
+    expect(textareaEl.getAttribute('aria-autocomplete')).toBe('list');
+    expect(textareaEl.getAttribute('aria-expanded')).toBeNull();
 
     unmount();
 
-    // All ARIA attributes must be removed on unmount
-    expect(textareaEl.getAttribute('role')).toBeNull();
-    expect(textareaEl.getAttribute('aria-expanded')).toBeNull();
-    expect(textareaEl.getAttribute('aria-controls')).toBeNull();
+    // After unmount: combobox div returns to aria-expanded="false" (not removed)
+    expect(comboboxEl.getAttribute('aria-expanded')).toBe('false');
+    expect(comboboxEl.getAttribute('aria-controls')).toBeNull();
+    expect(comboboxEl.getAttribute('aria-haspopup')).toBeNull();
+    expect(comboboxEl.getAttribute('aria-activedescendant')).toBeNull();
+    // Textarea loses aria-autocomplete
     expect(textareaEl.getAttribute('aria-autocomplete')).toBeNull();
-    expect(textareaEl.getAttribute('aria-haspopup')).toBeNull();
-    expect(textareaEl.getAttribute('aria-activedescendant')).toBeNull();
+    // Neither element should ever have role attribute set programmatically
+    expect(comboboxEl.getAttribute('role')).toBe('combobox'); // static, unchanged
+    expect(textareaEl.getAttribute('role')).toBeNull();
 
-    document.body.removeChild(textareaEl);
+    document.body.removeChild(comboboxEl);
   });
 });
 
