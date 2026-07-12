@@ -62,7 +62,7 @@ const BUILTIN_CAPABILITIES_MAP: Record<BuiltInModelId, ProviderCapabilities> = {
   // Anthropic Claude: full multimodal + streaming usage + tools + system prompts.
   'claude': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
   // OpenAI GPT: full multimodal + streaming usage + tools + system prompts.
-  'gpt-5.5': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true },
+  'gpt-5.5': { vision: true, streamUsage: true, toolUse: true, systemPrompt: true, imageGeneration: true },
   // Google Gemini: vision + tools + system prompts; no streamUsage (streaming
   // token counts not available via the OpenAI-compat endpoint Gate uses).
   'gemini': { vision: true, streamUsage: false, toolUse: true, systemPrompt: true, imageGeneration: true },
