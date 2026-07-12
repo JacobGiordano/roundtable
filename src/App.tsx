@@ -198,6 +198,7 @@ export default function App() {
   // simplest roster subscription model: Gate is sync-only, so we re-derive
   // isRosterEmpty on-demand instead of subscribing to storage events.
   const [rosterVersion, setRosterVersion] = useState(0);
+  const [isPending, setIsPending] = useState(false);
   const isRosterEmpty = useMemo(
     () => getProviderRoster().length === 0,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -634,6 +635,7 @@ export default function App() {
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    setIsPending(true);
     void sendMessage(
       {
         conversationId: sendingConversationId,
@@ -652,6 +654,7 @@ export default function App() {
       // Clear the ref when the stream settles (done or aborted) so
       // handleStopMessage becomes a safe no-op again.
       abortControllerRef.current = null;
+      setIsPending(false);
     });
   };
 
@@ -923,7 +926,7 @@ export default function App() {
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
-
+    setIsPending(true);
     void sendMessage(
       {
         conversationId: sendingConversationId,
@@ -935,6 +938,7 @@ export default function App() {
       handleChunk(sendingConversationId),
     ).finally(() => {
       abortControllerRef.current = null;
+      setIsPending(false);
     });
   }, [store, getGhostConversation, saveGhostConversation, handleChunk]);
 
@@ -1059,7 +1063,7 @@ export default function App() {
         onEditMessage: handleEditMessage,
         editingMessage: editingMessage ?? undefined,
         onCancelEdit: handleCancelEdit,
-        isStreaming: anyStreaming,
+        isStreaming: anyStreaming || isPending,
         directedReplyTarget,
         onClearDirectedReply: handleClearDirectedReply,
         stopMessage: handleStopMessage,
