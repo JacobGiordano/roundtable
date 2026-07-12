@@ -1,4 +1,4 @@
-Last updated: 2026-07-12 (post-#385 ship)
+Last updated: 2026-07-12 (post-#384 ship)
 
 ## Current phase
 
@@ -6,9 +6,9 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #385 (Atlas: add gpt-5.6 to GPT provider registry). One-line insertion at top of `availableVersions`; gpt-5.5 description updated to "Previous flagship". No Gate or Rune needed — version-only change within existing provider entry.
+Shipped #384 (Gate: extend `isValidCapabilities` `knownFields` to cover all `ProviderCapabilities` fields — `imageGeneration`, `thinking`, `structuredOutputs`, `contextManagement` added). `Array<keyof ProviderCapabilities>` type annotation now catches future drift at compile time.
 
-Also shipped #377 (Atlas + Gate + Scout: OpenAI image generation via gpt-image-2).
+Also shipped #385 (Atlas: gpt-5.6 registry entry) and #377 (Atlas + Gate + Scout: OpenAI image generation via gpt-image-2).
 
 Atlas added `generateImage()` to `GPT55ModelProvider` in `gpt.ts` — routes to `/v1/images/generations` when `IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true`. Parses `b64_json` response into `GeneratedImage[]`; emits a single done chunk with `images` populated and no token usage (endpoint returns none). Gate added `imageGeneration: true` to `BUILTIN_CAPABILITIES_MAP['gpt-5.5']` to enable the UI toggle and satisfy the gate in `sendMessage.ts`. Scout added 40 integration tests covering all paths. Rune: green.
 
@@ -53,7 +53,7 @@ Atlas added `generateImage()` to `GPT55ModelProvider` in `gpt.ts` — routes to 
 
 ## Open issues
 
-- `#384` — Gate: extend `isValidCapabilities()` `knownFields` to include newer `ProviderCapabilities` fields
+- `#386` — Atlas + Forge: OpenRouter-based live model discovery for built-in providers
 
 ## Gotchas
 
