@@ -84,14 +84,14 @@ export interface ModelRegistryEntry {
    */
   availableVersions: ModelVersionOption[];
   /**
-   * URL of a remote `models.json` file to fetch at runtime via `fetchRemoteCatalog`.
+   * URL of a remote `models.json` file to fetch at runtime via `fetchModelsFallbackJson`.
    * When present, `resolveVersionCatalog` fetches this URL and returns the result.
    * The URL is expected to be hosted on `raw.githubusercontent.com` (on the network
    * allowlist). Falls back to `availableVersions` if the fetch fails.
    *
-   * None of the built-in registry entries populate this field — their version lists
-   * are complete and static. This field is reserved for future providers whose
-   * canonical version list is maintained externally.
+   * Built-in registry entries populate this with the GitHub raw URL for `models.json`
+   * so the version list can be updated without a code release. This is the second
+   * layer in the three-tier fallback chain: OpenRouter → models.json → bundled.
    */
   remoteCatalogUrl?: string;
   /**
@@ -123,6 +123,30 @@ export interface ModelRegistryEntry {
    * entries whose provider API differs from the OpenRouter shape.
    */
   liveApiProvider?: 'anthropic' | 'gemini';
+  /**
+   * OpenRouter provider prefix for no-key built-in discovery via
+   * `fetchOpenRouterBuiltinCatalog`. When present, `resolveVersionCatalog`
+   * hits `GET https://openrouter.ai/api/v1/models` (no auth required — the
+   * endpoint is public), filters by this prefix, strips it, and returns the
+   * matching entries as the first tier of the fallback chain.
+   *
+   * OpenRouter model IDs follow the `<prefix>/<model-id>` format. After
+   * filtering by `openrouterPrefix`, the prefix is stripped so callers receive
+   * the native API-level model string (e.g. `anthropic/claude-opus-4-8` →
+   * `claude-opus-4-8`).
+   *
+   * This is the first layer in the three-tier chain:
+   *   1. OpenRouter (this field — no key, public endpoint)
+   *   2. models.json (remoteCatalogUrl — GitHub raw URL)
+   *   3. Bundled availableVersions
+   *
+   * Note: openrouter.ai is NOT on the dev-container firewall allowlist — live
+   * fetch will fail in the dev container and degrade silently to layer 2 or 3.
+   * In production (browser), the fetch succeeds without any auth header.
+   *
+   * Examples: `"anthropic"`, `"openai"`, `"google"`, `"x-ai"`, `"deepseek"`, `"mistralai"`
+   */
+  openrouterPrefix?: string;
 }
 
 /**
@@ -151,6 +175,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     // fetch degrades to [] (bundled fallback) when no proxy is configured.
     liveApiEndpoint: 'https://api.anthropic.com/v1/models',
     liveApiProvider: 'anthropic' as const,
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'anthropic',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
   {
     modelId: GPT55_CONFIG.modelId,
@@ -178,6 +206,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       // Do NOT add UI affordances for this model; gpt-image-2 is the primary target.
       { id: 'gpt-image-1', displayName: 'GPT Image 1 (deprecated)', description: 'Legacy image generation — deprecated October 23 2026; use GPT Image 2' },
     ],
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'openai',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
   {
     modelId: GEMINI_CONFIG.modelId,
@@ -206,6 +238,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     // handles this internally. The endpoint listed here is for documentation only.
     liveApiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
     liveApiProvider: 'gemini' as const,
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'google',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
   {
     modelId: GROK_CONFIG.modelId,
@@ -218,6 +254,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'grok-3-mini', displayName: 'Grok 3 mini', description: 'Efficient reasoning model' },
       { id: 'grok-2', displayName: 'Grok 2', description: 'Stable prior-generation model' },
     ],
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'x-ai',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
   {
     modelId: DEEPSEEK_CONFIG.modelId,
@@ -229,6 +269,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: 'General-purpose chat — default' },
       { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: 'Advanced reasoning (R1)' },
     ],
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'deepseek',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
   {
     modelId: MISTRAL_CONFIG.modelId,
@@ -241,6 +285,10 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'mistral-small-latest', displayName: 'Mistral Small', description: 'Fast and cost-efficient' },
       { id: 'open-mistral-nemo', displayName: 'Mistral Nemo', description: 'Open-weight, 12B parameters' },
     ],
+    // OpenRouter no-key discovery: first tier of fallback chain.
+    openrouterPrefix: 'mistralai',
+    // models.json fallback: second tier — fetched from GitHub raw URL without a key.
+    remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
   },
 ];
 

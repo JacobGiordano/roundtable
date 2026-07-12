@@ -25,20 +25,24 @@ export type { ModelRegistryEntry } from './registry';
 // Aria may call these to populate the version picker with dynamically fetched
 // model lists. ModelCatalogEntry is defined in @/types — no new types exported here.
 //
-//   fetchRemoteCatalog(url)              — fetches a remote models.json
-//   fetchLiveApiCatalog(endpoint, key)   — fetches a live provider /models endpoint (OpenRouter)
-//   fetchAnthropicCatalog(key)           — fetches Anthropic /v1/models with x-api-key auth
-//   fetchGeminiCatalog(key)              — fetches Google /v1beta/models with key-as-query-param
-//   resolveVersionCatalog(entry, key?)   — resolver: live API → remote → bundled fallback
-//   resolveCustomProviderCatalog(ep, key) — resolver for custom (non-registry) providers
+//   fetchRemoteCatalog(url)                   — fetches a remote models.json (array-at-root format)
+//   fetchLiveApiCatalog(endpoint, key)        — fetches a live provider /models endpoint (OpenRouter)
+//   fetchOpenRouterBuiltinCatalog(prefix)     — fetches OpenRouter public /models, filters by prefix (no key)
+//   fetchModelsFallbackJson(url, providerKey) — fetches shared models.json, extracts per-provider list
+//   fetchAnthropicCatalog(key)                — fetches Anthropic /v1/models with x-api-key auth
+//   fetchGeminiCatalog(key)                   — fetches Google /v1beta/models with key-as-query-param
+//   resolveVersionCatalog(entry, key?)        — resolver: live API → OpenRouter → models.json → bundled
+//   resolveCustomProviderCatalog(ep, key)     — resolver for custom (non-registry) providers
 //
 // Aria should call resolveVersionCatalog for built-in registry entries and
 // resolveCustomProviderCatalog for custom providers — not the individual fetch
 // functions directly. Provider routing is handled inside resolveVersionCatalog
-// based on ModelRegistryEntry.liveApiProvider.
+// based on ModelRegistryEntry.liveApiProvider and openrouterPrefix.
 export {
   fetchRemoteCatalog,
   fetchLiveApiCatalog,
+  fetchOpenRouterBuiltinCatalog,
+  fetchModelsFallbackJson,
   fetchAnthropicCatalog,
   fetchGeminiCatalog,
   resolveVersionCatalog,
