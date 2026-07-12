@@ -1,0 +1,40 @@
+{
+  "updated": "2026-07-12",
+  "providers": {
+    "anthropic": [
+      { "id": "claude-opus-4-8", "displayName": "Claude Opus 4", "description": "Most capable — complex reasoning and long-horizon tasks" },
+      { "id": "claude-sonnet-4-6", "displayName": "Claude Sonnet 4", "description": "Balanced capability and speed — default" },
+      { "id": "claude-haiku-4-5-20251001", "displayName": "Claude Haiku 4", "description": "Fastest and most compact" }
+    ],
+    "openai": [
+      { "id": "gpt-5.6", "displayName": "GPT-5.6", "description": "Latest flagship — released July 2026" },
+      { "id": "gpt-5.5", "displayName": "GPT-5.5", "description": "Previous flagship" },
+      { "id": "gpt-4o", "displayName": "GPT-4o", "description": "High capability, multimodal" },
+      { "id": "gpt-4o-mini", "displayName": "GPT-4o mini", "description": "Fast and cost-efficient" },
+      { "id": "o3", "displayName": "o3", "description": "Advanced reasoning model" },
+      { "id": "o1", "displayName": "o1", "description": "Strong reasoning, slower responses" },
+      { "id": "o1-mini", "displayName": "o1-mini", "description": "Compact reasoning model" },
+      { "id": "gpt-image-2", "displayName": "GPT Image 2", "description": "Native image generation — produces images from text prompts" },
+      { "id": "gpt-image-1", "displayName": "GPT Image 1 (deprecated)", "description": "Legacy image generation — deprecated October 23 2026; use GPT Image 2" }
+    ],
+    "google": [
+      { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "description": "Most capable — complex tasks and long context" },
+      { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "description": "Fast and efficient — default" },
+      { "id": "gemini-2.5-flash-image", "displayName": "Gemini 2.5 Flash Image", "description": "Native image generation (\"Nano Banana\") — produces text + images" }
+    ],
+    "x-ai": [
+      { "id": "grok-3", "displayName": "Grok 3", "description": "Flagship — default" },
+      { "id": "grok-3-mini", "displayName": "Grok 3 mini", "description": "Efficient reasoning model" },
+      { "id": "grok-2", "displayName": "Grok 2", "description": "Stable prior-generation model" }
+    ],
+    "deepseek": [
+      { "id": "deepseek-chat", "displayName": "DeepSeek Chat", "description": "General-purpose chat — default" },
+      { "id": "deepseek-reasoner", "displayName": "DeepSeek Reasoner", "description": "Advanced reasoning (R1)" }
+    ],
+    "mistralai": [
+      { "id": "mistral-large-latest", "displayName": "Mistral Large", "description": "Most capable — default" },
+      { "id": "mistral-small-latest", "displayName": "Mistral Small", "description": "Fast and cost-efficient" },
+      { "id": "open-mistral-nemo", "displayName": "Mistral Nemo", "description": "Open-weight, 12B parameters" }
+    ]
+  }
+}

@@ -25,6 +25,21 @@ type RemoteCatalogEntry = {
   contextWindow?: number;
 };
 
+/**
+ * Expected top-level shape of the `models.json` file hosted at the GitHub raw URL.
+ * Each key in `providers` is a provider prefix string (e.g. "anthropic", "openai").
+ * The value is an array of `RemoteCatalogEntry` objects for that provider.
+ *
+ * This shape is the second fallback tier in the three-tier discovery chain
+ * (OpenRouter → models.json → bundled). The file is hosted at:
+ *   https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json
+ * and mirrors the static `availableVersions` entries in `registry.ts`.
+ */
+type ModelsFallbackJson = {
+  updated: string;
+  providers: Record<string, RemoteCatalogEntry[]>;
+};
+
 // ─── OpenRouter live-API response shape (not exported) ────────────────────────
 
 /**
@@ -138,6 +153,21 @@ function isRemoteCatalogEntry(value: unknown): value is RemoteCatalogEntry {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   return typeof v['id'] === 'string' && typeof v['displayName'] === 'string';
+}
+
+function isModelsFallbackJson(value: unknown): value is ModelsFallbackJson {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v['updated'] !== 'string') return false;
+  if (typeof v['providers'] !== 'object' || v['providers'] === null) return false;
+  const providers = v['providers'] as Record<string, unknown>;
+  for (const providerModels of Object.values(providers)) {
+    if (!Array.isArray(providerModels)) return false;
+    for (const item of providerModels) {
+      if (!isRemoteCatalogEntry(item)) return false;
+    }
+  }
+  return true;
 }
 
 function isOpenRouterModelsResponse(value: unknown): value is OpenRouterModelsResponse {
@@ -260,6 +290,186 @@ export async function fetchRemoteCatalog(url: string): Promise<ModelCatalogEntry
 }
 
 /**
+ * Fetches available models from the OpenRouter public `/api/v1/models` endpoint,
+ * filters by provider prefix, and returns the matching entries with the prefix
+ * stripped from each model ID.
+ *
+ * No API key is required — the OpenRouter models endpoint is public. This makes
+ * it suitable as the first tier of the built-in provider fallback chain, giving
+ * fresh model lists without requiring a user-supplied OpenRouter key.
+ *
+ * Model ID transformation: OpenRouter IDs follow the `<prefix>/<model-id>` format.
+ * This function strips the prefix so callers receive the native API-level model
+ * string (e.g. `anthropic/claude-opus-4-8` → `claude-opus-4-8`). The display name
+ * comes from OpenRouter's `name` field for the model.
+ *
+ * Capabilities are mapped from OpenRouter's modality fields:
+ *   `input_modalities` includes "image"  → `capabilities.vision: true`
+ *   `output_modalities` includes "image" → `capabilities.imageGeneration: true`
+ *
+ * On any error (network failure, non-2xx, unexpected shape): logs a console.warn
+ * and returns []. Never throws. In the dev container, openrouter.ai is NOT on the
+ * firewall allowlist — fetches will fail and return [] silently, falling through
+ * to the models.json tier.
+ *
+ * @param providerPrefix - OpenRouter provider prefix (e.g. "anthropic", "openai",
+ *                         "google", "x-ai", "deepseek", "mistralai").
+ */
+export async function fetchOpenRouterBuiltinCatalog(
+  providerPrefix: string
+): Promise<ModelCatalogEntry[]> {
+  const url = 'https://openrouter.ai/api/v1/models';
+  const prefixWithSlash = `${providerPrefix}/`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchOpenRouterBuiltinCatalog: network error fetching', url, err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn(
+      '[Atlas/catalog] fetchOpenRouterBuiltinCatalog: non-2xx response',
+      response.status,
+      'from',
+      url
+    );
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchOpenRouterBuiltinCatalog: JSON parse failure from', url, err);
+    return [];
+  }
+
+  if (!isOpenRouterModelsResponse(raw)) {
+    console.warn(
+      '[Atlas/catalog] fetchOpenRouterBuiltinCatalog: unexpected response shape from',
+      url,
+      raw
+    );
+    return [];
+  }
+
+  // Filter to models whose ID starts with the provider prefix, then strip the prefix.
+  // Capabilities come from OpenRouter's modality fields — NOT from provider-level
+  // BUILTIN_CAPABILITIES_MAP, which is authoritative for other purposes.
+  return raw.data
+    .filter((model) => model.id.startsWith(prefixWithSlash))
+    .map((model): ModelCatalogEntry => {
+      const nativeId = model.id.slice(prefixWithSlash.length);
+      const hasVision = model.input_modalities?.includes('image') ?? false;
+      const hasImageGen = model.output_modalities?.includes('image') ?? false;
+      const hasCapabilities = hasVision || hasImageGen;
+
+      return {
+        id: nativeId,
+        displayName: model.name,
+        ...(model.description !== undefined ? { description: model.description } : {}),
+        ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
+        ...(hasCapabilities ? { capabilities: {
+          vision: hasVision,
+          imageGeneration: hasImageGen,
+        } } : {}),
+        source: 'live-api',
+      };
+    });
+}
+
+/**
+ * Fetches the shared `models.json` fallback file and returns the model list for
+ * the requested provider key as `ModelCatalogEntry[]` with `source: 'remote'`.
+ *
+ * The `models.json` file has the following top-level shape:
+ * ```json
+ * {
+ *   "updated": "YYYY-MM-DD",
+ *   "providers": {
+ *     "anthropic": [{ "id": "...", "displayName": "..." }, ...],
+ *     "openai":    [...],
+ *     ...
+ *   }
+ * }
+ * ```
+ *
+ * `providerKey` must match a key in `providers` — this is the same string as
+ * `ModelRegistryEntry.openrouterPrefix` (e.g. "anthropic", "openai", "google").
+ *
+ * On any error (network failure, non-2xx, unexpected shape, missing provider key):
+ * logs a console.warn and returns []. Never throws.
+ *
+ * @param url         - Full URL of the `models.json` file (GitHub raw URL).
+ * @param providerKey - Provider key to look up in `providers` (e.g. "anthropic").
+ */
+export async function fetchModelsFallbackJson(
+  url: string,
+  providerKey: string
+): Promise<ModelCatalogEntry[]> {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchModelsFallbackJson: network error fetching', url, err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn(
+      '[Atlas/catalog] fetchModelsFallbackJson: non-2xx response',
+      response.status,
+      'from',
+      url
+    );
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchModelsFallbackJson: JSON parse failure from', url, err);
+    return [];
+  }
+
+  if (!isModelsFallbackJson(raw)) {
+    console.warn(
+      '[Atlas/catalog] fetchModelsFallbackJson: unexpected response shape from',
+      url,
+      raw
+    );
+    return [];
+  }
+
+  const providerModels = raw.providers[providerKey];
+  if (!Array.isArray(providerModels)) {
+    console.warn(
+      '[Atlas/catalog] fetchModelsFallbackJson: no entry for provider key',
+      providerKey,
+      'in',
+      url
+    );
+    return [];
+  }
+
+  return providerModels.map((entry): ModelCatalogEntry => ({
+    id: entry.id,
+    displayName: entry.displayName,
+    ...(entry.description !== undefined ? { description: entry.description } : {}),
+    ...(entry.contextWindow !== undefined ? { contextWindow: entry.contextWindow } : {}),
+    source: 'remote',
+  }));
+}
+
+/**
  * Fetches available models from a live provider API endpoint and returns them
  * as `ModelCatalogEntry[]` with `source: 'live-api'`.
  *
@@ -351,14 +561,25 @@ export async function fetchLiveApiCatalog(
  * Resolves the version catalog for a registry entry using the best available
  * source, in priority order:
  *
- *   1. Live API  — if `entry.liveApiEndpoint` is set AND `apiKey` is provided,
- *                  calls `fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey)`.
- *                  Returns the result (may be [] if network is blocked).
- *   2. Remote    — if `entry.remoteCatalogUrl` is set, calls
- *                  `fetchRemoteCatalog(entry.remoteCatalogUrl)`.
- *                  Returns the result (may be [] if fetch fails).
- *   3. Bundled   — falls back to `entry.availableVersions` mapped to
- *                  `ModelCatalogEntry[]` with `source: 'bundled'`.
+ * For built-in entries with `openrouterPrefix` set, runs a three-tier chain:
+ *   1. OpenRouter (no key)  — `fetchOpenRouterBuiltinCatalog(entry.openrouterPrefix)`
+ *                             Public endpoint; no API key required. Falls through to
+ *                             tier 2 if the result is empty (network blocked, etc.).
+ *   2. models.json          — `fetchModelsFallbackJson(entry.remoteCatalogUrl, entry.openrouterPrefix)`
+ *                             Fetches the shared models.json from GitHub raw URL.
+ *                             Falls through to tier 3 if the result is empty.
+ *   3. Bundled              — `entry.availableVersions` mapped to `ModelCatalogEntry[]`
+ *                             with `source: 'bundled'`. Always succeeds.
+ *
+ * For entries with `liveApiEndpoint` set (and `apiKey` provided), dispatches to
+ * the provider-specific fetcher. This path is independent of the three-tier chain
+ * and takes priority when both `liveApiEndpoint` and `openrouterPrefix` are set:
+ *   - 'anthropic' → `fetchAnthropicCatalog(apiKey)`
+ *   - 'gemini'    → `fetchGeminiCatalog(apiKey)`
+ *   - (default)   → `fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey)` (OpenRouter format)
+ *
+ * For entries with only `remoteCatalogUrl` (no `openrouterPrefix`, no `liveApiEndpoint`),
+ * falls back to the old `fetchRemoteCatalog` path (array-at-root format).
  *
  * Never throws. Graceful degradation is the contract: a failed remote/live
  * fetch produces the bundled list, not an error.
@@ -367,7 +588,7 @@ export async function fetchLiveApiCatalog(
  *
  * @param entry  - A `ModelRegistryEntry` from `MODEL_REGISTRY`.
  * @param apiKey - Optional API key for live endpoint auth (Gate-mediated; never
- *                 stored or logged here). Required for path 1 to activate.
+ *                 stored or logged here). Required for the liveApiEndpoint path.
  */
 export async function resolveVersionCatalog(
   entry: ModelRegistryEntry,
@@ -388,7 +609,28 @@ export async function resolveVersionCatalog(
     return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
   }
 
-  if (entry.remoteCatalogUrl !== undefined) {
+  // Three-tier chain for built-in providers with an OpenRouter prefix.
+  // Tier 1: OpenRouter public endpoint — no key required.
+  if (entry.openrouterPrefix !== undefined) {
+    const openrouterResult = await fetchOpenRouterBuiltinCatalog(entry.openrouterPrefix);
+    if (openrouterResult.length > 0) {
+      return openrouterResult;
+    }
+
+    // Tier 2: models.json fallback from GitHub raw URL.
+    if (entry.remoteCatalogUrl !== undefined) {
+      const fallbackResult = await fetchModelsFallbackJson(
+        entry.remoteCatalogUrl,
+        entry.openrouterPrefix
+      );
+      if (fallbackResult.length > 0) {
+        return fallbackResult;
+      }
+    }
+
+    // Tier 3: bundled — fall through to return below.
+  } else if (entry.remoteCatalogUrl !== undefined) {
+    // Legacy path: remoteCatalogUrl without openrouterPrefix — array-at-root format.
     return fetchRemoteCatalog(entry.remoteCatalogUrl);
   }
 
