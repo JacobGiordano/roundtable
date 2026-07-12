@@ -111,6 +111,10 @@ function isValidCapabilities(value: unknown): value is ProviderCapabilities {
     'vision',
     'toolUse',
     'systemPrompt',
+    'imageGeneration',
+    'thinking',
+    'structuredOutputs',
+    'contextManagement',
   ];
   for (const field of knownFields) {
     if (v[field] !== undefined && typeof v[field] !== 'boolean') return false;
