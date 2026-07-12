@@ -159,7 +159,8 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     color: 'accent-gpt',
     defaultActive: true,
     availableVersions: [
-      { id: 'gpt-5.5', displayName: 'GPT-5.5', description: 'Latest flagship — default' },
+      { id: 'gpt-5.6', displayName: 'GPT-5.6', description: 'Latest flagship — released July 2026' },
+      { id: 'gpt-5.5', displayName: 'GPT-5.5', description: 'Previous flagship' },
       { id: 'gpt-4o', displayName: 'GPT-4o', description: 'High capability, multimodal' },
       { id: 'gpt-4o-mini', displayName: 'GPT-4o mini', description: 'Fast and cost-efficient' },
       { id: 'o3', displayName: 'o3', description: 'Advanced reasoning model' },
