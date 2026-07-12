@@ -613,14 +613,15 @@ export function InputBar({
 
     const before = value.slice(0, mentionStartIndexRef.current);
     const after = value.slice(textarea.selectionStart);
-    const mention = `@${model.name}`;
+    // Trailing space after "@ModelName" so the cursor lands ready for typing.
+    const mention = `@${model.name} `;
     const newValue = `${before}${mention}${after}`;
 
     setValue(newValue);
     setMentionedModel(model);
     dismissMention();
 
-    // Resize textarea and restore cursor to after the inserted mention.
+    // Resize textarea and restore cursor to after the inserted mention (including trailing space).
     const newCursorPos = before.length + mention.length;
     requestAnimationFrame(() => {
       if (!textareaRef.current) return;
@@ -756,7 +757,7 @@ export function InputBar({
     if (detected) {
       mentionStartIndexRef.current = detected.startIndex;
       setMentionQuery(detected.query);
-      setMentionActiveIndex(-1);
+      setMentionActiveIndex(0);
 
       // If the mentionedModel no longer matches the current @token, clear it.
       // This handles the case where the user edits after placing a mention.
