@@ -1,4 +1,4 @@
-Last updated: 2026-07-12 (post-#383 ship)
+Last updated: 2026-07-12 (post-#377 ship)
 
 ## Current phase
 
@@ -6,14 +6,19 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #383 (Atlas + Aria: abort/cancel in-flight model responses).
+Shipped #377 (Atlas + Gate + Scout: OpenAI image generation via gpt-image-2).
 
-Atlas wired an internal `AbortController` per `sendMessage` call, combined with Aria's external signal via `AbortSignal.any()`. Exports `stopMessage: StopMessageFn` from `@/models`. All six providers already had AbortError paths from #159; no provider changes needed.
-
-Aria (existing, from #159): stop button in InputBar replaces send button while `isStreaming`. Fix this session: `isPending` state flips true at dispatch time (not first-chunk time), so the stop button is visible during the full pre-stream window.
+Atlas added `generateImage()` to `GPT55ModelProvider` in `gpt.ts` — routes to `/v1/images/generations` when `IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true`. Parses `b64_json` response into `GeneratedImage[]`; emits a single done chunk with `images` populated and no token usage (endpoint returns none). Gate added `imageGeneration: true` to `BUILTIN_CAPABILITIES_MAP['gpt-5.5']` to enable the UI toggle and satisfy the gate in `sendMessage.ts`. Scout added 40 integration tests covering all paths. Rune: green.
 
 ## Key decisions
 
+- `IMAGE_GEN_MODEL_STRINGS` in `gpt.ts` gates which model versions use `/v1/images/generations` vs chat completions
+- `gpt-image-2` MIME type hardcoded to `image/png` (API returns no MIME type for b64_json responses)
+- `revised_prompt` from OpenAI response → `GeneratedImage.altText` (OpenAI may rewrite prompts)
+- `tokenUsage` is `undefined` for image gen responses — images endpoint returns no token counts
+- `gpt-image-1` kept in `IMAGE_GEN_MODEL_STRINGS` until Oct 23 2026 (OpenAI deprecation date); no runtime UI
+- `BUILTIN_CAPABILITIES_MAP['gpt-5.5']` now includes `imageGeneration: true` (same pattern as gemini)
+- `isValidCapabilities()` `knownFields` missing `imageGeneration`/`thinking`/`structuredOutputs`/`contextManagement` — Gate ticket opened (#384), not a blocker
 - GitHub Pages source: gh-pages branch → / (root) — must not change
 - Backend CI pinned to Node 22 LTS
 - Pricing URL resolution: localStorage override → VITE_PRICING_URL → canonical default
@@ -46,7 +51,7 @@ Aria (existing, from #159): stop button in InputBar replaces send button while `
 
 ## Open issues
 
-- `#377` — Atlas: OpenAI image generation via gpt-image-2 [deferred]
+- `#384` — Gate: extend `isValidCapabilities()` `knownFields` to include newer `ProviderCapabilities` fields
 
 ## Gotchas
 
