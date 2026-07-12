@@ -165,6 +165,17 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       { id: 'o3', displayName: 'o3', description: 'Advanced reasoning model' },
       { id: 'o1', displayName: 'o1', description: 'Strong reasoning, slower responses' },
       { id: 'o1-mini', displayName: 'o1-mini', description: 'Compact reasoning model' },
+      // Issue #377 — native image generation via the /v1/images/generations endpoint.
+      // Selecting gpt-image-2 routes to generateImage() in GPT55ModelProvider (gpt.ts)
+      // instead of the normal /v1/chat/completions path. The model selection is the
+      // opt-in signal; Gate must also set imageGeneration: true in BUILTIN_CAPABILITIES_MAP
+      // for 'gpt-5.5' so sendMessage.ts populates imageGenEnabled and passes
+      // requestImageGeneration: true to the provider (same pattern as Gemini, issue #375).
+      { id: 'gpt-image-2', displayName: 'GPT Image 2', description: 'Native image generation — produces images from text prompts' },
+      // gpt-image-1: DEPRECATED — scheduled for removal October 23 2026 (OpenAI deprecation notice).
+      // Included here so existing sessions using gpt-image-1 remain functional until that date.
+      // Do NOT add UI affordances for this model; gpt-image-2 is the primary target.
+      { id: 'gpt-image-1', displayName: 'GPT Image 1 (deprecated)', description: 'Legacy image generation — deprecated October 23 2026; use GPT Image 2' },
     ],
   },
   {
