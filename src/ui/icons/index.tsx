@@ -351,6 +351,59 @@ export function SmallCloseIcon({ size = 8, className }: IconProps) {
   ));
 }
 
+// ─── CopyIcon ─────────────────────────────────────────────────────────────────
+/**
+ * Two-page copy/clipboard icon — stroke-based, 14×14 default.
+ *
+ * Back page sits upper-right; front page overlaps lower-left. The `pageFill`
+ * prop sets the interior fill of both rects. Pass a fill that matches the
+ * surrounding surface so the front page visually occludes the back page's strokes:
+ *
+ *   Nameplate context (MessageBubble):
+ *     pageFill = 'color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))'
+ *     This matches the nameplate tinted background exactly across all 7 themes.
+ *
+ *   Overlay context (Lightbox):
+ *     pageFill = 'rgb(0 0 0 / 0.6)'
+ *     Matches the button's bg-black/60 background against the dark overlay.
+ *
+ * Defaults to `'none'` (transparent) — callers must pass a fill for correct rendering.
+ * The `size` prop controls both width and height (viewBox is always 14×14).
+ */
+export function CopyIcon({
+  size = 14,
+  className,
+  pageFill = 'none',
+}: IconProps & { pageFill?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+      className={['flex-shrink-0', className].filter(Boolean).join(' ')}
+    >
+      {/* back page — upper-right */}
+      <rect
+        x="4" y="1" width="8" height="10" rx="1.5"
+        fill={pageFill}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      {/* front page — lower-left */}
+      <rect
+        x="2" y="3" width="8" height="10" rx="1.5"
+        fill={pageFill}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // ─── PhotoIcon ────────────────────────────────────────────────────────────────
 /**
  * Photo/image icon (mountain-in-frame silhouette). Used in the InputBar

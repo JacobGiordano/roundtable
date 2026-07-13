@@ -26,16 +26,15 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { GeneratedImage } from '@/types';
 import { downloadImage, copyImageToClipboard } from '@/ui/utils/imageActions';
+// #405: CopyIcon shared from icons/index.tsx — same SVG structure as MessageBubble's
+// copy icon. pageFill='rgb(0 0 0 / 0.6)' matches the button's bg-black/60 surface so
+// the front page rect occludes the back page strokes correctly on the dark overlay.
+import { CopyIcon } from '@/ui/icons';
 
 // ─── SVG icons — 20×20, private to this file ─────────────────────────────────
-// These icons are single-use in the lightbox overlay and do not belong in the
-// shared icon system (icons/index.tsx) which uses a different fixed-size contract.
-// react-refresh/only-export-components: all exports from this file are components,
-// so the eslint rule is satisfied. Utilities are imported from @/ui/utils/imageActions.
-//
-// CopyIcon uses the same two-rect clipboard silhouette as MessageBubble's CopyIcon
-// (ImageCopyButton and NameplateCopyButton) — unified icon vocabulary across all
-// copy affordances in the app (#400–#404 polish pass).
+// DownloadIcon, CheckIcon, and InfoIcon are single-use in the lightbox overlay
+// and do not belong in the shared icon system (icons/index.tsx).
+// CopyIcon is imported from @/ui/icons (#405) — see import above.
 
 /** Download arrow-into-tray icon — 20×20. */
 function DownloadIcon() {
@@ -60,41 +59,6 @@ function DownloadIcon() {
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/**
- * Two-page copy icon — 20×20, stroke-only.
- * Matches the two-rect clipboard silhouette used in MessageBubble's CopyIcon
- * (ImageCopyButton and NameplateCopyButton) — same shape vocabulary, scaled to 20×20
- * for the lightbox overlay context. Fill is transparent (fill="none") so the icon
- * reads cleanly against the dark overlay without themed CSS vars.
- */
-function CopyIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      className="flex-shrink-0"
-    >
-      {/* back page — upper-right */}
-      <rect
-        x="6" y="2" width="11" height="14" rx="2"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      {/* front page — lower-left */}
-      <rect
-        x="3" y="4" width="11" height="14" rx="2"
-        stroke="currentColor"
-        strokeWidth="1.7"
         strokeLinejoin="round"
       />
     </svg>
@@ -475,7 +439,7 @@ export function Lightbox({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+            {copyState === 'copied' ? <CheckIcon /> : <CopyIcon size={20} pageFill="rgb(0 0 0 / 0.6)" />}
           </button>
         )}
 

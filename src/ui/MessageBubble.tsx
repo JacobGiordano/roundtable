@@ -5,6 +5,9 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
+// #405: CopyIcon extracted to shared icons so Lightbox can import the same component.
+// pageFill is passed to match the nameplate background across all 7 themes.
+import { CopyIcon } from './icons';
 // #390: downloadImage + copyImageToClipboard shared utilities.
 // Extracted to utils/ so both Lightbox and MessageBubble share the same
 // implementation without cross-component imports.
@@ -22,43 +25,6 @@ import { resolveAccentCssColor } from './utils/modelColor';
 import { formatRelativeTime } from './utils/timeFormat';
 // #371: three-dot thinking indicator for the pre-response streaming state.
 import { ThinkingIndicator } from './ThinkingIndicator';
-
-/** Clipboard icon — 14×14 SVG, consistent with other icon buttons in the app.
- *  Two <rect> elements with stroke outlines. Page interiors are filled with a
- *  var(--nameplate-tint) bubble-accent tint over the surface-card base, matching the
- *  nameplate background exactly on all 7 themes without hardcoded colors or masking.
- *  Back page sits upper-right; front page overlaps lower-left.
- */
-function CopyIcon() {
-  const pageFill = 'color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))';
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      aria-hidden="true"
-      className="flex-shrink-0"
-    >
-      {/* back page — upper-right */}
-      <rect
-        x="4" y="1" width="8" height="10" rx="1.5"
-        fill={pageFill}
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-      {/* front page — lower-left */}
-      <rect
-        x="2" y="3" width="8" height="10" rx="1.5"
-        fill={pageFill}
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 /** Checkmark icon — 14×14 SVG, shown briefly after a successful copy. */
 function CheckIcon() {
@@ -215,7 +181,7 @@ function ImageCopyButton({ img, copyLabel }: { img: GeneratedImage; copyLabel: s
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
       ].join(' ')}
     >
-      {imgCopyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+      {imgCopyState === 'copied' ? <CheckIcon /> : <CopyIcon pageFill="color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))" />}
       <span aria-hidden="true">{imgCopyState === 'copied' ? 'Copied!' : 'Copy'}</span>
     </button>
   );
@@ -667,7 +633,7 @@ export function MessageBubble({
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
         ].join(' ')}
       >
-        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon pageFill="color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))" />}
       </button>
     );
   }
