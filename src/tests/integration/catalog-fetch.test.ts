@@ -438,6 +438,62 @@ describe('resolveVersionCatalog', () => {
     expect(result).toHaveLength(2);
     expect(result[0]!.source).toBe('bundled');
   });
+
+  // ── #392 regression tests — live API failure fallback ──────────────────────
+
+  it('#392: falls through to bundled when liveApiEndpoint fetch fails with apiKey (no other URLs set)', async () => {
+    // Bug fix: previously returned [] when live fetch failed; now falls through to bundled.
+    // This case: liveApiEndpoint set, apiKey provided, fetch network error, no openrouterPrefix,
+    // no remoteCatalogUrl → must return bundled, not [].
+    vi.stubGlobal('fetch', makeFetchNetworkError());
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+      // no remoteCatalogUrl, no openrouterPrefix
+    };
+
+    const result = await resolveVersionCatalog(entry, 'failing-key');
+
+    expect(result).toHaveLength(2);
+    expect(result[0]!.id).toBe('model-v1');
+    expect(result[0]!.source).toBe('bundled');
+  });
+
+  it('#392: falls through to legacy remoteCatalogUrl when liveApiEndpoint fails with apiKey (no openrouterPrefix)', async () => {
+    // When live fetch fails and there is a remoteCatalogUrl but no openrouterPrefix,
+    // the legacy fetchRemoteCatalog path is used as the next fallback.
+    const remoteData = [{ id: 'legacy-remote', displayName: 'Legacy Remote' }];
+    // First fetch (live endpoint) fails; second fetch (remote catalog) succeeds.
+    let callCount = 0;
+    const mockFetch = vi.fn(() => {
+      callCount++;
+      if (callCount === 1) {
+        // Simulate live API network error
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      // Remote catalog succeeds with array-at-root format
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(remoteData),
+      });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const entry: ModelRegistryEntry = {
+      ...makeBundledEntry(),
+      liveApiEndpoint: 'https://openrouter.ai/api/v1',
+      remoteCatalogUrl: 'https://raw.githubusercontent.com/example/models.json',
+      // no openrouterPrefix — legacy fetchRemoteCatalog path
+    };
+
+    const result = await resolveVersionCatalog(entry, 'failing-key');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('legacy-remote');
+    expect(result[0]!.source).toBe('remote');
+  });
 });
 
 // ─── resolveCustomProviderCatalog ─────────────────────────────────────────────
