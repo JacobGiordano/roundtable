@@ -1,4 +1,4 @@
-Last updated: 2026-07-12 (post-#386 + #389 ship)
+Last updated: 2026-07-12 (post-#392 hotfix ship)
 
 ## Current phase
 
@@ -6,23 +6,26 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #386 (Atlas + Forge + Scout: OpenRouter-based live model discovery for built-in providers). Three-tier chain per provider: OpenRouter live fetch → `models.json` GitHub raw URL → bundled `availableVersions`. `models.json` and `public/models.json` created. Nightly `sync-models-json.yml` workflow syncs from OpenRouter and auto-commits both files. Rune reviewed: yellow → Finding 4 (x-ai missing from workflow PROVIDERS) fixed before ship; #387 (model ID sanitization, prerequisite for UI wire-up) and #388 (console.warn body truncation) opened as deferred.
+Shipped #392 (Atlas: hotfix — send regression from #386). `resolveVersionCatalog()` had an unconditional `return` on the live API path. When Anthropic's `/v1/models` is CORS-blocked in browsers (always), the function returned `[]` immediately, never reaching the bundled fallback. Empty catalog → empty model picker → `canSend` guard blocked send → total silence for users with an Anthropic key. Fix: collect live result first, only return early if non-empty; empty falls through to OpenRouter → models.json → bundled.
 
-Shipped #389 (Gate + Scout + Ada: pre-existing CI test failures). Root causes: stale `imageGeneration: true` missing from capability assertions (Gate + Scout), `isStreaming` tests needed `await act(async () => {})` for microtask flush after `isPending` was added to context (Scout), directed-to label assertion updated for Aria's ARIA 1.2 §6.2.6 fix (Ada). Full suite now 2114 passed / 7 skipped / 0 failed.
+Shipped #390 (Aria + Ada + Scout: image action controls). Hover overlay with download icon on generated image thumbnails; lightbox gets download (bottom-right), copy-to-clipboard PNG-only (bottom-right), info toggle (bottom-left, conditional on altText). Download uses `data:${mimeType};base64,...` with extension derived from mimeType; filename `roundtable-image-<timestamp>.<ext>`. New utility `src/ui/utils/imageActions.ts`. Ada two WARNs resolved before commit. 68 Scout tests. 2184 passed / 7 skipped / 0 failed.
 
-Opened #390 (feat: image action controls — download, copy, lightbox metadata). Team design brief posted: Aria recommends hover overlay (download icon) + full controls in lightbox, altText as tooltip and collapsible info panel, PNG-only copy-to-clipboard. Atlas confirmed altText absent for ALL Gemini images and conditional for GPT; derive file ext from mimeType; filename `roundtable-image-<timestamp>.<ext>`.
+Opened #391 (spike: generated video support). Atlas verdict: DEFER. Sora shutting down Sept 24, every provider is async/polling (novel pattern), video URLs expire in 24h (no export solution). Revisit when OpenRouter's video API stabilizes and OpenAI announces Sora replacement.
 
 ## Key decisions
 
+- `resolveVersionCatalog()` must use collect-then-fall-through: collect live result, return early only if non-empty; never unconditionally return from live API path
+- altText is absent for ALL Gemini images, conditional for GPT (only when prompt revised) — treat as always optional
+- Download filename: `roundtable-image-<timestamp>.<ext>`, ext derived from mimeType
+- Copy-to-clipboard: PNG-only gate required (ClipboardItem JPEG support inconsistent across browsers)
+- Image action controls: hover overlay pattern (not nameplate toolbar) — translucent black bar at bottom of thumbnail
+- Lightbox DOM order: download → info → close (Tab cycles logically); initial focus on close unchanged
 - OpenRouter prefix map: anthropic → `anthropic`, GPT → `openai`, Gemini → `google`, Grok → `x-ai`, DeepSeek → `deepseek`, Mistral → `mistralai`
 - `openrouterPrefix` lives on `ModelRegistryEntry` in `registry.ts` (Atlas-owned) — no types/index.ts change needed
 - Capabilities NOT sourced from OpenRouter — `BUILTIN_CAPABILITIES_MAP` remains authoritative
 - `models.json` / `public/models.json` pattern mirrors `pricing.json` / `public/pricing.json`
 - sync-models-json.yml uses `[skip ci]` on auto-commits to avoid re-triggering CI
 - #387 (model ID sanitization) is a hard prerequisite before any PR wires live catalog into the version picker UI
-- altText absent for ALL Gemini images, conditional for GPT (only when prompt was revised) — treat as always optional
-- Download filename: `roundtable-image-<timestamp>.<ext>`, ext derived from mimeType
-- Copy-to-clipboard: PNG-only gate required (ClipboardItem JPEG support inconsistent across browsers)
 - GitHub Pages source: gh-pages branch → / (root) — must not change
 - Backend CI pinned to Node 22 LTS
 - Pricing URL resolution: localStorage override → VITE_PRICING_URL → canonical default
@@ -57,7 +60,8 @@ Opened #390 (feat: image action controls — download, copy, lightbox metadata).
 
 - `#387` — Atlas: sanitize model IDs from external sources before use (prerequisite for UI wire-up of live discovery)
 - `#388` — Atlas: replace verbatim external response body in console.warn validation failures
-- `#390` — Aria + Ada + Scout: image action controls (download, copy, lightbox metadata) — design brief posted
+- `#390` — **pending visual review** — image action controls on local main, not yet pushed; needs dev-server check before ship
+- `#391` — spike: generated video support — DEFER verdict posted; no action needed
 
 ## Gotchas
 
