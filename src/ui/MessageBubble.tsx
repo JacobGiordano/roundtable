@@ -396,13 +396,16 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
     );
   }
 
-  // When an error is present on a non-streaming message and the content is the
-  // synthesized sentinel 'Error' (set by useStreamingMessages guard path when no
-  // priming chunk created an accumulator entry), suppress the body text entirely.
-  // The error section in MessageBubble already renders the full error detail.
+  // When an error is present on a non-streaming message and the content is either:
+  //   - the synthesized sentinel 'Error' (set by useStreamingMessages guard path when no
+  //     priming chunk created an accumulator entry), OR
+  //   - an empty string '' (the normal error path: emitErrorChunk priming chunk sets
+  //     content:'' on the accumulator; final done chunk carries the error but no text)
+  // …suppress the body text entirely. The error section in MessageBubble already
+  // renders the full error detail via error.message.
   // Real partial-content + error messages (where the model streamed real text
-  // before erroring) have non-sentinel content and are NOT suppressed here.
-  if (hasError && !isStreaming && content === 'Error') {
+  // before erroring) have non-empty, non-sentinel content and are NOT suppressed here.
+  if (hasError && !isStreaming && (content === 'Error' || content === '')) {
     return null;
   }
 
@@ -541,14 +544,19 @@ export function MessageBubble({
   }, [isThinkingCondition, thinkingMounted, thinkingFading]);
 
   const handleCopy = useCallback(() => {
-    if (!message.content || copyState === 'copied') return;
-    navigator.clipboard.writeText(message.content).then(() => {
+    if (copyState === 'copied') return;
+    // For error-only messages (content is empty or the 'Error' sentinel), copy the
+    // error message text instead so users can share or report the error (#396).
+    const hasUsableContent = message.content && message.content !== 'Error';
+    const textToCopy = hasUsableContent ? message.content : (error?.message ?? '');
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy).then(() => {
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 1500);
     }).catch(() => {
       // Clipboard write failed (e.g. insecure context) — fail silently.
     });
-  }, [message.content, copyState]);
+  }, [message.content, error?.message, copyState]);
 
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
@@ -569,7 +577,12 @@ export function MessageBubble({
   // additionalClassName: pass 'ml-4' on the first button after a name/dot to add breathing room.
 
   function NameplateCopyButton({ additionalClassName = '' }: { additionalClassName?: string }) {
-    if (!message.content || (hasError && message.content === 'Error')) return null;
+    // Show copy button when there is usable content OR when there is an error message
+    // to copy. For error-only messages (content is '' or the sentinel 'Error'),
+    // the button copies error.message so users can share or report the error (#396).
+    const hasUsableContent = message.content && message.content !== 'Error';
+    const hasCopyableText = hasUsableContent || (hasError && !!error?.message);
+    if (!hasCopyableText) return null;
     return (
       <button
         type="button"
@@ -957,11 +970,17 @@ export function MessageBubble({
 
           {/* Error detail — rendered in the body zone below any partial content.
               The divider (border-t) is only shown when there is visible body content.
-              When content is the synthesized sentinel 'Error', MessageContent returns
-              null and no body is rendered — so the divider is suppressed.
-              The warning icon is in the nameplate; the body shows the message text only. */}
+              When content is the synthesized sentinel 'Error' or empty '', MessageContent
+              returns null and no body is rendered — so the divider is suppressed.
+              The warning icon is in the nameplate; the body shows the message text only.
+              role="alert": announces the error to screen readers when the element mounts
+              (WCAG 4.1.3 Status Messages). Fires assertively without requiring focus —
+              a user who was not watching the streaming bubble still hears the failure. */}
           {hasError && (
-            <div className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}>
+            <div
+              role="alert"
+              className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}
+            >
               <p className="text-[13px] text-error italic">
                 Error: {error!.message}
               </p>
@@ -985,7 +1004,9 @@ export function MessageBubble({
           {showBottomRow && (
             <div
               className={[
-                'mt-2 flex items-center justify-between',
+                // gap-4 ensures a minimum 16px between "Reply to" label and token count
+                // so they never collide on short bubbles or with long model names (#397).
+                'mt-2 flex items-center justify-between gap-4',
                 'transition-opacity duration-fast',
                 rowVisible ? 'opacity-100' : 'opacity-0 focus-within:opacity-100',
               ].join(' ')}
@@ -997,7 +1018,7 @@ export function MessageBubble({
                   type="button"
                   onClick={() => onDirectedReply!(message.modelId as ModelId)}
                   className={[
-                    'text-[11px] font-medium',
+                    'text-[11px] font-medium min-w-0 truncate',
                     'hover:underline underline-offset-2',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
                     'rounded-sm',
@@ -1025,7 +1046,7 @@ export function MessageBubble({
                      Interpunct is hidden from AT via aria-hidden; cost is prefixed with
                      an sr-only comma-phrase so screen readers announce it cleanly. */
                   <div
-                    className="text-[11px] text-text-muted text-right"
+                    className="text-[11px] text-text-muted text-right shrink-0"
                     title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
                     aria-hidden={!rowVisible}
                   >
