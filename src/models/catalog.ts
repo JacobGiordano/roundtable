@@ -599,14 +599,28 @@ export async function resolveVersionCatalog(
     // The generic `fetchLiveApiCatalog` is OpenRouter wire format and does not
     // work for Anthropic or Gemini, which use different auth schemes and response
     // shapes.
+    //
+    // Bug fix (#392): when the live API fetch returns [] (network error, CORS,
+    // auth failure), fall through to the three-tier chain below rather than
+    // returning [] directly. This ensures the bundled fallback is always reached
+    // when the live API is unavailable — e.g. Anthropic's /v1/models is
+    // CORS-blocked in most browser contexts without a proxy, so a user with an
+    // API key configured would previously get an empty version catalog.
+    let liveResult: ModelCatalogEntry[];
     if (entry.liveApiProvider === 'anthropic') {
-      return fetchAnthropicCatalog(apiKey);
+      liveResult = await fetchAnthropicCatalog(apiKey);
+    } else if (entry.liveApiProvider === 'gemini') {
+      liveResult = await fetchGeminiCatalog(apiKey);
+    } else {
+      // Default: OpenRouter / generic OpenAI-compatible /models endpoint.
+      liveResult = await fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
     }
-    if (entry.liveApiProvider === 'gemini') {
-      return fetchGeminiCatalog(apiKey);
+    if (liveResult.length > 0) {
+      return liveResult;
     }
-    // Default: OpenRouter / generic OpenAI-compatible /models endpoint.
-    return fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
+    // Live API returned [] — fall through to the three-tier chain below.
+    // This covers CORS-blocked endpoints (Anthropic direct), network errors,
+    // and auth failures. The bundled list is always returned in the worst case.
   }
 
   // Three-tier chain for built-in providers with an OpenRouter prefix.
@@ -635,6 +649,8 @@ export async function resolveVersionCatalog(
   }
 
   // Bundled fallback — map static ModelVersionOption[] to ModelCatalogEntry[]
+  // This path is always reached if all remote fetches fail or return empty.
+  // The bundled list is the last line of defense and always succeeds.
   return entry.availableVersions.map(
     (v): ModelCatalogEntry => ({
       id: v.id,

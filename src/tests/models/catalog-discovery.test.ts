@@ -581,33 +581,41 @@ describe('resolveVersionCatalog — liveApiProvider dispatch', () => {
     expect(result[0]!.source).toBe('bundled');
   });
 
-  it('returns [] (not bundled) when liveApiProvider: anthropic fetch fails', async () => {
-    // The live API path activates because apiKey is provided. It then fails.
-    // resolveVersionCatalog returns whatever fetchAnthropicCatalog returns ([] on error).
-    // It does NOT fall back to bundled — bundled is only for the no-liveApiEndpoint path.
+  it('falls through to bundled when liveApiProvider: anthropic fetch fails (#392 fix)', async () => {
+    // Bug fix (#392): when the live API fetch fails (network error, CORS, auth failure),
+    // resolveVersionCatalog must fall through to the three-tier chain and ultimately
+    // return the bundled fallback — NOT []. Previously, a failed live fetch would
+    // return [] directly, leaving the version picker empty and blocking provider init.
     vi.stubGlobal('fetch', makeFetchNetworkError());
 
     const entry = makeEntry({
       liveApiEndpoint: 'https://api.anthropic.com/v1/models',
       liveApiProvider: 'anthropic',
+      // no openrouterPrefix / remoteCatalogUrl — bundled is the final fallback
     });
 
     const result = await resolveVersionCatalog(entry, 'sk-ant-key');
 
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('bundled-v1');
+    expect(result[0]!.source).toBe('bundled');
   });
 
-  it('returns [] (not bundled) when liveApiProvider: gemini fetch fails', async () => {
+  it('falls through to bundled when liveApiProvider: gemini fetch fails (#392 fix)', async () => {
+    // Same fix as above — Gemini live fetch failure must not return [] bare.
     vi.stubGlobal('fetch', makeFetchNetworkError());
 
     const entry = makeEntry({
       liveApiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
       liveApiProvider: 'gemini',
+      // no openrouterPrefix / remoteCatalogUrl — bundled is the final fallback
     });
 
     const result = await resolveVersionCatalog(entry, 'google-api-key');
 
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('bundled-v1');
+    expect(result[0]!.source).toBe('bundled');
   });
 
   it('uses generic fetchLiveApiCatalog (Bearer header) when no liveApiProvider is set', async () => {
