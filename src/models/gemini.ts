@@ -80,15 +80,20 @@ function buildGeminiUrl(modelString: string): string {
   return `${resolveGeminiBase()}/v1beta/models/${modelString}:streamGenerateContent`;
 }
 
-// ─── Image-generation capable model strings ───────────────────────────────────
+// ─── Image-model config map (#399) ────────────────────────────────────────────
 
 /**
- * Model strings that support `responseModalities: ["TEXT", "IMAGE"]` in the
- * Gemini generationConfig. These are dedicated image-generation variants of the
- * Gemini model family. When the resolved model string is in this set,
- * `buildGeminiRequest` includes the responseModalities parameter — the user's
- * selection of an image-gen version is the opt-in signal. No types change or
- * additional SendMessageOptions field is required.
+ * Per-model configuration for Gemini image generation.
+ *
+ * Encodes each image-capable Gemini model's parameter shape so that
+ * `buildGeminiRequest` reads from this map rather than branching on model ID
+ * strings. Adding a new Gemini image model is a data change here, not a code
+ * change in the request builder.
+ *
+ * `responseModalities` — the value to set on generationConfig.responseModalities.
+ *   Currently all image-gen models use ['TEXT', 'IMAGE']. The field is included
+ *   in the config so future models with different modality combinations (e.g.
+ *   image-only output) can be added without touching buildGeminiRequest.
  *
  * Confirmed to support native image generation via responseModalities (as of 2026-07):
  *   - gemini-2.5-flash-image — GA image-gen model ("Nano Banana"), confirmed.
@@ -101,8 +106,15 @@ function buildGeminiUrl(modelString: string): string {
  * When Google confirms additional model strings support responseModalities IMAGE,
  * add them here and add a corresponding ModelVersionOption to MODEL_REGISTRY.
  */
-const IMAGE_GEN_MODEL_STRINGS = new Set<string>([
-  'gemini-2.5-flash-image',
+interface GeminiImageModelConfig {
+  /** Modalities to request in generationConfig.responseModalities. */
+  responseModalities: string[];
+}
+
+const GEMINI_IMAGE_MODEL_CONFIG = new Map<string, GeminiImageModelConfig>([
+  ['gemini-2.5-flash-image', {
+    responseModalities: ['TEXT', 'IMAGE'],
+  }],
 ]);
 
 // ─── Google API response types ────────────────────────────────────────────────
@@ -200,21 +212,26 @@ function buildGeminiRequest(
     };
   });
 
-  // Issues #375, #379 — image generation opt-in.
+  // Issues #375, #379, #399 — image generation opt-in via per-model config map.
   // Both conditions must be true to include responseModalities in generationConfig:
-  //   1. The resolved model string is in IMAGE_GEN_MODEL_STRINGS (static capability)
+  //   1. The resolved model string is in GEMINI_IMAGE_MODEL_CONFIG (static capability)
   //   2. requestImageGeneration === true (per-message user opt-in from ModelConfig.imageGenerationEnabled)
   //
   // Non-image models must NOT receive responseModalities — the Google API returns an
   // error if this field is sent to a model that does not support it. The second
   // condition ensures the user's explicit toggle governs actual request behavior even
   // when an image-gen capable model version is selected.
+  //
+  // responseModalities is read from the config entry (#399) rather than hardcoded —
+  // future models with different modality combinations can be added to
+  // GEMINI_IMAGE_MODEL_CONFIG without touching this function.
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: MAX_TOKENS_GEMINI,
   };
-  const useImageGen = IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true;
+  const imageModelConfig = GEMINI_IMAGE_MODEL_CONFIG.get(modelString);
+  const useImageGen = imageModelConfig !== undefined && requestImageGeneration === true;
   if (useImageGen) {
-    generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+    generationConfig.responseModalities = imageModelConfig.responseModalities;
   }
 
   const request: Record<string, unknown> = {

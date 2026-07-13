@@ -51,22 +51,51 @@ import { MAX_TOKENS_GPT } from './constants';
 import { BaseOpenAIProvider } from './BaseOpenAIProvider';
 import { buildModelError, emitErrorChunk, mapHttpStatusToErrorCode } from './openai-sse';
 
-// ─── Image-generation capable model strings ───────────────────────────────────
+// ─── Image-model config map (#399) ────────────────────────────────────────────
 
 /**
- * Model strings that route to /v1/images/generations instead of /v1/chat/completions.
- * When the resolved selectedVersionId is in this set AND requestImageGeneration is true,
- * sendMessage() calls generateImage() for the dedicated image generation endpoint.
+ * Per-model configuration for the OpenAI images/generations endpoint.
  *
- * gpt-image-2 — current GA image generation model (as of 2026).
- * gpt-image-1 — legacy model; deprecated October 23 2026. Comment-only notice — no runtime UI.
- *   The same generateImage() path handles gpt-image-1 while it remains available.
+ * Encodes the parameter shape divergence between GPT image model generations so
+ * the generation code reads from this map rather than branching on model ID strings.
+ * Adding a new image model is a data change here, not a code change in generateImage().
+ *
+ * `formatParams` — the format control parameter(s) to spread into the request body.
+ *   gpt-image-2: { output_format: 'png' }
+ *     output_format controls the image encoding format (valid: 'png', 'webp', 'jpeg').
+ *     Sending 'b64_json' to gpt-image-2 is invalid; sending 'response_format' returns
+ *     "Unknown parameter: 'response_format'". Must use output_format.
+ *   gpt-image-1 (deprecated Oct 23 2026): { response_format: 'b64_json' }
+ *     Older parameter name. Accepted by gpt-image-1; rejected by gpt-image-2.
+ *
+ * `mimeType` — MIME type for the GeneratedImage output. Both current models return PNG.
+ *   Included in the config so new models with different default encodings (e.g. WebP)
+ *   can be added without touching generateImage().
+ *
+ * Both models always deliver base64 in item.b64_json — response parsing is unified.
  */
-const IMAGE_GEN_MODEL_STRINGS = new Set<string>([
-  'gpt-image-2',
+interface GptImageModelConfig {
+  /** Format control parameters spread into the images/generations request body. */
+  formatParams: Record<string, string>;
+  /** MIME type for the GeneratedImage output (e.g. "image/png"). */
+  mimeType: string;
+}
+
+const GPT_IMAGE_MODEL_CONFIG = new Map<string, GptImageModelConfig>([
+  ['gpt-image-2', {
+    // output_format: controls encoding format (png/webp/jpeg), not delivery mechanism.
+    // Delivery is always base64 in item.b64_json regardless of this value.
+    formatParams: { output_format: 'png' },
+    mimeType: 'image/png',
+  }],
   // gpt-image-1: DEPRECATED — scheduled for removal October 23 2026 (OpenAI deprecation notice).
-  // Keep in this set until that date so existing sessions using gpt-image-1 still route correctly.
-  'gpt-image-1',
+  // Keep in the map until that date so existing sessions using gpt-image-1 still route correctly.
+  ['gpt-image-1', {
+    // response_format: 'b64_json' — the older parameter name; accepted only by gpt-image-1.
+    // Delivery is base64 in item.b64_json, same as gpt-image-2.
+    formatParams: { response_format: 'b64_json' },
+    mimeType: 'image/png',
+  }],
 ]);
 
 // ─── OpenAI Images API response types ─────────────────────────────────────────
@@ -176,9 +205,9 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
   ): Promise<{ tokenUsage?: TokenUsage }> {
     const modelString = selectedVersionId ?? this.defaultModel;
 
-    // Two-condition gate: model must be an image-gen string AND user must have enabled
-    // the toggle for this model (requestImageGeneration from ModelConfig.imageGenerationEnabled).
-    if (IMAGE_GEN_MODEL_STRINGS.has(modelString) && requestImageGeneration === true) {
+    // Two-condition gate: model must be in the image-gen config map AND user must have
+    // enabled the toggle for this model (requestImageGeneration from ModelConfig.imageGenerationEnabled).
+    if (GPT_IMAGE_MODEL_CONFIG.has(modelString) && requestImageGeneration === true) {
       return this.generateImage(messages, modelString, onChunk, signal);
     }
 
@@ -247,30 +276,21 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
 
     const prompt = lastUserMsg.content;
 
-    // Parameter naming differs between model generations:
-    //
-    // gpt-image-2 uses `output_format` (new Images API parameter name).
-    //   Valid values: 'png', 'webp', 'jpeg'. Controls the image encoding format.
-    //   The API always returns base64 in item.b64_json regardless of this value.
-    //   Sending 'b64_json' to gpt-image-2 results in:
-    //     Invalid value: 'b64_json'. Supported values are: 'png', 'webp', and 'jpeg'.
-    //   Sending `response_format` to gpt-image-2 results in:
-    //     Error: Unknown parameter: 'response_format'
-    //
-    // gpt-image-1 (deprecated Oct 23 2026) uses the older `response_format: 'b64_json'`.
-    //   The API returns base64 directly in item.b64_json of each data item.
-    //   In both cases the response delivery is base64 in item.b64_json — no URL fetch.
-    const isImageV2 = modelString === 'gpt-image-2';
-    const formatEntry = isImageV2
-      ? { output_format: 'png' }
-      : { response_format: 'b64_json' };
+    // Look up per-model parameter config from GPT_IMAGE_MODEL_CONFIG (#399).
+    // formatParams encodes the model-specific format control parameter(s):
+    //   gpt-image-2: { output_format: 'png' }
+    //   gpt-image-1: { response_format: 'b64_json' }
+    // mimeType is used when constructing GeneratedImage entries below.
+    // The config entry is always present here because generateImage() is only called
+    // when GPT_IMAGE_MODEL_CONFIG.has(modelString) is true (see sendMessage override).
+    const imageModelConfig = GPT_IMAGE_MODEL_CONFIG.get(modelString)!;
 
     const requestBody = {
       model: modelString,
       prompt,
       n: 1,
       size: '1024x1024',
-      ...formatEntry,
+      ...imageModelConfig.formatParams,
     };
 
     const url = `${this.openAiBaseUrl}/v1/images/generations`;
@@ -327,11 +347,13 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
     // Map each response item to a GeneratedImage.
     //
     // Both gpt-image-2 and gpt-image-1 return raw base64 in item.b64_json.
-    // gpt-image-2's output_format parameter controls the image encoding format
-    // (PNG/WebP/JPEG), not the delivery mechanism — delivery is always base64.
+    // The delivery mechanism is always base64 regardless of format control parameters.
     //
-    // mimeType is "image/png" because we request output_format: 'png' (gpt-image-2)
-    // or response_format: 'b64_json' with the default PNG output (gpt-image-1).
+    // mimeType comes from imageModelConfig.mimeType (GPT_IMAGE_MODEL_CONFIG entry for this
+    // model string). Both current models request PNG output (output_format: 'png' for
+    // gpt-image-2; response_format: 'b64_json' with default PNG for gpt-image-1), so
+    // mimeType is "image/png" for both. Future models with different default encodings
+    // can be added to GPT_IMAGE_MODEL_CONFIG without changing this code.
     //
     // The OpenAI images/generations endpoint does not return width/height — the size
     // parameter (1024x1024) is what we requested, but the response carries no explicit
@@ -343,7 +365,7 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
 
       images.push({
         id: crypto.randomUUID(),
-        mimeType: 'image/png',
+        mimeType: imageModelConfig.mimeType,
         base64: item.b64_json,
         // revised_prompt may be present when OpenAI rewrites the input prompt.
         // Use it as altText when available so Aria has a meaningful description.
