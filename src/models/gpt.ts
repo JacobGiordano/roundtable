@@ -226,12 +226,19 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
 
     const prompt = lastUserMsg.content;
 
+    // gpt-image-2 uses `output_format` (the new Images API parameter name).
+    // gpt-image-1 (deprecated Oct 23 2026) uses the older `response_format` name.
+    // Sending `response_format` to gpt-image-2 returns:
+    //   Error: Unknown parameter: 'response_format'
+    // because the new endpoint strictly validates parameter names.
+    const formatKey = modelString === 'gpt-image-2' ? 'output_format' : 'response_format';
+
     const requestBody = {
       model: modelString,
       prompt,
       n: 1,
       size: '1024x1024',
-      response_format: 'b64_json',
+      [formatKey]: 'b64_json',
     };
 
     const url = `${this.openAiBaseUrl}/v1/images/generations`;
