@@ -271,9 +271,11 @@ export async function fetchRemoteCatalog(url: string): Promise<ModelCatalogEntry
   const entries: ModelCatalogEntry[] = [];
   for (const item of raw) {
     if (!isRemoteCatalogEntry(item)) {
+      // Safe summary only — never log the raw item, which may be arbitrarily large.
+      const itemType = typeof item;
+      const itemLen = item === null ? 4 : JSON.stringify(item)?.length ?? 0;
       console.warn(
-        '[Atlas/catalog] fetchRemoteCatalog: skipping entry missing required fields (id, displayName)',
-        item
+        `[Atlas/catalog] fetchRemoteCatalog: skipping entry missing required fields (id, displayName) — type: ${itemType}, ~${itemLen} chars`
       );
       continue;
     }
@@ -352,10 +354,10 @@ export async function fetchOpenRouterBuiltinCatalog(
   }
 
   if (!isOpenRouterModelsResponse(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large or sensitive.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
     console.warn(
-      '[Atlas/catalog] fetchOpenRouterBuiltinCatalog: unexpected response shape from',
-      url,
-      raw
+      `[Atlas/catalog] fetchOpenRouterBuiltinCatalog: unexpected response shape from ${url} — ~${bodyLen} chars`
     );
     return [];
   }
@@ -441,10 +443,10 @@ export async function fetchModelsFallbackJson(
   }
 
   if (!isModelsFallbackJson(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
     console.warn(
-      '[Atlas/catalog] fetchModelsFallbackJson: unexpected response shape from',
-      url,
-      raw
+      `[Atlas/catalog] fetchModelsFallbackJson: unexpected response shape from ${url} — ~${bodyLen} chars`
     );
     return [];
   }
@@ -528,10 +530,10 @@ export async function fetchLiveApiCatalog(
   }
 
   if (!isOpenRouterModelsResponse(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large or sensitive.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
     console.warn(
-      '[Atlas/catalog] fetchLiveApiCatalog: unexpected response shape from',
-      url,
-      raw
+      `[Atlas/catalog] fetchLiveApiCatalog: unexpected response shape from ${url} — ~${bodyLen} chars`
     );
     return [];
   }
@@ -735,10 +737,10 @@ export async function fetchAnthropicCatalog(apiKey: string): Promise<ModelCatalo
   }
 
   if (!isAnthropicModelsResponse(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large or sensitive.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
     console.warn(
-      '[Atlas/catalog] fetchAnthropicCatalog: unexpected response shape from',
-      url,
-      raw
+      `[Atlas/catalog] fetchAnthropicCatalog: unexpected response shape from ${url} — ~${bodyLen} chars`
     );
     return [];
   }
@@ -811,9 +813,10 @@ export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEn
   }
 
   if (!isGeminiModelsResponse(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large or sensitive.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
     console.warn(
-      '[Atlas/catalog] fetchGeminiCatalog: unexpected response shape',
-      raw
+      `[Atlas/catalog] fetchGeminiCatalog: unexpected response shape — ~${bodyLen} chars`
     );
     return [];
   }
