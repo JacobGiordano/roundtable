@@ -1,4 +1,4 @@
-Last updated: 2026-07-13 (ship: #390 + #393–#398 bundle)
+Last updated: 2026-07-13 (ship: #400–404 image bubble polish + CopyIcon SVG mask fix)
 
 ## Current phase
 
@@ -6,9 +6,7 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped bundle: #393 (selectedVersionId fallback), #394 (auto-create on send), #390 (image action controls — visual sign-off complete), #395 (error text now shows in model response bubbles), #396 (copy button on error bubbles), #397 (reply-to/token count gap), #398 (gpt-image-2 format fix).
-
-Queued next Aria wave: #400–404 (timestamp refresh on interaction, image bubble token/cost display, image copy icon mismatch, extra space above image, buttons-below-image enhancement).
+Shipped two bundles this session. First: #393 (selectedVersionId fallback), #394 (auto-create on send), #390 (image action controls), #395–397 (error bubble, copy button, reply/token gap), #398 (gpt-image-2 format fix). Second: #400–404 (timestamp refresh on hover, image token/cost row hidden when absent, copy icon unified, space above image removed, persistent download/copy buttons below image). CopyIcon refactored to use SVG `<mask>` for background-agnostic page occlusion — pageFill approach removed.
 
 ## Key decisions
 
@@ -26,7 +24,7 @@ Queued next Aria wave: #400–404 (timestamp refresh on interaction, image bubbl
 - `#388` — Atlas: replace verbatim external response body in console.warn validation failures
 - `#391` — spike: generated video support — DEFER; revisit when OpenRouter video API stabilizes
 - `#399` — Atlas: model config map for image models (follow-on to #398)
-- `#400–404` — Aria wave queued (timestamps, image bubble polish, buttons-below-image)
+- `#399` — Atlas: model config map for image models (follow-on to #398)
 
 ## Gotchas
 
