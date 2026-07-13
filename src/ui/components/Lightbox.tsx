@@ -27,8 +27,7 @@ import { createPortal } from 'react-dom';
 import type { GeneratedImage } from '@/types';
 import { downloadImage, copyImageToClipboard } from '@/ui/utils/imageActions';
 // #405: CopyIcon shared from icons/index.tsx — same SVG structure as MessageBubble's
-// copy icon. pageFill='rgb(0 0 0 / 0.6)' matches the button's bg-black/60 surface so
-// the front page rect occludes the back page strokes correctly on the dark overlay.
+// copy icon. Uses a <mask> internally — no pageFill prop, renders correctly on any surface.
 import { CopyIcon } from '@/ui/icons';
 
 // ─── SVG icons — 20×20, private to this file ─────────────────────────────────
@@ -439,7 +438,7 @@ export function Lightbox({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            {copyState === 'copied' ? <CheckIcon /> : <CopyIcon size={20} pageFill="rgb(0 0 0 / 0.6)" />}
+            {copyState === 'copied' ? <CheckIcon /> : <CopyIcon size={20} />}
           </button>
         )}
 

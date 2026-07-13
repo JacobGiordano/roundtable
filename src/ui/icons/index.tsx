@@ -16,6 +16,7 @@
  * the fixed-size IconProps contract. This is the documented exception.
  */
 
+import { useId } from 'react';
 import type { SVGProps } from 'react';
 
 /** Base props shared by every icon component. */
@@ -355,26 +356,18 @@ export function SmallCloseIcon({ size = 8, className }: IconProps) {
 /**
  * Two-page copy/clipboard icon — stroke-based, 14×14 default.
  *
- * Back page sits upper-right; front page overlaps lower-left. The `pageFill`
- * prop sets the interior fill of both rects. Pass a fill that matches the
- * surrounding surface so the front page visually occludes the back page's strokes:
+ * Back page sits upper-right; front page overlaps lower-left. A <mask> clips
+ * the back page so only the portion that sticks out from behind the front page
+ * is rendered. This approach is background-agnostic — no `pageFill` color
+ * matching is required, and the icon renders correctly on any surface.
  *
- *   Nameplate context (MessageBubble):
- *     pageFill = 'color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))'
- *     This matches the nameplate tinted background exactly across all 7 themes.
- *
- *   Overlay context (Lightbox):
- *     pageFill = 'rgb(0 0 0 / 0.6)'
- *     Matches the button's bg-black/60 background against the dark overlay.
- *
- * Defaults to `'none'` (transparent) — callers must pass a fill for correct rendering.
- * The `size` prop controls both width and height (viewBox is always 14×14).
+ * A unique mask ID is generated per instance via useId() so multiple CopyIcon
+ * instances on the same page cannot share clip-path IDs and interfere.
  */
-export function CopyIcon({
-  size = 14,
-  className,
-  pageFill = 'none',
-}: IconProps & { pageFill?: string }) {
+export function CopyIcon({ size = 14, className }: IconProps) {
+  const id = useId();
+  const maskId = `copy-icon-mask-${id.replace(/:/g, '')}`;
+
   return (
     <svg
       width={size}
@@ -384,18 +377,30 @@ export function CopyIcon({
       aria-hidden="true"
       className={['flex-shrink-0', className].filter(Boolean).join(' ')}
     >
-      {/* back page — upper-right */}
+      <defs>
+        {/*
+         * Mask: white = show, black = hide.
+         * The entire canvas is white (show everything), then the front page
+         * rect area is painted black (mask out), so the back page only renders
+         * in the region that is NOT covered by the front page.
+         */}
+        <mask id={maskId}>
+          <rect x="0" y="0" width="14" height="14" fill="white" />
+          {/* front page footprint — masks out back page where they overlap */}
+          <rect x="2" y="3" width="8" height="10" rx="1.5" fill="black" />
+        </mask>
+      </defs>
+      {/* back page — upper-right, masked to show only the visible portion */}
       <rect
         x="4" y="1" width="8" height="10" rx="1.5"
-        fill={pageFill}
         stroke="currentColor"
         strokeWidth="1.3"
         strokeLinejoin="round"
+        mask={`url(#${maskId})`}
       />
-      {/* front page — lower-left */}
+      {/* front page — lower-left, drawn fully on top */}
       <rect
         x="2" y="3" width="8" height="10" rx="1.5"
-        fill={pageFill}
         stroke="currentColor"
         strokeWidth="1.3"
         strokeLinejoin="round"

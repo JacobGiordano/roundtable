@@ -6,7 +6,7 @@ import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, Mode
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
 // #405: CopyIcon extracted to shared icons so Lightbox can import the same component.
-// pageFill is passed to match the nameplate background across all 7 themes.
+// Uses a <mask> internally — no pageFill prop needed, renders correctly on any surface.
 import { CopyIcon } from './icons';
 // #390: downloadImage + copyImageToClipboard shared utilities.
 // Extracted to utils/ so both Lightbox and MessageBubble share the same
@@ -181,7 +181,7 @@ function ImageCopyButton({ img, copyLabel }: { img: GeneratedImage; copyLabel: s
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
       ].join(' ')}
     >
-      {imgCopyState === 'copied' ? <CheckIcon /> : <CopyIcon pageFill="color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))" />}
+      {imgCopyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
       <span aria-hidden="true">{imgCopyState === 'copied' ? 'Copied!' : 'Copy'}</span>
     </button>
   );
@@ -633,7 +633,7 @@ export function MessageBubble({
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
         ].join(' ')}
       >
-        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon pageFill="color-mix(in srgb, var(--bubble-accent) var(--nameplate-tint), var(--surface-card))" />}
+        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
       </button>
     );
   }
