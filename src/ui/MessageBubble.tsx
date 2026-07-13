@@ -1,14 +1,15 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import type { Attachment, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
-// #390: downloadImage shared utility — used in the generated-image thumbnail hover
-// overlay. Extracted to utils/ so both Lightbox and MessageBubble share the same
-// download implementation without cross-component imports.
-import { downloadImage } from './utils/imageActions';
+// #390: downloadImage + copyImageToClipboard shared utilities.
+// Extracted to utils/ so both Lightbox and MessageBubble share the same
+// implementation without cross-component imports.
+// #404: copyImageToClipboard now used directly in MessageBubble's below-image copy button.
+import { downloadImage, copyImageToClipboard } from './utils/imageActions';
 // #357: formatCost shared util — displays per-message estimated cost in the bubble footer.
 import { formatCost } from './utils/formatCost';
 // #294: resolveAccentCssColor is the shared single source of truth for accent
@@ -103,31 +104,31 @@ function EditIcon() {
   );
 }
 
-/** Download arrow icon — 16×16 SVG, for the generated-image thumbnail hover overlay (#390).
- *  Single-use in MessageBubble — not shared with Lightbox which uses a larger 20×20 variant.
+/** Download arrow icon — 14×14 SVG, for the generated-image action bar below the image (#404).
+ *  Matches the 14×14 size contract of CopyIcon and CheckIcon in this file.
  *  aria-hidden: parent button carries the accessible label.
  */
 function ThumbnailDownloadIcon() {
   return (
     <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
       fill="none"
       aria-hidden="true"
       className="flex-shrink-0"
     >
       <path
-        d="M8 2.5v7m0 0L5.5 7m2.5 2.5L10.5 7"
+        d="M7 2v7m0 0L4.5 6.5M7 9l2.5-2.5"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M3 11.5v1a1.5 1.5 0 001.5 1.5h7A1.5 1.5 0 0013 12.5v-1"
+        d="M2.5 10.5v.5a1 1 0 001 1h7a1 1 0 001-1v-.5"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -175,6 +176,49 @@ interface MessageBubbleProps {
    * correct truncation index back to App.
    */
   messageIndex?: number;
+}
+
+/**
+ * ImageCopyButton — copy-to-clipboard button for generated images (#402, #404).
+ *
+ * Manages its own copy state (idle / copied) locally so each image in a multi-strip
+ * has independent feedback. PNG-only: callers must gate on mimeType before rendering.
+ *
+ * Uses the same CopyIcon as the nameplate text-copy button (#402) to unify icon
+ * vocabulary between text and image copy actions.
+ */
+function ImageCopyButton({ img, copyLabel }: { img: GeneratedImage; copyLabel: string }) {
+  const [imgCopyState, setImgCopyState] = useState<'idle' | 'copied'>('idle');
+
+  const handleImgCopy = useCallback(async () => {
+    if (imgCopyState !== 'idle') return;
+    try {
+      await copyImageToClipboard(img);
+      setImgCopyState('copied');
+      setTimeout(() => setImgCopyState('idle'), 1500);
+    } catch {
+      // Clipboard write failed (e.g. permission denied) — fail silently.
+    }
+  }, [img, imgCopyState]);
+
+  return (
+    <button
+      type="button"
+      aria-label={imgCopyState === 'copied' ? 'Copied!' : copyLabel}
+      onClick={handleImgCopy}
+      className={[
+        'flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]',
+        imgCopyState === 'copied'
+          ? 'text-success'
+          : 'text-text-secondary hover:text-text-primary hover:bg-hover',
+        'transition-colors duration-fast',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+      ].join(' ')}
+    >
+      {imgCopyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+      <span aria-hidden="true">{imgCopyState === 'copied' ? 'Copied!' : 'Copy'}</span>
+    </button>
+  );
 }
 
 /** Maps a ModelId to the data-model attribute value for streaming shimmer CSS targeting. */
@@ -492,6 +536,11 @@ export function MessageBubble({
   // Copy-to-clipboard state: 'idle' | 'copied'. Reverts to 'idle' after 1.5s.
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
 
+  // #400 — Timestamp refresh on interaction.
+  // A simple counter bumped on mouseenter forces useMemo to recompute the formatted time.
+  // No background interval needed — recalculation happens when the user hovers the bubble.
+  const [hoverTick, setHoverTick] = useState(0);
+
   // ── Lightbox state (#369) ─────────────────────────────────────────────────
   // Tracks which attachment (if any) is open in the full-size lightbox.
   // null = closed. Non-null = the Attachment whose thumbnail was clicked.
@@ -565,7 +614,25 @@ export function MessageBubble({
   // and any directed-reply button color.
   const accentColor = modelConfig?.color ?? 'accent-other';
 
-  // Token count: shown when visibility is not 'never' and tokenUsage is present.
+  // #400 — Memoized relative timestamp, recomputed on each hover interaction.
+  // hoverTick is not referenced inside the callback — it's included in the dep array
+  // intentionally to force recomputation when the user hovers, refreshing the
+  // displayed time if it has become stale. This is a deliberate invalidation pattern.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const relativeTimestamp = useMemo(
+    () => formatRelativeTime(message.timestamp),
+    [message.timestamp, hoverTick],
+  );
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  // #401 — Token count: shown only when:
+  //   1. Visibility preference is not 'never', AND
+  //   2. tokenUsage is present on the message.
+  //
+  // Image-generation messages (OpenAI Images API) return no token usage data, so
+  // message.tokenUsage will be absent. The row is hidden entirely in that case
+  // rather than rendering empty fields — the `!!message.tokenUsage` guard handles this.
+  // Text model messages with tokenUsage continue to render normally.
   const showTokenCount = tokenCountVisibility !== 'never' && !!message.tokenUsage;
 
   // Row opacity: 'always' → always visible; 'active'/'never' → hover-controlled.
@@ -648,7 +715,7 @@ export function MessageBubble({
           animationDelay: entranceDelay,
           '--bubble-accent': resolveAccentCssColor(accentColor, modelConfig?.modelId),
         } as React.CSSProperties}
-        onMouseEnter={() => setIsHovered(true)}
+        onMouseEnter={() => { setIsHovered(true); setHoverTick((t) => t + 1); }}
         onMouseLeave={() => setIsHovered(false)}
         aria-busy={isStreaming ? true : undefined}
       >
@@ -743,11 +810,12 @@ export function MessageBubble({
               This keeps the copy button at a consistent position regardless of name length. */}
           <div className="ml-auto flex items-center gap-2">
             <NameplateCopyButton />
+            {/* #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction. */}
             <time
               dateTime={new Date(message.timestamp).toISOString()}
               className="text-[11px] text-text-muted shrink-0"
             >
-              {formatRelativeTime(message.timestamp)}
+              {relativeTimestamp}
             </time>
           </div>
         </div>
@@ -789,12 +857,31 @@ export function MessageBubble({
               Multiple images: 140×140 object-cover thumbnails — consistent grid, prevents
               tall images from dominating the thread.
               #380: each image is wrapped in a <button> that opens the Lightbox (same pattern
-              as attachment thumbnails in #369). Focus returns to trigger on close. */}
+              as attachment thumbnails in #369). Focus returns to trigger on close.
+
+              #403: Top margin (mt-2) is applied only when the message has visible text content
+              preceding the image strip. When the model returned only an image (empty or blank
+              content), no preceding text element is rendered and `mt-2` would add unwanted
+              whitespace above the first image. The guard is `message.content?.trim()` —
+              safe to evaluate before the image strip because MessageContent returns null for
+              empty/blank content, leaving no sibling above the strip.
+
+              #404: Download and copy (PNG-only) controls are rendered as persistent buttons
+              below each image, replacing the previous hover overlay. This improves
+              discoverability especially for small images and resolves the keyboard
+              accessibility gap (controls are now always in the Tab order). The image itself
+              remains clickable to open the lightbox.
+
+              #402: The copy icon below the image uses the same CopyIcon component as the
+              text copy button in the nameplate — unified across text and image actions. */}
           {message.generatedImages && message.generatedImages.length > 0 && (
             <div
               role="group"
               aria-label="Model-generated images"
-              className="mt-2 flex flex-wrap gap-2"
+              className={[
+                'flex flex-wrap gap-3',
+                message.content?.trim() ? 'mt-2' : '',
+              ].join(' ')}
             >
               {message.generatedImages.map((img, idx) => {
                 const imgSrc = `data:${img.mimeType};base64,${img.base64}`;
@@ -827,21 +914,36 @@ export function MessageBubble({
                   return 'Download generated image';
                 })();
 
+                // ── Copy button aria-label ────────────────────────────────────
+                // Mirrors the download label pattern but prefixed with "Copy".
+                // Copy is only offered for PNG images (ClipboardItem JPEG/WebP support
+                // is inconsistent across browsers).
+                const copyLabel = (() => {
+                  const altSnippet = img.altText?.slice(0, 60);
+                  if (altSnippet && totalImages > 1) {
+                    return `Copy: ${altSnippet} (image ${idx + 1} of ${totalImages})`;
+                  }
+                  if (altSnippet) return `Copy: ${altSnippet}`;
+                  if (totalImages > 1) return `Copy generated image ${idx + 1} of ${totalImages}`;
+                  return 'Copy generated image';
+                })();
+
                 // ── altText tooltip via aria-describedby (#390 spec) ────────
                 // Visually hidden span with truncated alt text (max 120 chars).
                 // Points thumbnail trigger button's aria-describedby at this span.
                 // Only rendered when altText is present. Never uses title attribute.
                 const tooltipId = img.altText ? `gen-img-tooltip-${img.id}` : undefined;
 
+                // Whether to show copy button — only for PNG images.
+                const showImgCopy = img.mimeType === 'image/png';
+
                 return (
-                  // Thumbnail wrapper: `group` enables group-hover on the overlay.
-                  // `relative` allows the overlay to be positioned against this wrapper.
-                  // The overlay is a sibling of the trigger button — not nested inside —
-                  // because interactive elements (<button>) cannot be nested inside <button>.
+                  // Thumbnail wrapper: `relative` allows positioning descendants.
+                  // #404: No longer uses `group` for hover overlay — controls are
+                  // now persistent below the image and always in the Tab order.
                   <div
                     key={img.id}
                     className={[
-                      'relative group',
                       isSingle ? 'block' : 'flex-shrink-0',
                     ].join(' ')}
                   >
@@ -892,43 +994,35 @@ export function MessageBubble({
                       />
                     </button>
 
-                    {/* Hover overlay — download icon bar at bottom of thumbnail (#390).
-                        `group-hover:flex` / `hidden`: visible only when wrapper is hovered.
-                        absolute positioning overlaps the trigger button thumbnail.
-                        bg-black/50 is hardcoded (theme-independent per issue spec).
-                        This overlay is a sibling of the trigger — not nested inside it —
-                        because <button> inside <button> is invalid HTML.
-                        The download button here stops propagation so no lightbox opens. */}
-                    <div
-                      className={[
-                        'absolute bottom-0 inset-x-0',
-                        'bg-black/50 px-2 py-1',
-                        'flex items-center justify-end',
-                        'hidden group-hover:flex',
-                        // pointer-events-none would block click; we want clicks here
-                        // to land on the download button, not fall through to the trigger.
-                      ].join(' ')}
-                    >
-                      {/* Download icon button — only action in the thumbnail overlay.
-                          tabIndex={-1}: explicitly excludes from keyboard Tab order.
-                          Keyboard users access download via the lightbox dialog's download
-                          button. Explicit tabIndex={-1} is defensive — not left to depend
-                          on the parent overlay's display:none CSS state, which could change
-                          if the overlay is later refactored to use opacity-0/visibility:hidden
-                          for a fade animation. (Ada WARN-1, #390.)
-                          Elements with tabIndex={-1} receive focus:outline-none only — no ring. */}
+                    {/* #404 — Persistent action bar below the image.
+                        Download and copy (PNG-only) buttons rendered as always-visible
+                        controls beneath the image, replacing the previous hover overlay.
+                        This improves discoverability and resolves the keyboard
+                        accessibility gap — buttons are always in the Tab order.
+                        #402 — Copy uses CopyIcon (same as text-copy nameplate button)
+                        to unify icon vocabulary across text and image actions.
+                        Layout: flex row, left-aligned, gap-1 between buttons.
+                        Token contract: text-text-secondary / hover:text-text-primary /
+                        hover:bg-hover — all established tokens, no novel color choices. */}
+                    <div className="mt-1 flex items-center gap-1">
                       <button
                         type="button"
                         aria-label={downloadLabel}
-                        tabIndex={-1}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadImage(img);
-                        }}
-                        className="text-white rounded p-0.5 focus:outline-none"
+                        onClick={() => downloadImage(img)}
+                        className={[
+                          'flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]',
+                          'text-text-secondary hover:text-text-primary hover:bg-hover',
+                          'transition-colors duration-fast',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                        ].join(' ')}
                       >
                         <ThumbnailDownloadIcon />
+                        <span aria-hidden="true">Download</span>
                       </button>
+
+                      {showImgCopy && (
+                        <ImageCopyButton img={img} copyLabel={copyLabel} />
+                      )}
                     </div>
                   </div>
                 );
@@ -1105,7 +1199,7 @@ export function MessageBubble({
         animationDelay: entranceDelay,
         '--bubble-accent': 'var(--accent-user)',
       } as React.CSSProperties}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => { setIsHovered(true); setHoverTick((t) => t + 1); }}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Tail — right side, points right ►.
@@ -1165,12 +1259,13 @@ export function MessageBubble({
             {/* Copy button — rightmost action button, immediately before timestamp */}
             <NameplateCopyButton />
 
-            {/* Timestamp — always rightmost in the group */}
+            {/* Timestamp — always rightmost in the group.
+                #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction. */}
             <time
               dateTime={new Date(message.timestamp).toISOString()}
               className="text-[11px] text-text-muted shrink-0"
             >
-              {formatRelativeTime(message.timestamp)}
+              {relativeTimestamp}
             </time>
           </div>
         </div>
