@@ -504,9 +504,37 @@ export default function App() {
   const handleSend = (content: string, attachments: Attachment[] = [], atMentionTargetId?: ModelId) => {
     // Snapshot the active conversation before state updates so sendMessage
     // receives a consistent view and we have a base to build the updated conv from.
-    const conversationSnapshot = store.getActiveConversation() ??
+    let conversationSnapshot = store.getActiveConversation() ??
       (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
-    if (!conversationSnapshot) return;
+
+    // #394: No active conversation (e.g. all conversations deleted, empty state
+    // showing) — auto-create one before sending so the message is not silently
+    // dropped. Mirrors handleNewConversation: save defaults, build the Conversation
+    // object, fire-and-forget storage, and set it active. The rest of handleSend
+    // then runs normally using the new conversation as the snapshot.
+    if (!conversationSnapshot) {
+      saveDefaults(
+        models.filter((m) => m.isActive).map((m) => m.modelId),
+        pendingMode,
+        isGlobalGhostMode,
+      );
+      const autoConv: Conversation = {
+        id: `conv-${Date.now()}`,
+        messages: [],
+        models: models,
+        interactionMode: pendingMode,
+        isGhost: isGlobalGhostMode,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      if (isGlobalGhostMode) {
+        saveGhostConversation(autoConv);
+      } else {
+        void store.createConversation(autoConv);
+      }
+      store.setActiveConversation(autoConv.id);
+      conversationSnapshot = autoConv;
+    }
 
     let updatedConversation: Conversation;
 
