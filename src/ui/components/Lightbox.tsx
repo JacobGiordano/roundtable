@@ -32,6 +32,10 @@ import { downloadImage, copyImageToClipboard } from '@/ui/utils/imageActions';
 // shared icon system (icons/index.tsx) which uses a different fixed-size contract.
 // react-refresh/only-export-components: all exports from this file are components,
 // so the eslint rule is satisfied. Utilities are imported from @/ui/utils/imageActions.
+//
+// CopyIcon uses the same two-rect clipboard silhouette as MessageBubble's CopyIcon
+// (ImageCopyButton and NameplateCopyButton) — unified icon vocabulary across all
+// copy affordances in the app (#400–#404 polish pass).
 
 /** Download arrow-into-tray icon — 20×20. */
 function DownloadIcon() {
@@ -62,8 +66,14 @@ function DownloadIcon() {
   );
 }
 
-/** Clipboard copy icon — 20×20. */
-function ClipboardIcon() {
+/**
+ * Two-page copy icon — 20×20, stroke-only.
+ * Matches the two-rect clipboard silhouette used in MessageBubble's CopyIcon
+ * (ImageCopyButton and NameplateCopyButton) — same shape vocabulary, scaled to 20×20
+ * for the lightbox overlay context. Fill is transparent (fill="none") so the icon
+ * reads cleanly against the dark overlay without themed CSS vars.
+ */
+function CopyIcon() {
   return (
     <svg
       width="20"
@@ -73,17 +83,18 @@ function ClipboardIcon() {
       aria-hidden="true"
       className="flex-shrink-0"
     >
+      {/* back page — upper-right */}
       <rect
-        x="7" y="4" width="9" height="12" rx="1.5"
+        x="6" y="2" width="11" height="14" rx="2"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-      <path
-        d="M7 6H5a1 1 0 00-1 1v9a1 1 0 001 1h7a1 1 0 001-1v-2"
+      {/* front page — lower-left */}
+      <rect
+        x="3" y="4" width="11" height="14" rx="2"
         stroke="currentColor"
         strokeWidth="1.7"
-        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
@@ -464,7 +475,7 @@ export function Lightbox({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1',
             ].join(' ')}
           >
-            {copyState === 'copied' ? <CheckIcon /> : <ClipboardIcon />}
+            {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
           </button>
         )}
 
