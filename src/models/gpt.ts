@@ -9,8 +9,7 @@
  * Image generation (issue #377):
  *   When selectedVersionId === 'gpt-image-2', sendMessage() is overridden to call
  *   generateImage() instead of the base chat completions path. generateImage() calls
- *   POST /v1/images/generations with model: "gpt-image-2", parses the b64_json response
- *   into GeneratedImage[], and emits a single done StreamChunk with images populated.
+ *   POST /v1/images/generations and emits a single done StreamChunk with images populated.
  *   This is a synchronous POST → response (no SSE streaming).
  *
  *   Two-condition gate (matches Gemini pattern from issue #379):
@@ -19,13 +18,16 @@
  *   When both are true, the request is routed to /v1/images/generations.
  *   When either is false, the request falls through to the normal chat completions path.
  *
+ *   API response formats differ between gpt-image-2 and gpt-image-1:
+ *     gpt-image-2: uses output_format parameter (values: 'png', 'webp', 'jpeg').
+ *       The API returns a temporary `url` in each data item. generateImage() fetches
+ *       that URL and converts the PNG bytes to raw base64 to satisfy GeneratedImage.base64.
+ *     gpt-image-1 (deprecated Oct 23 2026): uses response_format: 'b64_json' parameter.
+ *       The API returns base64 directly in the b64_json field of each data item.
+ *
  *   Token usage: the images/generations endpoint returns no token counts. The done
  *   chunk is emitted with tokenUsage undefined (cost unknown — no pricing entry for
  *   image generation yet).
- *
- *   gpt-image-1 is a legacy model deprecated October 23 2026. It is registered as a
- *   version option with a comment only — do NOT add runtime deprecation UI. The
- *   same generateImage() path handles it via the same routing logic.
  *
  * Security rules (non-negotiable):
  *   - The API key is retrieved at call-time via getCredentials() and never stored in state
@@ -66,9 +68,18 @@ const IMAGE_GEN_MODEL_STRINGS = new Set<string>([
 // ─── OpenAI Images API response types ─────────────────────────────────────────
 
 interface OpenAIImageData {
-  /** Base64-encoded image. Present when response_format is "b64_json". */
+  /**
+   * Base64-encoded image. Present when response_format is "b64_json" (gpt-image-1 only).
+   * gpt-image-2 uses output_format and returns a URL instead — see `url` below.
+   */
   b64_json?: string;
-  /** MIME type. Not returned by the API; we default to "image/png" for gpt-image-2. */
+  /**
+   * Temporary CDN URL to the generated image. Present when output_format is "png",
+   * "webp", or "jpeg" (gpt-image-2). generateImage() fetches this URL and converts
+   * the response bytes to raw base64 to satisfy GeneratedImage.base64.
+   */
+  url?: string;
+  /** Optional revised prompt returned when OpenAI rewrites the input prompt. */
   revised_prompt?: string;
 }
 
@@ -174,12 +185,17 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
   /**
    * Call POST /v1/images/generations and deliver the result as a StreamChunk.
    *
-   * Request shape:
-   *   { model, prompt, n: 1, size: "1024x1024", response_format: "b64_json" }
+   * Request shape differs by model:
+   *   gpt-image-2: { model, prompt, n: 1, size: "1024x1024", output_format: "png" }
+   *     Response data items carry a temporary `url`; generateImage() fetches the URL
+   *     and converts the PNG bytes to raw base64 for GeneratedImage.base64.
+   *   gpt-image-1 (deprecated Oct 23 2026):
+   *     { model, prompt, n: 1, size: "1024x1024", response_format: "b64_json" }
+   *     Response data items carry b64_json directly.
    *
    * Prompt: the text content of the last user message in the conversation.
    * When no user message is found (edge case — empty or all-assistant history),
-   * emits an auth_failure-shaped error with a descriptive message.
+   * emits an error with a descriptive message.
    *
    * Response: a single done StreamChunk with:
    *   - content: '' (empty — image responses carry no text)
@@ -190,12 +206,13 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
    * Error handling covers all ModelErrorCode variants:
    *   - auth_failure:    401 from the API (bad or missing key)
    *   - rate_limit:      429 from the API
-   *   - network_error:   fetch throw or unreadable response body
+   *   - network_error:   fetch throw, unreadable response body, or image URL fetch failure
    *   - context_length_exceeded: 400 with prompt-too-long message
    *   - unknown:         any other non-OK status
    *
    * No streaming — this is a synchronous POST → JSON response. The single done
-   * chunk is emitted after the full response has been parsed.
+   * chunk is emitted after the full response has been parsed (and image URL
+   * fetched for gpt-image-2).
    */
   private async generateImage(
     messages: Message[],
@@ -226,19 +243,27 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
 
     const prompt = lastUserMsg.content;
 
-    // gpt-image-2 uses `output_format` (the new Images API parameter name).
-    // gpt-image-1 (deprecated Oct 23 2026) uses the older `response_format` name.
-    // Sending `response_format` to gpt-image-2 returns:
-    //   Error: Unknown parameter: 'response_format'
-    // because the new endpoint strictly validates parameter names.
-    const formatKey = modelString === 'gpt-image-2' ? 'output_format' : 'response_format';
+    // gpt-image-2 uses `output_format` (new Images API parameter name).
+    //   Valid values: 'png', 'webp', 'jpeg'. The API returns a temporary URL in the
+    //   response data items; generateImage() fetches that URL and converts to base64.
+    //   Sending 'b64_json' to gpt-image-2 results in:
+    //     Invalid value: 'b64_json'. Supported values are: 'png', 'webp', and 'jpeg'.
+    //
+    // gpt-image-1 (deprecated Oct 23 2026) uses the older `response_format: 'b64_json'`.
+    //   The API returns base64 directly in the b64_json field of each data item.
+    //   Sending `response_format` to gpt-image-2 returns:
+    //     Error: Unknown parameter: 'response_format'
+    const isImageV2 = modelString === 'gpt-image-2';
+    const formatEntry = isImageV2
+      ? { output_format: 'png' }
+      : { response_format: 'b64_json' };
 
     const requestBody = {
       model: modelString,
       prompt,
       n: 1,
       size: '1024x1024',
-      [formatKey]: 'b64_json',
+      ...formatEntry,
     };
 
     const url = `${this.openAiBaseUrl}/v1/images/generations`;
@@ -292,25 +317,73 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
       return {};
     }
 
-    // Map each b64_json entry to a GeneratedImage.
-    // gpt-image-2 returns PNG by default — the API does not return a mimeType field,
-    // so we default to "image/png" per OpenAI documentation for this model.
-    const images: GeneratedImage[] = parsed.data
-      .filter((item) => !!item.b64_json)
-      .map((item) => ({
+    // Map each response item to a GeneratedImage.
+    //
+    // gpt-image-2 (output_format: 'png'): response data items carry a temporary `url`.
+    //   We fetch the URL and convert the response bytes to raw base64 to satisfy
+    //   GeneratedImage.base64 (which requires raw base64, no data-URL prefix).
+    //   mimeType is "image/png" to match the output_format we requested.
+    //
+    // gpt-image-1 (response_format: 'b64_json'): response data items carry b64_json
+    //   directly. No secondary fetch required.
+    //
+    // The OpenAI images/generations endpoint does not return width/height — the size
+    // parameter (1024x1024) is what we requested, but the response carries no explicit
+    // dimensions. Leave absent — Aria renders without hints.
+    const images: GeneratedImage[] = [];
+    for (const item of parsed.data) {
+      let base64: string;
+
+      if (isImageV2) {
+        // gpt-image-2: fetch the temporary URL and convert to raw base64.
+        if (!item.url) continue;
+        let imageBytes: ArrayBuffer;
+        try {
+          const imgRes = await fetch(item.url, { signal });
+          if (!imgRes.ok) {
+            const error = buildModelError(
+              'network_error',
+              `Failed to fetch generated image URL: HTTP ${imgRes.status}`
+            );
+            emitErrorChunk(this.config.modelId, error, onChunk);
+            return {};
+          }
+          imageBytes = await imgRes.arrayBuffer();
+        } catch (fetchErr) {
+          if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+            throw fetchErr;
+          }
+          const error = buildModelError(
+            'network_error',
+            fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch generated image URL'
+          );
+          emitErrorChunk(this.config.modelId, error, onChunk);
+          return {};
+        }
+        // Convert ArrayBuffer to raw base64 (no data-URL prefix), matching GeneratedImage.base64.
+        const bytes = new Uint8Array(imageBytes);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        base64 = btoa(binary);
+      } else {
+        // gpt-image-1: b64_json is raw base64 with no data-URL prefix.
+        if (!item.b64_json) continue;
+        base64 = item.b64_json;
+      }
+
+      images.push({
         id: crypto.randomUUID(),
-        // The OpenAI images/generations endpoint does not return a MIME type in
-        // the response body. gpt-image-2 produces PNG images per the OpenAI docs.
+        // mimeType matches output_format ('png') for gpt-image-2; PNG for gpt-image-1 too
+        // since that's what the API produces by default with b64_json.
         mimeType: 'image/png',
-        // b64_json is raw base64 with no data-URL prefix, matching GeneratedImage.base64 convention.
-        base64: item.b64_json!,
+        base64,
         // revised_prompt may be present when OpenAI rewrites the input prompt.
         // Use it as altText when available so Aria has a meaningful description.
         ...(item.revised_prompt ? { altText: item.revised_prompt } : {}),
-        // width and height: not returned by the images/generations endpoint.
-        // The size parameter (1024x1024) is what we requested, but the response
-        // carries no explicit dimensions. Leave absent — Aria renders without hints.
-      }));
+      });
+    }
 
     if (images.length === 0) {
       const error = buildModelError('unknown', 'Image generation returned no images');
