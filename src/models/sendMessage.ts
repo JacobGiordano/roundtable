@@ -31,7 +31,13 @@ import type {
   ModelId,
   SessionTokenUsage,
 } from '@/types';
-import { getProviderRoster, getCredentials, getPricingTable } from '@/auth';
+import { getProviderRoster, getCredentials, getPricingTable, getModelVersion } from '@/auth';
+// Gate cross-agent exception: getModelVersion is imported here so sendMessage can resolve the
+// user's current version selection from Gate's localStorage when conversation.models is stale.
+// handleSelectModelVersion (Aria / App.tsx) writes to Gate immediately but does not call
+// store.updateConversation, so conversation.models[n].selectedVersionId may lag behind the
+// user's latest version choice. Falling back to getModelVersion() gives the authoritative
+// current selection. Follows the same import pattern as getCredentials and getProviderRoster.
 import { PROVIDERS, MODEL_REGISTRY } from './registry';
 import { createCustomProvider } from './generic';
 import { emitErrorChunk, buildModelError } from './openai-sse';
@@ -368,7 +374,11 @@ async function runParallel(
         (m) => m.modelId === provider.config.modelId
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
-      const selectedVersionId = modelConfig?.selectedVersionId;
+      // Prefer the conversation-stored selectedVersionId; fall back to the Gate-stored version
+      // when absent. handleSelectModelVersion (Aria) writes to Gate immediately but does not
+      // call store.updateConversation, so conversation.models may lag behind the user's latest
+      // version choice. getModelVersion() is authoritative for the most recent selection.
+      const selectedVersionId = modelConfig?.selectedVersionId ?? getModelVersion(provider.config.modelId);
 
       // Option B: build a per-provider message array that attributes other
       // models' assistant messages as user-role messages with "[Name responded: ...]"
@@ -443,7 +453,9 @@ async function runDirected(
     (m) => m.modelId === target.config.modelId
   );
   const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
-  const selectedVersionId = modelConfig?.selectedVersionId;
+  // Prefer the conversation-stored selectedVersionId; fall back to Gate-stored version when
+  // absent. Same rationale as runParallel — conversation.models may lag behind getModelVersion.
+  const selectedVersionId = modelConfig?.selectedVersionId ?? getModelVersion(target.config.modelId);
 
   // Option B: attribute other models' messages for the directed target.
   const attributedMessages = conversation
@@ -552,7 +564,9 @@ async function runAutoChain(
         (m) => m.modelId === step.modelId
       );
       const resolvedSystemPrompt = modelConfig?.systemPrompt ?? systemPrompt;
-      const selectedVersionId = modelConfig?.selectedVersionId;
+      // Prefer the conversation-stored selectedVersionId; fall back to Gate-stored version when
+      // absent. Same rationale as runParallel — conversation.models may lag behind getModelVersion.
+      const selectedVersionId = modelConfig?.selectedVersionId ?? getModelVersion(step.modelId);
 
       // Option B: build a per-step attributed message array. sharedMessages grows
       // as appendToContext steps complete — the transform is applied at dispatch
@@ -835,9 +849,12 @@ export async function sendMessage(
   const wrappedOnChunk: StreamHandler = (chunk) => {
     if (chunk.isDone && !chunk.error && !(signal?.aborted) && chunk.tokenUsage) {
       const modelConfig = conversation?.models.find((m) => m.modelId === chunk.modelId);
+      // Use the same Gate-fallback pattern as the dispatch paths: conversation.models may
+      // be stale when the user selected a version without a store.updateConversation call.
+      const resolvedVersionId = modelConfig?.selectedVersionId ?? getModelVersion(chunk.modelId);
       backfillUserMessage(
         chunk.tokenUsage.inputTokens,
-        getResolvedModelString(chunk.modelId, modelConfig?.selectedVersionId),
+        getResolvedModelString(chunk.modelId, resolvedVersionId),
       );
     }
     onChunk(chunk);
