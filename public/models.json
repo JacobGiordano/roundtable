@@ -1,40 +1,601 @@
 {
-  "updated": "2026-07-12",
+  "updated": "2026-07-13",
   "providers": {
     "anthropic": [
-      { "id": "claude-opus-4-8", "displayName": "Claude Opus 4", "description": "Most capable — complex reasoning and long-horizon tasks" },
-      { "id": "claude-sonnet-4-6", "displayName": "Claude Sonnet 4", "description": "Balanced capability and speed — default" },
-      { "id": "claude-haiku-4-5-20251001", "displayName": "Claude Haiku 4", "description": "Fastest and most compact" }
+      {
+        "id": "claude-sonnet-5",
+        "displayName": "Anthropic: Claude Sonnet 5"
+      },
+      {
+        "id": "claude-fable-5",
+        "displayName": "Anthropic: Claude Fable 5"
+      },
+      {
+        "id": "claude-opus-4.8-fast",
+        "displayName": "Anthropic: Claude Opus 4.8 (Fast)"
+      },
+      {
+        "id": "claude-opus-4.8",
+        "displayName": "Anthropic: Claude Opus 4.8"
+      },
+      {
+        "id": "claude-opus-4.7-fast",
+        "displayName": "Anthropic: Claude Opus 4.7 (Fast)"
+      },
+      {
+        "id": "claude-opus-4.7",
+        "displayName": "Anthropic: Claude Opus 4.7"
+      },
+      {
+        "id": "claude-sonnet-4.6",
+        "displayName": "Anthropic: Claude Sonnet 4.6"
+      },
+      {
+        "id": "claude-opus-4.6",
+        "displayName": "Anthropic: Claude Opus 4.6"
+      },
+      {
+        "id": "claude-opus-4.5",
+        "displayName": "Anthropic: Claude Opus 4.5"
+      },
+      {
+        "id": "claude-haiku-4.5",
+        "displayName": "Anthropic: Claude Haiku 4.5"
+      },
+      {
+        "id": "claude-sonnet-4.5",
+        "displayName": "Anthropic: Claude Sonnet 4.5"
+      },
+      {
+        "id": "claude-opus-4.1",
+        "displayName": "Anthropic: Claude Opus 4.1"
+      },
+      {
+        "id": "claude-opus-4",
+        "displayName": "Anthropic: Claude Opus 4"
+      },
+      {
+        "id": "claude-sonnet-4",
+        "displayName": "Anthropic: Claude Sonnet 4"
+      },
+      {
+        "id": "claude-3-haiku",
+        "displayName": "Anthropic: Claude 3 Haiku"
+      }
     ],
     "openai": [
-      { "id": "gpt-5.6", "displayName": "GPT-5.6", "description": "Latest flagship — released July 2026" },
-      { "id": "gpt-5.5", "displayName": "GPT-5.5", "description": "Previous flagship" },
-      { "id": "gpt-4o", "displayName": "GPT-4o", "description": "High capability, multimodal" },
-      { "id": "gpt-4o-mini", "displayName": "GPT-4o mini", "description": "Fast and cost-efficient" },
-      { "id": "o3", "displayName": "o3", "description": "Advanced reasoning model" },
-      { "id": "o1", "displayName": "o1", "description": "Strong reasoning, slower responses" },
-      { "id": "o1-mini", "displayName": "o1-mini", "description": "Compact reasoning model" },
-      { "id": "gpt-image-2", "displayName": "GPT Image 2", "description": "Native image generation — produces images from text prompts" },
-      { "id": "gpt-image-1", "displayName": "GPT Image 1 (deprecated)", "description": "Legacy image generation — deprecated October 23 2026; use GPT Image 2" }
+      {
+        "id": "gpt-5.6-luna-pro",
+        "displayName": "OpenAI: GPT-5.6 Luna Pro"
+      },
+      {
+        "id": "gpt-5.6-luna",
+        "displayName": "OpenAI: GPT-5.6 Luna"
+      },
+      {
+        "id": "gpt-5.6-terra-pro",
+        "displayName": "OpenAI: GPT-5.6 Terra Pro"
+      },
+      {
+        "id": "gpt-5.6-terra",
+        "displayName": "OpenAI: GPT-5.6 Terra"
+      },
+      {
+        "id": "gpt-5.6-sol-pro",
+        "displayName": "OpenAI: GPT-5.6 Sol Pro"
+      },
+      {
+        "id": "gpt-5.6-sol",
+        "displayName": "OpenAI: GPT-5.6 Sol"
+      },
+      {
+        "id": "gpt-chat-latest",
+        "displayName": "OpenAI: GPT Chat Latest"
+      },
+      {
+        "id": "gpt-5.5-pro",
+        "displayName": "OpenAI: GPT-5.5 Pro"
+      },
+      {
+        "id": "gpt-5.5",
+        "displayName": "OpenAI: GPT-5.5"
+      },
+      {
+        "id": "gpt-5.4-image-2",
+        "displayName": "OpenAI: GPT-5.4 Image 2"
+      },
+      {
+        "id": "gpt-5.4-nano",
+        "displayName": "OpenAI: GPT-5.4 Nano"
+      },
+      {
+        "id": "gpt-5.4-mini",
+        "displayName": "OpenAI: GPT-5.4 Mini"
+      },
+      {
+        "id": "gpt-5.4-pro",
+        "displayName": "OpenAI: GPT-5.4 Pro"
+      },
+      {
+        "id": "gpt-5.4",
+        "displayName": "OpenAI: GPT-5.4"
+      },
+      {
+        "id": "gpt-5.3-chat",
+        "displayName": "OpenAI: GPT-5.3 Chat"
+      },
+      {
+        "id": "gpt-5.3-codex",
+        "displayName": "OpenAI: GPT-5.3-Codex"
+      },
+      {
+        "id": "gpt-audio",
+        "displayName": "OpenAI: GPT Audio"
+      },
+      {
+        "id": "gpt-audio-mini",
+        "displayName": "OpenAI: GPT Audio Mini"
+      },
+      {
+        "id": "gpt-5.2-codex",
+        "displayName": "OpenAI: GPT-5.2-Codex"
+      },
+      {
+        "id": "gpt-5.2-chat",
+        "displayName": "OpenAI: GPT-5.2 Chat"
+      },
+      {
+        "id": "gpt-5.2-pro",
+        "displayName": "OpenAI: GPT-5.2 Pro"
+      },
+      {
+        "id": "gpt-5.2",
+        "displayName": "OpenAI: GPT-5.2"
+      },
+      {
+        "id": "gpt-5.1-codex-max",
+        "displayName": "OpenAI: GPT-5.1-Codex-Max"
+      },
+      {
+        "id": "gpt-5.1",
+        "displayName": "OpenAI: GPT-5.1"
+      },
+      {
+        "id": "gpt-5.1-chat",
+        "displayName": "OpenAI: GPT-5.1 Chat"
+      },
+      {
+        "id": "gpt-5.1-codex",
+        "displayName": "OpenAI: GPT-5.1-Codex"
+      },
+      {
+        "id": "gpt-5.1-codex-mini",
+        "displayName": "OpenAI: GPT-5.1-Codex-Mini"
+      },
+      {
+        "id": "gpt-oss-safeguard-20b",
+        "displayName": "OpenAI: gpt-oss-safeguard-20b"
+      },
+      {
+        "id": "gpt-5-image-mini",
+        "displayName": "OpenAI: GPT-5 Image Mini"
+      },
+      {
+        "id": "gpt-5-image",
+        "displayName": "OpenAI: GPT-5 Image"
+      },
+      {
+        "id": "o3-deep-research",
+        "displayName": "OpenAI: o3 Deep Research"
+      },
+      {
+        "id": "o4-mini-deep-research",
+        "displayName": "OpenAI: o4 Mini Deep Research"
+      },
+      {
+        "id": "gpt-5-pro",
+        "displayName": "OpenAI: GPT-5 Pro"
+      },
+      {
+        "id": "gpt-5-codex",
+        "displayName": "OpenAI: GPT-5 Codex"
+      },
+      {
+        "id": "gpt-5-chat",
+        "displayName": "OpenAI: GPT-5 Chat"
+      },
+      {
+        "id": "gpt-5",
+        "displayName": "OpenAI: GPT-5"
+      },
+      {
+        "id": "gpt-5-mini",
+        "displayName": "OpenAI: GPT-5 Mini"
+      },
+      {
+        "id": "gpt-5-nano",
+        "displayName": "OpenAI: GPT-5 Nano"
+      },
+      {
+        "id": "gpt-oss-120b:free",
+        "displayName": "OpenAI: gpt-oss-120b (free)"
+      },
+      {
+        "id": "gpt-oss-120b",
+        "displayName": "OpenAI: gpt-oss-120b"
+      },
+      {
+        "id": "gpt-oss-20b:free",
+        "displayName": "OpenAI: gpt-oss-20b (free)"
+      },
+      {
+        "id": "gpt-oss-20b",
+        "displayName": "OpenAI: gpt-oss-20b"
+      },
+      {
+        "id": "o3-pro",
+        "displayName": "OpenAI: o3 Pro"
+      },
+      {
+        "id": "o4-mini-high",
+        "displayName": "OpenAI: o4 Mini High"
+      },
+      {
+        "id": "o3",
+        "displayName": "OpenAI: o3"
+      },
+      {
+        "id": "o4-mini",
+        "displayName": "OpenAI: o4 Mini"
+      },
+      {
+        "id": "gpt-4.1",
+        "displayName": "OpenAI: GPT-4.1"
+      },
+      {
+        "id": "gpt-4.1-mini",
+        "displayName": "OpenAI: GPT-4.1 Mini"
+      },
+      {
+        "id": "gpt-4.1-nano",
+        "displayName": "OpenAI: GPT-4.1 Nano"
+      },
+      {
+        "id": "o1-pro",
+        "displayName": "OpenAI: o1-pro"
+      },
+      {
+        "id": "gpt-4o-mini-search-preview",
+        "displayName": "OpenAI: GPT-4o-mini Search Preview"
+      },
+      {
+        "id": "gpt-4o-search-preview",
+        "displayName": "OpenAI: GPT-4o Search Preview"
+      },
+      {
+        "id": "o3-mini-high",
+        "displayName": "OpenAI: o3 Mini High"
+      },
+      {
+        "id": "o3-mini",
+        "displayName": "OpenAI: o3 Mini"
+      },
+      {
+        "id": "o1",
+        "displayName": "OpenAI: o1"
+      },
+      {
+        "id": "gpt-4o-2024-11-20",
+        "displayName": "OpenAI: GPT-4o (2024-11-20)"
+      },
+      {
+        "id": "gpt-4o-2024-08-06",
+        "displayName": "OpenAI: GPT-4o (2024-08-06)"
+      },
+      {
+        "id": "gpt-4o-mini-2024-07-18",
+        "displayName": "OpenAI: GPT-4o-mini (2024-07-18)"
+      },
+      {
+        "id": "gpt-4o-mini",
+        "displayName": "OpenAI: GPT-4o-mini"
+      },
+      {
+        "id": "gpt-4o-2024-05-13",
+        "displayName": "OpenAI: GPT-4o (2024-05-13)"
+      },
+      {
+        "id": "gpt-4o",
+        "displayName": "OpenAI: GPT-4o"
+      },
+      {
+        "id": "gpt-4-turbo",
+        "displayName": "OpenAI: GPT-4 Turbo"
+      },
+      {
+        "id": "gpt-3.5-turbo-0613",
+        "displayName": "OpenAI: GPT-3.5 Turbo (older v0613)"
+      },
+      {
+        "id": "gpt-4-turbo-preview",
+        "displayName": "OpenAI: GPT-4 Turbo Preview"
+      },
+      {
+        "id": "gpt-3.5-turbo-instruct",
+        "displayName": "OpenAI: GPT-3.5 Turbo Instruct"
+      },
+      {
+        "id": "gpt-3.5-turbo-16k",
+        "displayName": "OpenAI: GPT-3.5 Turbo 16k"
+      },
+      {
+        "id": "gpt-4",
+        "displayName": "OpenAI: GPT-4"
+      },
+      {
+        "id": "gpt-3.5-turbo",
+        "displayName": "OpenAI: GPT-3.5 Turbo"
+      }
     ],
     "google": [
-      { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "description": "Most capable — complex tasks and long context" },
-      { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "description": "Fast and efficient — default" },
-      { "id": "gemini-2.5-flash-image", "displayName": "Gemini 2.5 Flash Image", "description": "Native image generation (\"Nano Banana\") — produces text + images" }
-    ],
-    "x-ai": [
-      { "id": "grok-3", "displayName": "Grok 3", "description": "Flagship — default" },
-      { "id": "grok-3-mini", "displayName": "Grok 3 mini", "description": "Efficient reasoning model" },
-      { "id": "grok-2", "displayName": "Grok 2", "description": "Stable prior-generation model" }
-    ],
-    "deepseek": [
-      { "id": "deepseek-chat", "displayName": "DeepSeek Chat", "description": "General-purpose chat — default" },
-      { "id": "deepseek-reasoner", "displayName": "DeepSeek Reasoner", "description": "Advanced reasoning (R1)" }
+      {
+        "id": "gemini-3.1-flash-lite-image",
+        "displayName": "Google: Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)"
+      },
+      {
+        "id": "gemini-3.1-flash-image",
+        "displayName": "Google: Nano Banana 2 (Gemini 3.1 Flash Image)"
+      },
+      {
+        "id": "gemini-3-pro-image",
+        "displayName": "Google: Nano Banana Pro (Gemini 3 Pro Image)"
+      },
+      {
+        "id": "gemini-3.5-flash",
+        "displayName": "Google: Gemini 3.5 Flash"
+      },
+      {
+        "id": "gemini-3.1-flash-lite",
+        "displayName": "Google: Gemini 3.1 Flash Lite"
+      },
+      {
+        "id": "gemma-4-26b-a4b-it:free",
+        "displayName": "Google: Gemma 4 26B A4B  (free)"
+      },
+      {
+        "id": "gemma-4-26b-a4b-it",
+        "displayName": "Google: Gemma 4 26B A4B"
+      },
+      {
+        "id": "gemma-4-31b-it:free",
+        "displayName": "Google: Gemma 4 31B (free)"
+      },
+      {
+        "id": "gemma-4-31b-it",
+        "displayName": "Google: Gemma 4 31B"
+      },
+      {
+        "id": "lyria-3-pro-preview",
+        "displayName": "Google: Lyria 3 Pro Preview"
+      },
+      {
+        "id": "lyria-3-clip-preview",
+        "displayName": "Google: Lyria 3 Clip Preview"
+      },
+      {
+        "id": "gemini-3.1-flash-lite-preview",
+        "displayName": "Google: Gemini 3.1 Flash Lite Preview"
+      },
+      {
+        "id": "gemini-3.1-flash-image-preview",
+        "displayName": "Google: Nano Banana 2 (Gemini 3.1 Flash Image Preview)"
+      },
+      {
+        "id": "gemini-3.1-pro-preview-customtools",
+        "displayName": "Google: Gemini 3.1 Pro Preview Custom Tools"
+      },
+      {
+        "id": "gemini-3.1-pro-preview",
+        "displayName": "Google: Gemini 3.1 Pro Preview"
+      },
+      {
+        "id": "gemini-3-flash-preview",
+        "displayName": "Google: Gemini 3 Flash Preview"
+      },
+      {
+        "id": "gemini-3-pro-image-preview",
+        "displayName": "Google: Nano Banana Pro (Gemini 3 Pro Image Preview)"
+      },
+      {
+        "id": "gemini-2.5-flash-image",
+        "displayName": "Google: Nano Banana (Gemini 2.5 Flash Image)"
+      },
+      {
+        "id": "gemini-2.5-flash-lite",
+        "displayName": "Google: Gemini 2.5 Flash Lite"
+      },
+      {
+        "id": "gemini-2.5-flash",
+        "displayName": "Google: Gemini 2.5 Flash"
+      },
+      {
+        "id": "gemini-2.5-pro",
+        "displayName": "Google: Gemini 2.5 Pro"
+      },
+      {
+        "id": "gemini-2.5-pro-preview",
+        "displayName": "Google: Gemini 2.5 Pro Preview 06-05"
+      },
+      {
+        "id": "gemma-3n-e4b-it",
+        "displayName": "Google: Gemma 3n 4B"
+      },
+      {
+        "id": "gemini-2.5-pro-preview-05-06",
+        "displayName": "Google: Gemini 2.5 Pro Preview 05-06"
+      },
+      {
+        "id": "gemma-3-4b-it",
+        "displayName": "Google: Gemma 3 4B"
+      },
+      {
+        "id": "gemma-3-12b-it",
+        "displayName": "Google: Gemma 3 12B"
+      },
+      {
+        "id": "gemma-3-27b-it",
+        "displayName": "Google: Gemma 3 27B"
+      },
+      {
+        "id": "gemma-2-27b-it",
+        "displayName": "Google: Gemma 2 27B"
+      }
     ],
     "mistralai": [
-      { "id": "mistral-large-latest", "displayName": "Mistral Large", "description": "Most capable — default" },
-      { "id": "mistral-small-latest", "displayName": "Mistral Small", "description": "Fast and cost-efficient" },
-      { "id": "open-mistral-nemo", "displayName": "Mistral Nemo", "description": "Open-weight, 12B parameters" }
+      {
+        "id": "mistral-medium-3-5",
+        "displayName": "Mistral: Mistral Medium 3.5"
+      },
+      {
+        "id": "mistral-small-2603",
+        "displayName": "Mistral: Mistral Small 4"
+      },
+      {
+        "id": "devstral-2512",
+        "displayName": "Mistral: Devstral 2 2512"
+      },
+      {
+        "id": "ministral-14b-2512",
+        "displayName": "Mistral: Ministral 3 14B 2512"
+      },
+      {
+        "id": "ministral-8b-2512",
+        "displayName": "Mistral: Ministral 3 8B 2512"
+      },
+      {
+        "id": "ministral-3b-2512",
+        "displayName": "Mistral: Ministral 3 3B 2512"
+      },
+      {
+        "id": "mistral-large-2512",
+        "displayName": "Mistral: Mistral Large 3 2512"
+      },
+      {
+        "id": "voxtral-small-24b-2507",
+        "displayName": "Mistral: Voxtral Small 24B 2507"
+      },
+      {
+        "id": "mistral-medium-3.1",
+        "displayName": "Mistral: Mistral Medium 3.1"
+      },
+      {
+        "id": "codestral-2508",
+        "displayName": "Mistral: Codestral 2508"
+      },
+      {
+        "id": "mistral-small-3.2-24b-instruct",
+        "displayName": "Mistral: Mistral Small 3.2 24B"
+      },
+      {
+        "id": "mistral-medium-3",
+        "displayName": "Mistral: Mistral Medium 3"
+      },
+      {
+        "id": "mistral-small-3.1-24b-instruct",
+        "displayName": "Mistral: Mistral Small 3.1 24B"
+      },
+      {
+        "id": "mistral-saba",
+        "displayName": "Mistral: Saba"
+      },
+      {
+        "id": "mistral-small-24b-instruct-2501",
+        "displayName": "Mistral: Mistral Small 3"
+      },
+      {
+        "id": "mistral-large-2407",
+        "displayName": "Mistral Large 2407"
+      },
+      {
+        "id": "mistral-nemo",
+        "displayName": "Mistral: Mistral Nemo"
+      },
+      {
+        "id": "mixtral-8x22b-instruct",
+        "displayName": "Mistral: Mixtral 8x22B Instruct"
+      },
+      {
+        "id": "mistral-large",
+        "displayName": "Mistral Large"
+      }
+    ],
+    "deepseek": [
+      {
+        "id": "deepseek-v4-pro",
+        "displayName": "DeepSeek: DeepSeek V4 Pro"
+      },
+      {
+        "id": "deepseek-v4-flash",
+        "displayName": "DeepSeek: DeepSeek V4 Flash"
+      },
+      {
+        "id": "deepseek-v3.2",
+        "displayName": "DeepSeek: DeepSeek V3.2"
+      },
+      {
+        "id": "deepseek-v3.2-exp",
+        "displayName": "DeepSeek: DeepSeek V3.2 Exp"
+      },
+      {
+        "id": "deepseek-v3.1-terminus",
+        "displayName": "DeepSeek: DeepSeek V3.1 Terminus"
+      },
+      {
+        "id": "deepseek-chat-v3.1",
+        "displayName": "DeepSeek: DeepSeek V3.1"
+      },
+      {
+        "id": "deepseek-r1-0528",
+        "displayName": "DeepSeek: R1 0528"
+      },
+      {
+        "id": "deepseek-chat-v3-0324",
+        "displayName": "DeepSeek: DeepSeek V3 0324"
+      },
+      {
+        "id": "deepseek-r1-distill-llama-70b",
+        "displayName": "DeepSeek: R1 Distill Llama 70B"
+      },
+      {
+        "id": "deepseek-r1",
+        "displayName": "DeepSeek: R1"
+      },
+      {
+        "id": "deepseek-chat",
+        "displayName": "DeepSeek: DeepSeek V3"
+      }
+    ],
+    "x-ai": [
+      {
+        "id": "grok-4.5",
+        "displayName": "xAI: Grok 4.5"
+      },
+      {
+        "id": "grok-build-0.1",
+        "displayName": "xAI: Grok Build 0.1"
+      },
+      {
+        "id": "grok-4.3",
+        "displayName": "xAI: Grok 4.3"
+      },
+      {
+        "id": "grok-4.20-multi-agent",
+        "displayName": "xAI: Grok 4.20 Multi-Agent"
+      },
+      {
+        "id": "grok-4.20",
+        "displayName": "xAI: Grok 4.20"
+      }
     ]
   }
 }
