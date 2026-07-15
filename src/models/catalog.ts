@@ -11,6 +11,17 @@
 import type { ModelCatalogEntry } from '@/types';
 import type { ModelRegistryEntry } from './registry';
 
+// ─── Security: model ID allowlist ─────────────────────────────────────────────
+//
+// All model IDs received from external sources (OpenRouter, models.json, etc.)
+// must pass this test before being included in a catalog entry. A compromised
+// or malformed response could supply path-traversal characters (e.g. ../../evil)
+// that propagate into provider request URLs (issue #387).
+//
+// Allowlist: ASCII alphanumeric + . _ : - only; 1–128 chars total; must start
+// with an alphanumeric character so the first character is never a path separator.
+const SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:\-]{0,127}$/;
+
 // ─── Remote catalog shape (not exported — internal parse contract) ────────────
 
 /**
@@ -279,6 +290,10 @@ export async function fetchRemoteCatalog(url: string): Promise<ModelCatalogEntry
       );
       continue;
     }
+    if (!SAFE_MODEL_ID.test(item.id)) {
+      console.warn('[catalog] skipping model with invalid ID', item.id);
+      continue;
+    }
     entries.push({
       id: item.id,
       displayName: item.displayName,
@@ -362,29 +377,36 @@ export async function fetchOpenRouterBuiltinCatalog(
     return [];
   }
 
-  // Filter to models whose ID starts with the provider prefix, then strip the prefix.
+  // Filter to models whose ID starts with the provider prefix, strip the prefix,
+  // then validate the native ID against the safe-character allowlist before including.
+  // A compromised response returning path-traversal characters (e.g. ../../evil)
+  // would otherwise propagate into provider request URLs (issue #387).
   // Capabilities come from OpenRouter's modality fields — NOT from provider-level
   // BUILTIN_CAPABILITIES_MAP, which is authoritative for other purposes.
-  return raw.data
-    .filter((model) => model.id.startsWith(prefixWithSlash))
-    .map((model): ModelCatalogEntry => {
-      const nativeId = model.id.slice(prefixWithSlash.length);
-      const hasVision = model.input_modalities?.includes('image') ?? false;
-      const hasImageGen = model.output_modalities?.includes('image') ?? false;
-      const hasCapabilities = hasVision || hasImageGen;
-
-      return {
-        id: nativeId,
-        displayName: model.name,
-        ...(model.description !== undefined ? { description: model.description } : {}),
-        ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
-        ...(hasCapabilities ? { capabilities: {
-          vision: hasVision,
-          imageGeneration: hasImageGen,
-        } } : {}),
-        source: 'live-api',
-      };
+  const catalog: ModelCatalogEntry[] = [];
+  for (const model of raw.data) {
+    if (!model.id.startsWith(prefixWithSlash)) continue;
+    const nativeId = model.id.slice(prefixWithSlash.length);
+    if (!SAFE_MODEL_ID.test(nativeId)) {
+      console.warn('[catalog] skipping model with invalid ID', nativeId);
+      continue;
+    }
+    const hasVision = model.input_modalities?.includes('image') ?? false;
+    const hasImageGen = model.output_modalities?.includes('image') ?? false;
+    const hasCapabilities = hasVision || hasImageGen;
+    catalog.push({
+      id: nativeId,
+      displayName: model.name,
+      ...(model.description !== undefined ? { description: model.description } : {}),
+      ...(model.context_length !== undefined ? { contextWindow: model.context_length } : {}),
+      ...(hasCapabilities ? { capabilities: {
+        vision: hasVision,
+        imageGeneration: hasImageGen,
+      } } : {}),
+      source: 'live-api',
     });
+  }
+  return catalog;
 }
 
 /**
@@ -462,13 +484,21 @@ export async function fetchModelsFallbackJson(
     return [];
   }
 
-  return providerModels.map((entry): ModelCatalogEntry => ({
-    id: entry.id,
-    displayName: entry.displayName,
-    ...(entry.description !== undefined ? { description: entry.description } : {}),
-    ...(entry.contextWindow !== undefined ? { contextWindow: entry.contextWindow } : {}),
-    source: 'remote',
-  }));
+  const catalog: ModelCatalogEntry[] = [];
+  for (const entry of providerModels) {
+    if (!SAFE_MODEL_ID.test(entry.id)) {
+      console.warn('[catalog] skipping model with invalid ID', entry.id);
+      continue;
+    }
+    catalog.push({
+      id: entry.id,
+      displayName: entry.displayName,
+      ...(entry.description !== undefined ? { description: entry.description } : {}),
+      ...(entry.contextWindow !== undefined ? { contextWindow: entry.contextWindow } : {}),
+      source: 'remote',
+    });
+  }
+  return catalog;
 }
 
 /**
