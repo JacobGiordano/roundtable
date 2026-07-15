@@ -103,7 +103,7 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      aria-label={label === 'Copy' ? 'Copy code' : label}
+      aria-label="Copy code"
       className={[
         'absolute top-2 right-2',
         'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
