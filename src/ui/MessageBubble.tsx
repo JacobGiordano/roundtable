@@ -3,6 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
+// #409: Spec-compliant markdown renderer — DOMPurify pre-sanitization + remark-gfm +
+// copy-code button + Luma token classes. Replaces inline ReactMarkdown for "done" state.
+import { MarkdownContent } from './components/MarkdownContent';
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
 // #405: CopyIcon extracted to shared icons so Lightbox can import the same component.
@@ -465,18 +468,16 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
     );
   }
 
-  // Streaming done (or never streaming) — render full content via react-markdown.
+  // Streaming done (or never streaming) — render full content via spec-compliant MarkdownContent.
+  // #409: MarkdownContent applies DOMPurify pre-sanitization, remark-gfm, copy-code button,
+  // and all Luma token classes per markdown-rendering.md. The outer div preserves the
+  // existing break-words layout constraint while MarkdownContent handles prose styling.
   return (
     <div
-      className="text-[15px] font-normal leading-[1.6] text-text-primary break-words"
+      className="break-words"
       aria-live="off"
     >
-      <ReactMarkdown
-        rehypePlugins={rehypePlugins}
-        components={markdownComponents}
-      >
-        {content}
-      </ReactMarkdown>
+      <MarkdownContent content={content} />
     </div>
   );
 }

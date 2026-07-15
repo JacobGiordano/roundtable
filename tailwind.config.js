@@ -42,9 +42,16 @@ export default {
         'error':           'var(--semantic-error)',
         'error-bg':        'var(--semantic-error-bg)',
         'info':            'var(--semantic-info)',
-        // Prose (markdown rendering tokens — Luma spec: markdown.md)
-        'link':            'var(--prose-link)',
-        'link-hover':      'var(--prose-link-hover)',
+        // Prose (markdown rendering tokens — Luma spec: markdown.md + tailwind-mapping.md)
+        // Step 1 of two-step token verification: these map to CSS vars set by applyTheme().
+        // Step 2: all 7 vars confirmed in theme.ts applyTheme() prose block.
+        'code':            'var(--prose-code-bg)',       // bg-code
+        'code-border':     'var(--prose-code-border)',   // border-code
+        'code-text':       'var(--prose-code-text)',     // text-code
+        'code-block':      'var(--prose-block-bg)',      // bg-code-block
+        'link':            'var(--prose-link)',           // text-link
+        'link-hover':      'var(--prose-link-hover)',    // hover:text-link-hover
+        'blockquote':      'var(--prose-blockquote-border)', // border-blockquote
       },
       borderRadius: {
         'sm':   'var(--radius-sm)',    // 4px
