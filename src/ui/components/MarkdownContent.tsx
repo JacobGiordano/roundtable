@@ -313,8 +313,12 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       }
 
       // Inline code — §2.2 token classes.
+      // Note: spec tailwind-mapping.md shows 'text-code' but the configured key is 'code-text'
+      // which generates class 'text-code-text'. Using 'text-code-text' (the actual key-derived class).
+      // Gap flagged for Luma: markdown-rendering.md §2.2 uses 'text-code' but tailwind-mapping.md
+      // key 'code-text' generates 'text-code-text'. Applied the key-consistent class here.
       return (
-        <code className="bg-code border border-code-border text-code rounded-sm px-1 py-0.5 font-mono text-[13px] whitespace-nowrap">
+        <code className="bg-code border border-code-border text-code-text rounded-sm px-1 py-0.5 font-mono text-[13px] whitespace-nowrap">
           {children}
         </code>
       );
