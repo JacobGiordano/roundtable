@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-13",
+  "updated": "2026-07-15",
   "providers": {
     "anthropic": [
       {
@@ -217,20 +217,16 @@
         "displayName": "OpenAI: GPT-5 Nano"
       },
       {
-        "id": "gpt-oss-120b:free",
-        "displayName": "OpenAI: gpt-oss-120b (free)"
-      },
-      {
         "id": "gpt-oss-120b",
         "displayName": "OpenAI: gpt-oss-120b"
       },
       {
-        "id": "gpt-oss-20b:free",
-        "displayName": "OpenAI: gpt-oss-20b (free)"
-      },
-      {
         "id": "gpt-oss-20b",
         "displayName": "OpenAI: gpt-oss-20b"
+      },
+      {
+        "id": "gpt-oss-20b:free",
+        "displayName": "OpenAI: gpt-oss-20b (free)"
       },
       {
         "id": "o3-pro",
@@ -293,20 +289,20 @@
         "displayName": "OpenAI: GPT-4o (2024-08-06)"
       },
       {
-        "id": "gpt-4o-mini-2024-07-18",
-        "displayName": "OpenAI: GPT-4o-mini (2024-07-18)"
-      },
-      {
         "id": "gpt-4o-mini",
         "displayName": "OpenAI: GPT-4o-mini"
       },
       {
-        "id": "gpt-4o-2024-05-13",
-        "displayName": "OpenAI: GPT-4o (2024-05-13)"
+        "id": "gpt-4o-mini-2024-07-18",
+        "displayName": "OpenAI: GPT-4o-mini (2024-07-18)"
       },
       {
         "id": "gpt-4o",
         "displayName": "OpenAI: GPT-4o"
+      },
+      {
+        "id": "gpt-4o-2024-05-13",
+        "displayName": "OpenAI: GPT-4o (2024-05-13)"
       },
       {
         "id": "gpt-4-turbo",
@@ -329,12 +325,12 @@
         "displayName": "OpenAI: GPT-3.5 Turbo 16k"
       },
       {
-        "id": "gpt-4",
-        "displayName": "OpenAI: GPT-4"
-      },
-      {
         "id": "gpt-3.5-turbo",
         "displayName": "OpenAI: GPT-3.5 Turbo"
+      },
+      {
+        "id": "gpt-4",
+        "displayName": "OpenAI: GPT-4"
       }
     ],
     "google": [
@@ -359,20 +355,20 @@
         "displayName": "Google: Gemini 3.1 Flash Lite"
       },
       {
-        "id": "gemma-4-26b-a4b-it:free",
-        "displayName": "Google: Gemma 4 26B A4B  (free)"
-      },
-      {
         "id": "gemma-4-26b-a4b-it",
         "displayName": "Google: Gemma 4 26B A4B"
       },
       {
-        "id": "gemma-4-31b-it:free",
-        "displayName": "Google: Gemma 4 31B (free)"
+        "id": "gemma-4-26b-a4b-it:free",
+        "displayName": "Google: Gemma 4 26B A4B  (free)"
       },
       {
         "id": "gemma-4-31b-it",
         "displayName": "Google: Gemma 4 31B"
+      },
+      {
+        "id": "gemma-4-31b-it:free",
+        "displayName": "Google: Gemma 4 31B (free)"
       },
       {
         "id": "lyria-3-pro-preview",
