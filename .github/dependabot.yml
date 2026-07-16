@@ -1,0 +1,56 @@
+# .github/dependabot.yml
+#
+# Configures Dependabot to keep npm dependencies and GitHub Actions versions
+# current. Without this file, CVEs and action version drift accumulate silently.
+#
+# npm ecosystem:
+#   - Patch + minor updates are grouped into a single weekly PR so the
+#     dependency noise stays manageable. Major updates get individual PRs
+#     because they may require manual migration work.
+#
+# github-actions ecosystem:
+#   - Weekly scan for new action versions. Each outdated action gets its own PR
+#     (action updates are lightweight to review and rarely conflict).
+#
+# Both target the main branch.
+
+version: 2
+
+updates:
+  # ─── npm (root package.json) ──────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "main"
+    groups:
+      # Batch patch and minor bumps into one PR per week. Low-risk updates
+      # that can be merged together without careful per-dep review.
+      patch-and-minor:
+        update-types:
+          - "minor"
+          - "patch"
+    # Major version updates are not grouped — each gets its own PR so breaking
+    # changes can be reviewed and migrated deliberately.
+
+  # ─── npm (backend/package.json) ───────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "main"
+    groups:
+      patch-and-minor:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─── GitHub Actions ────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "main"

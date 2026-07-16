@@ -1,9 +1,11 @@
 # .github/workflows/deploy-pages.yml
 #
-# Deploys the Roundtable frontend to GitHub Pages on every push to main.
+# Deploys the Roundtable frontend to GitHub Pages, but only after CI passes.
 #
-# Trigger: push to main branch. Pages always reflects the current state of main.
-# Version tags are handled separately by release.yml (Docker image + GitHub Release).
+# Trigger: workflow_run on "CI" (must match ci.yml name: field exactly), on
+# completed runs. The job-level condition gates on conclusion == 'success' so
+# a red CI run never triggers a deploy. Previously this workflow triggered on
+# push to main directly, which allowed broken commits to reach GitHub Pages.
 #
 # What it does:
 #   1. Builds the frontend with VITE_BASE=/roundtable/ so that asset paths
@@ -22,9 +24,9 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -36,11 +38,13 @@ concurrency:
 jobs:
   deploy:
     name: Build and deploy to GitHub Pages
+    # Only deploy when CI passed — never deploy a red commit.
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
           cache: 'npm'
@@ -57,7 +61,7 @@ jobs:
           VITE_BASE: /roundtable/
 
       - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
