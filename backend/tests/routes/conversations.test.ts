@@ -366,6 +366,44 @@ describe('PATCH /conversations/:id — archive/unarchive', () => {
   });
 });
 
+describe('GET /conversations/:id — corrupt blob returns 500 (closes #476)', () => {
+  /**
+   * The conversations.ts GET /:id handler has a JSON.parse try/catch that
+   * returns { error: 'parse_error', status: 500 } when the stored data blob
+   * is not valid JSON. This path was previously untested.
+   *
+   * We seed the row directly into SQLite with invalid JSON to trigger the
+   * catch branch without going through the PUT route (which would reject a
+   * non-object body before it ever reached the DB).
+   */
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'pw123');
+    token = await loginAs(app.request, 'alice', 'pw123');
+  });
+
+  it('returns 500 with error=parse_error when the stored blob is corrupt JSON', async () => {
+    // Insert a row with invalid JSON directly — bypasses PUT validation.
+    const now = Date.now();
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('corrupt-conv', 'not valid json', 0, now, now);
+
+    const res = await app.request
+      .get('/conversations/corrupt-conv')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+  });
+});
+
 describe('SINGLE-TENANT DESIGN — cross-user access is permitted by design', () => {
   /**
    * This test documents an explicit design decision: the backend has no per-user
