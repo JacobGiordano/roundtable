@@ -20,7 +20,7 @@ import type { ModelRegistryEntry } from './registry';
 //
 // Allowlist: ASCII alphanumeric + . _ : - only; 1–128 chars total; must start
 // with an alphanumeric character so the first character is never a path separator.
-const SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:\-]{0,127}$/;
+const SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/;
 
 // ─── Remote catalog shape (not exported — internal parse contract) ────────────
 
