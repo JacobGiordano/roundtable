@@ -327,7 +327,7 @@ export interface ModelConfig {
   modelId: ModelId;
   /** Display name shown in UI. */
   name: string;
-  /** Tailwind color token, e.g. "violet" or "sky". */
+  /** CSS custom-property suffix for the model's accent color, e.g. 'accent-claude' or 'accent-gpt'. Matches the design-system token names in the active theme. Custom providers may also use 'accent-other' (fallback) or a 6-digit hex string. */
   color: string;
   /** Phase 2 — per-model system prompt. */
   systemPrompt?: string;
@@ -749,6 +749,88 @@ export interface ModelCatalogEntry {
   capabilities?: ProviderCapabilities;
 }
 
+// ─── Model registry — Atlas builds, Aria consumes ────────────────────────────
+
+/**
+ * Rich display metadata for a single registered model.
+ *
+ * Promoted from `/src/models/registry.ts`, where it was originally defined as
+ * an Atlas-local type. Aria's `App.tsx`, `ModelSelectorPanel.tsx`, and
+ * `AddModelButton.tsx` import `MODEL_REGISTRY` — which carries these entries —
+ * across the agent boundary. Promoting the type makes the cross-boundary shape
+ * explicit in the contract. The original definition remains in Atlas until
+ * Atlas's follow-up session removes or re-exports it.
+ *
+ * Atlas builds `MODEL_REGISTRY: ModelRegistryEntry[]` (the static roster of
+ * built-in providers) and re-exports both from `@/models`. Aria reads
+ * `MODEL_REGISTRY` to populate the model selector and conversation model list.
+ * Atlas's `sendMessage.ts` reads it to resolve active providers.
+ *
+ * `color` uses the design-system token suffix (e.g. 'accent-claude',
+ * 'accent-gpt') — the same convention as `ModelConfig.color`.
+ *
+ * `availableVersions` is the static bundled fallback. Atlas's catalog machinery
+ * (`resolveVersionCatalog`) may return a richer `ModelCatalogEntry[]` from
+ * remote or live-API sources; the version picker accepts both shapes because
+ * both carry `id`, `displayName`, and `description`.
+ */
+export interface ModelRegistryEntry {
+  modelId: ModelId;
+  /** Display name shown in the model selector and message bubbles. */
+  name: string;
+  /**
+   * Human-readable provider/company name shown in the model selector panel.
+   * Examples: "Anthropic", "OpenAI", "Google", "xAI", "DeepSeek", "Mistral".
+   */
+  providerName: string;
+  /**
+   * CSS custom-property suffix for the model's accent color, e.g. 'accent-claude'.
+   * Matches the design-system token names in the active theme.
+   */
+  color: string;
+  /**
+   * Whether this model is active by default when a new conversation is created.
+   * Users can toggle this per-conversation.
+   */
+  defaultActive: boolean;
+  /**
+   * All selectable API-level model versions for this provider (static bundled list).
+   * The first entry is treated as the default when `ModelConfig.selectedVersionId`
+   * is absent or does not match any entry. `id` on each entry is the exact string
+   * passed to the provider's API endpoint.
+   */
+  availableVersions: ModelVersionOption[];
+  /**
+   * URL of a remote `models.json` file to fetch at runtime.
+   * When present, Atlas fetches this URL as the second tier of the version-catalog
+   * fallback chain (OpenRouter → models.json → bundled). Falls back to
+   * `availableVersions` if the fetch fails.
+   */
+  remoteCatalogUrl?: string;
+  /**
+   * Base API endpoint for live model discovery.
+   * When present (and an API key is available), Atlas calls the matching
+   * provider-specific fetcher as the first tier of the catalog chain.
+   * When `liveApiProvider` is also set, that field identifies which fetcher to use.
+   */
+  liveApiEndpoint?: string;
+  /**
+   * Identifies which provider-specific live catalog fetcher to use.
+   * When absent, the generic OpenRouter wire format fetcher is used.
+   *   'anthropic' — Anthropic `/v1/models` endpoint
+   *   'gemini'    — Google `/v1beta/models` endpoint
+   */
+  liveApiProvider?: 'anthropic' | 'gemini';
+  /**
+   * OpenRouter provider prefix for no-key built-in discovery.
+   * When present, Atlas hits the public OpenRouter `/api/v1/models` endpoint,
+   * filters by this prefix, strips it, and uses the result as the first tier
+   * of the fallback chain.
+   * Examples: 'anthropic', 'openai', 'google', 'x-ai', 'deepseek', 'mistralai'.
+   */
+  openrouterPrefix?: string;
+}
+
 // ─── Conversation ─────────────────────────────────────────────────────────────
 
 export interface Conversation {
@@ -1125,6 +1207,27 @@ export type GetConversationDefaultsFn = () => Promise<ConversationDefaults | nul
  */
 export type SaveConversationDefaultsFn = (defaults: ConversationDefaults) => Promise<void>;
 
+// ─── Export options — Vault and callers ───────────────────────────────────────
+
+/**
+ * Options controlling what is included in a conversation export.
+ *
+ * Promoted from `/src/storage/exporters.ts` where it was first defined. The
+ * original definition remains in Gate's domain until Gate's follow-up session
+ * removes or re-exports it from there.
+ *
+ * `includeAttachments` (default `false`):
+ *   When true, attachment metadata (filename and mimeType) is rendered beneath
+ *   each user message that carries attachments. Raw base64 content is NEVER
+ *   embedded — only the identifying metadata is included to keep exports small
+ *   and readable. When false (or absent), attachment metadata is silently omitted.
+ *
+ * Vault implements; Aria and any ServerStorageProvider caller may pass this.
+ */
+export type ExportOptions = {
+  includeAttachments?: boolean;
+};
+
 // ─── StorageProvider — Vault implements ───────────────────────────────────────
 
 /**
@@ -1233,8 +1336,11 @@ export interface StorageProvider {
    * what to do with the content — Vault's LocalStorageProvider wraps this in a
    * download trigger; a ServerStorageProvider would stream it over HTTP.
    * The `filename` and `mimeType` fields are hints that callers may override.
+   *
+   * `options` controls optional content inclusions (e.g. `includeAttachments`).
+   * Absence is equivalent to `{}` — all options default to their off state.
    */
-  exportConversation(id: string, format: ExportFormat): Promise<ExportedConversation | null>;
+  exportConversation(id: string, format: ExportFormat, options?: ExportOptions): Promise<ExportedConversation | null>;
 }
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
@@ -1373,6 +1479,83 @@ export interface ActiveTheme {
   name: string;
   source: 'builtin' | 'custom';
 }
+
+// ─── Gate-promoted cross-boundary types ──────────────────────────────────────
+
+/**
+ * Result of a custom theme JSON validation attempt.
+ *
+ * Promoted from `/src/auth/themeValidation.ts`, where it was originally defined
+ * as a Gate-local type. Aria's `CustomThemeImport.tsx` imports this type; the
+ * cross-boundary import is what prompted promotion. The original definition
+ * remains in Gate until Gate's follow-up session re-exports it from the types
+ * contract or removes the local copy.
+ *
+ * When `valid` is true, `errors` is empty.
+ * When `valid` is false, `errors` contains at least one entry, each describing
+ * a specific field-level problem the UI can display inline.
+ *
+ * Gate owns the implementation (`validateCustomTheme` in `themeValidation.ts`).
+ * Aria consumes the return value; both read this type from `@/types`.
+ */
+export interface ValidationResult {
+  valid: boolean;
+  errors: Array<{ field: string; message: string }>;
+}
+
+/**
+ * Error codes emitted by Gate's backend auth operations (`login`, `refreshToken`).
+ *
+ * Promoted from `/src/auth/backendAuth.ts`, where it was originally defined as
+ * a Gate-local type. Aria's `BackendServerPanel.tsx` imports this type to map
+ * error codes to user-facing messages; the cross-boundary import is what prompted
+ * promotion. The original definition remains in Gate until Gate's follow-up
+ * session removes or re-exports it.
+ *
+ * Note: this is distinct from the `BackendAuthError` interface already in this
+ * file (which is the storage-layer error shape with `source: 'auth'`). This type
+ * is Gate's network-layer error code union for the self-hosted backend auth flow.
+ *
+ *   'network_error'    — fetch() rejected: no network or DNS
+ *   'unauthorized'     — 401 or 403 from the backend
+ *   'server_error'     — 5xx from the backend
+ *   'invalid_response' — unexpected response shape (missing token field, etc.)
+ *
+ * Gate implements `BackendAuthError` (class) using this union as its `code` field.
+ * Aria duck-types on `code` when catching errors from `login()` or `refreshToken()`.
+ */
+export type BackendAuthErrorCode =
+  | 'network_error'
+  | 'unauthorized'
+  | 'server_error'
+  | 'invalid_response';
+
+/**
+ * Result of a credential test against a provider's API endpoint.
+ *
+ * Promoted from `/src/auth/credentialTest.ts`, where it was originally defined
+ * as a Gate-local type. Aria's `ProviderSettingsPanel.tsx` imports this type to
+ * discriminate test outcomes; the cross-boundary import is what prompted promotion.
+ * The original definition remains in Gate until Gate's follow-up session removes
+ * or re-exports it.
+ *
+ * Discriminated on `status`:
+ *   'valid'           — key accepted (2xx from provider)
+ *   'invalid'         — key rejected (401 or 403 from provider)
+ *   'rate-limited'    — rate limited (429); key is valid
+ *   'error'           — other HTTP error (non-2xx, non-4xx-special)
+ *   'cors-or-network' — fetch() threw: CORS preflight rejection or network failure;
+ *                       these are indistinguishable at the browser level
+ *
+ * Gate implements `testCredential` and `testCustomCredential` returning this type.
+ * Aria reads `result.status` to set UI state in `ProviderSettingsPanel`.
+ */
+export type TestResult =
+  | { status: 'valid'; message: string }
+  | { status: 'invalid'; message: string }
+  | { status: 'rate-limited'; message: string }
+  | { status: 'error'; message: string }
+  | { status: 'cors-or-network'; message: string };
 
 // ─── Credentials — Gate implements ───────────────────────────────────────────
 
@@ -1630,19 +1813,6 @@ export interface PricingMetadata {
   lastFetched: string | null;
   /** Whether prices came from a successful network fetch or from the bundled fallback. */
   source: 'remote' | 'fallback';
-}
-
-/**
- * Runtime pricing configuration. Gate resolves the effective URL from:
- *   localStorage override → VITE_PRICING_URL env var → canonical default URL
- *
- * Gate uses this at fetch time to determine where to retrieve the pricing JSON.
- * Aria may expose a settings field for the localStorage override (issue #353).
- * This type carries the already-resolved URL; resolution logic lives in Gate.
- */
-export interface PricingConfig {
-  /** Fully resolved pricing JSON URL. Gate resolves: localStorage override → VITE env var → canonical default. */
-  url: string;
 }
 
 /** Gate implements. Atlas and Aria call this to read the current pricing table. Returns null when no pricing data has been written yet. */
