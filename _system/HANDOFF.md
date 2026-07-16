@@ -1,4 +1,4 @@
-Last updated: 2026-07-15 (ship: #387 sanitize external model IDs in catalog)
+Last updated: 2026-07-16 (ship: #417 restore syntax highlighting + #418 user bubble markdown)
 
 ## Current phase
 
@@ -6,22 +6,26 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #387 (add `SAFE_MODEL_ID` regex guard in `catalog.ts` — validates model IDs from OpenRouter, models.json, and remote catalog before any entry is pushed into the returned catalog; prevents path-traversal injection into Gemini URL construction).
+Shipped #417 + #418 (batched Aria wave). Restored syntax highlighting in fenced code blocks (regression from #409 markdown rendering refactor) and applied MarkdownContent rendering to user message bubbles for full parity with model bubbles.
 
 ## Key decisions
 
-- gpt-image-2: `output_format: 'png'` (not `response_format`); always returns `item.b64_json` (not a CDN URL) — URL-fetch branch was wrong assumption, now removed
+- gpt-image-2: `output_format: 'png'`; always returns `item.b64_json` — URL-fetch branch removed
 - `resolveVersionCatalog()` must use collect-then-fall-through; never unconditional return from live API path
 - Image gen opt-in: `ModelConfig.imageGenerationEnabled` per-model; two-condition gate: capabilities + toggle both required
 - Attachment strip renders above message text (mb-2) — do not revert
 - Agents do NOT open GitHub PRs — push main directly at ship time (SOP §18)
 - GH_TOKEN PAT lacks Pull requests: Read and write — agents cannot open PRs
-- `GPT_IMAGE_MODEL_CONFIG.get()!` non-null assertion in gpt.ts is safe by construction (guarded by .has() check upstream) — revisit if routing and config lookup are ever decoupled
-- `SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:\-]{0,127}$/` — applied at all three catalog fetch sites; `isRemoteCatalogEntry` not modified (structural validator only — regex applied after it passes)
+- `GPT_IMAGE_MODEL_CONFIG.get()!` non-null assertion in gpt.ts is safe by construction — revisit if routing and config lookup are ever decoupled
+- `SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:\-]{0,127}$/` — `\-` triggers eslint `no-useless-escape`; Atlas should change to `[a-zA-Z0-9._:-]` (no backslash)
+- `rehypeHighlight` must run before `rehypeSanitize` in MarkdownContent — order is load-bearing (hljs-* classes must exist in hast before sanitize evaluates them)
+- User bubbles use MarkdownContent — full rendering parity with model bubbles
+- Headings downshifted in MarkdownContent (h1→h3, h4–h6→h6) per WCAG 1.3.1 — matches streaming renderer
 
 ## Open issues
 
 - `#391` — spike: generated video support — DEFER; revisit when OpenRouter video API stabilizes
+- Atlas lint: `catalog.ts:23` `\-` → `-` in SAFE_MODEL_ID regex (`no-useless-escape`) — blocks clean `npm run lint`
 
 ## Gotchas
 
@@ -32,5 +36,4 @@ Shipped #387 (add `SAFE_MODEL_ID` regex guard in `catalog.ts` — validates mode
 - Container DNS: OpenAI CDN IPs baked at container start — ENOTFOUND means restart container, not dev server
 - OpenRouter fetch in dev: not on firewall allowlist — silently falls through to models.json then bundled
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after
-- Scout should add unit tests for #387 validation sites: supply path-traversal strings and assert they are absent from returned catalog
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
