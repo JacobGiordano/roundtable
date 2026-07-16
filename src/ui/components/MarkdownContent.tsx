@@ -178,9 +178,9 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
  * All styles use registered Tailwind token classes — no hardcoded hex values,
  * no inline styles.
  *
- * Note on heading elements: semantic <h1>–<h3> elements are used here as spec
- * permits for v1. If the page has a conflicting heading hierarchy, Ada can advise
- * whether to switch to styled <p> elements in a follow-on issue (#409 §7.4).
+ * Note on heading elements: h1–h3 are downshifted to h3–h5 per Ada advisory
+ * (WCAG 1.3.1) — conversational headings must not pollute the page heading outline.
+ * h4–h6 collapse to h6. Visual sizes are preserved via Tailwind classes.
  *
  * Note on inline code detection: react-markdown v10 removed the `inline` prop.
  * Detection uses node position: when start.line === end.line, the node is inline.
@@ -205,41 +205,48 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
     },
 
     // ── Headings ───────────────────────────────────────────────────────────
-    // §2.5: semantic heading elements in v1; flagged for Ada review (§7.4).
+    // §2.5 + Ada advisory (WCAG 1.3.1 — Info and Relationships):
+    // Headings are downshifted by 2 levels so model- or user-generated `#` never
+    // produces <h1>/<h2> inside <main>. Arbitrary conversational headings should
+    // not pollute the screen reader heading-navigation outline (VoiceOver VO+Cmd+H,
+    // NVDA H). The same downshift is applied in the streaming renderer in
+    // MessageBubble.tsx (markdownComponents lines 255–271).
+    // Visual sizes are preserved via Tailwind classes — semantic element and visual
+    // weight are independent.
     h1({ children }) {
       return (
-        <h1 className="text-xl font-bold mt-5 mb-2 text-text-primary leading-snug first:mt-0">
-          {children}
-        </h1>
-      );
-    },
-    h2({ children }) {
-      return (
-        <h2 className="text-lg font-semibold mt-4 mb-2 text-text-primary leading-snug first:mt-0">
-          {children}
-        </h2>
-      );
-    },
-    h3({ children }) {
-      return (
-        <h3 className="text-base font-semibold mt-3 mb-1 text-text-primary leading-snug first:mt-0">
+        <h3 className="text-xl font-bold mt-5 mb-2 text-text-primary leading-snug first:mt-0">
           {children}
         </h3>
       );
     },
-    // h4–h6: not in spec scope but rendered gracefully with text-text-secondary.
-    h4({ children }) {
+    h2({ children }) {
       return (
-        <h4 className="text-sm font-semibold mt-3 mb-1 text-text-secondary leading-snug first:mt-0">
+        <h4 className="text-lg font-semibold mt-4 mb-2 text-text-primary leading-snug first:mt-0">
           {children}
         </h4>
       );
     },
-    h5({ children }) {
+    h3({ children }) {
       return (
-        <h5 className="text-xs font-semibold mt-2 mb-1 text-text-secondary leading-snug first:mt-0">
+        <h5 className="text-base font-semibold mt-3 mb-1 text-text-primary leading-snug first:mt-0">
           {children}
         </h5>
+      );
+    },
+    // h4–h6: all render as <h6> — deepest safe level. Visual weight preserved.
+    h4({ children }) {
+      return (
+        <h6 className="text-sm font-semibold mt-3 mb-1 text-text-secondary leading-snug first:mt-0">
+          {children}
+        </h6>
+      );
+    },
+    h5({ children }) {
+      return (
+        <h6 className="text-xs font-semibold mt-2 mb-1 text-text-secondary leading-snug first:mt-0">
+          {children}
+        </h6>
       );
     },
     h6({ children }) {
