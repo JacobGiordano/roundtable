@@ -1,4 +1,4 @@
-Last updated: 2026-07-16 (ship: #417 restore syntax highlighting + #418 user bubble markdown)
+Last updated: 2026-07-16 (ship: #419 SAFE_MODEL_ID lint fix)
 
 ## Current phase
 
@@ -6,7 +6,7 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Shipped #417 + #418 (batched Aria wave). Restored syntax highlighting in fenced code blocks (regression from #409 markdown rendering refactor) and applied MarkdownContent rendering to user message bubbles for full parity with model bubbles.
+Shipped #417 + #418 (batched Aria wave): restored syntax highlighting in fenced code blocks and applied MarkdownContent to user message bubbles. Shipped #419 (Atlas): removed useless escape in SAFE_MODEL_ID regex — `npm run lint` now passes clean.
 
 ## Key decisions
 
@@ -17,7 +17,7 @@ Shipped #417 + #418 (batched Aria wave). Restored syntax highlighting in fenced 
 - Agents do NOT open GitHub PRs — push main directly at ship time (SOP §18)
 - GH_TOKEN PAT lacks Pull requests: Read and write — agents cannot open PRs
 - `GPT_IMAGE_MODEL_CONFIG.get()!` non-null assertion in gpt.ts is safe by construction — revisit if routing and config lookup are ever decoupled
-- `SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:\-]{0,127}$/` — `\-` triggers eslint `no-useless-escape`; Atlas should change to `[a-zA-Z0-9._:-]` (no backslash)
+- `SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/` — hyphen at end of character class needs no escape
 - `rehypeHighlight` must run before `rehypeSanitize` in MarkdownContent — order is load-bearing (hljs-* classes must exist in hast before sanitize evaluates them)
 - User bubbles use MarkdownContent — full rendering parity with model bubbles
 - Headings downshifted in MarkdownContent (h1→h3, h4–h6→h6) per WCAG 1.3.1 — matches streaming renderer
@@ -25,7 +25,6 @@ Shipped #417 + #418 (batched Aria wave). Restored syntax highlighting in fenced 
 ## Open issues
 
 - `#391` — spike: generated video support — DEFER; revisit when OpenRouter video API stabilizes
-- Atlas lint: `catalog.ts:23` `\-` → `-` in SAFE_MODEL_ID regex (`no-useless-escape`) — blocks clean `npm run lint`
 
 ## Gotchas
 
@@ -33,6 +32,7 @@ Shipped #417 + #418 (batched Aria wave). Restored syntax highlighting in fenced 
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically
 - Chunk size warning on build (~791 kB) — pre-existing
+- Agents installing new npm deps in worktrees must commit `package-lock.json` — omitting it breaks CI `npm ci`
 - Container DNS: OpenAI CDN IPs baked at container start — ENOTFOUND means restart container, not dev server
 - OpenRouter fetch in dev: not on firewall allowlist — silently falls through to models.json then bundled
 - DeepSeek entries scheduled for deprecation 2026-07-24 — update pricing.json after
