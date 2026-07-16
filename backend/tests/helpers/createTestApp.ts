@@ -32,6 +32,7 @@ import { db } from '../../src/db';
 import { authRouter, requireAuth } from '../../src/auth';
 import { conversationsRouter } from '../../src/conversations';
 import { exportRouter } from '../../src/export';
+import { anthropicProxyRouter } from '../../src/anthropicProxy';
 
 /**
  * Build and return an Express app wired identically to the production server
@@ -43,6 +44,10 @@ export function createTestApp() {
   const app = express();
 
   app.use(express.json());
+
+  // Anthropic proxy — no auth required (mirrors index.ts mount order).
+  // Tests stub globalThis.fetch via vi.stubGlobal to avoid real network calls.
+  app.use('/api/proxy/anthropic', express.json({ limit: '2mb' }), anthropicProxyRouter);
 
   // Auth routes — unprotected (mirrors index.ts mount order).
   app.use('/auth', authRouter);

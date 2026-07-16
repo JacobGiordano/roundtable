@@ -108,6 +108,63 @@ describe('GET /conversations/:id/export — 404 on missing conversation', () => 
   });
 });
 
+describe('GET /conversations/:id/export — corrupt blob returns 500 (closes #476)', () => {
+  /**
+   * The export.ts GET handler has a JSON.parse try/catch that returns
+   * { error: 'parse_error', status: 500 } when the stored data blob is not
+   * valid JSON. This path was previously untested.
+   *
+   * We seed the row directly into SQLite with invalid JSON to trigger the
+   * catch branch. Every supported export format hits the same parse step, so
+   * we test markdown and html as well as json to confirm format is irrelevant
+   * to the error path.
+   */
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'pw123');
+    token = await loginAs(app.request, 'alice', 'pw123');
+
+    // Insert a corrupt row directly — bypasses PUT validation.
+    const now = Date.now();
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('corrupt-export-conv', 'not valid json', 0, now, now);
+  });
+
+  it('returns 500 with error=parse_error for format=json when blob is corrupt', async () => {
+    const res = await app.request
+      .get('/conversations/corrupt-export-conv/export?format=json')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+  });
+
+  it('returns 500 with error=parse_error for format=markdown when blob is corrupt', async () => {
+    const res = await app.request
+      .get('/conversations/corrupt-export-conv/export?format=markdown')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+  });
+
+  it('returns 500 with error=parse_error for format=html when blob is corrupt', async () => {
+    const res = await app.request
+      .get('/conversations/corrupt-export-conv/export?format=html')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+  });
+});
+
 describe('GET /conversations/:id/export?format=json', () => {
   let app: ReturnType<typeof createTestApp>;
   let token: string;
