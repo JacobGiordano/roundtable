@@ -5,6 +5,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #409: Spec-compliant markdown renderer — DOMPurify pre-sanitization + remark-gfm +
 // copy-code button + Luma token classes. Replaces inline ReactMarkdown for "done" state.
+// #417: rehypeHighlight + rehypeSanitize added to MarkdownContent for syntax highlighting.
+// #418: MarkdownContent is now also used for user message bubbles.
 import { MarkdownContent } from './components/MarkdownContent';
 // #369: Lightbox — full-size image viewer for attachment thumbnails.
 import { Lightbox } from './components/Lightbox';
@@ -394,14 +396,13 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
   const content = message.content ?? '';
 
   if (message.role === 'user') {
-    // User messages: plain text, preserve whitespace (no markdown rendering).
-    // User messages do not stream, so chunk fade-in is not applied here.
+    // #418: User messages now render with markdown (MarkdownContent) for visual
+    // consistency with model bubbles. Bold, italic, inline code, fenced blocks,
+    // and links in user input are formatted, not shown as raw syntax.
+    // User messages do not stream, so the chunk fade-in path is not needed here.
     return (
-      <div
-        className="text-[15px] font-normal leading-[1.6] text-text-primary whitespace-pre-wrap break-words"
-        aria-live="off"
-      >
-        {content}
+      <div className="break-words" aria-live="off">
+        <MarkdownContent content={content} />
         {isStreaming && !hasError && (
           <span className="cursor-blink select-none" aria-hidden="true">|</span>
         )}
