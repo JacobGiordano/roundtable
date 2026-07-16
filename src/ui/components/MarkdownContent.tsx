@@ -1,5 +1,5 @@
 /**
- * MarkdownContent — spec-compliant markdown renderer for model response bubbles.
+ * MarkdownContent — spec-compliant markdown renderer for message bubbles.
  *
  * Issue #409: renders markdown in assistant message bubbles using react-markdown +
  * remark-gfm. Security: three-layer defense per Luma spec (markdown-rendering.md §5):
@@ -8,6 +8,14 @@
  *   2. rehype-raw is NOT enabled — ever.
  *   3. Custom <a> renderer validates href scheme against SAFE_SCHEMES before
  *      producing a link element. Unsafe schemes render as <span> text.
+ *
+ * Issue #417: rehypeHighlight + rehypeSanitize (with extended schema) added so
+ * fenced code blocks receive syntax highlighting in completed messages — matching
+ * the streaming render path in MessageBubble.tsx.
+ *
+ * Issue #418: MarkdownContent is now used for user messages too. The security
+ * model is identical — DOMPurify + rehype-sanitize. User content is trusted in
+ * origin but still sanitized for defense in depth.
  *
  * All class names use registered Tailwind token classes. No inline styles.
  * No @tailwindcss/typography (prose plugin) — all styling is via custom component overrides.
@@ -18,6 +26,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+// #417: rehypeHighlight restores syntax highlighting in completed code blocks.
+// Plugin order is load-bearing: rehypeHighlight BEFORE rehypeSanitize so hljs-* classes
+// exist in the hast when sanitize evaluates them.
+import rehypeHighlight from 'rehype-highlight';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import DOMPurify from 'dompurify';
 
 // ─── Security: Safe URL schemes ───────────────────────────────────────────────
@@ -46,6 +59,38 @@ function sanitizeMarkdown(raw: string): string {
     ALLOWED_ATTR: [],
   });
 }
+
+// ─── Security: Extended rehype-sanitize schema (#417) ────────────────────────
+
+/**
+ * Extended rehype-sanitize schema for syntax highlighting.
+ *
+ * rehype-highlight adds:
+ *   - `hljs` and `language-*` className on `<code>` elements
+ *   - `hljs-*` className on `<span>` elements wrapping individual tokens
+ *
+ * The default schema allows `language-*` on `code` via `/^language-./` but does
+ * not allow the `hljs` base class or any class on `span` elements. We extend the
+ * schema minimally: allow `hljs` on `code` and `hljs-*` on `span`.
+ *
+ * Plugin order is load-bearing: rehypeHighlight must run BEFORE rehypeSanitize so
+ * the highlight classes exist in the hast when sanitize evaluates them.
+ */
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    // Allow hljs base class alongside the existing language-* allowance.
+    code: [['className', /^language-./, 'hljs']],
+    // Allow individual token span wrappers added by rehype-highlight.
+    span: [...(defaultSchema.attributes?.span ?? []), ['className', /^hljs-/]],
+  },
+};
+
+// ─── rehype plugin array (order-sensitive) ────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rehypePlugins: any[] = [rehypeHighlight, [rehypeSanitize, sanitizeSchema]];
 
 // ─── Copy-code button ─────────────────────────────────────────────────────────
 
@@ -133,14 +178,19 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
  * All styles use registered Tailwind token classes — no hardcoded hex values,
  * no inline styles.
  *
- * Note on heading elements: semantic <h1>–<h3> elements are used here as spec
- * permits for v1. If the page has a conflicting heading hierarchy, Ada can advise
- * whether to switch to styled <p> elements in a follow-on issue (#409 §7.4).
+ * Note on heading elements: h1–h3 are downshifted to h3–h5 per Ada advisory
+ * (WCAG 1.3.1) — conversational headings must not pollute the page heading outline.
+ * h4–h6 collapse to h6. Visual sizes are preserved via Tailwind classes.
  *
  * Note on inline code detection: react-markdown v10 removed the `inline` prop.
  * Detection uses node position: when start.line === end.line, the node is inline.
  * When start.line !== end.line (multiple source lines), it is a fenced block.
  * The outer <pre> renderer handles block code wrapping.
+ *
+ * Note on fenced block code renderer (#417): className (e.g. "language-python hljs")
+ * is passed through so rehype-highlight's hljs-* span classes reach the DOM.
+ * text-text-primary is intentionally omitted — the hljs theme CSS controls token
+ * colors via span.hljs-* selectors; a blanket foreground color conflicts with them.
  */
 function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['components'] {
   return {
@@ -155,41 +205,48 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
     },
 
     // ── Headings ───────────────────────────────────────────────────────────
-    // §2.5: semantic heading elements in v1; flagged for Ada review (§7.4).
+    // §2.5 + Ada advisory (WCAG 1.3.1 — Info and Relationships):
+    // Headings are downshifted by 2 levels so model- or user-generated `#` never
+    // produces <h1>/<h2> inside <main>. Arbitrary conversational headings should
+    // not pollute the screen reader heading-navigation outline (VoiceOver VO+Cmd+H,
+    // NVDA H). The same downshift is applied in the streaming renderer in
+    // MessageBubble.tsx (markdownComponents lines 255–271).
+    // Visual sizes are preserved via Tailwind classes — semantic element and visual
+    // weight are independent.
     h1({ children }) {
       return (
-        <h1 className="text-xl font-bold mt-5 mb-2 text-text-primary leading-snug first:mt-0">
-          {children}
-        </h1>
-      );
-    },
-    h2({ children }) {
-      return (
-        <h2 className="text-lg font-semibold mt-4 mb-2 text-text-primary leading-snug first:mt-0">
-          {children}
-        </h2>
-      );
-    },
-    h3({ children }) {
-      return (
-        <h3 className="text-base font-semibold mt-3 mb-1 text-text-primary leading-snug first:mt-0">
+        <h3 className="text-xl font-bold mt-5 mb-2 text-text-primary leading-snug first:mt-0">
           {children}
         </h3>
       );
     },
-    // h4–h6: not in spec scope but rendered gracefully with text-text-secondary.
-    h4({ children }) {
+    h2({ children }) {
       return (
-        <h4 className="text-sm font-semibold mt-3 mb-1 text-text-secondary leading-snug first:mt-0">
+        <h4 className="text-lg font-semibold mt-4 mb-2 text-text-primary leading-snug first:mt-0">
           {children}
         </h4>
       );
     },
-    h5({ children }) {
+    h3({ children }) {
       return (
-        <h5 className="text-xs font-semibold mt-2 mb-1 text-text-secondary leading-snug first:mt-0">
+        <h5 className="text-base font-semibold mt-3 mb-1 text-text-primary leading-snug first:mt-0">
           {children}
         </h5>
+      );
+    },
+    // h4–h6: all render as <h6> — deepest safe level. Visual weight preserved.
+    h4({ children }) {
+      return (
+        <h6 className="text-sm font-semibold mt-3 mb-1 text-text-secondary leading-snug first:mt-0">
+          {children}
+        </h6>
+      );
+    },
+    h5({ children }) {
+      return (
+        <h6 className="text-xs font-semibold mt-2 mb-1 text-text-secondary leading-snug first:mt-0">
+          {children}
+        </h6>
       );
     },
     h6({ children }) {
@@ -296,17 +353,20 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
     // ── Code (inline and fenced blocks) ───────────────────────────────────
     // §2.1/§2.2: fenced blocks via <pre> below; inline code here.
     // Inline detection: start.line === end.line (react-markdown v10 — no inline prop).
+    //
+    // #417: For fenced blocks, className carries "language-{lang} hljs" from rehype-highlight.
+    // Pass className through so the hljs token-color spans work against the atom-one-dark theme.
+    // text-text-primary intentionally omitted — would override individual hljs-* token colors.
     code({ children, className, node }) {
       const isBlock =
         node?.position?.start.line !== node?.position?.end.line;
 
       if (isBlock) {
-        // Fenced block: the inner <code> is unstyled — the outer <pre> controls appearance.
-        // §2.1: "The inner <code> element inside <pre> receives no additional classes."
-        // className (e.g. "language-python") is passed through but not highlighted in v1
-        // (syntax highlighting is out of scope — separate issue per spec §1 out-of-scope).
+        // Fenced block: pass className (e.g. "language-python hljs") through to the DOM.
+        // The hljs-* span elements injected by rehype-highlight carry the token colors;
+        // the outer <pre> controls the block background via bg-code-block.
         return (
-          <code className={className}>
+          <code className={['text-[13px] font-mono leading-relaxed block', className].filter(Boolean).join(' ')}>
             {children}
           </code>
         );
@@ -334,7 +394,7 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       // content by traversing the children tree recursively.
       const codeText = extractTextContent(children);
       return (
-        <pre className="group relative bg-code-block rounded-md p-4 overflow-x-auto my-3 text-sm font-mono leading-relaxed text-text-primary">
+        <pre className="group relative bg-code-block rounded-md p-4 overflow-x-auto my-3 text-sm font-mono leading-relaxed">
           {children}
           <CopyCodeButton codeText={codeText} />
         </pre>
@@ -383,21 +443,22 @@ const remarkPlugins = [remarkGfm];
 // ─── MarkdownContent ──────────────────────────────────────────────────────────
 
 interface MarkdownContentProps {
-  /** Raw model output string — will be DOMPurify-sanitized before rendering. */
+  /** Raw markdown string — will be DOMPurify-sanitized before rendering. */
   content: string;
 }
 
 /**
- * Renders model output as spec-compliant markdown inside a message bubble.
+ * Renders markdown content inside a message bubble.
  *
- * Security: DOMPurify runs before react-markdown. rehype-raw is never enabled.
- * Custom <a> renderer validates href scheme.
+ * Used for both assistant messages and user messages (#418).
+ *
+ * Security: DOMPurify (layer 1) runs before react-markdown. rehypeHighlight adds
+ * syntax highlighting (layer 2 — token colors), then rehypeSanitize (layer 3)
+ * strips any unsafe HTML that survived the hast pipeline. rehype-raw is never
+ * enabled. Custom <a> renderer validates href scheme (layer 4).
  *
  * Usage:
  *   <MarkdownContent content={message.content} />
- *
- * Only for assistant message content. User messages should render as plain
- * whitespace-preserving text (no markdown parsing).
  */
 export function MarkdownContent({ content }: MarkdownContentProps) {
   // Layer 1: strip raw HTML from the markdown string before react-markdown sees it.
@@ -410,9 +471,11 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
        * react-markdown renders to React elements, never innerHTML.
        * rehype-raw is intentionally omitted — raw HTML passthrough is the primary XSS vector.
        * remarkGfm enables GFM extensions: strikethrough, tables (caught by table override).
+       * rehypeHighlight adds syntax token classes; rehypeSanitize follows to strip unsafe attrs.
        */}
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         components={markdownComponents}
       >
         {sanitized}
