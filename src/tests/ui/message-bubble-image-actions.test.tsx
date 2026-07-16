@@ -1,25 +1,26 @@
 /**
- * Integration tests: MessageBubble generated-image thumbnail actions (#390)
+ * Integration tests: MessageBubble generated-image thumbnail actions (#390, #404)
  *
- * Tests the thumbnail overlay behavior introduced in #390:
- *   - Download overlay hidden at rest (CSS class-based, not visibility:hidden)
+ * Tests the persistent action bar introduced in #404 (replacing the #390 hover overlay):
+ *   - Persistent action bar is always visible below each image thumbnail
+ *   - Download button is always in the Tab order (not tabIndex={-1})
  *   - aria-describedby wired to sr-only tooltip span when altText present
  *   - Tooltip span content truncated to 120 chars for long altText
  *
  * Also covers basic generated-image rendering contracts that the thumbnail
- * overlay depends on (trigger button label, multi-image fallback alt text).
+ * action bar depends on (trigger button label, multi-image fallback alt text).
  *
  * Cross-agent contracts exercised:
- *   MessageBubble (Aria, src/ui/MessageBubble.tsx) — thumbnail grid + overlay
- *   downloadImage (Aria, src/ui/utils/imageActions.ts) — called from overlay button
+ *   MessageBubble (Aria, src/ui/MessageBubble.tsx) — thumbnail grid + persistent action bar
+ *   downloadImage (Aria, src/ui/utils/imageActions.ts) — called from action bar button
  *   GeneratedImage interface (Arch, src/types/index.ts) — data shape
  *   Message interface (Arch, src/types/index.ts) — generatedImages field
  *
  * Mocking strategy:
  *   - imageActions module is mocked so downloadImage doesn't hit the DOM.
  *   - No Lightbox state tests here — those live in lightbox-image-actions.test.tsx.
- *   - CSS hover effects (group-hover:flex) are class-based; we check DOM
- *     class presence since jsdom doesn't execute CSS.
+ *   - #404: controls are persistent (always in DOM, not hover-conditional), so
+ *     no CSS hover class presence check is needed.
  */
 
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
@@ -27,6 +28,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MessageBubble } from '@/ui/MessageBubble';
 import type { GeneratedImage, Message, ModelConfig } from '@/types/index';
+import { makeGeneratedImage } from '../fixtures/conversations';
 
 // ─── Mock imageActions ────────────────────────────────────────────────────────
 
@@ -48,9 +50,6 @@ afterEach(() => {
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const SAMPLE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
 const MODEL_CONFIG: ModelConfig = {
   modelId: 'claude',
   name: 'Claude',
@@ -58,14 +57,7 @@ const MODEL_CONFIG: ModelConfig = {
   isActive: true,
 };
 
-function makeGeneratedImage(overrides: Partial<GeneratedImage> = {}): GeneratedImage {
-  return {
-    id: `img-${Math.random().toString(36).slice(2, 7)}`,
-    mimeType: 'image/png',
-    base64: SAMPLE_BASE64,
-    ...overrides,
-  };
-}
+// makeGeneratedImage is imported from ../fixtures/conversations — shared factory.
 
 function makeAssistantMessageWithImages(images: GeneratedImage[]): Message {
   return {
@@ -79,49 +71,51 @@ function makeAssistantMessageWithImages(images: GeneratedImage[]): Message {
   };
 }
 
-// ─── Hover overlay — hidden at rest ──────────────────────────────────────────
+// ─── Persistent action bar (#404) ────────────────────────────────────────────
+//
+// #404 replaced the hover overlay (hidden group-hover:flex) with a persistent
+// action bar rendered below every image. Controls are always visible and always
+// in the Tab order.
 
-describe('MessageBubble thumbnail — hover overlay hidden at rest (#390)', () => {
-  it('download overlay has "hidden" class at rest (not visible without hover)', () => {
+describe('MessageBubble thumbnail — persistent action bar below each image (#404)', () => {
+  it('download button is in the DOM (not hidden) below the image at rest', () => {
     const img = makeGeneratedImage();
     const message = makeAssistantMessageWithImages([img]);
     render(<MessageBubble message={message} modelConfig={MODEL_CONFIG} />);
 
-    // The overlay div is the sibling of the trigger button, positioned at
-    // bottom of the thumbnail. It carries `hidden group-hover:flex`.
-    // We verify the `hidden` class is present, confirming it starts invisible.
-    const overlays = document.querySelectorAll('.absolute.bottom-0');
-    // At least one overlay should be present for a generated image
-    expect(overlays.length).toBeGreaterThanOrEqual(1);
-    // The download overlay carries 'hidden' as a Tailwind class
-    const hasHidden = Array.from(overlays).some((el) => el.classList.contains('hidden'));
-    expect(hasHidden).toBe(true);
+    // #404: persistent bar — download button is always present, no hover needed.
+    const downloadBtn = screen.getByRole('button', { name: 'Download generated image' });
+    expect(downloadBtn).toBeTruthy();
   });
 
-  it('download overlay is present in the DOM for each generated image (one per image)', () => {
+  it('action bar is present for each image in a multi-image strip', () => {
     const images = [makeGeneratedImage(), makeGeneratedImage()];
     const message = makeAssistantMessageWithImages(images);
     render(<MessageBubble message={message} modelConfig={MODEL_CONFIG} />);
-    // Each image in a multi-image strip gets its own overlay.
-    const overlays = document.querySelectorAll('.hidden.group-hover\\:flex');
-    expect(overlays.length).toBe(2);
+    // Each image in a multi-strip has its own persistent action bar.
+    // Both images have no altText so they use the numbered download label.
+    const dlBtn1 = screen.getByRole('button', { name: 'Download generated image 1 of 2' });
+    const dlBtn2 = screen.getByRole('button', { name: 'Download generated image 2 of 2' });
+    expect(dlBtn1).toBeTruthy();
+    expect(dlBtn2).toBeTruthy();
   });
 
-  it('the download button inside the overlay has tabIndex={-1} (keyboard excluded from overlay)', () => {
+  it('download button has no tabIndex restriction (always in Tab order)', () => {
     const img = makeGeneratedImage({ altText: 'Test image' });
     const message = makeAssistantMessageWithImages([img]);
     render(<MessageBubble message={message} modelConfig={MODEL_CONFIG} />);
 
-    // The overlay download button uses tabIndex={-1} (Ada WARN-1 — defensive exclusion
-    // from keyboard Tab order). Keyboard users use the lightbox download button.
-    const downloadLabel = img.altText
-      ? `Download: ${img.altText}`
-      : 'Download generated image';
+    // #404: buttons in the persistent action bar are always keyboard-reachable —
+    // no tabIndex={-1}. This is the contract fix from #390 where the overlay
+    // excluded keyboard users. The download button now has default tab order.
+    const downloadLabel = `Download: ${img.altText}`;
     const btn = screen.getByRole('button', { name: downloadLabel });
-    expect(btn.getAttribute('tabindex')).toBe('-1');
+    // tabIndex -1 is explicitly NOT present (the attribute is absent or 0).
+    const tabIndex = btn.getAttribute('tabindex');
+    expect(tabIndex).not.toBe('-1');
   });
 
-  it('clicking the download button in the overlay calls downloadImage()', async () => {
+  it('clicking the download button in the persistent bar calls downloadImage()', async () => {
     const img = makeGeneratedImage();
     const message = makeAssistantMessageWithImages([img]);
     render(<MessageBubble message={message} modelConfig={MODEL_CONFIG} />);

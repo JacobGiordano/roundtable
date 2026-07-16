@@ -8,6 +8,7 @@
 
 import type {
   Conversation,
+  GeneratedImage,
   Message,
   ModelConfig,
   TokenUsage,
@@ -85,6 +86,29 @@ export function makeTokenUsage(input = 10, output = 20): TokenUsage {
     inputTokens: input,
     outputTokens: output,
     totalTokens: input + output,
+  };
+}
+
+// ─── GeneratedImage factory ───────────────────────────────────────────────────
+
+/**
+ * A minimal valid PNG base64 payload (1×1 pixel transparent PNG).
+ * Used as a safe fixture for image tests — small enough not to bloat test output.
+ */
+export const SAMPLE_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+/**
+ * Factory for GeneratedImage fixtures.
+ * Produces a well-formed GeneratedImage with a unique random id.
+ * Pass `overrides` to set specific fields (e.g. altText, mimeType, width, height).
+ */
+export function makeGeneratedImage(overrides: Partial<GeneratedImage> = {}): GeneratedImage {
+  return {
+    id: `img-${Math.random().toString(36).slice(2, 7)}`,
+    mimeType: 'image/png',
+    base64: SAMPLE_BASE64,
+    ...overrides,
   };
 }
 
