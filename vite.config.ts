@@ -165,6 +165,30 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the bundle into stable named chunks so that a one-character
+        // change to app code does not bust the cached vendor JS for returning
+        // users. Chunk names are static strings — predictable browser cache keys.
+        //
+        // vendor: React core + DOM utilities. Changes rarely; long cache life.
+        // markdown: All markdown rendering + syntax-highlighting deps. These
+        //   change together (react-markdown pulls rehype/remark peers) and are
+        //   logically cohesive. ~350 kB of the pre-split bundle lives here.
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          markdown: [
+            'react-markdown',
+            'rehype-highlight',
+            'rehype-sanitize',
+            'remark-gfm',
+            'highlight.js',
+          ],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

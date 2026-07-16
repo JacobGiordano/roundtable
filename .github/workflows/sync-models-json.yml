@@ -35,12 +35,12 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # Use the auto-provided token so the push step can write to main.
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
 
@@ -94,6 +94,38 @@ jobs:
             console.log(`  ${p}: ${models.length} models`);
           }
           EOF
+
+      # Validate the written file before committing. A shape change in the
+      # OpenRouter API response would otherwise silently commit a malformed or
+      # empty file to main. Two checks:
+      #   1. The file is valid JSON (node -e will throw and exit 1 if not).
+      #   2. At least one model entry exists across all providers (total > 0).
+      # Either failure aborts the workflow before the git commit step runs.
+      - name: Validate models.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const raw = fs.readFileSync('models.json', 'utf8');
+
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch (err) {
+              console.error('models.json is not valid JSON:', err.message);
+              process.exit(1);
+            }
+
+            const providers = parsed.providers ?? {};
+            const total = Object.values(providers).reduce((sum, arr) => sum + arr.length, 0);
+            console.log('Total model entries across all providers:', total);
+
+            if (total === 0) {
+              console.error('models.json contains zero model entries — refusing to commit.');
+              process.exit(1);
+            }
+
+            console.log('Validation passed.');
+          "
 
       # Only commit when the content actually changed. `git diff --cached --quiet`
       # exits 0 (no diff) after staging — if the file was already identical, git
