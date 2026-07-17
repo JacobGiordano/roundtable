@@ -10,11 +10,18 @@
  *
  * JWT_SECRET is read from the environment. The server refuses to start if it
  * is missing or still set to the placeholder value in production — see index.ts.
+ *
+ * Rate limiting:
+ *   /auth/login and /auth/refresh share an IP-based rate limiter:
+ *   max 5 requests per 15-minute window per IP. Exceeding the limit returns
+ *   HTTP 429 with { error: 'too_many_requests' }. The window resets after 15 minutes.
+ *   This defends self-hosted instances against brute-force password guessing.
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { db } from './db';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +51,33 @@ function issueToken(userId: number, username: string): string {
   const payload: JwtPayload = { sub: userId, username };
   return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
+
+// ─── Rate limiter ─────────────────────────────────────────────────────────────
+
+/**
+ * Shared rate limiter for auth credential endpoints.
+ *
+ * Applied to POST /auth/login and POST /auth/refresh.
+ * Limits to 5 requests per IP per 15-minute window.
+ * Returns HTTP 429 with { error: 'too_many_requests' } when exceeded.
+ *
+ * Design note: /auth/refresh already requires a valid Bearer token, so rate
+ * limiting it prevents an attacker who has compromised one token from using it
+ * to probe the system at high volume (e.g., timing attacks against other routes).
+ *
+ * Skip flag: in test environments (NODE_ENV=test) the limiter is a no-op so
+ * existing auth tests are not affected by the 5-request cap. The skip is
+ * intentionally narrow — it does not disable bcrypt timing protection or any
+ * other auth behaviour.
+ */
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                   // max 5 requests per window per IP
+  standardHeaders: 'draft-7', // emit RateLimit-* headers per RFC 9110 draft-7
+  legacyHeaders: false,
+  message: { error: 'too_many_requests' },
+  skip: () => process.env['NODE_ENV'] === 'test',
+});
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -79,9 +113,9 @@ export const authRouter = Router();
  * POST /auth/login
  * Body: { username: string, password: string }
  * Returns: { token: string }
- * Errors: 400 (missing fields), 401 (bad credentials)
+ * Errors: 400 (missing fields), 401 (bad credentials), 429 (rate limit exceeded)
  */
-authRouter.post('/login', (req: Request, res: Response): void => {
+authRouter.post('/login', authRateLimiter, (req: Request, res: Response): void => {
   const { username, password } = req.body as Record<string, unknown>;
 
   if (typeof username !== 'string' || typeof password !== 'string') {
@@ -114,9 +148,9 @@ authRouter.post('/login', (req: Request, res: Response): void => {
  * POST /auth/refresh
  * Requires Authorization: Bearer <token>
  * Returns: { token: string } with fresh 7-day expiry
- * Errors: 401 (missing or invalid token)
+ * Errors: 401 (missing or invalid token), 429 (rate limit exceeded)
  */
-authRouter.post('/refresh', requireAuth, (_req: Request, res: Response): void => {
+authRouter.post('/refresh', authRateLimiter, requireAuth, (_req: Request, res: Response): void => {
   const user = res.locals['user'] as JwtPayload;
   const token = issueToken(user.sub, user.username);
   res.json({ token });
