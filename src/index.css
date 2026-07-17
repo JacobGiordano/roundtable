@@ -338,22 +338,65 @@ code.hljs {
 /* ─── Outrun Neon Glow (#467) ──────────────────────────────────────────────── */
 
 /**
- * In the Outrun theme, model message bubbles receive a neon box-shadow
- * using the bubble's accent color (var(--bubble-accent)).
- * Applied via [data-theme="outrun"] so it is scoped to the Outrun theme only.
- * box-shadow is static (not animated) — no prefers-reduced-motion handling needed.
+ * In the Outrun theme, model message bubbles receive a neon glow via
+ * filter: drop-shadow(), which follows the rendered pixel shape so the
+ * triangular tail glows too (box-shadow is rectangular and would miss it).
+ * Applied via [data-theme="outrun"] — scoped to Outrun only.
+ * Glow is static — no prefers-reduced-motion handling needed.
  * Spec: motion.md §4 — Outrun theme delight.
  *
- * Selector: [data-theme="outrun"] .bubble-entering targets the outer bubble
- * container (which carries --bubble-accent). The .bubble-entering class is
- * always applied to all bubbles. Using it here avoids introducing a new class.
+ * Overrides --tw-drop-shadow (the CSS custom property that Tailwind's
+ * drop-shadow / hover:drop-shadow-md classes compose into `filter`).
+ * Base shadow values from .drop-shadow / .drop-shadow-md are re-included
+ * so the ambient lift is preserved alongside the neon glow.
  *
- * Note: .bubble-entering is also used for the entrance animation, but the
- * animation ends via 'both' fill-mode — the element retains its final state.
- * The box-shadow from this rule is additive and not affected by the animation.
+ * color-mix at 50% on the wide pass (8px) dials the intensity back —
+ * drop-shadow picks up the accent border stripe which would otherwise
+ * double the apparent brightness. The tight pass (2px, full opacity)
+ * keeps edge definition. Hover switches to the drop-shadow-md base values.
+ *
+ * Specificity: [data-theme] + .class = 0-2-0 (normal), 0-3-0 with :hover —
+ * both beat Tailwind's hover:drop-shadow-md at 0-2-0.
  */
 [data-theme="outrun"] .bubble-entering {
-  box-shadow: 0 0 12px var(--bubble-accent), 0 0 4px var(--bubble-accent);
+  --tw-drop-shadow:
+    drop-shadow(0 1px 2px rgb(0 0 0 / .1))
+    drop-shadow(0 1px 1px rgb(0 0 0 / .06))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--bubble-accent) 50%, transparent))
+    drop-shadow(0 0 2px var(--bubble-accent));
+}
+
+[data-theme="outrun"] .bubble-entering:hover {
+  --tw-drop-shadow:
+    drop-shadow(0 4px 3px rgb(0 0 0 / .07))
+    drop-shadow(0 2px 2px rgb(0 0 0 / .06))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--bubble-accent) 50%, transparent))
+    drop-shadow(0 0 2px var(--bubble-accent));
+}
+
+/* ─── Outrun Input Bar Glow ─────────────────────────────────────────────────── */
+
+/**
+ * In the Outrun theme the input bar gets a neon box-shadow glow that tracks
+ * the border color: --border-default (#FF2070 pink) at rest, --border-strong
+ * (#2EE4B9 teal) when focused (:focus-within mirrors the isFocused React state).
+ * Includes the shadow-md base values so the ambient shadow is preserved.
+ * Static — no prefers-reduced-motion handling needed.
+ */
+[data-theme="outrun"] .input-bar {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1),
+    0 0 12px var(--border-default),
+    0 0 4px var(--border-default);
+}
+
+[data-theme="outrun"] .input-bar:focus-within {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1),
+    0 0 12px var(--border-strong),
+    0 0 4px var(--border-strong);
 }
 
 /* ─── Theme Transition (applied to all elements during theme switch) ────────── */

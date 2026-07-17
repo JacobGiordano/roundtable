@@ -237,7 +237,7 @@ describe('POST /api/proxy/anthropic/* — x-api-key header forwarded to Anthropi
     expect(fetchStub).toHaveBeenCalledOnce();
 
     // Extract the headers argument passed to fetch.
-    const [_url, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
+    const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
     const headers = fetchInit.headers as Record<string, string>;
 
     expect(headers['x-api-key']).toBe(userApiKey);
@@ -250,7 +250,7 @@ describe('POST /api/proxy/anthropic/* — x-api-key header forwarded to Anthropi
       .send({ model: 'claude-3-haiku-20240307', messages: [] });
 
     expect(fetchStub).toHaveBeenCalledOnce();
-    const [_url, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
+    const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
     const headers = fetchInit.headers as Record<string, string>;
 
     // When no key is provided, the header must not appear in the forwarded request.

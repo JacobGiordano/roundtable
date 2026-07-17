@@ -1063,7 +1063,7 @@ export function InputBar({
       {/* Main input container */}
       <div
         className={[
-          'w-full bg-input',
+          'w-full bg-input input-bar',
           'border-t border-border',
           hasTopSection
             ? 'border-x border-b border-border rounded-b-none rounded-t-none'
