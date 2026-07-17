@@ -65,7 +65,7 @@ need to write or edit any code.
 1. Still in Settings, go to **API Keys**.
 
 2. Add keys for whichever providers you want to use (Claude, GPT, Gemini,
-   Grok, DeepSeek, Mistral).
+   Grok, Mistral).
 
 3. Your keys are stored in your browser only — they are never sent anywhere
    except directly to the AI provider through your proxy.
@@ -97,6 +97,17 @@ self-hosted backend adds server-side session storage. See
 
 The self-hosted backend runs alongside the GitHub Pages frontend — you point
 the app's backend URL setting at your own server.
+
+> **Required for cross-origin deployments:** set `CORS_ORIGIN` in your backend
+> `.env` to the exact frontend origin before starting the server:
+>
+> ```
+> CORS_ORIGIN=https://app.example.com
+> ```
+>
+> Without this, the browser blocks all cross-origin requests to the backend.
+> There is no wildcard default — if `CORS_ORIGIN` is unset, the backend logs a
+> warning at startup and cross-origin access fails.
 
 ---
 
