@@ -431,12 +431,19 @@ export function Sidebar({
     //   2b. applyUserMessageColor — re-applies user message accent override
     // All are non-negotiable: applyTheme resets all CSS vars to theme defaults,
     // so roster colors and user overrides must be reapplied immediately after.
+    //
+    // #462: Add .theme-transitioning before applying tokens so the CSS transition
+    // (background-color, color, border-color at 350ms) fires on user-triggered
+    // theme changes. Removed after 350ms. NOT added during initial page load —
+    // only here, in the user-triggered handler.
+    document.documentElement.classList.add('theme-transitioning');
     setActiveTheme(themeId);
     applyTheme(THEME_MAP[themeId]);
     applyRosterAccentColors(getProviderRoster());
     applyUserAccentColors(getModelAccentColors());
     applyUserMessageColor(getUserAccentColor());
     setActiveThemeId(themeId);
+    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350);
   }, []);
 
   // ── User accent color picker handlers (#279) ──────────────────────────────

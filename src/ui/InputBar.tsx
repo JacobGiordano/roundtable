@@ -1088,7 +1088,14 @@ export function InputBar({
               onBlur={() => setIsGhostTooltipVisible(false)}
               onKeyDown={(e) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); }}
             >
-              <GhostIcon />
+              {/* #465: ghost-pulse class applies a slow opacity animation (0.4–0.9 over 3s)
+                  to communicate the ephemeral, non-persisted nature of ghost mode.
+                  Under prefers-reduced-motion the animation is suppressed and opacity
+                  is held at 0.65 — still visually distinct from full opacity.
+                  The GhostIcon SVG is already aria-hidden; the span is presentational. */}
+              <span className="ghost-pulse block">
+                <GhostIcon />
+              </span>
               <div
                 id={ghostTooltipId}
                 role="tooltip"

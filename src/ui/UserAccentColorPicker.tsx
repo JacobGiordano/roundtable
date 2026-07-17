@@ -304,7 +304,11 @@ export function UserAccentColorPicker({
     // theme JSON (Pass 1). Without this, applyUserMessageColor(null) is a no-op and
     // the previously-set inline override remains, blocking the theme default from showing.
     const themeId = (document.documentElement.getAttribute('data-theme') ?? 'slate') as ThemeId;
+    // #462: theme-transitioning class enables smooth color transitions on user-triggered
+    // theme changes (reset is a user action). Removed after 350ms.
+    document.documentElement.classList.add('theme-transitioning');
     applyTheme(THEME_MAP[themeId]);
+    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350);
     clearUserAccentColor();
     applyUserMessageColor(null); // no-op — theme default already restored by applyTheme
     onClose();
