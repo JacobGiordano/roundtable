@@ -1,4 +1,4 @@
-Last updated: 2026-07-17 (ship: waves 1–4 + Outrun glow polish)
+Last updated: 2026-07-17 (ship: wave 5)
 
 ## Current phase
 
@@ -6,39 +6,35 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Held full 17-agent team meeting, filed 81 issues (#421–#501). Shipped four waves:
-- Wave 1 (Arch): types contract cleanup — ExportOptions, ModelRegistryEntry, promoted Gate types, removed dead PricingConfig (#482 #483 #484 #487 #436)
-- Wave 2 (Forge): CI sweep — Node 22 fix, SHA-pin all actions, vendor chunk split, Dependabot, deploy-pages gate, sync-models validation (#422 #445 #447 #455 #496 #497)
-- Wave 3 (Aria+Ada): perf + delight — React.memo, DOMPurify memoization, hl.js language restriction, instant scroll, theme transition wiring, ghost icon pulse, shimmer GPU fix, Outrun bubble glow (#446–#451 #462 #465 #467)
-- Wave 4 (Scout+Bastion): test coverage — fix stale image-actions test, add groupConversations/plugin-order/SAFE_MODEL_ID/AtMention suites, proxy + corrupt-blob backend tests (#472–#478)
-- Coda hotfixes: Outrun bubble glow border-radius, tail glow via drop-shadow (color-mix to tame intensity), input bar glow matching border/border-strong, proxy.test.ts lint fix
+Wave 5 shipped. Six issues closed (#423 #424 #425 #441 #442 #444):
+- **Atlas**: DeepSeek deprecation signals in registry (`deprecated: true`, `deprecationDate: '2026-07-24'`)
+- **Aria**: Panel banner + persistent inline notice in ModelSelectorPanel; reads `entry.deprecated` from MODEL_REGISTRY
+- **Ada**: Fixed stale copy-button a11y assertion (#425 test 2); found text-warning/80 contrast blocker in linen/chalk — fixed same wave
+- **Scout**: #425 test 1 already done in wave 4 — no action needed
+- **Quill**: Fixed README image gen claim (#424); added `docs/providers.md` (DeepSeek deprecation); updated `docs/deployment.md` (CORS_ORIGIN required)
+- **Forge**: Login rate limit 5/15min (#444); CORS wildcard removed, startup warn added (#442); proxy route requireAuth + 60/60s limit (#441)
 
 ## Key decisions
 
-- drop-shadow (not box-shadow) for Outrun bubble glow — follows triangle tail shape; color-mix(50%) on wide pass compensates for accent-border amplification
-- Input bar glow uses --border-default / --border-strong (not --border) — Tailwind maps border-border to var(--border-default)
-- gpt-image-2: output_format: 'png'; always returns item.b64_json
-- resolveVersionCatalog() must use collect-then-fall-through; never unconditional return from live API path
-- SAFE_MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/ — hyphen at end needs no escape
-- rehypeHighlight must run before rehypeSanitize in MarkdownContent — order is load-bearing
-- Agents do NOT open GitHub PRs — push main directly at ship time (SOP §18)
+- `text-warning/80` on `bg-warning/10` fails WCAG AA in linen (3.34:1) and chalk (3.59:1) — always use full-opacity `text-warning` for body text on tinted warning backgrounds
+- Forge owns backend security middleware (this wave); CLAUDE.md shows `/backend/src/**` as off-limits for Forge — ambiguity to resolve
+- Ada's `model-selector-deprecation-warning.test.tsx` was NOT committed — two `it.fails()` contrast tests must become `it()` after the fix (#517)
+- `backend/README.md` has stale CORS_ORIGIN default docs — tracked in #518 (Atlas)
 
 ## Open issues (priority order)
 
-- **#423** — DeepSeek deprecation 2026-07-24 — URGENT, ~7 days
-- **#421** — imageGenerationEnabled toggle never wired (always-on bug)
-- **#425** — 2 pre-existing failing tests: gpt-image-gen.test.ts (Atlas), a11y copy-button (Ada)
-- **#424** — README falsely says image generation not supported (Quill, Wave 5)
-- **#442** — CORS wildcard on backend proxy (Rune/Atlas)
-- **#444** — Login rate limiting missing (Rune/Gate)
-- **#441** — Proxy no-auth passthrough (Rune)
+- **#421** — imageGenerationEnabled toggle never wired (needs Arch types PR + Atlas + Aria — wave 6)
+- **#517** — Ada's deprecation warning contrast tests: promote it.fails() → it() (Ada, quick)
+- **#518** — backend/README.md stale CORS_ORIGIN docs (Atlas, quick)
+- **#425 gpt-image-gen.test.ts** — pre-existing failure, not in any filed issue; Atlas scope
 
 ## Gotchas
 
 - ProxyNudge only renders in import.meta.env.PROD
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically
-- Agents installing new npm deps in worktrees must commit package-lock.json
-- Container DNS: ENOTFOUND means restart container, not dev server
-- DeepSeek entries scheduled for deprecation 2026-07-24
+- Agents installing new npm deps in worktrees must commit package-lock.json + run `npm ci` (not `npm install`) in fresh worktrees
+- DeepSeek deprecated 2026-07-24 — UI warning + registry flags already in place; entries stay until date passes
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
+- Coda worktree drift: between agent spawns, pwd can drift to last agent worktree — always `cd /workspace` before git operations
+- Backend ownership gap: CLAUDE.md lists `/backend/src/**` as off-limits for Forge, but backend security fixes (#441 #442 #444) were assigned to Forge and landed cleanly; resolve in CLAUDE.md
