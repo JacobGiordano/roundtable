@@ -48,9 +48,17 @@ const app = express();
 // Parse JSON bodies on all routes.
 app.use(express.json());
 
-// CORS — allow all origins by default for self-hosted convenience.
-// Users who need stricter CORS can set CORS_ORIGIN in their .env.
-const corsOrigin = process.env.CORS_ORIGIN ?? '*';
+// CORS — no wildcard default. When CORS_ORIGIN is unset, cross-origin requests
+// are blocked by the browser's built-in same-origin policy. Self-hosters must
+// set CORS_ORIGIN to the exact frontend origin (e.g. https://app.example.com).
+const corsOrigin = process.env.CORS_ORIGIN ?? undefined;
+if (!corsOrigin) {
+  console.warn(
+    '[startup] WARNING: CORS_ORIGIN is not set. Cross-origin requests will be ' +
+    'blocked by the browser. Set CORS_ORIGIN to your frontend origin ' +
+    '(e.g. CORS_ORIGIN=https://app.example.com) before exposing this server.'
+  );
+}
 app.use(cors({ origin: corsOrigin }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
