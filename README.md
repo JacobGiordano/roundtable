@@ -68,7 +68,7 @@ See the [deployment guide](docs/deployment.md) to get started.
 - **Client-side first** — API keys stay in your browser; never transmitted
   except directly to each provider's official API endpoint
 
-> **Image support:** Vision-capable models (Claude, OpenAI, Gemini, and compatible custom endpoints) accept image attachments via the clip button, drag-and-drop, or paste — a warning appears when targeting a non-vision provider. Models cannot return images; all responses are text only. Image generation (DALL-E, Imagen, etc.) is not supported.
+> **Image support:** Vision-capable models (Claude, OpenAI, Gemini, and compatible custom endpoints) accept image attachments via the clip button, drag-and-drop, or paste — a warning appears when targeting a non-vision provider. Select models can also return generated images: GPT supports image generation via `gpt-image-2`; Gemini supports it via `gemini-2.5-flash-image`. Image generation requires selecting the appropriate model version and enabling the per-model toggle in settings.
 
 ## Quick start
 
