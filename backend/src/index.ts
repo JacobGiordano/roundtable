@@ -16,6 +16,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 import { db, seedAdminUser } from './db';
 import { authRouter } from './auth';
@@ -61,14 +62,36 @@ if (!corsOrigin) {
 }
 app.use(cors({ origin: corsOrigin }));
 
+// ─── Proxy rate limiter ───────────────────────────────────────────────────────
+
+/**
+ * Circuit-breaker rate limiter for the Anthropic proxy.
+ *
+ * Limits each IP to 60 requests per minute. The Anthropic API enforces its own
+ * per-key rate limits upstream, but this prevents a single authenticated client
+ * from monopolising the proxy or triggering upstream throttling for all users.
+ *
+ * Returns HTTP 429 with { error: 'too_many_requests' } when exceeded.
+ * Skipped in test environments (NODE_ENV=test) so Bastion tests are unaffected.
+ */
+const proxyRateLimiter = rateLimit({
+  windowMs: 60 * 1000,         // 1 minute
+  max: 60,                     // 60 requests per window per IP
+  standardHeaders: 'draft-7',  // emit RateLimit-* headers per RFC 9110 draft-7
+  legacyHeaders: false,
+  message: { error: 'too_many_requests' },
+  skip: () => process.env['NODE_ENV'] === 'test',
+});
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // Anthropic proxy — server-side pass-through for browser clients.
 // Anthropic blocks browser-direct calls (CORS 400). This route forwards
 // POST /api/proxy/anthropic/v1/messages → https://api.anthropic.com/v1/messages.
-// No authentication required on this route — the Anthropic API key is the
-// access credential. See anthropicProxy.ts for security notes.
-app.use('/api/proxy/anthropic', express.json({ limit: '2mb' }), anthropicProxyRouter);
+// Requires a valid JWT (requireAuth) — callers must be authenticated backend
+// users. The proxy rate limiter (proxyRateLimiter) adds a 60 req/min circuit-
+// breaker per IP on top of the upstream Anthropic API limits.
+app.use('/api/proxy/anthropic', proxyRateLimiter, requireAuth, express.json({ limit: '2mb' }), anthropicProxyRouter);
 
 // Auth routes — unprotected.
 app.use('/auth', authRouter);
