@@ -4,11 +4,13 @@ import { ChevronIcon } from './components/ChevronIcon';
 // #147: shared icon system — GearIcon and PlusIcon replace inline SVGs.
 import { GearIcon, PlusIcon } from './icons';
 import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
-// Cross-agent exception: MODEL_REGISTRY is a pure data export from @/models —
-// read-only registry of all model display metadata including providerName and
-// availableVersions. Imported so ModelSelectorPanel can render version pickers
-// without requiring these static lists to be threaded through ModelConfig.
+// Cross-agent exception: MODEL_REGISTRY and ModelRegistryEntry are pure data/type
+// exports from @/models — read-only registry of all model display metadata
+// including providerName, availableVersions, and deprecation fields. Imported so
+// ModelSelectorPanel can render version pickers and deprecation notices without
+// requiring static lists to be threaded through ModelConfig.
 import { MODEL_REGISTRY } from '@/models';
+import type { ModelRegistryEntry } from '@/models';
 // Gate cross-agent exceptions:
 // getModelAccentColors is called to seed the initial accentColors state and to
 // refresh it after any color save/clear triggered by AccentColorPicker.
@@ -31,6 +33,30 @@ import { SessionTokenSection } from './components/model-selector/SessionTokenSec
  */
 const AVAILABLE_VERSIONS_BY_MODEL_ID = new Map<ModelId, ModelVersionOption[]>(
   MODEL_REGISTRY.map((entry) => [entry.modelId, entry.availableVersions]),
+);
+
+/**
+ * Extended shape of MODEL_REGISTRY entries that includes Atlas's deprecation fields.
+ * Atlas adds `deprecated` and `deprecationDate` to ModelRegistryEntry (issue #423).
+ * The cast below is forward-compatible: when Atlas's changes are merged, these
+ * fields will be in the type and the cast becomes a no-op.
+ */
+interface RegistryEntryWithDeprecation extends ModelRegistryEntry {
+  deprecated?: boolean;
+  deprecationDate?: string;
+}
+
+/**
+ * Lookup map from modelId → { deprecated, deprecationDate, name }, built once from MODEL_REGISTRY.
+ * Used by the deprecation warning banner to surface deprecated active models.
+ * Casts to RegistryEntryWithDeprecation so Aria can read Atlas's deprecation fields
+ * before their type addition lands in a merged commit.
+ */
+const DEPRECATION_BY_MODEL_ID = new Map<ModelId, Pick<RegistryEntryWithDeprecation, 'deprecated' | 'deprecationDate' | 'name'>>(
+  (MODEL_REGISTRY as RegistryEntryWithDeprecation[]).map((entry) => [
+    entry.modelId,
+    { deprecated: entry.deprecated, deprecationDate: entry.deprecationDate, name: entry.name },
+  ]),
 );
 
 // ─── ModelSelectorPanel ───────────────────────────────────────────────────────
@@ -289,6 +315,13 @@ export function ModelSelectorPanel({
     (m) => m.systemPrompt && m.systemPrompt.trim().length > 0,
   ).length;
 
+  // Collect deprecated active models by consulting MODEL_REGISTRY via the lookup map.
+  // Uses entry.deprecated === true flag — not hardcoded model IDs — so any future
+  // deprecated provider is picked up automatically.
+  const deprecatedActiveModels = activeModels
+    .map((m) => ({ config: m, meta: DEPRECATION_BY_MODEL_ID.get(m.modelId) }))
+    .filter(({ meta }) => meta?.deprecated === true);
+
   // Determine panel class
   const panelClass = [
     'model-selector-panel',
@@ -325,6 +358,35 @@ export function ModelSelectorPanel({
             'p-4 mb-2',
           ].join(' ')}
         >
+          {/* ── Deprecation warning ──
+               Shown when one or more active models are marked deprecated in MODEL_REGISTRY.
+               Advisory only — does not block interaction. Uses semantic-warning token. */}
+          {deprecatedActiveModels.length > 0 && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className={[
+                'mb-4 px-3 py-2.5 rounded-md',
+                'border border-warning/40 bg-warning/10',
+                'border-l-4 border-l-warning',
+              ].join(' ')}
+            >
+              {deprecatedActiveModels.map(({ config, meta }) => (
+                <div key={config.modelId} className={deprecatedActiveModels.length > 1 ? 'mb-1 last:mb-0' : ''}>
+                  <p className="text-[12px] font-semibold text-warning leading-snug">
+                    {meta!.name} is being discontinued
+                  </p>
+                  <p className="text-[11px] text-warning/80 leading-relaxed mt-0.5">
+                    {meta!.deprecationDate
+                      ? `This provider's API will stop responding on ${meta!.deprecationDate}.`
+                      : "This provider's API will be shut down soon."}{' '}
+                    Switch to another model to avoid interruption.
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* ── Active models section ── */}
           <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
             Active models
@@ -472,6 +534,20 @@ export function ModelSelectorPanel({
         {activeCount} {activeCount === 1 ? 'model' : 'models'}
         <ChevronIcon isOpen={isOpen} />
       </button>
+
+      {/* Persistent deprecation notice — visible below the trigger chip even when the
+          panel is closed. Shows when any active model is deprecated so the user is alerted
+          without needing to open the panel. Open the panel for full details. */}
+      {deprecatedActiveModels.length > 0 && !isOpen && !isClosing && (
+        <p className="text-[11px] text-warning leading-snug mb-2" aria-live="polite">
+          {deprecatedActiveModels.map(({ meta }) => meta!.name).join(', ')}{' '}
+          {deprecatedActiveModels.length === 1 ? 'is' : 'are'} deprecated
+          {deprecatedActiveModels[0].meta?.deprecationDate
+            ? ` — API stops ${deprecatedActiveModels[0].meta.deprecationDate}`
+            : ''}.{' '}
+          Open models to switch.
+        </p>
+      )}
 
       {/* Color picker popover — rendered in a portal-like fixed position */}
       {openPickerModelId !== null && pickerAnchorRect !== null && (() => {
