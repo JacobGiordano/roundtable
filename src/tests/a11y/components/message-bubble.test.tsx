@@ -372,7 +372,7 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
     expect(liveRegions.length).toBe(0);
   });
 
-  it('copy button is absent when content is the sentinel string', () => {
+  it('copy button is present and keyboard-reachable when content is the sentinel string but an error message exists', () => {
     render(
       <MessageBubble
         message={SENTINEL_ERROR_MESSAGE}
@@ -381,14 +381,15 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
         tokenCountVisibility="never"
       />
     );
-    // The copy button guard: message.content && !(hasError && message.content === 'Error')
-    // evaluates false for sentinel content — button is removed from the DOM entirely,
-    // not hidden with opacity-0. No keyboard user can land on a button that would
-    // copy the meaningless sentinel string.
+    // Since issue #396, the copy button is shown for error-only messages (content === 'Error'
+    // or content === '') as long as error.message is non-empty. The button copies the error
+    // message text so users can share or report it. It must be in the DOM and reachable
+    // by keyboard (not hidden with aria-hidden or removed from the tab order).
+    // WCAG 2.1 — 4.1.2 Name, Role, Value: the button must have an accessible name.
     const copyButton = screen.queryByRole('button', { name: /copy message/i });
-    const copiedButton = screen.queryByRole('button', { name: /copied!/i });
-    expect(copyButton).toBeNull();
-    expect(copiedButton).toBeNull();
+    expect(copyButton).not.toBeNull();
+    // The button must not carry aria-hidden (which would hide it from assistive technology).
+    expect(copyButton?.getAttribute('aria-hidden')).not.toBe('true');
   });
 
   it('Retry button is present and keyboard-reachable in sentinel error state', () => {
