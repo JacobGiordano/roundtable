@@ -147,6 +147,24 @@ export interface ModelRegistryEntry {
    * Examples: `"anthropic"`, `"openai"`, `"google"`, `"x-ai"`, `"deepseek"`, `"mistralai"`
    */
   openrouterPrefix?: string;
+  /**
+   * Whether this provider is deprecated. When true, Aria should surface a
+   * deprecation warning so users have time to migrate before the API stops
+   * responding.
+   *
+   * Set this field ahead of the shutdown date — do not remove the entry until
+   * after the deprecation date has passed and any ongoing sessions have cleared.
+   * The `deprecationDate` field records the exact cutoff.
+   */
+  deprecated?: boolean;
+  /**
+   * ISO 8601 date string (YYYY-MM-DD) on which this provider's API is expected
+   * to stop accepting requests. Used by Aria to display a deadline in the
+   * deprecation warning banner.
+   *
+   * Only meaningful when `deprecated` is true.
+   */
+  deprecationDate?: string;
 }
 
 /**
@@ -265,9 +283,14 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
     providerName: 'DeepSeek',
     color: 'accent-deepseek',
     defaultActive: false,
+    // DeepSeek APIs will stop responding 2026-07-24. Do not remove this entry
+    // until after that date so in-flight sessions can drain gracefully.
+    // Aria reads `deprecated` and `deprecationDate` to show a warning banner.
+    deprecated: true,
+    deprecationDate: '2026-07-24',
     availableVersions: [
-      { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: 'General-purpose chat — default' },
-      { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: 'Advanced reasoning (R1)' },
+      { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: 'Deprecated 2026-07-24 — migrate to another provider' },
+      { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: 'Deprecated 2026-07-24 — migrate to another provider' },
     ],
     // OpenRouter no-key discovery: first tier of fallback chain.
     openrouterPrefix: 'deepseek',
