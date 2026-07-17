@@ -1,7 +1,30 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+// #446: Restricted language set for the streaming ReactMarkdown path — same set
+// as MarkdownContent so highlighting is consistent between streaming and done states.
+import hljs_javascript from 'highlight.js/lib/languages/javascript';
+import hljs_typescript from 'highlight.js/lib/languages/typescript';
+import hljs_python     from 'highlight.js/lib/languages/python';
+import hljs_bash       from 'highlight.js/lib/languages/bash';
+import hljs_shell      from 'highlight.js/lib/languages/shell';
+import hljs_json       from 'highlight.js/lib/languages/json';
+import hljs_css        from 'highlight.js/lib/languages/css';
+import hljs_xml        from 'highlight.js/lib/languages/xml';
+import hljs_sql        from 'highlight.js/lib/languages/sql';
+import hljs_go         from 'highlight.js/lib/languages/go';
+import hljs_rust       from 'highlight.js/lib/languages/rust';
+import hljs_java       from 'highlight.js/lib/languages/java';
+import hljs_cpp        from 'highlight.js/lib/languages/cpp';
+import hljs_csharp     from 'highlight.js/lib/languages/csharp';
+import hljs_ruby       from 'highlight.js/lib/languages/ruby';
+import hljs_php        from 'highlight.js/lib/languages/php';
+import hljs_swift      from 'highlight.js/lib/languages/swift';
+import hljs_kotlin     from 'highlight.js/lib/languages/kotlin';
+import hljs_yaml       from 'highlight.js/lib/languages/yaml';
+import hljs_markdown   from 'highlight.js/lib/languages/markdown';
+import hljs_diff       from 'highlight.js/lib/languages/diff';
 import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #409: Spec-compliant markdown renderer — DOMPurify pre-sanitization + remark-gfm +
 // copy-code button + Luma token classes. Replaces inline ReactMarkdown for "done" state.
@@ -224,9 +247,38 @@ const sanitizeSchema = {
   },
 };
 
-/** Shared rehype plugin array for both the streaming and done ReactMarkdown instances. */
+// #446: Restricted language map — same set as MarkdownContent for consistency.
+const HIGHLIGHT_LANGUAGES: Record<string, unknown> = {
+  javascript: hljs_javascript,
+  typescript: hljs_typescript,
+  python:     hljs_python,
+  bash:       hljs_bash,
+  shell:      hljs_shell,
+  json:       hljs_json,
+  css:        hljs_css,
+  xml:        hljs_xml,
+  html:       hljs_xml,
+  sql:        hljs_sql,
+  go:         hljs_go,
+  rust:       hljs_rust,
+  java:       hljs_java,
+  cpp:        hljs_cpp,
+  csharp:     hljs_csharp,
+  ruby:       hljs_ruby,
+  php:        hljs_php,
+  swift:      hljs_swift,
+  kotlin:     hljs_kotlin,
+  yaml:       hljs_yaml,
+  markdown:   hljs_markdown,
+  diff:       hljs_diff,
+};
+
+/** Shared rehype plugin array for the streaming ReactMarkdown instance. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rehypePlugins: any[] = [rehypeHighlight, [rehypeSanitize, sanitizeSchema]];
+const rehypePlugins: any[] = [
+  [rehypeHighlight, { languages: HIGHLIGHT_LANGUAGES }],
+  [rehypeSanitize, sanitizeSchema],
+];
 
 // ─── Markdown component renderers ─────────────────────────────────────────────
 
@@ -485,7 +537,47 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
 
 // ─── MessageBubble ─────────────────────────────────────────────────────────────
 
-export function MessageBubble({
+/**
+ * #448 — Custom memo comparator for MessageBubble.
+ *
+ * A bubble is stable when:
+ *   - message.id is the same (same message, not a replacement)
+ *   - message.content hasn't changed
+ *   - message.isStreaming hasn't changed
+ *   - message.tokenUsage reference hasn't changed (deep equality would be costly;
+ *     Atlas replaces the tokenUsage object when it arrives, so reference change
+ *     is the correct signal)
+ *   - message.error reference hasn't changed
+ *   - modelConfig reference hasn't changed (only changes on conversation switch)
+ *   - targetModelConfig reference hasn't changed
+ *   - tokenCountVisibility hasn't changed
+ *   - entranceIndex hasn't changed
+ *
+ * Callbacks (onRetry, onDirectedReply, onEditMessage) are intentionally excluded
+ * from the comparison. They don't affect the rendered output — only what happens
+ * on user interaction. MessageThread wraps onRetry in an inline lambda per message,
+ * which is re-created on every parent render; including it in the comparison would
+ * defeat the memo entirely. The callbacks are always fresh when called (closure
+ * over current state), so stale-callback risk is not a concern here.
+ *
+ * messageIndex is also excluded: it only affects the value passed to onEditMessage,
+ * not any rendered output.
+ */
+function areBubblePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): boolean {
+  return (
+    prev.message.id          === next.message.id          &&
+    prev.message.content     === next.message.content     &&
+    prev.message.isStreaming  === next.message.isStreaming  &&
+    prev.message.tokenUsage  === next.message.tokenUsage  &&
+    prev.message.error       === next.message.error       &&
+    prev.modelConfig         === next.modelConfig         &&
+    prev.targetModelConfig   === next.targetModelConfig   &&
+    prev.tokenCountVisibility === next.tokenCountVisibility &&
+    prev.entranceIndex       === next.entranceIndex
+  );
+}
+
+function MessageBubbleBase({
   message,
   modelConfig,
   error,
@@ -1374,3 +1466,9 @@ export function MessageBubble({
     </div>
   );
 }
+
+// #448 — Memoized export. areBubblePropsEqual skips re-renders when a bubble is
+// stable (same message content, not streaming, no error change). During streaming,
+// only the actively-streaming bubble's isStreaming/content props change — all peer
+// bubbles see equal props and skip re-render entirely.
+export const MessageBubble = memo(MessageBubbleBase, areBubblePropsEqual);

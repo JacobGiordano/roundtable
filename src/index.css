@@ -99,8 +99,8 @@ body {
 }
 
 @keyframes streamingShimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 /**
@@ -195,95 +195,68 @@ body {
 .thinking-dot:nth-child(3) { animation-delay: 400ms; }
 
 /* ─── Streaming Shimmer Bottom Border ──────────────────────────────────────── */
+/*
+ * #450: Rewritten to use transform: translateX() instead of background-position.
+ * background-position is not compositor-eligible and triggers a repaint on every
+ * animation frame. transform runs on the GPU compositor thread (zero repaint).
+ *
+ * Approach: the shimmer bar is a 3px absolute strip at the bottom of the bubble.
+ * A ::before pseudo-element provides the static accent-colored base (always visible
+ * during streaming). The ::after pseudo-element is wider than the bar (200% of
+ * parent width) and translates from -100% to +100% — the white highlight sweeps
+ * left-to-right while the parent's overflow:hidden clips it at the edges.
+ *
+ * overflow:hidden is already set on .streaming-shimmer's wrapper (.rounded-[12px]
+ * overflow-hidden on the bubble inner div). The 3px bar itself also sets
+ * overflow:hidden so the ::after pseudo-element never bleeds outside.
+ *
+ * will-change: transform signals the GPU to promote the ::after layer ahead of time.
+ */
 
 .streaming-shimmer {
   position: relative;
 }
 
-.streaming-shimmer::after {
+/* Static accent base — 3px strip, always visible, carries the model accent color. */
+.streaming-shimmer::before {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 3px;
+  background: var(--accent-claude);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+}
+
+/* Shimmer sweep — 200% wide, translates via GPU transform. */
+.streaming-shimmer::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 3px;
   background: linear-gradient(
     90deg,
-    var(--accent-claude) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-claude) 100%
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
   );
-  background-size: 200% 100%;
   animation: streamingShimmer 1.4s linear infinite;
+  will-change: transform;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
-/* Shimmer color varies per model — applied via data-model attribute */
-.streaming-shimmer[data-model="claude"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-claude) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-claude) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
-
-.streaming-shimmer[data-model="gpt"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-gpt) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-gpt) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
-
-.streaming-shimmer[data-model="gemini"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-gemini) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-gemini) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
-
-.streaming-shimmer[data-model="grok"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-grok) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-grok) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
-
-.streaming-shimmer[data-model="deepseek"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-deepseek) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-deepseek) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
-
-.streaming-shimmer[data-model="mistral"]::after {
-  background: linear-gradient(
-    90deg,
-    var(--accent-mistral) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    var(--accent-mistral) 100%
-  );
-  background-size: 200% 100%;
-  animation: streamingShimmer 1.4s linear infinite;
-}
+/* Shimmer accent color varies per model via ::before background.
+   The ::after sweep is always the white highlight — no per-model change needed. */
+.streaming-shimmer[data-model="claude"]::before  { background: var(--accent-claude);   }
+.streaming-shimmer[data-model="gpt"]::before     { background: var(--accent-gpt);      }
+.streaming-shimmer[data-model="gemini"]::before  { background: var(--accent-gemini);   }
+.streaming-shimmer[data-model="grok"]::before    { background: var(--accent-grok);     }
+.streaming-shimmer[data-model="deepseek"]::before { background: var(--accent-deepseek); }
+.streaming-shimmer[data-model="mistral"]::before { background: var(--accent-mistral);  }
 
 /* ─── Model Selector Panel ──────────────────────────────────────────────────── */
 
@@ -334,6 +307,53 @@ body {
 code.hljs {
   background: transparent;
   padding: 0;
+}
+
+/* ─── Ghost Mode Pulse (#465) ──────────────────────────────────────────────── */
+
+/**
+ * ghostPulse: slow opacity pulse for the ghost mode icon.
+ * Cycles between 0.4 and 0.9 over 3 seconds, ease-in-out.
+ * Applied only when ghost mode is active — not a default icon state.
+ * Under prefers-reduced-motion: no animation, icon held at 0.65 opacity
+ * (visually distinct from full opacity, communicates the ephemeral state).
+ * Spec: motion.md (delight) — #465.
+ */
+@keyframes ghostPulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.9; }
+}
+
+.ghost-pulse {
+  animation: ghostPulse 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-pulse {
+    animation: none;
+    opacity: 0.65;
+  }
+}
+
+/* ─── Outrun Neon Glow (#467) ──────────────────────────────────────────────── */
+
+/**
+ * In the Outrun theme, model message bubbles receive a neon box-shadow
+ * using the bubble's accent color (var(--bubble-accent)).
+ * Applied via [data-theme="outrun"] so it is scoped to the Outrun theme only.
+ * box-shadow is static (not animated) — no prefers-reduced-motion handling needed.
+ * Spec: motion.md §4 — Outrun theme delight.
+ *
+ * Selector: [data-theme="outrun"] .bubble-entering targets the outer bubble
+ * container (which carries --bubble-accent). The .bubble-entering class is
+ * always applied to all bubbles. Using it here avoids introducing a new class.
+ *
+ * Note: .bubble-entering is also used for the entrance animation, but the
+ * animation ends via 'both' fill-mode — the element retains its final state.
+ * The box-shadow from this rule is additive and not affected by the animation.
+ */
+[data-theme="outrun"] .bubble-entering {
+  box-shadow: 0 0 12px var(--bubble-accent), 0 0 4px var(--bubble-accent);
 }
 
 /* ─── Theme Transition (applied to all elements during theme switch) ────────── */
@@ -394,37 +414,11 @@ code.hljs {
     transform: none;
   }
 
-  /* Static streaming bottom border — no shimmer */
-  .streaming-shimmer::after,
-  .streaming-shimmer[data-model="claude"]::after {
+  /* Static streaming bottom border — no shimmer sweep under reduced-motion.
+     Hide the ::after sweep entirely; the ::before accent base remains visible. */
+  .streaming-shimmer::after {
     animation: none;
-    background: var(--accent-claude);
-    background-size: 100% 100%;
-  }
-
-  .streaming-shimmer[data-model="gpt"]::after {
-    background: var(--accent-gpt);
-    animation: none;
-  }
-
-  .streaming-shimmer[data-model="gemini"]::after {
-    background: var(--accent-gemini);
-    animation: none;
-  }
-
-  .streaming-shimmer[data-model="grok"]::after {
-    background: var(--accent-grok);
-    animation: none;
-  }
-
-  .streaming-shimmer[data-model="deepseek"]::after {
-    background: var(--accent-deepseek);
-    animation: none;
-  }
-
-  .streaming-shimmer[data-model="mistral"]::after {
-    background: var(--accent-mistral);
-    animation: none;
+    display: none;
   }
 
   .theme-transitioning * {

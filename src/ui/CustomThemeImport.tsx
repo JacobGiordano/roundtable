@@ -273,7 +273,11 @@ export function CustomThemeImport() {
       const theme = parsed as CustomThemeJSON;
       try {
         saveCustomTheme(theme);
+        // #462: theme-transitioning class enables smooth color transitions on user-triggered
+        // theme changes. Removed after 350ms (matches .theme-transitioning * transition).
+        document.documentElement.classList.add('theme-transitioning');
         applyTheme(theme);
+        setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350);
       } catch {
         setRejectedInfo({
           fileName,

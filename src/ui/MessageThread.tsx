@@ -371,6 +371,8 @@ export function MessageThread({
 
     if (lastUserMsg && lastUserMsg.id !== lastUserMessageIdRef.current) {
       // The user just sent a new message — always scroll to bottom and re-pin.
+      // Use smooth only for the initial scroll-to-new-message; streaming chunks
+      // use instant below (#451).
       lastUserMessageIdRef.current = lastUserMsg.id;
       scrollToBottom('smooth');
       return;
@@ -378,7 +380,11 @@ export function MessageThread({
 
     // For streaming chunks / assistant messages: only scroll if pinned.
     if (pinnedToBottom.current) {
-      scrollToBottom('smooth');
+      // #451: Use instant scroll while any model is streaming — firing smooth
+      // on every chunk sends hundreds of competing animation requests and causes
+      // jank. Only discrete user actions (FAB click) use smooth scroll.
+      const isActivelyStreaming = streamingMessages.length > 0;
+      scrollToBottom(isActivelyStreaming ? 'instant' : 'smooth');
     }
   }, [messages, streamingMessages, scrollToBottom]);
 
