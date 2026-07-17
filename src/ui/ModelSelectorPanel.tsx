@@ -376,7 +376,7 @@ export function ModelSelectorPanel({
                   <p className="text-[12px] font-semibold text-warning leading-snug">
                     {meta!.name} is being discontinued
                   </p>
-                  <p className="text-[11px] text-warning/80 leading-relaxed mt-0.5">
+                  <p className="text-[11px] text-warning leading-relaxed mt-0.5">
                     {meta!.deprecationDate
                       ? `This provider's API will stop responding on ${meta!.deprecationDate}.`
                       : "This provider's API will be shut down soon."}{' '}
