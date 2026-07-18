@@ -98,6 +98,14 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   // Stable callback — setPrefillText is a stable useState setter so this never changes reference.
   const handlePrefillConsumed = useCallback(() => setPrefillText(''), []);
 
+  // #500: Model selector open request — set when the user clicks the empty-state CTA.
+  // ModelSelectorPanel consumes this as requestOpen, opens the panel, then calls
+  // onRequestOpenHandled to reset back to false. The flag is intentionally one-shot:
+  // false → true → false so ModelSelectorPanel does not re-open on re-renders.
+  const [modelSelectorRequestOpen, setModelSelectorRequestOpen] = useState(false);
+  const handleOpenModelSelector = useCallback(() => setModelSelectorRequestOpen(true), []);
+  const handleModelSelectorRequestHandled = useCallback(() => setModelSelectorRequestOpen(false), []);
+
   // #280: Desktop sidebar open/close state — persisted via Gate's setSidebarOpen().
   // Initialized from Gate's localStorage-backed getSidebarOpen() (default: true).
   // Mobile sidebar drawer visibility is controlled separately by isMobileMenuOpen.
@@ -456,6 +464,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             onExport={onExportConversation}
             onEditMessage={onEditMessage}
             onSuggestionSelect={setPrefillText}
+            onOpenModelSelector={handleOpenModelSelector}
           />
         )}
 
@@ -475,6 +484,8 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
                 sessionUsage={sessionUsage}
                 tokenCountVisibility={tokenCountVisibility}
                 onOpenProviderSettings={handleOpenProviderSettings}
+                requestOpen={modelSelectorRequestOpen}
+                onRequestOpenHandled={handleModelSelectorRequestHandled}
               />
             </div>
             {/* Interaction mode switcher — flex-shrink-0 so it always renders at natural width */}

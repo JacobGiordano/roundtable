@@ -43,6 +43,8 @@ import { CopyIcon } from './icons';
 import { downloadImage, copyImageToClipboard } from './utils/imageActions';
 // #357: formatCost shared util — displays per-message estimated cost in the bubble footer.
 import { formatCost } from './utils/formatCost';
+// #471: stripMarkdown — regex-based plain text conversion for the "Copy as plain text" option.
+import { stripMarkdown } from './utils/stripMarkdown';
 // #294: resolveAccentCssColor is the shared single source of truth for accent
 // color resolution — custom providers route through var(--accent-custom-{id})
 // so AccentColorPicker live-session overrides are picked up at render time.
@@ -595,6 +597,10 @@ function MessageBubbleBase({
   const [isHovered, setIsHovered] = useState(false);
   // Copy-to-clipboard state: 'idle' | 'copied'. Reverts to 'idle' after 1.5s.
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  // #471: Copy dropdown state — tracks which copy option was last used and whether
+  // the dropdown is open. 'markdown' is the default (preserves existing muscle memory).
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const copyDropdownRef = useRef<HTMLDivElement>(null);
 
   // #400 — Timestamp refresh on interaction.
   // A simple counter bumped on mouseenter forces useMemo to recompute the formatted time.
@@ -667,6 +673,48 @@ function MessageBubbleBase({
     });
   }, [message.content, error?.message, copyState]);
 
+  // #471: Copy as plain text — strips markdown syntax before writing to clipboard.
+  const handleCopyPlainText = useCallback(() => {
+    if (copyState === 'copied') return;
+    const hasUsableContent = message.content && message.content !== 'Error';
+    const textToCopy = hasUsableContent ? stripMarkdown(message.content) : (error?.message ?? '');
+    if (!textToCopy) return;
+    setCopyDropdownOpen(false);
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 1500);
+    }).catch(() => {
+      // Clipboard write failed — fail silently.
+    });
+  }, [message.content, error?.message, copyState]);
+
+  // #471: Close the copy dropdown when clicking outside it or pressing Escape.
+  // Escape is the standard ARIA menu close key; it also moves focus back to the
+  // chevron trigger (WCAG 2.4.3 Focus Order).
+  useEffect(() => {
+    if (!copyDropdownOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (copyDropdownRef.current && !copyDropdownRef.current.contains(e.target as Node)) {
+        setCopyDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setCopyDropdownOpen(false);
+        // Return focus to the chevron trigger (first focusable sibling after the copy icon).
+        const chevron = copyDropdownRef.current?.querySelectorAll<HTMLButtonElement>('button')[1];
+        chevron?.focus();
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [copyDropdownOpen]);
+
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
 
@@ -699,9 +747,13 @@ function MessageBubbleBase({
   const rowVisible = tokenCountVisibility === 'always' ? true : isHovered;
 
   // ─── Nameplate copy button factory ──────────────────────────────────────
-  // Returns a copy button styled for nameplate flow (not absolute-positioned).
+  // Returns a split copy button styled for nameplate flow (not absolute-positioned).
   // Used in both assistant and user nameplates.
   // additionalClassName: pass 'ml-4' on the first button after a name/dot to add breathing room.
+  //
+  // #471: Split-button pattern — single click copies markdown (existing default behaviour);
+  // the small chevron button opens a 2-item dropdown with "Markdown" and "Plain text" options.
+  // The dropdown is positioned absolutely inside a relative wrapper and closes on outside click.
 
   function NameplateCopyButton({ additionalClassName = '' }: { additionalClassName?: string }) {
     // Show copy button when there is usable content OR when there is an error message
@@ -709,26 +761,93 @@ function MessageBubbleBase({
     // the button copies error.message so users can share or report the error (#396).
     const hasUsableContent = message.content && message.content !== 'Error';
     const hasCopyableText = hasUsableContent || (hasError && !!error?.message);
+    // Plain text copy only available for markdown content (not error messages).
+    const hasMarkdownContent = hasUsableContent;
     if (!hasCopyableText) return null;
+
+    const visibilityClass = isHovered || copyState === 'copied' || copyDropdownOpen
+      ? 'opacity-100'
+      : 'opacity-0 focus-visible:opacity-100 focus-within:opacity-100';
+
     return (
-      <button
-        type="button"
-        onClick={handleCopy}
-        aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message'}
-        className={[
-          additionalClassName,
-          'p-0.5 rounded flex items-center justify-center shrink-0',
-          'text-text-secondary',
-          copyState === 'copied'
-            ? 'text-success'
-            : 'hover:bg-hover hover:text-text-primary',
-          'transition-opacity transition-colors duration-fast',
-          isHovered || copyState === 'copied' ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
-        ].join(' ')}
+      // Relative wrapper for dropdown positioning.
+      <div
+        ref={copyDropdownRef}
+        className={[additionalClassName, 'relative flex items-center', visibilityClass, 'transition-opacity duration-fast'].join(' ')}
       >
-        {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
-      </button>
+        {/* Primary copy button — copies markdown (default behaviour) */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message as markdown'}
+          className={[
+            'p-0.5 rounded-l flex items-center justify-center shrink-0',
+            'text-text-secondary',
+            copyState === 'copied'
+              ? 'text-success'
+              : 'hover:bg-hover hover:text-text-primary',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+          ].join(' ')}
+        >
+          {copyState === 'copied' ? <CheckIcon /> : <CopyIcon />}
+        </button>
+
+        {/* Chevron dropdown trigger — only shown when markdown content is available.
+            For error-only messages, there is no meaningful distinction between
+            markdown and plain text, so the secondary trigger is suppressed. */}
+        {hasMarkdownContent && (
+          <button
+            type="button"
+            aria-label="More copy options"
+            aria-expanded={copyDropdownOpen}
+            aria-haspopup="menu"
+            onClick={() => setCopyDropdownOpen((prev) => !prev)}
+            className={[
+              'px-0.5 py-0.5 rounded-r flex items-center justify-center shrink-0',
+              'text-text-secondary hover:bg-hover hover:text-text-primary',
+              'transition-colors duration-fast',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            ].join(' ')}
+          >
+            {/* Tiny downward chevron — 8×5 px */}
+            <svg width="8" height="5" viewBox="0 0 8 5" fill="none" aria-hidden="true">
+              <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+
+        {/* Dropdown menu — absolute-positioned below the trigger group */}
+        {copyDropdownOpen && (
+          <div
+            role="menu"
+            aria-label="Copy options"
+            className={[
+              'absolute bottom-full right-0 mb-1 z-50',
+              'min-w-[148px] py-1 rounded-md',
+              'bg-card border border-border shadow-md',
+              'text-[12px]',
+            ].join(' ')}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setCopyDropdownOpen(false); handleCopy(); }}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+            >
+              Copy as markdown
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleCopyPlainText}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+            >
+              Copy as plain text
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 

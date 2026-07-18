@@ -87,7 +87,7 @@ function sanitizeMarkdown(raw: string): string {
 // ─── Security: Extended rehype-sanitize schema (#417) ────────────────────────
 
 /**
- * Extended rehype-sanitize schema for syntax highlighting.
+ * Extended rehype-sanitize schema for syntax highlighting and GFM tables (#464).
  *
  * rehype-highlight adds:
  *   - `hljs` and `language-*` className on `<code>` elements
@@ -96,6 +96,11 @@ function sanitizeMarkdown(raw: string): string {
  * The default schema allows `language-*` on `code` via `/^language-./` but does
  * not allow the `hljs` base class or any class on `span` elements. We extend the
  * schema minimally: allow `hljs` on `code` and `hljs-*` on `span`.
+ *
+ * #464: table, thead, tbody, tr, th, td are all in the defaultSchema allowlist.
+ * GFM tables produce align="left"|"center"|"right" on th/td for column alignment.
+ * We extend the schema to allow the align attribute on th and td so column
+ * alignment renders correctly. No new element types are introduced.
  *
  * Plugin order is load-bearing: rehypeHighlight must run BEFORE rehypeSanitize so
  * the highlight classes exist in the hast when sanitize evaluates them.
@@ -108,6 +113,9 @@ const sanitizeSchema = {
     code: [['className', /^language-./, 'hljs']],
     // Allow individual token span wrappers added by rehype-highlight.
     span: [...(defaultSchema.attributes?.span ?? []), ['className', /^hljs-/]],
+    // #464: Allow align attribute on table header and data cells for GFM column alignment.
+    th: [...(defaultSchema.attributes?.th ?? []), 'align'],
+    td: [...(defaultSchema.attributes?.td ?? []), 'align'],
   },
 };
 
@@ -461,17 +469,55 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       );
     },
 
-    // ── Table fallback ─────────────────────────────────────────────────────
-    // §1 out-of-scope: tables are rendered as a <pre> block showing raw markdown.
-    // This prevents broken layouts from malformed model-generated table markdown.
-    // Aria implements this as a custom table component override per spec.
+    // ── Tables (#464) ──────────────────────────────────────────────────────
+    // remark-gfm produces table AST nodes; react-markdown passes them through
+    // as table/thead/tbody/tr/th/td elements. We override all six to apply
+    // design-system token classes:
+    //   - outer overflow-x-auto wrapper: horizontally scrollable on narrow viewports
+    //   - table: full-width, collapsed borders (border-collapse removes double borders)
+    //   - th: header cells — semibold, border-bottom, bg-hover tint for contrast
+    //   - td: data cells — lighter weight, border-bottom
+    //   - tr: alternating row shading via CSS :nth-child(even) emulated with
+    //         even: class applied to every second tbody row
+    //   All colors use existing token classes — no novel color choices.
     table({ children }) {
-      // Render the table as a pre block with the raw text content.
-      const rawText = extractTextContent(children);
       return (
-        <pre className="bg-code-block rounded-md p-4 overflow-x-auto my-3 text-sm font-mono">
-          {rawText || String(children)}
-        </pre>
+        <div className="overflow-x-auto my-3">
+          <table className="w-full text-sm border-collapse border border-border-subtle">
+            {children}
+          </table>
+        </div>
+      );
+    },
+    thead({ children }) {
+      return (
+        <thead className="bg-hover">
+          {children}
+        </thead>
+      );
+    },
+    tbody({ children }) {
+      return <tbody>{children}</tbody>;
+    },
+    tr({ children }) {
+      return (
+        <tr className="border-b border-border-subtle odd:bg-transparent even:bg-hover/40">
+          {children}
+        </tr>
+      );
+    },
+    th({ children }) {
+      return (
+        <th className="px-3 py-2 text-left text-[12px] font-semibold text-text-primary border-r border-border-subtle last:border-r-0 whitespace-nowrap">
+          {children}
+        </th>
+      );
+    },
+    td({ children }) {
+      return (
+        <td className="px-3 py-2 text-[13px] text-text-primary border-r border-border-subtle last:border-r-0">
+          {children}
+        </td>
       );
     },
   };
@@ -497,7 +543,8 @@ function extractTextContent(node: React.ReactNode): string {
 // which would cause all child components to remount unnecessarily during streaming.
 const markdownComponents = buildComponents();
 
-// remark plugins: remarkGfm enables strikethrough, tables (caught by table override above).
+// remark plugins: remarkGfm enables strikethrough, tables, and task lists.
+// #464: tables are now rendered via the table/thead/tbody/tr/th/td component overrides.
 const remarkPlugins = [remarkGfm];
 
 // ─── MarkdownContent ──────────────────────────────────────────────────────────
