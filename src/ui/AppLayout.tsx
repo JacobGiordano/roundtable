@@ -84,6 +84,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
     onUpdateSystemPrompt,
     onSelectModelVersion,
     onClearModelVersion,
+    onToggleImageGen,
     sessionUsage,
     activeMode,
     onModeChange,
@@ -472,6 +473,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
                 onUpdateSystemPrompt={onUpdateSystemPrompt}
                 onSelectModelVersion={onSelectModelVersion}
                 onClearModelVersion={onClearModelVersion}
+                onToggleImageGen={onToggleImageGen}
                 sessionUsage={sessionUsage}
                 tokenCountVisibility={tokenCountVisibility}
                 onOpenProviderSettings={handleOpenProviderSettings}

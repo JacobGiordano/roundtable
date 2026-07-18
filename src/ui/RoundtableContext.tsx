@@ -81,6 +81,12 @@ export interface RoundtableContextValue {
   onUpdateSystemPrompt: (modelId: ModelId, value: string) => void;
   onSelectModelVersion: (modelId: ModelId, versionId: string) => void;
   onClearModelVersion: (modelId: ModelId) => void;
+  /**
+   * Called when the user toggles image generation for a model.
+   * Sets or clears ModelConfig.imageGenerationEnabled in local state.
+   * Vault persists the updated ModelConfig automatically.
+   */
+  onToggleImageGen: (modelId: ModelId, enabled: boolean) => void;
   sessionUsage: SessionTokenUsage[];
 
   // ── Interaction mode (InteractionModeSwitcher) ───────────────────────────
