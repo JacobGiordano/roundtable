@@ -86,7 +86,7 @@ reads this file automatically.
 | `DATABASE_PATH` | `./roundtable.db` | Path to the SQLite database file. In Docker the default is `/app/data/roundtable.db`. |
 | `ADMIN_USERNAME` | `admin` | Username for the admin account created on first startup. |
 | `ADMIN_PASSWORD` | `changeme` | Password for the admin account. **Change before deploying.** |
-| `CORS_ORIGIN` | `*` | Value for the `Access-Control-Allow-Origin` header. Set to your frontend URL in production (e.g. `https://roundtable.example.com`). |
+| `CORS_ORIGIN` | — | **Required for cross-origin use.** Value for the `Access-Control-Allow-Origin` header. Set to your exact frontend origin (e.g. `https://roundtable.example.com`). When unset, the server emits a startup warning and cross-origin requests are blocked by the browser's same-origin policy. There is no wildcard fallback. |
 
 ---
 
@@ -254,8 +254,9 @@ re-import your conversations.
 
 - **Change `JWT_SECRET` and `ADMIN_PASSWORD`** before exposing the server
   to the internet. The defaults are intentionally weak.
-- **`CORS_ORIGIN`** defaults to `*` for local self-hosting convenience. Set it
-  to your frontend origin in any internet-facing deployment.
+- **`CORS_ORIGIN`** has no wildcard fallback. When unset, the server logs a
+  startup warning and cross-origin requests are blocked by the browser's
+  same-origin policy. Set it to your exact frontend origin before use.
 - Passwords are stored as bcrypt hashes (12 rounds). Plaintext passwords are
   never logged or stored.
 - API keys for AI providers (Anthropic, OpenAI, etc.) are handled exclusively
