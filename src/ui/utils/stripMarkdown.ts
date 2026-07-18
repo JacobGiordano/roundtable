@@ -49,7 +49,8 @@ export function stripMarkdown(markdown: string): string {
   text = text.replace(/^#{1,6}\s+/gm, '');
 
   // 7. Setext heading underlines (===... or ---...): remove the underline lines.
-  text = text.replace(/^[=\-]{3,}\s*$/gm, '');
+  //    Note: inside [...], '-' at the start of the class is treated as a literal.
+  text = text.replace(/^[-=]{3,}\s*$/gm, '');
 
   // 8. Blockquote markers: remove "> " prefix (including nested ">>" patterns).
   text = text.replace(/^>+\s?/gm, '');
