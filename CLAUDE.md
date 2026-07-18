@@ -44,8 +44,8 @@ automatically — no installation required.
 | Quill 🪶 | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/docs/` | `/src/ui`, `/src/models`, `/src/storage`, `/src/auth`, `/_design`, `/src/types/index.ts`, `CLAUDE.md`, `_system/HANDOFF.md` |
 | Scout 🐾 | `/src/tests/` (excluding `/src/tests/a11y/`) | application code in any agent directory, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
 | Ada ♿ | `/src/tests/a11y/` | application code in any agent directory, `/src/models`, `/src/storage`, `/src/auth`, `/src/types/index.ts`, `CLAUDE.md`, root-level docs |
-| Forge ⚙️ | `.github/workflows/` | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/src/**`, `/backend/src/**`, `CLAUDE.md`, `/_design`, root-level docs |
-| Bastion 🛡️ | `/backend/tests/` | `/backend/src/**` (Atlas owns), `/src/**`, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
+| Forge ⚙️ | `.github/workflows/`, `/backend/src/` (security middleware, rate limiting, infrastructure-level backend concerns only) | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `/src/**`, `CLAUDE.md`, `/_design`, root-level docs |
+| Bastion 🛡️ | `/backend/tests/` | `/backend/src/**`, `/src/**`, `/src/types/index.ts`, `CLAUDE.md`, `/_design`, root-level docs |
 | Rune 🔐 | *(none — cross-cutting security reviewer)* | owns nothing; reads all dirs, proposes fixes only — called before PRs touching auth, API key handling, model output rendering, or backend routes |
 | Vera ⚖️ | *(none — cross-cutting privacy advisor)* | owns nothing; reads all dirs, proposes fixes only — called when storage formats change, new data fields introduced, exports change, or analytics considered |
 | Gauge 👁️ | *(none — cross-cutting code reviewer)* | owns nothing; reads all dirs, proposes fixes only — called on request or before PRs with non-trivial logic changes or refactors |
