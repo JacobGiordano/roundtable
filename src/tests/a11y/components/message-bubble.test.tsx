@@ -508,6 +508,185 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
   });
 });
 
+// ─── Fix #471 — Split-button copy dropdown ARIA contract ────────────────────────
+//
+// #471 introduced a split-button pattern in NameplateCopyButton:
+//   • Primary button: copies markdown, aria-label="Copy message as markdown"
+//   • Chevron button: opens dropdown, aria-label="More copy options",
+//     aria-expanded (tracks open state), aria-haspopup="menu"
+//   • Dropdown: role="menu" + aria-label="Copy options"
+//   • Menu items: role="menuitem"
+//
+// WCAG criteria:
+//   2.1.1 — Keyboard: chevron button opens dropdown (Enter/Space); Escape closes.
+//   4.1.2 — Name, Role, Value: all buttons have accessible names; menu/menuitem
+//            roles are set correctly; aria-expanded reflects state.
+//   2.4.7 — Focus Visible: focus-visible:ring-2 classes on all interactive elements.
+//   2.4.3 — Focus Order: Escape moves focus back to chevron trigger.
+
+describe('MessageBubble — #471: copy split-button ARIA (WCAG 4.1.2, 2.1.1)', () => {
+  it('has no axe violations — completed assistant bubble with copy split-button', async () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  // Primary copy button: carries the markdown copy action and an accessible name.
+  // aria-label="Copy message as markdown" is the accessible name — matches /copy message/i.
+  it('primary copy button has accessible name "Copy message as markdown" (WCAG 4.1.2)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const primaryBtn = screen.getByRole('button', { name: /copy message as markdown/i });
+    expect(primaryBtn).toBeTruthy();
+    expect(primaryBtn.tagName).toBe('BUTTON');
+    expect(primaryBtn.getAttribute('type')).toBe('button');
+  });
+
+  // Chevron button: opens the dropdown. Must have an accessible name.
+  // aria-label="More copy options" is the accessible name.
+  it('chevron trigger button has accessible name "More copy options" (WCAG 4.1.2)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
+    expect(chevronBtn).toBeTruthy();
+    expect(chevronBtn.tagName).toBe('BUTTON');
+    expect(chevronBtn.getAttribute('type')).toBe('button');
+  });
+
+  // aria-haspopup="menu" on the chevron tells AT that activating it opens a menu.
+  // This is the correct value per WAI-ARIA APG menu button pattern.
+  it('chevron trigger has aria-haspopup="menu" (WCAG 4.1.2)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
+    expect(chevronBtn.getAttribute('aria-haspopup')).toBe('menu');
+  });
+
+  // aria-expanded must be "false" when the dropdown is closed (initial state).
+  // AT reads this to understand the current disclosure state before activating.
+  it('chevron trigger has aria-expanded="false" when dropdown is closed (WCAG 4.1.2)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
+    // Initial state: dropdown is closed → aria-expanded must be false.
+    expect(chevronBtn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // focus-visible: classes on both split-button parts — keyboard focus ring is wired
+  // to keyboard-only interaction, not mouse clicks (WCAG 2.4.7 — Focus Visible).
+  it('both split-button parts carry focus-visible ring classes (WCAG 2.4.7)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const primaryBtn = screen.getByRole('button', { name: /copy message as markdown/i });
+    const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
+
+    expect(primaryBtn.className).toContain('focus-visible:ring-2');
+    expect(primaryBtn.className).toContain('focus-visible:outline-none');
+    expect(chevronBtn.className).toContain('focus-visible:ring-2');
+    expect(chevronBtn.className).toContain('focus-visible:outline-none');
+  });
+
+  // The dropdown (role="menu") is not rendered in the initial state — it is only
+  // inserted into the DOM when copyDropdownOpen is true. Confirm it is absent at rest
+  // so AT does not encounter a hidden menu unexpectedly.
+  it('dropdown menu is absent from DOM when closed (WCAG 4.1.2)', () => {
+    const { container } = render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    // role="menu" element must not exist while the dropdown is closed.
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  // The chevron SVG icon is decorative — the accessible name of the trigger button
+  // comes from aria-label="More copy options", not from SVG path data. Icon must be
+  // aria-hidden to prevent screen readers from announcing SVG internals.
+  it('chevron SVG icon is aria-hidden (WCAG 1.3.1)', () => {
+    render(
+      <MessageBubble
+        message={COMPLETED_ASSISTANT_MESSAGE}
+        modelConfig={CLAUDE_CONFIG}
+        tokenCountVisibility="never"
+      />
+    );
+    const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
+    const icon = chevronBtn.querySelector('svg');
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  // The copy dropdown is only meaningful for messages with markdown content.
+  // For error-only messages (content='' or 'Error'), hasMarkdownContent is false
+  // and only the primary button is rendered (no chevron, no dropdown trigger).
+  it('chevron trigger is absent on error-only (sentinel) messages (WCAG 4.1.2)', () => {
+    const SENTINEL_MSG: Message = {
+      id: 'msg-sentinel-drop',
+      role: 'assistant',
+      modelId: 'claude',
+      content: 'Error',
+      timestamp: 1_700_000_050_000,
+      isStreaming: false,
+    };
+    render(
+      <MessageBubble
+        message={SENTINEL_MSG}
+        modelConfig={CLAUDE_CONFIG}
+        error={{ modelId: 'claude', message: 'Rate limit', code: 'rate_limit' }}
+        tokenCountVisibility="never"
+      />
+    );
+    // Chevron "More copy options" must not be in the DOM for error-only messages.
+    const chevronBtn = screen.queryByRole('button', { name: /more copy options/i });
+    expect(chevronBtn).toBeNull();
+  });
+
+  // axe on user message — no model copy buttons should cause violations.
+  it('has no axe violations — user message (copy split-button variant)', async () => {
+    const { container } = render(
+      <MessageBubble
+        message={USER_MESSAGE}
+        tokenCountVisibility="never"
+      />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});
+
 // ─── Fix #275 — Custom provider hex accent color (WCAG 4.1.2, 1.4.3) ─────────
 //
 // resolveAccentCssColor() was added to handle ModelConfig.color values that are
