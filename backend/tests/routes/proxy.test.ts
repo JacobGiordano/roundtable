@@ -1,15 +1,22 @@
 /**
- * tests/routes/proxy.test.ts — Anthropic proxy route tests.
+ * tests/routes/proxy.test.ts — Anthropic proxy route tests (#472).
  *
  * Covers POST /api/proxy/anthropic/v1/messages (and any sub-path).
  *
- * Design notes carried from anthropicProxy.ts:
- *   - The proxy does NOT authenticate callers. The Anthropic API key is the
- *     access credential. Unauthenticated access is INTENTIONAL. See security
- *     notes in anthropicProxy.ts.
- *   - The x-api-key header from the browser request is forwarded verbatim to
- *     Anthropic. The proxy never stores or logs it.
- *   - Network errors from Anthropic return 502.
+ * Auth contract (wave 5 / #441):
+ *   requireAuth middleware was added to the proxy route in wave 5 (#441).
+ *   Unauthenticated requests now return 401. All test cases that exercise
+ *   the proxy handler itself include a valid JWT obtained via loginAs().
+ *
+ *   If the auth requirement is removed in future, update:
+ *     - createTestApp.ts (remove requireAuth from the proxy mount)
+ *     - the auth-enforcement describe block below
+ *
+ * Rate limit contract:
+ *   The production route applies a 60 req/60s per-IP rate limiter
+ *   (proxyRateLimiter in index.ts). The limiter's skip() flag returns true
+ *   when NODE_ENV=test, so 429 behaviour cannot be exercised in this suite.
+ *   The contract is documented in the dedicated describe block at the bottom.
  *
  * Fetch stubbing:
  *   vi.stubGlobal('fetch', vi.fn()) replaces the global fetch for the duration
@@ -18,10 +25,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createTestApp } from '../helpers/createTestApp';
-import { clearDatabase } from '../helpers/createTestApp';
+import { createTestApp, clearDatabase } from '../helpers/createTestApp';
+import { insertUser, loginAs } from '../helpers/fixtures';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 /**
  * Build a minimal fake Response object that satisfies the fetch Response API
@@ -66,56 +73,23 @@ function makeFakeResponse(
   } as unknown as Response;
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// --- Auth enforcement --------------------------------------------------------
 
-describe('POST /api/proxy/anthropic/* — route exists', () => {
-  let app: ReturnType<typeof createTestApp>;
-
-  beforeEach(() => {
-    clearDatabase();
-    app = createTestApp();
-    // Stub fetch so no real network call is made.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        makeFakeResponse(200, JSON.stringify({ id: 'msg_test', type: 'message' })),
-      ),
-    );
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('POST /api/proxy/anthropic/v1/messages returns non-404', async () => {
-    const res = await app.request
-      .post('/api/proxy/anthropic/v1/messages')
-      .send({ model: 'claude-3-haiku-20240307', messages: [] });
-    // The proxy forwards to Anthropic — as long as it is mounted correctly,
-    // the status will NOT be 404 (even if Anthropic's fake response returns 4xx).
-    expect(res.status).not.toBe(404);
-  });
-});
-
-describe('POST /api/proxy/anthropic/* — unauthenticated access is intentional', () => {
+describe('POST /api/proxy/anthropic/* -- auth enforcement (wave 5 / #441)', () => {
   /**
-   * DOCUMENTED DESIGN DECISION:
-   *   The Anthropic proxy route does NOT require a JWT. The Anthropic API key
-   *   passed in x-api-key is the sole access credential — the proxy trusts the
-   *   upstream Anthropic authorization model.
+   * requireAuth was added to the proxy route in wave 5 (#441).
+   * All requests without a valid Bearer token must return 401.
    *
-   *   This is intentional for single-user self-hosted deployments. In a
-   *   multi-user deployment, add requireAuth middleware to this route in
-   *   index.ts (and createTestApp.ts). See anthropicProxy.ts security notes.
-   *
-   *   If this test starts returning 401, the intentional design has changed —
-   *   update this comment and the createTestApp mount accordingly.
+   * If these tests start returning non-401 for unauthenticated requests,
+   * auth has been removed from the proxy route -- update createTestApp.ts
+   * and this describe block, and re-evaluate the security posture.
    */
   let app: ReturnType<typeof createTestApp>;
 
   beforeEach(() => {
     clearDatabase();
     app = createTestApp();
+    // Stub fetch so any requests that bypass auth do not hit the network.
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -128,58 +102,71 @@ describe('POST /api/proxy/anthropic/* — unauthenticated access is intentional'
     vi.unstubAllGlobals();
   });
 
-  it('returns non-401 with no Authorization header — no auth required by design', async () => {
+  it('returns 401 with no Authorization header', async () => {
     const res = await app.request
       .post('/api/proxy/anthropic/v1/messages')
-      // No Authorization header — intentionally unauthenticated.
       .send({ model: 'claude-3-haiku-20240307', messages: [] });
-    // INTENTIONAL: proxy is unauthenticated. If this starts returning 401,
-    // auth has been added to the proxy route — update this test.
-    expect(res.status).not.toBe(401);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthorized');
+  });
+
+  it('returns 401 with a malformed Bearer token', async () => {
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', 'Bearer not-a-valid-jwt')
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthorized');
+  });
+
+  it('returns 401 with a non-Bearer scheme', async () => {
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', 'Basic dXNlcjpwYXNz')
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('unauthorized');
   });
 });
 
-describe('POST /api/proxy/anthropic/* — upstream network error returns 502', () => {
-  let app: ReturnType<typeof createTestApp>;
+// --- Authenticated access ----------------------------------------------------
 
-  beforeEach(() => {
+describe('POST /api/proxy/anthropic/* -- authenticated access', () => {
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
     clearDatabase();
     app = createTestApp();
-  });
+    insertUser(app.db, 'alice', 'hunter2');
+    token = await loginAs(app.request, 'alice', 'hunter2');
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('returns 502 when the upstream fetch throws a network error', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockRejectedValue(new Error('ECONNREFUSED — upstream unreachable')),
+      vi.fn().mockResolvedValue(
+        makeFakeResponse(200, JSON.stringify({ id: 'msg_test', type: 'message' })),
+      ),
     );
-
-    const res = await app.request
-      .post('/api/proxy/anthropic/v1/messages')
-      .send({ model: 'claude-3-haiku-20240307', messages: [] });
-
-    expect(res.status).toBe(502);
-    expect(res.body.error).toBeDefined();
-    expect(res.body.error.type).toBe('proxy_error');
-  });
-});
-
-describe('POST /api/proxy/anthropic/* — passes through Anthropic response body', () => {
-  let app: ReturnType<typeof createTestApp>;
-
-  beforeEach(() => {
-    clearDatabase();
-    app = createTestApp();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('relays the Anthropic response body to the caller', async () => {
+  it('returns non-404 with a valid JWT -- route is mounted and reachable', async () => {
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    // The route is correctly mounted -- it does not 404.
+    expect(res.status).not.toBe(404);
+  });
+
+  it('returns 200 and relays the Anthropic response body', async () => {
     const anthropicPayload = {
       id: 'msg_abc123',
       type: 'message',
@@ -190,30 +177,82 @@ describe('POST /api/proxy/anthropic/* — passes through Anthropic response body
 
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        makeFakeResponse(200, JSON.stringify(anthropicPayload)),
-      ),
+      vi.fn().mockResolvedValue(makeFakeResponse(200, JSON.stringify(anthropicPayload))),
     );
 
     const res = await app.request
       .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
       .send({ model: 'claude-3-haiku-20240307', messages: [] });
 
     expect(res.status).toBe(200);
-    // The proxy pipes bytes directly — the body arrives as the Anthropic payload.
     const parsed = typeof res.body === 'object' ? res.body : JSON.parse(res.text);
     expect(parsed.id).toBe('msg_abc123');
     expect(parsed.type).toBe('message');
   });
 });
 
-describe('POST /api/proxy/anthropic/* — x-api-key header forwarded to Anthropic', () => {
-  let app: ReturnType<typeof createTestApp>;
-  let fetchStub: ReturnType<typeof vi.fn>;
+// --- Upstream network error --------------------------------------------------
 
-  beforeEach(() => {
+describe('POST /api/proxy/anthropic/* -- upstream network error returns 502', () => {
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
     clearDatabase();
     app = createTestApp();
+    insertUser(app.db, 'alice', 'hunter2');
+    token = await loginAs(app.request, 'alice', 'hunter2');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns 502 with error.type=proxy_error when upstream fetch throws', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new Error('ECONNREFUSED -- upstream unreachable')),
+    );
+
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBeDefined();
+    expect(res.body.error.type).toBe('proxy_error');
+  });
+
+  it('502 body includes the upstream error message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new Error('ETIMEDOUT')),
+    );
+
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error.message).toContain('ETIMEDOUT');
+  });
+});
+
+// --- Header forwarding -------------------------------------------------------
+
+describe('POST /api/proxy/anthropic/* -- header forwarding to upstream', () => {
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+  let fetchStub: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'hunter2');
+    token = await loginAs(app.request, 'alice', 'hunter2');
 
     fetchStub = vi.fn().mockResolvedValue(
       makeFakeResponse(200, JSON.stringify({ id: 'msg_forwarded', type: 'message' })),
@@ -225,35 +264,185 @@ describe('POST /api/proxy/anthropic/* — x-api-key header forwarded to Anthropi
     vi.unstubAllGlobals();
   });
 
-  it('forwards x-api-key from the request to the upstream Anthropic call', async () => {
+  it('forwards x-api-key from the caller to the upstream Anthropic call', async () => {
     const userApiKey = 'sk-ant-test-key-12345';
 
     await app.request
       .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
       .set('x-api-key', userApiKey)
       .send({ model: 'claude-3-haiku-20240307', messages: [] });
 
-    // The stub must have been called exactly once.
     expect(fetchStub).toHaveBeenCalledOnce();
-
-    // Extract the headers argument passed to fetch.
     const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
     const headers = fetchInit.headers as Record<string, string>;
-
     expect(headers['x-api-key']).toBe(userApiKey);
   });
 
-  it('does not forward x-api-key when the request omits it', async () => {
+  it('does not forward x-api-key when the caller omits it', async () => {
     await app.request
       .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
       // No x-api-key header.
       .send({ model: 'claude-3-haiku-20240307', messages: [] });
 
     expect(fetchStub).toHaveBeenCalledOnce();
     const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
     const headers = fetchInit.headers as Record<string, string>;
-
-    // When no key is provided, the header must not appear in the forwarded request.
     expect(headers['x-api-key']).toBeUndefined();
+  });
+
+  it('forwards anthropic-version when present', async () => {
+    await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .set('anthropic-version', '2023-06-01')
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(fetchStub).toHaveBeenCalledOnce();
+    const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
+    const headers = fetchInit.headers as Record<string, string>;
+    expect(headers['anthropic-version']).toBe('2023-06-01');
+  });
+
+  it('does not forward anthropic-version when the caller omits it', async () => {
+    await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(fetchStub).toHaveBeenCalledOnce();
+    const [, fetchInit] = fetchStub.mock.calls[0] as [string, RequestInit];
+    const headers = fetchInit.headers as Record<string, string>;
+    expect(headers['anthropic-version']).toBeUndefined();
+  });
+});
+
+// --- URL construction --------------------------------------------------------
+
+describe('POST /api/proxy/anthropic/* -- upstream URL construction', () => {
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+  let fetchStub: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'hunter2');
+    token = await loginAs(app.request, 'alice', 'hunter2');
+
+    fetchStub = vi.fn().mockResolvedValue(
+      makeFakeResponse(200, JSON.stringify({ id: 'msg_url', type: 'message' })),
+    );
+    vi.stubGlobal('fetch', fetchStub);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('forwards to https://api.anthropic.com/v1/messages for the standard endpoint', async () => {
+    await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(fetchStub).toHaveBeenCalledOnce();
+    const [url] = fetchStub.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.anthropic.com/v1/messages');
+  });
+});
+
+// --- Upstream non-200 passthrough --------------------------------------------
+
+describe('POST /api/proxy/anthropic/* -- upstream non-200 status passthrough', () => {
+  /**
+   * When Anthropic returns a 4xx or 5xx, the proxy must relay that status
+   * verbatim to the caller rather than masking it as 200 or converting to 502.
+   * 502 is reserved for fetch() failures (network errors / DNS failures).
+   */
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'hunter2');
+    token = await loginAs(app.request, 'alice', 'hunter2');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('relays 429 from Anthropic when the upstream API key is rate-limited', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeFakeResponse(429, JSON.stringify({ error: { type: 'rate_limit_error' } })),
+      ),
+    );
+
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(429);
+  });
+
+  it('relays 401 from Anthropic when the x-api-key is invalid', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeFakeResponse(401, JSON.stringify({ error: { type: 'authentication_error' } })),
+      ),
+    );
+
+    // requireAuth already passed (our JWT is valid) -- this 401 is from Anthropic upstream.
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('relays 500 from Anthropic when the upstream has a server error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeFakeResponse(500, JSON.stringify({ error: { type: 'api_error' } })),
+      ),
+    );
+
+    const res = await app.request
+      .post('/api/proxy/anthropic/v1/messages')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ model: 'claude-3-haiku-20240307', messages: [] });
+
+    expect(res.status).toBe(500);
+  });
+});
+
+// --- Rate limit contract (documented) ----------------------------------------
+
+describe('POST /api/proxy/anthropic/* -- rate limit contract (documented, not exercised)', () => {
+  /**
+   * DOCUMENTED DESIGN:
+   *   The production proxy route (index.ts line 94) applies proxyRateLimiter:
+   *   60 requests per 60s per IP, returning HTTP 429 with { error: 'too_many_requests' }
+   *   when exceeded.
+   *
+   *   The limiter's skip() flag returns true when NODE_ENV=test, so the 429
+   *   behaviour cannot be reproduced in this test environment.
+   *
+   *   The rate limiter is distinct from Anthropic's own per-key rate limit:
+   *   - proxyRateLimiter (ours): 60 req/60s per IP, { error: 'too_many_requests' }
+   *   - Anthropic upstream rate limit: relayed verbatim as a 429 from Anthropic
+   *     (tested above in "upstream non-200 passthrough")
+   */
+  it('rate limiter skip() is true in NODE_ENV=test -- 429 contract documented but not exercised here', () => {
+    expect(process.env['NODE_ENV']).toBe('test');
   });
 });

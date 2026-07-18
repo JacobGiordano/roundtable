@@ -404,6 +404,139 @@ describe('GET /conversations/:id — corrupt blob returns 500 (closes #476)', ()
   });
 });
 
+describe('PATCH /conversations/:id — corrupt blob returns 500 (#477)', () => {
+  /**
+   * The PATCH /:id handler reads the existing row and calls JSON.parse on its
+   * data blob before updating the archivedAt field inside the JSON. If the stored
+   * blob is not valid JSON, the try/catch (conversations.ts ~line 177) returns
+   * 500 { error: 'parse_error' }.
+   *
+   * This path is distinct from the GET /:id corrupt-blob test (filed as #476).
+   * PATCH has its own independent parse step. We seed the row directly to bypass
+   * PUT validation.
+   */
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'pw123');
+    token = await loginAs(app.request, 'alice', 'pw123');
+  });
+
+  it('returns 500 with error=parse_error when PATCH encounters a corrupt stored blob', async () => {
+    const now = Date.now();
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('corrupt-patch-conv', '{broken json[', 0, now, now);
+
+    const res = await app.request
+      .patch('/conversations/corrupt-patch-conv')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ archived: true });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+  });
+
+  it('includes a meaningful message string in the 500 response', async () => {
+    const now = Date.now();
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('corrupt-patch-conv-2', 'truncated data', 0, now, now);
+
+    const res = await app.request
+      .patch('/conversations/corrupt-patch-conv-2')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ archived: false });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('parse_error');
+    expect(typeof res.body.message).toBe('string');
+    expect(res.body.message.length).toBeGreaterThan(0);
+  });
+});
+
+describe('GET /conversations — corrupt rows are silently omitted from the list (#477)', () => {
+  /**
+   * The GET / list handler calls parseRow() on each row and filters out nulls
+   * (conversations.ts ~lines 35-41, ~71-73). A corrupt JSON blob does NOT cause
+   * a 500 in the list — it is silently dropped so the remaining list remains usable.
+   *
+   * This is the documented degradation contract: the list endpoint never 500s on
+   * corrupt individual rows. Only GET /:id and PATCH /:id (single-item paths)
+   * return 500 for a corrupt blob.
+   *
+   * This test guards the silent-omit behaviour from regressing into a crash or a
+   * 500 on the list endpoint.
+   */
+  let app: ReturnType<typeof createTestApp>;
+  let token: string;
+
+  beforeEach(async () => {
+    clearDatabase();
+    app = createTestApp();
+    insertUser(app.db, 'alice', 'pw123');
+    token = await loginAs(app.request, 'alice', 'pw123');
+  });
+
+  it('returns 200 and omits the corrupt row while keeping valid rows', async () => {
+    const now = Date.now();
+
+    // Insert one valid conversation via the PUT route.
+    const valid = makeConversation({ id: 'valid-list-conv', title: 'Valid' });
+    await app.request
+      .put(`/conversations/${valid.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(valid);
+
+    // Insert one corrupt row directly -- bypasses PUT validation.
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('corrupt-list-conv', '<<<not json>>>', 0, now, now);
+
+    const res = await app.request
+      .get('/conversations')
+      .set('Authorization', `Bearer ${token}`);
+
+    // List must succeed (200), not crash.
+    expect(res.status).toBe(200);
+
+    // Only the valid row appears -- the corrupt row is silently dropped.
+    const ids = (res.body as Array<{ id: string }>).map((c) => c.id);
+    expect(ids).toContain('valid-list-conv');
+    expect(ids).not.toContain('corrupt-list-conv');
+  });
+
+  it('returns an empty array when ALL stored rows are corrupt -- not a 500', async () => {
+    const now = Date.now();
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('all-corrupt-1', 'garbage', 0, now, now);
+    app.db
+      .prepare(
+        'INSERT INTO conversations (id, data, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('all-corrupt-2', 'also garbage', 0, now, now);
+
+    const res = await app.request
+      .get('/conversations')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 describe('SINGLE-TENANT DESIGN — cross-user access is permitted by design', () => {
   /**
    * This test documents an explicit design decision: the backend has no per-user
