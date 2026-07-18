@@ -45,9 +45,12 @@ export function createTestApp() {
 
   app.use(express.json());
 
-  // Anthropic proxy — no auth required (mirrors index.ts mount order).
+  // Anthropic proxy — JWT required (mirrors index.ts mount added in wave 5 / #441).
+  // The production mount also applies proxyRateLimiter, but that middleware skips
+  // itself in NODE_ENV=test via its skip() flag, so we do not add it here — omitting
+  // it keeps the test-app wiring simpler while producing identical observable behaviour.
   // Tests stub globalThis.fetch via vi.stubGlobal to avoid real network calls.
-  app.use('/api/proxy/anthropic', express.json({ limit: '2mb' }), anthropicProxyRouter);
+  app.use('/api/proxy/anthropic', requireAuth, express.json({ limit: '2mb' }), anthropicProxyRouter);
 
   // Auth routes — unprotected (mirrors index.ts mount order).
   app.use('/auth', authRouter);
