@@ -63,10 +63,14 @@ vi.mock('@/models', () => ({
   ],
 }));
 
-// @/auth mock: ModelSelectorPanel calls getModelAccentColors() on mount.
-// Return an empty object (no overrides) so we don't need real localStorage.
+// @/auth mock: ModelSelectorPanel calls getModelAccentColors() on mount
+// and getProviderRoster() at render time (#421) to determine which active
+// models have image generation capability.
+// Return sensible empty values — the image gen toggle section won't render,
+// which is correct for a test focused on the deprecation warning.
 vi.mock('@/auth', () => ({
   getModelAccentColors: vi.fn(() => ({})),
+  getProviderRoster: vi.fn(() => []),
 }));
 
 // jsdom does not implement matchMedia — stub it so components using
@@ -163,6 +167,7 @@ function renderPanelOpen() {
       onUpdateSystemPrompt={vi.fn()}
       onSelectModelVersion={vi.fn()}
       onClearModelVersion={vi.fn()}
+      onToggleImageGen={vi.fn()}
       sessionUsage={[]}
     />,
   );
