@@ -47,6 +47,12 @@ interface MessageThreadProps {
    * to InputBar, which populates the textarea and focuses it. Issue #341.
    */
   onSuggestionSelect?: (text: string) => void;
+  /**
+   * Called when the user clicks the "Add a model" affordance in the zero-models
+   * empty state (State A of ConversationEmptyState). Opens the ModelSelectorPanel.
+   * Issue #500.
+   */
+  onOpenModelSelector?: () => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -172,6 +178,7 @@ export function MessageThread({
   onExport,
   onEditMessage,
   onSuggestionSelect,
+  onOpenModelSelector,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Ref for the scrollable message list container. */
@@ -437,6 +444,7 @@ export function MessageThread({
         <ConversationEmptyState
           models={models}
           onSuggestionSelect={onSuggestionSelect ?? (() => {})}
+          onOpenModelSelector={onOpenModelSelector}
         />
       ) : (
         <>

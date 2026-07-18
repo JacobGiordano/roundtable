@@ -106,6 +106,20 @@ interface ModelSelectorPanelProps {
    * Spec: provider-settings.md §3.4.
    */
   onOpenProviderSettings?: () => void;
+  /**
+   * When true, the panel opens programmatically (e.g. triggered by clicking the
+   * empty-state CTA in ConversationEmptyState). The panel internally transitions
+   * to open state on the first render where this is true, then self-manages from
+   * user interaction. AppLayout resets this to false after the panel opens.
+   * Issue #500.
+   */
+  requestOpen?: boolean;
+  /**
+   * Called immediately after the panel processes a requestOpen=true trigger.
+   * AppLayout uses this to reset its requestOpen state to false.
+   * Issue #500.
+   */
+  onRequestOpenHandled?: () => void;
 }
 
 /**
@@ -125,6 +139,8 @@ export function ModelSelectorPanel({
   sessionUsage,
   tokenCountVisibility,
   onOpenProviderSettings,
+  requestOpen,
+  onRequestOpenHandled,
 }: ModelSelectorPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -154,6 +170,17 @@ export function ModelSelectorPanel({
   // Ref that mirrors openPickerModelId for the focus trap closure.
   // Using a ref avoids re-registering the document listener on every picker open/close.
   const openPickerModelIdRef = useRef<ModelId | null>(null);
+
+  // #500: Programmatic open — triggered by ConversationEmptyState CTA.
+  // When requestOpen flips to true, open the panel (same path as clicking the trigger)
+  // and immediately notify the parent so it can reset the flag.
+  useEffect(() => {
+    if (!requestOpen) return;
+    setIsClosing(false);
+    setIsOpen(true);
+    setAccentColors(getModelAccentColors());
+    onRequestOpenHandled?.();
+  }, [requestOpen, onRequestOpenHandled]);
 
   // Focus trap — WCAG 2.4.11 (Focus Not Obscured) / 2.1.2 (No Keyboard Trap).
   // When the panel is open it slides up and overlays the MessageThread area.

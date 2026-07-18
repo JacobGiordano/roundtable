@@ -3,7 +3,8 @@
  * shown in MessageThread when there are no messages yet.
  *
  * Three rendering states keyed on models.length:
- *   A (0 models) — defensive: "Select a model to get started"
+ *   A (0 models) — "Add a model to get started" button that opens ModelSelectorPanel.
+ *                  Issue #500: previously an unclickable heading; now a native button.
  *   B (1 model)  — beacon + model name + "Ask [Name] anything"
  *   C (2+ models) — beacon row + heading + subtext + 3 suggestion chips
  *
@@ -17,7 +18,7 @@
  *   - prefers-reduced-motion: both animations are suppressed by the overrides
  *     in index.css.
  *
- * Issue #341.
+ * Issue #341, #500.
  */
 
 import type { ModelConfig } from '@/types';
@@ -44,6 +45,12 @@ interface ConversationEmptyStateProps {
    * to InputBar, which populates the textarea and focuses it.
    */
   onSuggestionSelect: (text: string) => void;
+  /**
+   * Called when the user clicks the "Add a model to get started" button in
+   * State A (0 models). Opens the ModelSelectorPanel so the user can activate
+   * a model. Issue #500.
+   */
+  onOpenModelSelector?: () => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -76,6 +83,7 @@ function ModelBeacon({ model, index }: { model: ModelConfig; index: number }) {
 export function ConversationEmptyState({
   models,
   onSuggestionSelect,
+  onOpenModelSelector,
 }: ConversationEmptyStateProps) {
   const visibleModels = models.slice(0, MAX_VISIBLE_BEACONS);
   const overflowCount = Math.max(0, models.length - MAX_VISIBLE_BEACONS);
@@ -90,10 +98,36 @@ export function ConversationEmptyState({
       <div className="max-w-[480px] w-full text-center flex flex-col items-center empty-state-enter">
 
         {/* ── State A: no active models ───────────────────────────────── */}
+        {/* #500: Previously an unclickable heading. Now a native <button> so keyboard
+            users can activate it via Enter/Space without additional wiring. The button
+            opens the ModelSelectorPanel via onOpenModelSelector → AppLayout →
+            ModelSelectorPanel requestOpen. cursor-pointer makes the affordance clear. */}
         {models.length === 0 && (
-          <h2 className="text-[18px] font-semibold text-text-primary">
-            Select a model to get started
-          </h2>
+          <div className="flex flex-col items-center gap-4">
+            <h2 className="text-[18px] font-semibold text-text-primary">
+              No models active
+            </h2>
+            <button
+              type="button"
+              onClick={onOpenModelSelector}
+              className={[
+                'h-9 rounded-full px-5',
+                'flex items-center gap-2',
+                'border border-border bg-hover',
+                'text-[13px] font-medium text-text-secondary',
+                'hover:border-border-strong hover:bg-hover/80 hover:text-text-primary',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                'transition-[background-color,border-color,color] duration-fast',
+                'cursor-pointer',
+              ].join(' ')}
+            >
+              {/* Small plus icon — decorative, aria-hidden */}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Add a model to get started
+            </button>
+          </div>
         )}
 
         {/* ── State B: single model ───────────────────────────────────── */}
