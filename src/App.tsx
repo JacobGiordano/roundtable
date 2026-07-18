@@ -884,6 +884,19 @@ export default function App() {
     );
   }, []);
 
+  /**
+   * Sets or clears ModelConfig.imageGenerationEnabled for a model.
+   * Called by ImageGenToggleRow (via ModelSelectorPanel). Vault persists the
+   * updated ModelConfig automatically as part of the full models array.
+   */
+  const handleToggleImageGen = useCallback((modelId: ModelId, enabled: boolean) => {
+    setModels((prev) =>
+      prev.map((m) =>
+        m.modelId === modelId ? { ...m, imageGenerationEnabled: enabled } : m,
+      ),
+    );
+  }, []);
+
   const handleDirectedReply = useCallback((modelId: ModelId) => {
     setPendingTargetModelId(modelId);
   }, []);
@@ -1100,6 +1113,7 @@ export default function App() {
         onUpdateSystemPrompt: handleUpdateSystemPrompt,
         onSelectModelVersion: handleSelectModelVersion,
         onClearModelVersion: handleClearModelVersion,
+        onToggleImageGen: handleToggleImageGen,
         sessionUsage,
         // #340: fall back to pendingMode (not literal 'parallel') so the
         // mode switcher reflects the user's selection before any conversation exists.

@@ -101,6 +101,7 @@ const MODEL_SELECTOR_PROPS = {
   onUpdateSystemPrompt: noop,
   onSelectModelVersion: noop,
   onClearModelVersion: noop,
+  onToggleImageGen: noop,
   sessionUsage: [],
   tokenCountVisibility: 'never' as const,
 };
