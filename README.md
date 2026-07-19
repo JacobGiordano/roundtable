@@ -156,4 +156,4 @@ directory ownership rules, and how to submit changes.
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for non-commercial use. Commercial use prohibited.
