@@ -560,8 +560,10 @@ export default function App() {
       };
 
       // 3. Compose the updated conversation
+      // #526: Use current local `models` to avoid stale-roster race (same as normal path).
       updatedConversation = {
         ...truncated,
+        models,
         messages: [...truncated.messages, editedUserMessage],
       };
 
@@ -591,8 +593,14 @@ export default function App() {
       };
 
       // Build the updated conversation with the new user message.
+      // #526: Always use the current local `models` array (not conversationSnapshot.models)
+      // so that models added/removed since the last store.updateConversation settled are
+      // reflected. store.updateConversation is async — if the user adds a model and sends
+      // immediately, the snapshot's models may be stale, causing sendMessage to emit a
+      // "not active in conversation" error for the newly added model.
       updatedConversation = {
         ...conversationSnapshot,
+        models,
         messages: [...conversationSnapshot.messages, userMessage],
         updatedAt: Date.now(),
       };
@@ -923,8 +931,13 @@ export default function App() {
     // Build a conversation without the failed message. This is the base
     // handleMessageComplete will append the new response to, and the history
     // the retried provider will receive (so it does not see its own failed attempt).
+    // #526: Use current local `models` to avoid stale-roster race — mirrors the
+    // same fix applied to handleSend. store.updateConversation is async, so the
+    // store snapshot may have stale models if the user toggled or added a model
+    // between the original send and the retry.
     const conversationWithoutFailed: Conversation = {
       ...conversationSnapshot,
+      models,
       messages: conversationSnapshot.messages.filter((m) => m.id !== messageId),
       updatedAt: Date.now(),
     };
