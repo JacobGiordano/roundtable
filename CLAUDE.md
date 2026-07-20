@@ -81,6 +81,7 @@ the project.
 - Do not introduce new dependencies without noting them in the PR description
 - `npm run lint` and `npm run build` must pass before any PR is opened
 - **Each agent works exactly one issue per session, then stops and waits for explicit user authorization before starting the next one — no exceptions**
+- When an issue presents multiple implementation paths, run `git log --oneline --grep="<keyword>"` for relevant terms before choosing — prior decisions are often in commit messages and are authoritative
 
 ## Technical constraints
 
