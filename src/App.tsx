@@ -338,9 +338,26 @@ export default function App() {
   useEffect(() => {
     if (store.isLoading || !defaultsLoaded) return;
     if (defaultsAppliedRef.current) return;
-    if (defaults === null) return;
 
     defaultsAppliedRef.current = true;
+
+    if (defaults === null) {
+      // #528: No stored defaults (fresh install or cleared storage). Auto-activate
+      // the first model in the roster so the model selector doesn't open empty on
+      // first use. Without this, all models start inactive and the user must click
+      // "Add models" before the panel shows anything useful.
+      // Guard: only apply when no conversation is active (conversation seeding effect
+      // at line ~310 takes precedence when activeConversation is set).
+      if (!activeConversation) {
+        setModels((prev) => {
+          if (prev.length === 0 || prev.some((m) => m.isActive)) return prev; // already has active
+          return prev.map((m, i) => ({ ...m, isActive: i === 0 }));
+        });
+      }
+      return;
+    }
+
+    // Stored defaults exist — restore them.
     // Always seed pendingMode from defaults so new conversations inherit the
     // stored mode even when a previous conversation is already active.
     setPendingMode(defaults.interactionMode);
@@ -981,7 +998,7 @@ export default function App() {
       abortControllerRef.current = null;
       setIsPending(false);
     });
-  }, [store, getGhostConversation, saveGhostConversation, handleChunk]);
+  }, [store, getGhostConversation, saveGhostConversation, handleChunk, models]);
 
   // ── Ghost mode toggle ─────────────────────────────────────────────────────
   // Toggles the active conversation's ghost status via useGhostMode, and

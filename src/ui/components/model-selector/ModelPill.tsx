@@ -8,10 +8,16 @@
  * Last-active: clicking triggers a brief shake instead of deactivating.
  *
  * When onOpenColorPicker is provided (Model Selector Panel context only):
- * - Pill has position:relative and right padding of 28px.
- * - A palette icon button is absolutely positioned at right:8px.
+ * - Pill wrapper gains position:relative.
+ * - A palette icon button is absolutely positioned inside the pill at right:8px.
  * - Icon is opacity-0 normally, opacity-100 on pill hover/focus.
  * - If isOverrideActive, icon is always visible with the model's accent color.
+ *
+ * #528: Remove affordance — active pills show a small ×-dismiss button that
+ * appears as a hover-reveal sibling to the right of the pill. Clicking it
+ * deactivates the model. Suppressed on the last active model (shake instead).
+ * The dismiss button is tabIndex={-1}/aria-hidden (deactivation is keyboard-
+ * accessible via the pill's own role="switch" / Space key).
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -98,25 +104,23 @@ export function ModelPill({
 
   const isActive = model.isActive;
   const showPaletteIcon = Boolean(onOpenColorPicker);
+  // #528: Show dismiss × on active pills in selector context, unless it's the last.
+  const showDismiss = isActive && showPaletteIcon && !isLastActive;
 
   // Icon visibility: always-on if override is active, otherwise hover/focus only.
   const paletteIconOpacity = isOverrideActive || isPillHovered ? 1 : 0;
 
   // Icon color: when override is active, use the model's current accent CSS var.
-  // Per spec: "its color is var(--accent-{modelId})".
-  // The CSS custom property name for the model is: --accent-{baseId}
-  // e.g. "accent-claude", "accent-gpt", "accent-gemini", etc.
-  // ModelConfig.color already holds the CSS var name (e.g. "accent-claude").
   const paletteIconStyle: React.CSSProperties = isOverrideActive
     ? { color: `var(--${model.color ?? 'accent-other'})` }
     : {};
 
   return (
+    // Outer wrapper: inline-flex so the pill and dismiss × are siblings in a row.
+    // #528: group class enables group-hover:opacity-100 for the × button.
     <div
       className={[
-        // flex-shrink-0 prevents pill from compressing when inside the
-        // horizontally-scrollable pills row on narrow screens.
-        'relative inline-flex flex-shrink-0',
+        'relative inline-flex items-center flex-shrink-0',
         showPaletteIcon ? 'group' : '',
       ].join(' ')}
       onMouseEnter={() => showPaletteIcon && setIsPillHovered(true)}
@@ -132,7 +136,7 @@ export function ModelPill({
         onAnimationEnd={handleAnimationEnd}
         className={[
           'inline-flex items-center gap-2 h-8 rounded-full',
-          // Right padding: 28px in selector context (icon + gap), 12px otherwise.
+          // Right padding: 28px in selector context (palette icon + gap), 12px otherwise.
           showPaletteIcon ? 'pl-3 pr-7' : 'px-3',
           'text-[13px] font-medium',
           'border',
@@ -179,6 +183,33 @@ export function ModelPill({
           style={{ opacity: paletteIconOpacity, ...paletteIconStyle }}
         >
           <PaletteIcon />
+        </button>
+      )}
+
+      {/* #528: Dismiss × button — hover-reveal sibling to the right of the pill.
+          tabIndex={-1}: keyboard users deactivate via the pill's role="switch" (Space/Enter).
+          aria-hidden: the dismiss × is a mouse-assist duplicate of the switch affordance.
+          opacity-0 at rest → opacity-100 on group-hover (parent .group handles this).
+          Only rendered for active non-last pills in selector context. */}
+      {showDismiss && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden
+          onClick={(e) => { e.stopPropagation(); handleClick(); }}
+          className={[
+            'ml-0.5',
+            'w-[16px] h-[16px] flex-shrink-0 flex items-center justify-center',
+            'rounded-full',
+            'text-[11px] leading-none font-medium',
+            'text-text-muted hover:text-text-secondary hover:bg-hover',
+            'transition-[opacity,color,background-color] duration-fast',
+            'cursor-pointer',
+            'focus:outline-none',
+            isPillHovered ? 'opacity-100' : 'opacity-0',
+          ].join(' ')}
+        >
+          ×
         </button>
       )}
     </div>
