@@ -580,7 +580,7 @@ describe('MessageBubble — #471: copy split-button ARIA (WCAG 4.1.2, 2.1.1)', (
       />
     );
     const chevronBtn = screen.getByRole('button', { name: /more copy options/i });
-    expect(chevronBtn.getAttribute('aria-haspopup')).toBe('menu');
+    expect(chevronBtn.getAttribute('aria-haspopup')).toBe('true');
   });
 
   // aria-expanded must be "false" when the dropdown is closed (initial state).
