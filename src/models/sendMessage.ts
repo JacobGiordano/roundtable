@@ -595,6 +595,13 @@ async function runAutoChain(
       // enabled image gen for this model via the per-model toggle in Aria.
       const requestImageGeneration = imageGenEnabled.has(step.modelId);
 
+      // Emit a dispatch-time priming chunk so Aria renders a placeholder bubble
+      // immediately — matching the same guarantee runParallel gives. Without this,
+      // the UI shows no shimmer while a chain step is running, and a silent-drop
+      // occurs if the provider emits only a done chunk (e.g. image gen success path).
+      // Issue #526.
+      onChunk({ modelId: step.modelId, content: '', isDone: false });
+
       if (step.appendToContext) {
         // Wrap onChunk to accumulate the full response text for this step.
         const { handler, getText } = collectingChunkHandler(step.modelId, onChunk);

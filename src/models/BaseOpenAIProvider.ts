@@ -118,6 +118,11 @@ interface OpenAIStreamChunk {
 // This Set lives at the module level so it is allocated once, not per request.
 const MAX_COMPLETION_TOKENS_MODELS = new Set([
   'gpt-5.5',
+  // gpt-5.6 is the first/default version in MODEL_REGISTRY's availableVersions
+  // and requires max_completion_tokens rather than max_tokens. Omitting it caused
+  // a 400 API error whenever the user selected gpt-5.6 as their model version.
+  // Issue #525.
+  'gpt-5.6',
   'o3',
   'o1',
   'o1-mini',
