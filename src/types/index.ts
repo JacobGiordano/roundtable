@@ -342,25 +342,6 @@ export interface ModelConfig {
    * highlight the active option in the version picker.
    */
   selectedVersionId?: string;
-  /**
-   * Whether the user has opted in to image generation for this model in the
-   * current conversation.
-   *
-   * Default (absent / `undefined`) is `false` — image generation is off unless
-   * the user explicitly enables it via the per-model toggle in the UI.
-   *
-   * Aria stores the toggle state here when the user enables or disables image
-   * generation for this model. Atlas reads it in `sendMessage.ts` to decide
-   * whether to include image output modalities in the provider request (e.g.
-   * `responseModalities: ["TEXT", "IMAGE"]` for Gemini, or the equivalent for
-   * other providers). When `false` or absent, Atlas must not send image-generation
-   * parameters regardless of provider capability.
-   *
-   * This field is only meaningful for models whose `ProviderCapabilities.imageGeneration`
-   * is `true`. For all other models, Atlas ignores this field and never sends
-   * image-generation parameters.
-   */
-  imageGenerationEnabled?: boolean;
 }
 
 // ─── Provider roster — Gate stores, Aria renders, Atlas dispatches ────────────
