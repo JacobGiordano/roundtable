@@ -1,4 +1,4 @@
-Last updated: 2026-07-18 (ship: waves 6–9)
+Last updated: 2026-07-20 (ship: wave 10)
 
 ## Current phase
 
@@ -6,29 +6,30 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Waves 6–9 shipped. Issues closed: #421 #464 #471 #472 #473 #475 #477 #484 #485 #486 #487 #488 #492 #500 #517 #518 #519 #520
+Wave 10 shipped. Issues closed: #522 #523 #524 #525 #526 #528
 
-- **Wave 6** — Aria: imageGenerationEnabled toggle wired in ModelSelectorPanel; Ada: deprecation warning contrast tests promoted; Atlas: CORS_ORIGIN docs fixed
-- **Wave 7** — Arch: PricingConfig confirmed absent, Forge backend ownership fixed in CLAUDE.md; Quill: agent tables, Node version, PR/issue templates; Atlas: estimatedCost aggregation fixed in getSessionTokenUsage()
-- **Wave 8** — Quill: CONTRIBUTING.md + PR template agent list; Bastion: proxy auth tests rewritten (wave 5 contract was broken in test helper), corrupt-blob 500 paths; Scout: #473/#475 already done in wave 4
-- **Wave 9** — Aria+Ada: empty state recovery affordance (#500), split copy button with plain-text strip (#471), markdown table rendering via remark-gfm (#464)
+- **Arch**: removed `imageGenerationEnabled` from `ModelConfig` (#522 types)
+- **Atlas**: added `gpt-5.6` to `MAX_COMPLETION_TOKENS_MODELS` (root cause of #525 chain error); added autochain dispatch-time priming chunks (#526 models side)
+- **Aria**: removed `ImageGenToggleRow` and all wiring (#522 UI); portaled copy dropdown (#523); fixed table alternating row shading via imperative index (#524); fixed stale-conversation race in `handleSend`/`handleRetry` (#526 Aria side); first-model auto-activation + dismiss affordance on active pills (#528)
+- **Ada**: cleared after one blocker fix — portal dropdown was using `role="menu"` without Arrow-key navigation; fixed by removing menu roles and moving focus to first portal button on open
 
 ## Key decisions
 
-- `align` attribute on GFM tables deferred — `sanitizeSchema` allows it but renderers don't forward to DOM; cosmetic only, not a WCAG violation
-- Forge now owns `/backend/src/` for security middleware/rate limiting/infra (CLAUDE.md updated); not a blank check over product logic
-- `stripMarkdown.ts` in `/src/ui/utils/` — regex-based, no new npm dep
-- #475 and #473 were already closed in wave 4 — closed retroactively this wave
+- `gpt-5.6` is the first/default GPT version and requires `max_completion_tokens` — omitting it caused 400s which triggered the retry path, producing the misleading "gpt-5.5 not active" error
+- autochain now emits priming chunks per step (parallel and directed already did); `priming-chunks.test.ts` comment is stale — Scout issue #529 filed
+- Portal dropdown pattern: plain buttons with focus-on-open, not `role="menu"` — avoids unimplemented Arrow-key obligation
+- `imageGenerationEnabled` fully removed from types and UI — always-on via roster capabilities is the authoritative path
 
 ## Open issues (priority order)
 
-- **#425 gpt-image-gen.test.ts** — pre-existing Atlas test failure; no filed issue; Atlas scope
+- **#529** — Scout: update stale autochain comment + add priming test (Scout)
 - **#463** — error state tone: auth vs rate-limit vs network (Aria)
-- **#493** — per-model max_tokens override for custom/generic providers (Atlas)
 - **#474** — MarkdownContent rehype plugin order regression test (Scout)
+- **#493** — per-model max_tokens override for custom/generic providers (Atlas)
 - **#494** — unbounded base64 attachment storage (Vault)
 - **#496/#495/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
 - **#497/#498/#499** — CI hardening wave (Forge)
+- **#527** — empty state visual polish (Luma → Aria)
 - **#501** — Luma ThinkingIndicator motion rows (Luma)
 
 ## Gotchas
@@ -37,5 +38,6 @@ Waves 6–9 shipped. Issues closed: #421 #464 #471 #472 #473 #475 #477 #484 #485
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically
 - DeepSeek deprecated 2026-07-24 — UI warning + registry flags in place
+- `gpt-image-gen.test.ts` pre-existing failure — Atlas scope, issue #425
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `cd /workspace` before git operations
