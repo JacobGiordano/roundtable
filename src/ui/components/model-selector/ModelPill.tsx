@@ -118,9 +118,12 @@ export function ModelPill({
   return (
     // Outer wrapper: inline-flex so the pill and dismiss × are siblings in a row.
     // #528: group class enables group-hover:opacity-100 for the × button.
+    // relative is on the pill button (not this div) so the palette icon's absolute right-2
+    // positions inside the pill's pr-7 padding area rather than relative to the full wrapper
+    // (which includes the × sibling and caused the palette icon to overlap it).
     <div
       className={[
-        'relative inline-flex items-center flex-shrink-0',
+        'inline-flex items-center flex-shrink-0',
         showPaletteIcon ? 'group' : '',
       ].join(' ')}
       onMouseEnter={() => showPaletteIcon && setIsPillHovered(true)}
@@ -135,7 +138,7 @@ export function ModelPill({
         onKeyDown={handleKeyDown}
         onAnimationEnd={handleAnimationEnd}
         className={[
-          'inline-flex items-center gap-2 h-8 rounded-full',
+          'relative inline-flex items-center gap-2 h-8 rounded-full',
           // Right padding: 28px in selector context (palette icon + gap), 12px otherwise.
           showPaletteIcon ? 'pl-3 pr-7' : 'px-3',
           'text-[13px] font-medium',

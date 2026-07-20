@@ -505,7 +505,11 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       let rowIndex = 0;
       const shadedChildren = React.Children.map(children, (child) => {
         if (!React.isValidElement(child)) return child;
-        const bgClass = rowIndex % 2 === 1 ? 'bg-hover/40' : '';
+        // bg-border-subtle provides visible but gentle alternating shading across all 7 themes.
+        // bg-hover/40 was invisible on dark themes (--interactive-hover at 40% = near-zero
+        // contrast on deep-navy/dark surfaces). bg-border-subtle maps to --border-subtle,
+        // a consistently distinct tint in every theme (e.g. #131E33 on Midnight, #EBEBEB on Chalk).
+        const bgClass = rowIndex % 2 === 1 ? 'bg-border-subtle' : '';
         rowIndex++;
         // Merge into the child's existing className (tr renderer sets border classes).
         const existingClass = (child.props as { className?: string }).className ?? '';
