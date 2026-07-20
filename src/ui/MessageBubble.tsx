@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -600,7 +601,14 @@ function MessageBubbleBase({
   // #471: Copy dropdown state — tracks which copy option was last used and whether
   // the dropdown is open. 'markdown' is the default (preserves existing muscle memory).
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  // #523: chevronRef tracks the chevron button for portal dropdown positioning.
+  // portalDropdownRef tracks the portaled dropdown div for click-outside detection.
+  // Both refs are needed since the dropdown renders in document.body (escaping overflow:hidden).
   const copyDropdownRef = useRef<HTMLDivElement>(null);
+  const chevronRef = useRef<HTMLButtonElement>(null);
+  const portalDropdownRef = useRef<HTMLDivElement>(null);
+  // #523: dropdown position — computed from chevron button's bounding rect when opened.
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   // #400 — Timestamp refresh on interaction.
   // A simple counter bumped on mouseenter forces useMemo to recompute the formatted time.
@@ -688,13 +696,19 @@ function MessageBubbleBase({
     });
   }, [message.content, error?.message, copyState]);
 
-  // #471: Close the copy dropdown when clicking outside it or pressing Escape.
+  // #471/#523: Close the copy dropdown when clicking outside it or pressing Escape.
   // Escape is the standard ARIA menu close key; it also moves focus back to the
   // chevron trigger (WCAG 2.4.3 Focus Order).
+  // #523: The dropdown now renders in a portal — use portalDropdownRef (the portaled
+  // div) and the outer copyDropdownRef wrapper for click-outside detection.
   useEffect(() => {
     if (!copyDropdownOpen) return;
     const handleMouseDown = (e: MouseEvent) => {
-      if (copyDropdownRef.current && !copyDropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Close if click is outside both the trigger wrapper and the portaled dropdown.
+      const outsideWrapper = !copyDropdownRef.current?.contains(target);
+      const outsidePortal = !portalDropdownRef.current?.contains(target);
+      if (outsideWrapper && outsidePortal) {
         setCopyDropdownOpen(false);
       }
     };
@@ -702,9 +716,9 @@ function MessageBubbleBase({
       if (e.key === 'Escape') {
         e.preventDefault();
         setCopyDropdownOpen(false);
-        // Return focus to the chevron trigger (first focusable sibling after the copy icon).
-        const chevron = copyDropdownRef.current?.querySelectorAll<HTMLButtonElement>('button')[1];
-        chevron?.focus();
+        // Return focus to the chevron trigger via chevronRef (#523: no longer
+        // navigating the DOM tree since the dropdown is portaled out).
+        chevronRef.current?.focus();
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
@@ -753,7 +767,12 @@ function MessageBubbleBase({
   //
   // #471: Split-button pattern — single click copies markdown (existing default behaviour);
   // the small chevron button opens a 2-item dropdown with "Markdown" and "Plain text" options.
-  // The dropdown is positioned absolutely inside a relative wrapper and closes on outside click.
+  //
+  // #523: The dropdown is rendered via createPortal into document.body so it escapes the
+  // bubble wrapper's overflow:hidden boundary. Position is computed from the chevron button's
+  // bounding rect each time the dropdown opens. chevronRef → position; portalDropdownRef →
+  // click-outside detection (both needed since the dropdown is a DOM sibling of body, not
+  // a descendant of the bubble).
 
   function NameplateCopyButton({ additionalClassName = '' }: { additionalClassName?: string }) {
     // Show copy button when there is usable content OR when there is an error message
@@ -769,8 +788,67 @@ function MessageBubbleBase({
       ? 'opacity-100'
       : 'opacity-0 focus-visible:opacity-100 focus-within:opacity-100';
 
+    // #523: Compute and store dropdown position from the chevron's bounding rect.
+    const handleChevronClick = () => {
+      if (copyDropdownOpen) {
+        setCopyDropdownOpen(false);
+        setDropdownPos(null);
+      } else {
+        if (chevronRef.current) {
+          const rect = chevronRef.current.getBoundingClientRect();
+          // Position the dropdown above the chevron (bottom-full pattern), right-aligned.
+          setDropdownPos({ top: rect.top + window.scrollY, left: rect.right });
+        }
+        setCopyDropdownOpen(true);
+      }
+    };
+
+    // #523: Portal dropdown rendered in document.body with fixed positioning.
+    const portalDropdown = copyDropdownOpen && dropdownPos
+      ? createPortal(
+          <div
+            ref={portalDropdownRef}
+            role="menu"
+            aria-label="Copy options"
+            style={{
+              position: 'fixed',
+              // Place above the chevron: compute top from rect.top minus dropdown height.
+              // We don't know the height until render, so use a translateY trick instead:
+              // anchor to the chevron's top and shift up via transform.
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              transform: 'translate(-100%, -100%)',
+              zIndex: 9999,
+            }}
+            className={[
+              'min-w-[148px] py-1 rounded-md',
+              'bg-card border border-border shadow-md',
+              'text-[12px]',
+            ].join(' ')}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setCopyDropdownOpen(false); setDropdownPos(null); handleCopy(); }}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+            >
+              Copy as markdown
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { handleCopyPlainText(); setDropdownPos(null); }}
+              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+            >
+              Copy as plain text
+            </button>
+          </div>,
+          document.body,
+        )
+      : null;
+
     return (
-      // Relative wrapper for dropdown positioning.
+      // Wrapper div: ref for click-outside detection of the trigger area.
       <div
         ref={copyDropdownRef}
         className={[additionalClassName, 'relative flex items-center', visibilityClass, 'transition-opacity duration-fast'].join(' ')}
@@ -795,14 +873,16 @@ function MessageBubbleBase({
 
         {/* Chevron dropdown trigger — only shown when markdown content is available.
             For error-only messages, there is no meaningful distinction between
-            markdown and plain text, so the secondary trigger is suppressed. */}
+            markdown and plain text, so the secondary trigger is suppressed.
+            #523: ref={chevronRef} enables getBoundingClientRect() for portal positioning. */}
         {hasMarkdownContent && (
           <button
+            ref={chevronRef}
             type="button"
             aria-label="More copy options"
             aria-expanded={copyDropdownOpen}
             aria-haspopup="menu"
-            onClick={() => setCopyDropdownOpen((prev) => !prev)}
+            onClick={handleChevronClick}
             className={[
               'px-0.5 py-0.5 rounded-r flex items-center justify-center shrink-0',
               'text-text-secondary hover:bg-hover hover:text-text-primary',
@@ -817,36 +897,8 @@ function MessageBubbleBase({
           </button>
         )}
 
-        {/* Dropdown menu — absolute-positioned below the trigger group */}
-        {copyDropdownOpen && (
-          <div
-            role="menu"
-            aria-label="Copy options"
-            className={[
-              'absolute bottom-full right-0 mb-1 z-50',
-              'min-w-[148px] py-1 rounded-md',
-              'bg-card border border-border shadow-md',
-              'text-[12px]',
-            ].join(' ')}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setCopyDropdownOpen(false); handleCopy(); }}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-            >
-              Copy as markdown
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleCopyPlainText}
-              className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-            >
-              Copy as plain text
-            </button>
-          </div>
-        )}
+        {/* #523: Portal dropdown rendered into document.body — escapes overflow:hidden */}
+        {portalDropdown}
       </div>
     );
   }
