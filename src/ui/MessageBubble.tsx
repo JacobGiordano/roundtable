@@ -604,9 +604,12 @@ function MessageBubbleBase({
   // #523: chevronRef tracks the chevron button for portal dropdown positioning.
   // portalDropdownRef tracks the portaled dropdown div for click-outside detection.
   // Both refs are needed since the dropdown renders in document.body (escaping overflow:hidden).
+  // #523 follow-up: firstDropdownButtonRef receives focus when the dropdown opens
+  // (WCAG 2.4.3 Focus Order — keyboard users can Tab through both options).
   const copyDropdownRef = useRef<HTMLDivElement>(null);
   const chevronRef = useRef<HTMLButtonElement>(null);
   const portalDropdownRef = useRef<HTMLDivElement>(null);
+  const firstDropdownButtonRef = useRef<HTMLButtonElement>(null);
   // #523: dropdown position — computed from chevron button's bounding rect when opened.
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
@@ -729,6 +732,15 @@ function MessageBubbleBase({
     };
   }, [copyDropdownOpen]);
 
+  // #523 follow-up: Move focus to the first dropdown button when the dropdown opens.
+  // Without this, focus remains on the chevron and keyboard users cannot reach the
+  // portal buttons (they render in document.body, outside the normal Tab order).
+  useEffect(() => {
+    if (copyDropdownOpen) {
+      firstDropdownButtonRef.current?.focus();
+    }
+  }, [copyDropdownOpen]);
+
   // Entrance animation stagger via inline style
   const entranceDelay = `${entranceIndex * 100}ms`;
 
@@ -806,9 +818,12 @@ function MessageBubbleBase({
     // #523: Portal dropdown rendered in document.body with fixed positioning.
     const portalDropdown = copyDropdownOpen && dropdownPos
       ? createPortal(
+          // #523 follow-up: role="menu" removed — it requires Arrow-key navigation per
+          // WAI-ARIA APG §3.15 which these plain buttons don't implement. Plain buttons
+          // in DOM order are sufficient; Tab reaches them via firstDropdownButtonRef focus
+          // on open (see useEffect above). aria-label retained for screen reader context.
           <div
             ref={portalDropdownRef}
-            role="menu"
             aria-label="Copy options"
             style={{
               position: 'fixed',
@@ -827,8 +842,8 @@ function MessageBubbleBase({
             ].join(' ')}
           >
             <button
+              ref={firstDropdownButtonRef}
               type="button"
-              role="menuitem"
               onClick={() => { setCopyDropdownOpen(false); setDropdownPos(null); handleCopy(); }}
               className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
@@ -836,7 +851,6 @@ function MessageBubbleBase({
             </button>
             <button
               type="button"
-              role="menuitem"
               onClick={() => { handleCopyPlainText(); setDropdownPos(null); }}
               className="w-full text-left px-3 py-1.5 text-text-secondary hover:bg-hover hover:text-text-primary transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
             >
@@ -881,7 +895,7 @@ function MessageBubbleBase({
             type="button"
             aria-label="More copy options"
             aria-expanded={copyDropdownOpen}
-            aria-haspopup="menu"
+            aria-haspopup="true"
             onClick={handleChevronClick}
             className={[
               'px-0.5 py-0.5 rounded-r flex items-center justify-center shrink-0',
