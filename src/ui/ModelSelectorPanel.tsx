@@ -11,12 +11,10 @@ import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, Sessi
 // requiring static lists to be threaded through ModelConfig.
 import { MODEL_REGISTRY } from '@/models';
 import type { ModelRegistryEntry } from '@/models';
-// Gate cross-agent exceptions:
+// Gate cross-agent exception:
 // getModelAccentColors is called to seed the initial accentColors state and to
 // refresh it after any color save/clear triggered by AccentColorPicker.
-// getProviderRoster is read at render time to determine which active models have
-// imageGeneration capability — same pattern as InputBar.tsx's vision check (#285).
-import { getModelAccentColors, getProviderRoster } from '@/auth';
+import { getModelAccentColors } from '@/auth';
 import { AccentColorPicker } from './AccentColorPicker';
 
 // #146: sub-components extracted from ModelSelectorPanel.tsx for maintainability.
@@ -25,7 +23,6 @@ import { AddModelButton } from './components/model-selector/AddModelButton';
 import { SystemPromptRow } from './components/model-selector/SystemPromptRow';
 import { ModelVersionRow } from './components/model-selector/ModelVersionRow';
 import { SessionTokenSection } from './components/model-selector/SessionTokenSection';
-import { ImageGenToggleRow } from './components/model-selector/ImageGenToggleRow';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,13 +91,6 @@ interface ModelSelectorPanelProps {
    */
   tokenCountVisibility?: TokenCountVisibility;
   /**
-   * Called when the user toggles image generation for a model.
-   * Sets or clears ModelConfig.imageGenerationEnabled. Only fired for models
-   * whose ProviderCapabilities.imageGeneration === true (enforced by the section
-   * render condition — the row never mounts for non-capable models).
-   */
-  onToggleImageGen: (modelId: ModelId, enabled: boolean) => void;
-  /**
    * Called when the user clicks the "Add providers" chip in the no-providers state.
    * Opens the ProviderSettingsPanel. UI-internal prop — not in types/index.ts.
    * Spec: provider-settings.md §3.4.
@@ -135,7 +125,6 @@ export function ModelSelectorPanel({
   onUpdateSystemPrompt,
   onSelectModelVersion,
   onClearModelVersion,
-  onToggleImageGen,
   sessionUsage,
   tokenCountVisibility,
   onOpenProviderSettings,
@@ -353,26 +342,6 @@ export function ModelSelectorPanel({
     (m) => m.systemPrompt && m.systemPrompt.trim().length > 0,
   ).length;
 
-  // Compute the set of active model IDs that have imageGeneration capability.
-  // Reads the provider roster synchronously at render time — same pattern as
-  // InputBar.tsx's getNonVisionModelNames() vision check (#285). Safe because
-  // the roster cannot change while the panel is open.
-  const imageGenCapableModelIds = (() => {
-    const roster = getProviderRoster();
-    return new Set<ModelId>(
-      activeModels
-        .filter((m) => {
-          const config = roster.find((r) =>
-            r.kind === 'builtin' ? r.modelId === m.modelId : r.id === m.modelId,
-          );
-          return config?.capabilities?.imageGeneration === true;
-        })
-        .map((m) => m.modelId),
-    );
-  })();
-
-  const imageGenModels = activeModels.filter((m) => imageGenCapableModelIds.has(m.modelId));
-
   // Collect deprecated active models by consulting MODEL_REGISTRY via the lookup map.
   // Uses entry.deprecated === true flag — not hardcoded model IDs — so any future
   // deprecated provider is picked up automatically.
@@ -514,27 +483,6 @@ export function ModelSelectorPanel({
               </div>
             );
           })()}
-
-          {/* ── Image generation section ──
-               Only rendered when at least one active model has imageGeneration capability.
-               The toggle sets/clears ModelConfig.imageGenerationEnabled; Vault persists
-               it as part of the full ModelConfig. Atlas reads it at send time. */}
-          {imageGenModels.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-border-subtle">
-              <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
-                Image generation
-              </p>
-              <div className="rounded-md border border-border-subtle overflow-hidden">
-                {imageGenModels.map((model) => (
-                  <ImageGenToggleRow
-                    key={model.modelId}
-                    model={model}
-                    onToggle={onToggleImageGen}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ── System prompts section ── */}
           <div className="mt-4 pt-4 border-t border-border-subtle">

@@ -167,7 +167,6 @@ function renderPanelOpen() {
       onUpdateSystemPrompt={vi.fn()}
       onSelectModelVersion={vi.fn()}
       onClearModelVersion={vi.fn()}
-      onToggleImageGen={vi.fn()}
       sessionUsage={[]}
     />,
   );
