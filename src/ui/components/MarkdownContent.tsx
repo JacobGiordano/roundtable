@@ -23,7 +23,7 @@
  * Rune review required before this ships: this component renders untrusted model output.
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 // #417: rehypeHighlight restores syntax highlighting in completed code blocks.
@@ -497,11 +497,27 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       );
     },
     tbody({ children }) {
-      return <tbody>{children}</tbody>;
+      // #524: Tailwind's even: variant doesn't fire on <tr> elements rendered through
+      // ReactMarkdown custom components — the CSS :nth-child pseudo-class runs against
+      // the browser DOM, but the component tree is re-evaluated in React's reconciler
+      // first, causing the selector to miss. Fix: enumerate children imperatively via
+      // React.Children.map and assign the shading class based on the 0-indexed position.
+      let rowIndex = 0;
+      const shadedChildren = React.Children.map(children, (child) => {
+        if (!React.isValidElement(child)) return child;
+        const bgClass = rowIndex % 2 === 1 ? 'bg-hover/40' : '';
+        rowIndex++;
+        // Merge into the child's existing className (tr renderer sets border classes).
+        const existingClass = (child.props as { className?: string }).className ?? '';
+        return React.cloneElement(child as React.ReactElement<{ className?: string }>, {
+          className: [existingClass, bgClass].filter(Boolean).join(' '),
+        });
+      });
+      return <tbody>{shadedChildren}</tbody>;
     },
     tr({ children }) {
       return (
-        <tr className="border-b border-border-subtle odd:bg-transparent even:bg-hover/40">
+        <tr className="border-b border-border-subtle">
           {children}
         </tr>
       );
