@@ -626,6 +626,23 @@ export interface CustomProviderConfig {
    */
   requiresApiKey?: boolean;
   /**
+   * Maximum number of tokens to request in the `max_tokens` field of the API
+   * request body sent to this provider's endpoint.
+   *
+   * When absent, Atlas falls back to `MAX_TOKENS_GENERIC` (8192). Override
+   * this when the provider's model has a context window smaller or larger than
+   * that default:
+   *
+   * - Ollama models with 2k context windows error if `max_tokens` exceeds the
+   *   context length — set this to 2048 (or lower) to match the model's limit.
+   * - 128k-context models are unnecessarily capped at 8k without this override —
+   *   set this to a higher value to unlock their full output capacity.
+   *
+   * All existing `CustomProviderConfig` records without this field remain valid;
+   * no migration is needed. Atlas treats absence as `MAX_TOKENS_GENERIC`.
+   */
+  maxTokens?: number;
+  /**
    * Declared feature capabilities of this provider endpoint.
    *
    * Optional — absence means "no explicit overrides; Atlas uses its built-in

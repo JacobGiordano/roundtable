@@ -41,8 +41,8 @@
  *
  * Generic (custom OpenAI-compatible providers)
  *   Unknown endpoint — use 8 192 as a safe conservative default.
- *   Per the note in generic.ts, per-provider overrides via CustomProviderConfig
- *   are a future phase extension.
+ *   Per-provider overrides are supported via CustomProviderConfig.maxTokens (issue #493).
+ *   When that field is set, GenericOpenAIProvider uses it instead of this constant.
  */
 
 /** Anthropic Claude 4 series — 16 000 output tokens (sonnet-4 ceiling). */

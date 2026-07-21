@@ -248,6 +248,52 @@ describe('GenericOpenAIProvider — requiresApiKey:true or absent (credential lo
   });
 });
 
+// ─── maxTokens override — issue #493 ─────────────────────────────────────────
+
+describe('GenericOpenAIProvider — maxTokens override', () => {
+  it('uses config.maxTokens in the request body when set', async () => {
+    const fetchMock = stubFetchSuccess('llama3');
+    const config = makeKeylessProviderConfig({ maxTokens: 2048 });
+    const provider = new GenericOpenAIProvider(config, getCredentials);
+    const acc = new ChunkAccumulator();
+
+    await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { max_tokens: number };
+    expect(body.max_tokens).toBe(2048);
+  });
+
+  it('falls back to MAX_TOKENS_GENERIC (8192) when maxTokens is absent', async () => {
+    const fetchMock = stubFetchSuccess('llama3');
+    // makeKeylessProviderConfig does not set maxTokens — it is absent.
+    const config = makeKeylessProviderConfig();
+    const provider = new GenericOpenAIProvider(config, getCredentials);
+    const acc = new ChunkAccumulator();
+
+    await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { max_tokens: number };
+    expect(body.max_tokens).toBe(8192);
+  });
+
+  it('respects a high maxTokens override (e.g. 131072 for a 128k-context model)', async () => {
+    const fetchMock = stubFetchSuccess('llama3');
+    const config = makeKeylessProviderConfig({ maxTokens: 131_072 });
+    const provider = new GenericOpenAIProvider(config, getCredentials);
+    const acc = new ChunkAccumulator();
+
+    await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { max_tokens: number };
+    expect(body.max_tokens).toBe(131_072);
+  });
+});
+
 // ─── requiresApiKey:false vs absent — behavioral boundary ────────────────────
 
 describe('GenericOpenAIProvider — requiresApiKey:false vs absent Authorization boundary', () => {
