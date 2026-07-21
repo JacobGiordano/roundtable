@@ -483,7 +483,7 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
     table({ children }) {
       return (
         <div className="overflow-x-auto my-3">
-          <table className="w-full text-sm border-collapse border border-border-subtle">
+          <table className="markdown-table w-full text-sm border-collapse border border-border-subtle">
             {children}
           </table>
         </div>
