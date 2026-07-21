@@ -19,9 +19,11 @@
  * free of cross-boundary imports. sendMessage.ts — which already imports from
  * @/auth for getProviderRoster — passes Gate's getCredentials here.
  *
- * Phase extension note: per-model token limits could be made configurable
- * via CustomProviderConfig in a future phase. For now MAX_TOKENS_GENERIC is used
- * as a conservative default (see /src/models/constants.ts).
+ * Per-model token limit override (issue #493): when CustomProviderConfig.maxTokens
+ * is set, it overrides MAX_TOKENS_GENERIC as the max_tokens value in the API request
+ * body. Ollama models with 2k context windows can set maxTokens: 2048 to avoid errors;
+ * 128k-context models can set a higher value to unlock their full output capacity.
+ * When maxTokens is absent, MAX_TOKENS_GENERIC (8192) remains the fallback.
  *
  * Image generation (issues #376, #379):
  *   When CustomProviderConfig.capabilities.imageGeneration === true AND the caller
@@ -287,7 +289,8 @@ export class GenericOpenAIProvider implements ModelProvider {
     // rejects the first request.
     const buildRequestBody = (withStreamOptions: boolean) => ({
       model: resolvedModelString,
-      max_tokens: MAX_TOKENS_GENERIC,
+      // Use per-provider override when set; fall back to the generic 8192 default (issue #493).
+      max_tokens: this.customConfig.maxTokens ?? MAX_TOKENS_GENERIC,
       stream: true,
       ...(withStreamOptions ? { stream_options: { include_usage: true } } : {}),
       // Include modalities only when image gen is explicitly enabled (issue #376).
