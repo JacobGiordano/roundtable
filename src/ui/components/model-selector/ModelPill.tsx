@@ -8,16 +8,21 @@
  * Last-active: clicking triggers a brief shake instead of deactivating.
  *
  * When onOpenColorPicker is provided (Model Selector Panel context only):
- * - Pill wrapper gains position:relative.
+ * - Pill wrapper gains position:relative and class "group".
  * - A palette icon button is absolutely positioned inside the pill at right:8px.
- * - Icon is opacity-0 normally, opacity-100 on pill hover/focus.
+ * - Icon is opacity-0 normally, opacity-100 on group-hover (CSS-only).
  * - If isOverrideActive, icon is always visible with the model's accent color.
  *
- * #528: Remove affordance — active pills show a small ×-dismiss button that
- * appears as a hover-reveal sibling to the right of the pill. Clicking it
- * deactivates the model. Suppressed on the last active model (shake instead).
+ * #528: Dismiss affordance — active pills show a ×-dismiss button as a sibling
+ * to the right of the pill. Clicking it deactivates the model. Suppressed on
+ * the last active model (shake instead).
  * The dismiss button is tabIndex={-1}/aria-hidden (deactivation is keyboard-
  * accessible via the pill's own role="switch" / Space key).
+ *
+ * #531: × button enlarged to w-6 h-6 (24×24px, WCAG 2.5.8). Opacity control
+ * moved from JS state (isPillHovered) to CSS-only: rests at 0.35 on pointer
+ * devices, 0.55 on touch (@media hover:none), 100% on group hover or direct
+ * hover. Palette icon also converted to CSS group-hover — isPillHovered removed.
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -53,7 +58,6 @@ export function ModelPill({
   isOverrideActive = false,
 }: ModelPillProps) {
   const [isShaking, setIsShaking] = useState(false);
-  const [isPillHovered, setIsPillHovered] = useState(false);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(() => {
@@ -107,23 +111,22 @@ export function ModelPill({
   // #528: Show dismiss × on active pills in selector context, unless it's the last.
   const showDismiss = isActive && showPaletteIcon && !isLastActive;
 
-  // Icon visibility: always-on if override is active, otherwise hover/focus only.
-  const paletteIconOpacity = isOverrideActive || isPillHovered ? 1 : 0;
-
-  // Icon color: when override is active, use the model's current accent CSS var.
+  // #531: Palette icon opacity now handled by CSS group-hover instead of JS state.
+  // When isOverrideActive, icon is always visible. Otherwise: opacity-0 at rest,
+  // group-hover:opacity-100 on pill hover. Explicit inline opacity only for the
+  // override-active case (JS-driven value that CSS cannot express without data-attrs).
   const paletteIconStyle: React.CSSProperties = isOverrideActive
     ? { color: `var(--${model.color ?? 'accent-other'})` }
     : {};
 
   return (
     // Outer wrapper: positioned so the palette icon's absolute coords are relative to this div.
+    // "group" class enables CSS group-hover for palette icon and dismiss × visibility.
     <div
       className={[
         'relative inline-flex items-center flex-shrink-0',
         showPaletteIcon ? 'group' : '',
       ].join(' ')}
-      onMouseEnter={() => showPaletteIcon && setIsPillHovered(true)}
-      onMouseLeave={() => showPaletteIcon && setIsPillHovered(false)}
     >
       <button
         type="button"
@@ -161,7 +164,10 @@ export function ModelPill({
         {model.name}
       </button>
 
-      {/* Palette icon — only in Model Selector Panel context */}
+      {/* Palette icon — only in Model Selector Panel context.
+          #531: opacity now CSS-only via group-hover. When isOverrideActive the icon
+          is always visible (opacity-100); otherwise rests at opacity-0 and reveals
+          on group hover or keyboard focus (focus-visible). */}
       {showPaletteIcon && (
         <button
           ref={paletteButtonRef}
@@ -178,17 +184,26 @@ export function ModelPill({
             'transition-[opacity,color] duration-fast',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
             'cursor-pointer',
+            // Override-active: always visible. Otherwise: hidden at rest, shown on group hover or focus.
+            isOverrideActive
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
           ].join(' ')}
-          style={{ opacity: paletteIconOpacity, ...paletteIconStyle }}
+          style={paletteIconStyle}
         >
           <PaletteIcon />
         </button>
       )}
 
-      {/* #528: Dismiss × button — hover-reveal sibling to the right of the pill.
+      {/* #528/#531: Dismiss × button — sibling to the right of the pill.
           tabIndex={-1}: keyboard users deactivate via the pill's role="switch" (Space/Enter).
-          aria-hidden: the dismiss × is a mouse-assist duplicate of the switch affordance.
-          opacity-0 at rest → opacity-100 on group-hover (parent .group handles this).
+          aria-hidden: the dismiss × is a pointer/touch shortcut duplicate of the switch affordance.
+          #531: Enlarged to w-6 h-6 (24×24px, WCAG 2.5.8). Opacity is CSS-only:
+          - pointer resting: opacity-[0.35]
+          - touch resting: [@media(hover:none)]:opacity-[0.55]
+          - pill group hover: group-hover:opacity-100
+          - direct × hover: hover:opacity-100
+          - prefers-reduced-motion: motion-reduce:transition-none
           Only rendered for active non-last pills in selector context. */}
       {showDismiss && (
         <button
@@ -197,15 +212,19 @@ export function ModelPill({
           aria-hidden
           onClick={(e) => { e.stopPropagation(); handleClick(); }}
           className={[
-            'ml-0.5',
-            'w-[16px] h-[16px] flex-shrink-0 flex items-center justify-center',
+            'ml-1',
+            'w-6 h-6 flex-shrink-0 flex items-center justify-center',
             'rounded-full',
             'text-[11px] leading-none font-medium',
             'text-text-muted hover:text-text-secondary hover:bg-hover',
             'transition-[opacity,color,background-color] duration-fast',
+            'motion-reduce:transition-none',
             'cursor-pointer',
             'focus:outline-none',
-            isPillHovered ? 'opacity-100' : 'opacity-0',
+            'opacity-[0.35]',
+            'group-hover:opacity-100',
+            'hover:opacity-100',
+            '[@media(hover:none)]:opacity-[0.55]',
           ].join(' ')}
         >
           ×
