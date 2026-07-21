@@ -1,4 +1,4 @@
-Last updated: 2026-07-21 (ship: wave 15)
+Last updated: 2026-07-21 (ship: wave 16)
 
 ## Current phase
 
@@ -6,25 +6,20 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 15 shipped. Issues closed: #535 #536 #537 #538 #539 #540 #541 #478 #479 #482 #483 #489
+Wave 16 shipped. Issues closed: #542 #543
 
-- **Aria + Ada**: all 10 WCAG 2.5.8 touch target blockers fixed across 6 files; Ada re-audit passed (#535–#541)
-- **Scout**: 15 new InputBar @mention integration tests; `makeGeneratedImage` consolidated from 3 definitions to 1 shared fixture (#478 #479)
-- **Arch**: #482 and #483 already done in prior wave — closed as resolved
-- **Quill**: `/docs/themes.md` — full token schema reference, validator error map, worked example (#489)
-- **Filed**: #543 — `CustomThemeJSON` prose field incomplete (2 declared vs. 7 required by validator)
+- **Aria + Ada**: all 7 WCAG 2.5.8 advisory touch targets fixed — `min-h-[24px]` + `inline-flex items-center` across 5 files; `gap-1 → gap-2` on image buttons; Ada re-audit passed (#542)
+- **Arch**: #543 already resolved in commit `9c6d81d` (2026-06-23) — closed as done
 
 ## Key decisions
 
-- WCAG 2.5.8 eye-toggle buttons in ProviderSettingsPanel: repositioned `right-3` → `right-1` to center 32px button in 36px input padding — verify visually in dev server
-- `maxTokens` on `CustomProviderConfig`: absence falls back to `MAX_TOKENS_GENERIC` (8192) — no migration needed
-- `thread-action-menu.md` spec: `role="menu"` ↔ `role="dialog"` switch is load-bearing WCAG 4.1.2 fix — respect when Aria next touches that component
+- All WCAG 2.5.8 blocker and advisory touch targets are now resolved — no remaining open a11y size issues
+- Stale comment in `themeValidation.ts` line 276 ("declares only link and link-hover") is Gate cleanup on next touch — not worth a ticket
+- WCAG 2.5.8 eye-toggle buttons in ProviderSettingsPanel: repositioned `right-3` → `right-1` (wave 15) — verify visually in dev server
 - Vault eviction: in-memory cache retains full base64; only localStorage write is trimmed
 
 ## Open issues (priority order)
 
-- **#543** — Arch: CustomThemeJSON prose field incomplete (2 declared, 7 required by validator)
-- **#542** — Ada: WCAG 2.5.8 advisory candidates
 - **#463** — Aria: error state tone — auth vs rate-limit vs network
 - **#495** — Vault/Aria: storage usage reporting UI (`getStorageUsage()` ready in `@/storage`)
 - **#496/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
