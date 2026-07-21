@@ -497,27 +497,7 @@ function buildComponents(): React.ComponentProps<typeof ReactMarkdown>['componen
       );
     },
     tbody({ children }) {
-      // #524: Tailwind's even: variant doesn't fire on <tr> elements rendered through
-      // ReactMarkdown custom components — the CSS :nth-child pseudo-class runs against
-      // the browser DOM, but the component tree is re-evaluated in React's reconciler
-      // first, causing the selector to miss. Fix: enumerate children imperatively via
-      // React.Children.map and assign the shading class based on the 0-indexed position.
-      let rowIndex = 0;
-      const shadedChildren = React.Children.map(children, (child) => {
-        if (!React.isValidElement(child)) return child;
-        // bg-border-subtle provides visible but gentle alternating shading across all 7 themes.
-        // bg-hover/40 was invisible on dark themes (--interactive-hover at 40% = near-zero
-        // contrast on deep-navy/dark surfaces). bg-border-subtle maps to --border-subtle,
-        // a consistently distinct tint in every theme (e.g. #131E33 on Midnight, #EBEBEB on Chalk).
-        const bgClass = rowIndex % 2 === 1 ? 'bg-border-subtle' : '';
-        rowIndex++;
-        // Merge into the child's existing className (tr renderer sets border classes).
-        const existingClass = (child.props as { className?: string }).className ?? '';
-        return React.cloneElement(child as React.ReactElement<{ className?: string }>, {
-          className: [existingClass, bgClass].filter(Boolean).join(' '),
-        });
-      });
-      return <tbody>{shadedChildren}</tbody>;
+      return <tbody>{children}</tbody>;
     },
     tr({ children }) {
       return (
