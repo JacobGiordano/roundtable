@@ -9,22 +9,24 @@
  * non-done chunk. Emitting a priming chunk at dispatch time lets Aria render a
  * placeholder bubble immediately, before the first byte of real content arrives.
  *
- * Scope: runParallel and runDirected only. runAutoChain is excluded by design —
- * auto-chain steps are sequential and self-paced; placeholder bubbles are a
- * parallel-mode concern.
+ * Scope: all three dispatch modes — runParallel, runDirected, and runAutoChain.
+ * runAutoChain was updated in wave 10 (issue #526): each chain step now emits a
+ * dispatch-time priming chunk immediately before its runProviderIsolated call,
+ * giving Aria a placeholder bubble per step as the chain progresses sequentially.
  *
  * Test strategy:
  *   Spy on real provider instances (claudeProvider, gpt55Provider) and emit
  *   controlled chunks. Capture all onChunk calls in order to verify that the
  *   priming chunk for each model arrives BEFORE any real content from that model.
  *
- * Acceptance criteria (from issue #349):
+ * Acceptance criteria (from issue #349 + #526):
  *   1. Priming chunks are emitted before runProviderIsolated is called in parallel mode
  *   2. Priming chunks are emitted before runProviderIsolated is called in directed mode
- *   3. No double-priming in parallel mode (exactly one priming chunk per model
+ *   3. Priming chunks are emitted before runProviderIsolated is called in autochain mode (per step)
+ *   4. No double-priming in parallel mode (exactly one priming chunk per model
  *      before any real content — the error-path priming from emitErrorChunk is a
  *      second non-done chunk, but occurs after dispatch, not before)
- *   4. No regression on the error path — error messages still arrive and are
+ *   5. No regression on the error path — error messages still arrive and are
  *      correctly terminated with a done+error chunk
  */
 
@@ -313,5 +315,129 @@ describe('no regression on error path — priming chunks still produced (#349)',
     // Priming chunk present.
     const nonDone = acc.all.filter((c) => c.modelId === 'claude' && !c.isDone);
     expect(nonDone.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Autochain mode: priming chunk per step (#526) ────────────────────────────
+
+/**
+ * Regression: runAutoChain dispatch-time priming chunks — issue #526
+ *
+ * Wave 10 added per-step priming chunks to runAutoChain. Each step now calls:
+ *   onChunk({ modelId: step.modelId, content: '', isDone: false })
+ * immediately before runProviderIsolated, matching the guarantee that runParallel
+ * and runDirected provide.
+ *
+ * Without this, chain steps would produce no placeholder bubble during the time
+ * between steps — a visible UX gap in long chains. A provider that emits only a
+ * done chunk (e.g. image gen success path) would also suffer a silent-drop without
+ * the priming guard that creates the accumulator entry in useStreamingMessages.
+ *
+ * These tests verify that the priming chunk for each chain step arrives BEFORE
+ * the real content from that step's provider — mirroring the parallel-mode tests.
+ */
+
+describe('autochain mode — dispatch-time priming chunk per step (#526)', () => {
+  it('emits a priming non-done chunk for each chain step before real content arrives', async () => {
+    // Two-step chain: claude → gpt-5.5, both with appendToContext: false.
+    // Each step must emit a priming empty chunk before its provider emits content.
+    const conv = convWithModels('claude', 'gpt-5.5');
+    const allChunks: StreamChunk[] = [];
+
+    vi.spyOn(claudeProvider, 'sendMessage').mockImplementation(
+      async (_msgs, _sp, onChunk) => {
+        onChunk({ modelId: 'claude', content: 'step 1 reply', isDone: false });
+        onChunk({ modelId: 'claude', content: '', isDone: true });
+        return {};
+      },
+    );
+
+    vi.spyOn(gpt55Provider, 'sendMessage').mockImplementation(
+      async (_msgs, _sp, onChunk) => {
+        onChunk({ modelId: 'gpt-5.5', content: 'step 2 reply', isDone: false });
+        onChunk({ modelId: 'gpt-5.5', content: '', isDone: true });
+        return {};
+      },
+    );
+
+    // Seed Math.random so shuffleArray produces a deterministic step order.
+    // Two steps: [claude, gpt-5.5]. Fisher-Yates with i=1:
+    //   j = floor(r0 * 2). With r0=0.0, j=0 — no-op swap → order is [claude, gpt-5.5].
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+
+    await sendMessage(
+      {
+        conversationId: conv.id,
+        content: 'test',
+        conversation: conv,
+        chainConfig: {
+          steps: [
+            { stepIndex: 0, modelId: 'claude', appendToContext: false },
+            { stepIndex: 1, modelId: 'gpt-5.5', appendToContext: false },
+          ],
+          maxPasses: 1,
+        },
+      },
+      (chunk) => { allChunks.push(chunk); },
+    );
+
+    // Each model must have a priming non-done empty chunk before its content chunk.
+    const claudePrimingIdx = firstChunkIndex(allChunks, 'claude');
+    const claudeContentIdx = firstContentChunkIndex(allChunks, 'claude');
+    expect(claudePrimingIdx).toBeGreaterThanOrEqual(0);
+    expect(claudePrimingIdx).toBeLessThan(claudeContentIdx);
+    expect(allChunks[claudePrimingIdx].content).toBe('');
+    expect(allChunks[claudePrimingIdx].isDone).toBe(false);
+
+    const gptPrimingIdx = firstChunkIndex(allChunks, 'gpt-5.5');
+    const gptContentIdx = firstContentChunkIndex(allChunks, 'gpt-5.5');
+    expect(gptPrimingIdx).toBeGreaterThanOrEqual(0);
+    expect(gptPrimingIdx).toBeLessThan(gptContentIdx);
+    expect(allChunks[gptPrimingIdx].content).toBe('');
+    expect(allChunks[gptPrimingIdx].isDone).toBe(false);
+  });
+
+  it('single-step autochain: priming chunk arrives before real content (multipass)', async () => {
+    // A single-step chain with 2 passes: claude runs twice.
+    // Each pass must emit its own priming chunk before its content.
+    const conv = convWithModels('claude');
+    const allChunks: StreamChunk[] = [];
+
+    vi.spyOn(claudeProvider, 'sendMessage').mockImplementation(
+      async (_msgs, _sp, onChunk) => {
+        onChunk({ modelId: 'claude', content: 'pass reply', isDone: false });
+        onChunk({ modelId: 'claude', content: '', isDone: true });
+        return {};
+      },
+    );
+
+    await sendMessage(
+      {
+        conversationId: conv.id,
+        content: 'test',
+        conversation: conv,
+        chainConfig: {
+          steps: [{ stepIndex: 0, modelId: 'claude', appendToContext: false }],
+          maxPasses: 2,
+        },
+      },
+      (chunk) => { allChunks.push(chunk); },
+    );
+
+    // 2 passes × (1 priming + 1 content + 1 done) = 6 total chunks.
+    const claudeChunks = allChunks.filter((c) => c.modelId === 'claude');
+    expect(claudeChunks).toHaveLength(6);
+
+    // Pass 1: priming at index 0, content at index 1, done at index 2.
+    expect(claudeChunks[0].content).toBe('');
+    expect(claudeChunks[0].isDone).toBe(false);
+    expect(claudeChunks[1].content).toBe('pass reply');
+    expect(claudeChunks[1].isDone).toBe(false);
+
+    // Pass 2: priming at index 3, content at index 4, done at index 5.
+    expect(claudeChunks[3].content).toBe('');
+    expect(claudeChunks[3].isDone).toBe(false);
+    expect(claudeChunks[4].content).toBe('pass reply');
+    expect(claudeChunks[4].isDone).toBe(false);
   });
 });
