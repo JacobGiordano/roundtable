@@ -1,4 +1,4 @@
-Last updated: 2026-07-21 (ship: wave 11)
+Last updated: 2026-07-21 (ship: waves 12 + 13)
 
 ## Current phase
 
@@ -6,33 +6,30 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 11 shipped. Issues closed: #531 #532 #533
+Waves 12 and 13 shipped. Issues closed: #501 #529 #474 #534 #497 #498 #499 #494
 
-- **Luma**: specced mobile-safe model pill dismiss affordance (_design/specs/model-pill-dismiss.md)
-- **Aria**: × button enlarged to w-6 h-6 (24×24px, WCAG 2.5.8); CSS-only opacity with @media(hover:none) for touch; isPillHovered JS state removed entirely; palette icon also converted to CSS group-hover
-- **Ada**: WCAG 2.2 §2.5.8 touch target size added to audit checklist (.claude/agents/ada.md)
-- **Coda direct**: alternating table row shading via .markdown-table tbody tr:nth-child(even) in index.css — React-based approaches failed due to reconciler timing; browser-native CSS works
+- **Luma**: added `thinking-pulse` and `thinking-exit` rows to motion.md summary table (#501)
+- **Scout**: fixed stale autochain comment + added 2 autochain priming tests; #474 already had coverage (`markdown-content-plugin-order.test.tsx`) — closed as done (#529 #474)
+- **Ada**: full WCAG 2.5.8 touch target audit — 10 blockers filed as #535–#541, 7 advisories bundled in #542 (#534)
+- **Forge**: `sync-models-json.yml` now validates per-provider model counts + top-level shape; #497 and #499 were already done (#497 #498 #499)
+- **Vault**: `storageUsage.ts` — pre-flight 80% quota guard in `saveConversation`, `evictOldGeneratedImages()` (keeps last 3 per conversation, in-memory cache unaffected), `getStorageUsage()` exported for #495 companion UI (#494)
 
 ## Key decisions
 
-- × button: CSS-only opacity (no JS hover state); @media(hover:none) for touch rest opacity (0.55 vs 0.35 on pointer) — clean, no JS required
-- Table shading: must use top-level CSS rule with a scoped class, not Tailwind even: or React.Children.map/cloneElement — both fail due to ReactMarkdown reconciler timing
-- Ada checklist now includes WCAG 2.5.8 with Blocker (<24px, no offset) / Advisory (24px spacing offset saves it) thresholds; tabIndex={-1}/aria-hidden elements exempt
-- Full WCAG 2.5.8 sweep of all existing components filed as #534
+- Vault eviction: in-memory cache keeps full base64 blobs; only the localStorage write is trimmed — current session always has full images
+- `getStorageUsage()` is NOT on StorageProvider interface (localStorage-specific; ServerStorageProvider has no meaningful implementation)
+- `sync-models-json.yml`: per-provider zero-model check + shape assertion — do not revert to aggregate-only validation
 
 ## Open issues (priority order)
 
-- **#534** — Ada: full WCAG 2.5.8 touch target audit across all existing components
-- **#529** — Scout: update stale autochain comment + add priming test
+- **#535–#541** — Aria: WCAG 2.5.8 touch target blockers (10 elements across 7 issues) — next Aria wave
+- **#542** — Ada: WCAG 2.5.8 advisory candidates (lower priority)
 - **#463** — Aria: error state tone — auth vs rate-limit vs network
-- **#474** — Scout: MarkdownContent rehype plugin order regression test
 - **#493** — Atlas: per-model max_tokens override for custom/generic providers
-- **#494** — Vault: unbounded base64 attachment storage
-- **#496/#495/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
-- **#497/#498/#499** — CI hardening wave (Forge)
+- **#495** — Vault/Aria: storage usage reporting UI (getStorageUsage() now ready)
+- **#496/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
 - **#530** — Forge + Scout: Playwright smoke suite for AFK visual verification
 - **#527** — Luma → Aria: empty state visual polish
-- **#501** — Luma: ThinkingIndicator motion rows
 
 ## Gotchas
 
