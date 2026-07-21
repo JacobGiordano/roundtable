@@ -1,4 +1,4 @@
-Last updated: 2026-07-21 (ship: wave 10 + visual follow-ups)
+Last updated: 2026-07-21 (ship: wave 11)
 
 ## Current phase
 
@@ -6,28 +6,24 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 10 shipped + visual follow-up fixes. Issues closed: #522 #523 #524 #525 #526 #528
+Wave 11 shipped. Issues closed: #531 #532 #533
 
-- **Arch**: removed `imageGenerationEnabled` from `ModelConfig`
-- **Atlas**: added `gpt-5.6` to `MAX_COMPLETION_TOKENS_MODELS` (root cause of chain error); autochain priming chunks
-- **Aria**: toggle wiring removal, copy dropdown portal, table renderer, stale-conversation race, model selector first-load + dismiss affordance
-- **Ada**: cleared after blocker fix — portal dropdown keyboard pattern (removed menu roles, focus-on-open)
-- **Post-ship visual fixes**: palette icon restored (absolute positioning anchor back on outer div); palette offsets to `right-[22px]` when dismiss × also shows; alternating row shading stripped (CSS approach filed as #533)
+- **Luma**: specced mobile-safe model pill dismiss affordance (_design/specs/model-pill-dismiss.md)
+- **Aria**: × button enlarged to w-6 h-6 (24×24px, WCAG 2.5.8); CSS-only opacity with @media(hover:none) for touch; isPillHovered JS state removed entirely; palette icon also converted to CSS group-hover
+- **Ada**: WCAG 2.2 §2.5.8 touch target size added to audit checklist (.claude/agents/ada.md)
+- **Coda direct**: alternating table row shading via .markdown-table tbody tr:nth-child(even) in index.css — React-based approaches failed due to reconciler timing; browser-native CSS works
 
 ## Key decisions
 
-- `gpt-5.6` requires `max_completion_tokens` — omitting it caused the 400→retry→"not active" chain
-- Portal dropdown: plain buttons + focus-on-open, not `role="menu"` (avoids Arrow-key obligation)
-- Alternating row shading: React-based approaches fail; follow-up #533 uses `.markdown-table tbody tr:nth-child(even)` in CSS
-- × dismiss button: hover-only + 16×16px is broken on mobile; Luma spec needed (#531) before Aria re-implements
-- `imageGenerationEnabled` fully removed — always-on via roster capabilities
+- × button: CSS-only opacity (no JS hover state); @media(hover:none) for touch rest opacity (0.55 vs 0.35 on pointer) — clean, no JS required
+- Table shading: must use top-level CSS rule with a scoped class, not Tailwind even: or React.Children.map/cloneElement — both fail due to ReactMarkdown reconciler timing
+- Ada checklist now includes WCAG 2.5.8 with Blocker (<24px, no offset) / Advisory (24px spacing offset saves it) thresholds; tabIndex={-1}/aria-hidden elements exempt
+- Full WCAG 2.5.8 sweep of all existing components filed as #534
 
 ## Open issues (priority order)
 
+- **#534** — Ada: full WCAG 2.5.8 touch target audit across all existing components
 - **#529** — Scout: update stale autochain comment + add priming test
-- **#533** — Aria: alternating table row shading via CSS nth-child (quick win)
-- **#531** — Luma → Aria: × dismiss button mobile redesign (touch target + hover-free)
-- **#532** — Ada: add WCAG 2.5.8 touch target checks to audit checklist
 - **#463** — Aria: error state tone — auth vs rate-limit vs network
 - **#474** — Scout: MarkdownContent rehype plugin order regression test
 - **#493** — Atlas: per-model max_tokens override for custom/generic providers
