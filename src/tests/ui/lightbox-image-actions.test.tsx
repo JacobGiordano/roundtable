@@ -27,6 +27,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Lightbox } from '@/ui/components/Lightbox';
 import type { GeneratedImage } from '@/types/index';
+import { makeGeneratedImage, SAMPLE_BASE64 } from '../fixtures/conversations';
 
 // ─── Mock imageActions at module boundary ─────────────────────────────────────
 // We test the Lightbox's behavior (does it call downloadImage? does it call
@@ -48,20 +49,6 @@ beforeAll(() => {
 afterEach(() => {
   vi.clearAllMocks();
 });
-
-// ─── Fixture factory ──────────────────────────────────────────────────────────
-
-const SAMPLE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
-function makeGeneratedImage(overrides: Partial<GeneratedImage> = {}): GeneratedImage {
-  return {
-    id: 'img-1',
-    mimeType: 'image/png',
-    base64: SAMPLE_BASE64,
-    ...overrides,
-  };
-}
 
 function makeReturnRef(): React.RefObject<HTMLElement | null> {
   const div = document.createElement('div');
