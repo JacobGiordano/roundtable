@@ -168,6 +168,8 @@ When a new conversation is added to the thread list (either because the user sta
 | Outrun exit | `slow` (350ms) | `ease` | Instant snap |
 | Thread row entrance | `medium` (200ms) | `ease-out` | Instant appearance |
 | Thread bulk stagger | 50ms between items | — | Removed |
+| Thinking indicator pulse | 1.2s cycle, `medium` (200ms) stagger | `ease-in-out` | Static dots at 0.6 opacity — no animation |
+| Thinking indicator transition-out | `fast` (100ms) | `ease-out` | Instant unmount |
 
 ---
 
