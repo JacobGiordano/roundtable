@@ -34,6 +34,13 @@ import { buildExportedConversation } from './exporters';
 import type { ExportOptions } from './exporters';
 import { triggerDownload } from './fileio';
 import { wrapForStorage, parseStoredConversation } from './migration';
+import {
+  estimateLocalStorageBytes,
+  estimateStringBytes,
+  evictOldGeneratedImages,
+  isStorageNearCapacity,
+  STORAGE_QUOTA_FLOOR_BYTES,
+} from './storageUsage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -127,15 +134,56 @@ export class LocalStorageProvider implements StorageProvider {
    * Writes a StoredConversation envelope (schemaVersion + data) so the read
    * path can detect the schema version and run migrations if needed.
    *
+   * Pre-flight size check: before writing, estimates the current localStorage
+   * usage. If usage is at or above 80% of the conservative 5 MB quota floor,
+   * a console warning is emitted and `evictOldGeneratedImages()` is applied
+   * to the conversation payload before serialization — stripping base64 from
+   * all but the most recent 3 GeneratedImage entries. This eviction is applied
+   * to the serialized payload only; the in-memory conversation object passed
+   * by the caller is never mutated. After eviction, the write proceeds normally
+   * — safeSet still catches a final QuotaExceededError if the eviction was not
+   * sufficient to bring usage below quota.
+   *
    * Cache: after writing to localStorage, the cache entry is updated (or added)
    * so that subsequent `listConversations()` calls do not need to re-read from
-   * storage. The cache is only updated if it has already been populated — an
-   * uninitialised cache (`null`) is left alone so the next `listConversations()`
-   * does the full scan naturally.
+   * storage. The cache stores the original un-evicted conversation so Aria
+   * continues to render full base64 images for the current session. The cache
+   * is only updated if it has already been populated — an uninitialised cache
+   * (`null`) is left alone so the next `listConversations()` does the full
+   * scan naturally.
    */
   async saveConversation(conversation: Conversation): Promise<void> {
     // Ghost-mode guard — first line, before any index or data key is touched.
     if (conversation.isGhost) return;
+
+    // ── Pre-flight size check ──────────────────────────────────────────────────
+    // Estimate current localStorage usage. If we are near capacity, evict old
+    // GeneratedImage base64 blobs from the payload before serializing. This is
+    // the only write-path that needs this check — all other writes (index,
+    // conversation-defaults) are tiny compared to image blobs.
+    const usedBytes = estimateLocalStorageBytes();
+    const quotaBytes = STORAGE_QUOTA_FLOOR_BYTES;
+
+    // Determine the conversation to actually serialize. We start with a
+    // candidate payload and apply eviction if storage is near capacity.
+    let convToWrite = conversation;
+
+    if (isStorageNearCapacity(usedBytes, quotaBytes)) {
+      // Estimate how large this conversation's payload would be after eviction.
+      const evicted = evictOldGeneratedImages(conversation);
+      const candidateJson = JSON.stringify(wrapForStorage(evicted));
+      const candidateBytes = estimateStringBytes(candidateJson);
+      const projectedTotal = usedBytes + candidateBytes;
+
+      console.warn(
+        `[Vault] Storage near capacity: ${usedBytes} / ${quotaBytes} bytes used ` +
+          `(${Math.round((usedBytes / quotaBytes) * 100)}%). ` +
+          `Evicting old generated image base64 blobs before saving conversation ` +
+          `"${conversation.id}". Projected total after write: ~${projectedTotal} bytes.`
+      );
+
+      convToWrite = evicted;
+    }
 
     const ids = readIndex();
     if (!ids.includes(conversation.id)) {
@@ -146,10 +194,13 @@ export class LocalStorageProvider implements StorageProvider {
     // Wrap in the StoredConversation envelope before writing.
     // This records the current schemaVersion so the read path can migrate
     // stale records written by older builds.
-    const envelope = wrapForStorage(conversation);
+    const envelope = wrapForStorage(convToWrite);
     safeSet(convKey(conversation.id), JSON.stringify(envelope));
 
-    // Keep the cache in sync — avoids stale reads on next listConversations().
+    // Keep the cache in sync with the original (un-evicted) conversation so
+    // Aria continues to render full base64 images for the current session.
+    // The persisted payload may have evicted base64 blobs, but the in-memory
+    // representation is always the full original.
     if (this._cache !== null) {
       this._cache.set(conversation.id, conversation);
     }

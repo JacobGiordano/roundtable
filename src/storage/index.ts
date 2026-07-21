@@ -29,3 +29,18 @@ export { MigrationError, CURRENT_SCHEMA_VERSION } from './migration';
 // new conversation init. Aria calls these when creating a new conversation and when
 // leaving an existing one (ghost-mode guard belongs in Aria, not here).
 export { getConversationDefaults, saveConversationDefaults } from './conversationDefaults';
+// Storage usage utilities — issue #494 (unbounded base64 attachment storage).
+// getStorageUsage() is NOT on the StorageProvider contract (requires Arch types PR).
+// It is exported here as a standalone utility for the companion UI issue #495.
+// evictOldGeneratedImages() is used internally by LocalStorageProvider but is also
+// exported for testing. StorageUsage is the result type for getStorageUsage().
+export {
+  getStorageUsage,
+  evictOldGeneratedImages,
+  estimateLocalStorageBytes,
+  isStorageNearCapacity,
+  STORAGE_QUOTA_FLOOR_BYTES,
+  STORAGE_WARN_THRESHOLD,
+  GENERATED_IMAGE_KEEP_COUNT,
+} from './storageUsage';
+export type { StorageUsage } from './storageUsage';
