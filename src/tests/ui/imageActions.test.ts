@@ -18,23 +18,7 @@
 
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { downloadImage, copyImageToClipboard } from '@/ui/utils/imageActions';
-import type { GeneratedImage } from '@/types/index';
-
-// ─── Minimal base64 PNG ───────────────────────────────────────────────────────
-// 1×1 transparent PNG in raw base64 (no data-URL prefix).
-const SAMPLE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
-// ─── Fixture factory ──────────────────────────────────────────────────────────
-
-function makeGeneratedImage(overrides: Partial<GeneratedImage> = {}): GeneratedImage {
-  return {
-    id: 'test-img-1',
-    mimeType: 'image/png',
-    base64: SAMPLE_BASE64,
-    ...overrides,
-  };
-}
+import { makeGeneratedImage, SAMPLE_BASE64 } from '../fixtures/conversations';
 
 // ─── ClipboardItem polyfill ───────────────────────────────────────────────────
 // jsdom does not implement ClipboardItem. Polyfill it so tests can construct
