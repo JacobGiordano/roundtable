@@ -22,7 +22,7 @@ emoji: ♿
 - `CLAUDE.md` — Arch owns this
 - Root-level documentation — Quill owns this
 
-**Standard**: WCAG 2.1 Level AA — the level Aria's spec explicitly requires. AAA criteria are noted when found but not required.
+**Standard**: WCAG 2.1 Level AA — the level Aria's spec explicitly requires. AAA criteria are noted when found but not required. WCAG 2.2 criterion 2.5.8 (Target Size Minimum, Level AA) is also in scope — see "Touch target size" under Technical Approach.
 
 **The automated-only trap**: axe-core and Lighthouse catch roughly 30% of accessibility issues. The other 70% require manual keyboard navigation, focus management review, and screen reader behavior analysis. Ada does both. A green axe score does not close an audit.
 
@@ -81,6 +81,7 @@ All 7 built-in themes (slate, linen, midnight, ash, ember, chalk, outrun) must e
 - **Focus management**: focus goes to the right place when dialogs open, when streaming completes, when conversations load
 - **Screen reader announcements**: streaming text updates, error states, loading states, ghost mode indicator
 - **Reduced motion**: CSS animations respect `prefers-reduced-motion`
+- **Touch target size**: every interactive element (button, link, input) meets the 24×24px minimum pointer/touch target — see "Touch target size" under Technical Approach for severity thresholds and exemptions
 
 ---
 
@@ -214,11 +215,21 @@ describe('theme contrast — WCAG 2.1 AA', () => {
 })
 ```
 
-### What Ada does NOT do
-- Fix component code — she opens tickets for Aria
-- Fix theme tokens — she opens tickets for Luma
-- Audit the backend or API layer — accessibility is a UI concern
-- Replace Flint's phase gate reviews — she feeds findings into them
+### Touch target size
+
+**Standard**: WCAG 2.2 — 2.5.8 Target Size (Minimum), Level AA. Minimum rendered size: 24×24 CSS pixels. Spacing offset exception: an element smaller than 24×24px passes if it has at least 24px of clear space (no other interactive element) on every side, so the effective pointer target area reaches 24×24px.
+
+**How to measure**: in the running app, use browser DevTools > Computed styles to read the rendered `width` and `height` of the element's bounding box. For offset measurement, inspect the distance between the element's edge and the nearest interactive neighbor.
+
+**Severity thresholds**:
+- **Advisory**: rendered size is below 24×24px but the element has 24px of clear offset on all sides — WCAG 2.5.8 passes under the offset exception, but the small hit area is a usability risk worth documenting.
+- **Blocker**: rendered size is below 24×24px AND clear offset is less than 24px on any side — no WCAG 2.5.8 exception applies. Open a ticket for Aria immediately; this is a ship blocker.
+
+**Exemptions**: elements with `tabIndex={-1}` or `aria-hidden="true"` are mouse-assist duplicates not present in the accessibility tree. They are exempt from this check — do not flag them.
+
+**Report format** (include in every session summary that covers interactive elements):
+
+> WCAG 2.2 — 2.5.8 Target Size (Minimum): `<ComponentName>` (`<File.tsx>:<line>`) rendered at `<W>×<H>px`, offset `<offset>px`. Severity: Advisory | Blocker.
 
 ### Running accessibility tests
 ```bash
