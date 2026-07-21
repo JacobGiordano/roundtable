@@ -97,16 +97,18 @@ jobs:
 
       # Validate the written file before committing. A shape change in the
       # OpenRouter API response would otherwise silently commit a malformed or
-      # empty file to main. Two checks:
+      # empty file to main. Three checks:
       #   1. The file is valid JSON (node -e will throw and exit 1 if not).
-      #   2. At least one model entry exists across all providers (total > 0).
-      # Either failure aborts the workflow before the git commit step runs.
+      #   2. Required top-level keys exist: "updated" (string) and "providers" (object).
+      #   3. No provider returns 0 models — each must have at least one entry.
+      # Any failure aborts the workflow before the git commit step runs.
       - name: Validate models.json
         run: |
           node -e "
             const fs = require('fs');
             const raw = fs.readFileSync('models.json', 'utf8');
 
+            // Check 1: valid JSON.
             let parsed;
             try {
               parsed = JSON.parse(raw);
@@ -115,14 +117,36 @@ jobs:
               process.exit(1);
             }
 
-            const providers = parsed.providers ?? {};
-            const total = Object.values(providers).reduce((sum, arr) => sum + arr.length, 0);
-            console.log('Total model entries across all providers:', total);
-
-            if (total === 0) {
-              console.error('models.json contains zero model entries — refusing to commit.');
+            // Check 2: required top-level shape.
+            const REQUIRED_KEYS = ['updated', 'providers'];
+            for (const key of REQUIRED_KEYS) {
+              if (!(key in parsed)) {
+                console.error('models.json is missing required top-level key:', key);
+                process.exit(1);
+              }
+            }
+            if (typeof parsed.updated !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.updated)) {
+              console.error('models.json: \"updated\" must be a YYYY-MM-DD date string, got:', parsed.updated);
               process.exit(1);
             }
+            if (typeof parsed.providers !== 'object' || Array.isArray(parsed.providers) || parsed.providers === null) {
+              console.error('models.json: \"providers\" must be a non-null object.');
+              process.exit(1);
+            }
+
+            // Check 3: per-provider model count — any provider returning 0 models
+            // indicates an API shape change or fetch failure. Refuse to commit.
+            const providers = parsed.providers;
+            let failed = false;
+            for (const [name, models] of Object.entries(providers)) {
+              const count = Array.isArray(models) ? models.length : 0;
+              console.log('  ' + name + ': ' + count + ' models');
+              if (count === 0) {
+                console.error('Provider \"' + name + '\" returned 0 models — refusing to commit.');
+                failed = true;
+              }
+            }
+            if (failed) process.exit(1);
 
             console.log('Validation passed.');
           "
