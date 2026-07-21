@@ -1045,7 +1045,7 @@ export function InputBar({
                     aria-label={`Remove ${att.filename ?? att.mimeType}`}
                     className={[
                       'flex-shrink-0 flex items-center justify-center',
-                      'w-5 h-5 rounded-full',
+                      'w-6 h-6 rounded-full',
                       'hover:bg-black/15',
                       'transition-colors duration-fast',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',

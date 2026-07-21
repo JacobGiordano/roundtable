@@ -150,8 +150,8 @@ export function SystemPromptRow({ model, onUpdate }: SystemPromptRowProps) {
               aria-label={`Clear system prompt for ${model.name}`}
               title="Clear system prompt"
               className={[
-                'absolute top-2 right-2 z-10',
-                'w-5 h-5 flex items-center justify-center',
+                'absolute top-1.5 right-1.5 z-10',
+                'w-6 h-6 flex items-center justify-center',
                 'rounded text-text-muted',
                 'hover:text-text-primary hover:bg-hover',
                 'transition-colors duration-fast',

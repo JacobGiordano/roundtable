@@ -94,7 +94,7 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
             aria-label="Clear search"
             onClick={handleClear}
             className={[
-              'mr-1.5 flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full',
+              'mr-1 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full',
               'text-text-muted hover:text-text-secondary hover:bg-hover',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',

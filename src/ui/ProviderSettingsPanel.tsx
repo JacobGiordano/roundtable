@@ -402,7 +402,7 @@ function ProxyNudge({ providerName, onDismiss }: ProxyNudgeProps) {
           aria-label={`Dismiss proxy nudge for ${providerName}`}
           onClick={onDismiss}
           className={[
-            'mt-0.5 w-5 h-5 flex items-center justify-center rounded flex-shrink-0',
+            'w-6 h-6 flex items-center justify-center rounded flex-shrink-0',
             'text-text-muted hover:text-text-primary',
             'transition-colors duration-fast',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
@@ -1169,7 +1169,8 @@ function ProviderRow({ provider, isLast, onRemoved, onUpdated, isNew = false, en
                   aria-label={showKeyInput ? 'Hide API key' : 'Show API key'}
                   onClick={() => setShowKeyInput((v) => !v)}
                   className={[
-                    'absolute right-3 top-1/2 -translate-y-1/2',
+                    'absolute right-1 top-1/2 -translate-y-1/2',
+                    'w-8 h-8 flex items-center justify-center',
                     'text-text-muted hover:text-text-secondary',
                     'transition-colors duration-fast',
                     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',
@@ -1626,7 +1627,8 @@ function AddCustomForm({ onAdded }: AddCustomFormProps) {
               aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
               onClick={() => setShowApiKey((v) => !v)}
               className={[
-                'absolute right-3 top-1/2 -translate-y-1/2',
+                'absolute right-1 top-1/2 -translate-y-1/2',
+                'w-8 h-8 flex items-center justify-center',
                 'text-text-muted hover:text-text-secondary',
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus rounded',

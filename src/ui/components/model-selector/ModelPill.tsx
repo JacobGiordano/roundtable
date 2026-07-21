@@ -178,7 +178,7 @@ export function ModelPill({
           className={[
             'absolute top-1/2 -translate-y-1/2',
             showDismiss ? 'right-[22px]' : 'right-2',
-            'w-[18px] h-[18px] flex items-center justify-center',
+            'w-6 h-6 flex items-center justify-center',
             'rounded',
             'text-text-muted hover:text-text-secondary',
             'transition-[opacity,color] duration-fast',

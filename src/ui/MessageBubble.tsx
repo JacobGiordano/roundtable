@@ -873,7 +873,7 @@ function MessageBubbleBase({
           onClick={handleCopy}
           aria-label={copyState === 'copied' ? 'Copied!' : 'Copy message as markdown'}
           className={[
-            'p-0.5 rounded-l flex items-center justify-center shrink-0',
+            'w-6 h-6 rounded-l flex items-center justify-center shrink-0',
             'text-text-secondary',
             copyState === 'copied'
               ? 'text-success'
@@ -898,7 +898,7 @@ function MessageBubbleBase({
             aria-haspopup="true"
             onClick={handleChevronClick}
             className={[
-              'px-0.5 py-0.5 rounded-r flex items-center justify-center shrink-0',
+              'min-w-[20px] h-6 px-0.5 rounded-r flex items-center justify-center shrink-0',
               'text-text-secondary hover:bg-hover hover:text-text-primary',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
@@ -1490,7 +1490,7 @@ function MessageBubbleBase({
                 onClick={() => onEditMessage(messageIndex)}
                 aria-label="Edit message"
                 className={[
-                  'p-0.5 rounded flex items-center justify-center shrink-0',
+                  'w-6 h-6 rounded flex items-center justify-center shrink-0',
                   'text-text-secondary hover:bg-hover hover:text-text-primary',
                   'transition-opacity transition-colors duration-fast',
                   isHovered ? 'opacity-100' : 'opacity-0 focus-visible:opacity-100',
