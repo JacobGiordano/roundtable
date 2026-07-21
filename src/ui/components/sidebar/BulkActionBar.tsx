@@ -89,6 +89,7 @@ export function BulkActionBar({
           type="button"
           onClick={onDeselectAll}
           className={[
+            'inline-flex items-center min-h-[24px]',
             'text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-fast',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
           ].join(' ')}

@@ -525,7 +525,7 @@ export function ModelSelectorPanel({
               onClick={handleOpenSettingsFromPanel}
               className={[
                 'inline-flex items-center gap-[5px]',
-                'py-1.5',
+                'min-h-[24px] py-[5px]',
                 'text-[11px] text-text-muted',
                 'hover:text-text-secondary transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',

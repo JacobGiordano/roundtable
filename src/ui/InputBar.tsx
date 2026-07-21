@@ -906,9 +906,10 @@ export function InputBar({
               }}
               aria-label="Cancel edit"
               className={[
+                'inline-flex items-center',
                 'text-[12px] font-medium text-text-secondary',
                 'hover:text-text-primary',
-                'px-2 py-0.5 rounded',
+                'min-h-[24px] px-2 py-1 rounded',
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               ].join(' ')}
