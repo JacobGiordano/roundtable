@@ -1,4 +1,4 @@
-Last updated: 2026-07-21 (ship: wave 14)
+Last updated: 2026-07-21 (ship: wave 15)
 
 ## Current phase
 
@@ -6,21 +6,24 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 14 shipped. Issues closed: #493 #466
+Wave 15 shipped. Issues closed: #535 #536 #537 #538 #539 #540 #541 #478 #479 #482 #483 #489
 
-- **Arch + Atlas**: `maxTokens?: number` added to `CustomProviderConfig`; `generic.ts` now uses `config.maxTokens ?? MAX_TOKENS_GENERIC`; 3 integration tests (low override / fallback / high override) (#493)
-- **Luma**: 6 spec files for previously unspecced components — `outrun-flash.md`, `interaction-mode-switcher.md`, `bulk-action-bar.md`, `thread-action-menu.md`, `empty-states.md`, `settings-panels.md` (#466)
+- **Aria + Ada**: all 10 WCAG 2.5.8 touch target blockers fixed across 6 files; Ada re-audit passed (#535–#541)
+- **Scout**: 15 new InputBar @mention integration tests; `makeGeneratedImage` consolidated from 3 definitions to 1 shared fixture (#478 #479)
+- **Arch**: #482 and #483 already done in prior wave — closed as resolved
+- **Quill**: `/docs/themes.md` — full token schema reference, validator error map, worked example (#489)
+- **Filed**: #543 — `CustomThemeJSON` prose field incomplete (2 declared vs. 7 required by validator)
 
 ## Key decisions
 
-- `maxTokens` on `CustomProviderConfig`: absence falls back to `MAX_TOKENS_GENERIC` (8192) via nullish coalescing — no migration needed for existing records
-- `thread-action-menu.md` spec documents a `role="menu"` ↔ `role="dialog"` switch for sub-states — load-bearing WCAG 4.1.2 fix for when Aria next touches that component
-- Vault eviction (wave 13): in-memory cache retains full base64 blobs; only the localStorage write is trimmed
-- `getStorageUsage()` is NOT on StorageProvider interface (localStorage-specific)
+- WCAG 2.5.8 eye-toggle buttons in ProviderSettingsPanel: repositioned `right-3` → `right-1` to center 32px button in 36px input padding — verify visually in dev server
+- `maxTokens` on `CustomProviderConfig`: absence falls back to `MAX_TOKENS_GENERIC` (8192) — no migration needed
+- `thread-action-menu.md` spec: `role="menu"` ↔ `role="dialog"` switch is load-bearing WCAG 4.1.2 fix — respect when Aria next touches that component
+- Vault eviction: in-memory cache retains full base64; only localStorage write is trimmed
 
 ## Open issues (priority order)
 
-- **#535–#541** — Aria: WCAG 2.5.8 touch target blockers (10 elements, 7 issues) — next Aria wave
+- **#543** — Arch: CustomThemeJSON prose field incomplete (2 declared, 7 required by validator)
 - **#542** — Ada: WCAG 2.5.8 advisory candidates
 - **#463** — Aria: error state tone — auth vs rate-limit vs network
 - **#495** — Vault/Aria: storage usage reporting UI (`getStorageUsage()` ready in `@/storage`)
