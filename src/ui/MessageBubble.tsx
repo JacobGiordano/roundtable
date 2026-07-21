@@ -898,7 +898,7 @@ function MessageBubbleBase({
             aria-haspopup="true"
             onClick={handleChevronClick}
             className={[
-              'min-w-[20px] h-6 px-0.5 rounded-r flex items-center justify-center shrink-0',
+              'w-6 h-6 rounded-r flex items-center justify-center shrink-0',
               'text-text-secondary hover:bg-hover hover:text-text-primary',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
