@@ -1,4 +1,4 @@
-Last updated: 2026-07-20 (ship: wave 10)
+Last updated: 2026-07-21 (ship: wave 10 + visual follow-ups)
 
 ## Current phase
 
@@ -6,31 +6,37 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 10 shipped. Issues closed: #522 #523 #524 #525 #526 #528
+Wave 10 shipped + visual follow-up fixes. Issues closed: #522 #523 #524 #525 #526 #528
 
-- **Arch**: removed `imageGenerationEnabled` from `ModelConfig` (#522 types)
-- **Atlas**: added `gpt-5.6` to `MAX_COMPLETION_TOKENS_MODELS` (root cause of #525 chain error); added autochain dispatch-time priming chunks (#526 models side)
-- **Aria**: removed `ImageGenToggleRow` and all wiring (#522 UI); portaled copy dropdown (#523); fixed table alternating row shading via imperative index (#524); fixed stale-conversation race in `handleSend`/`handleRetry` (#526 Aria side); first-model auto-activation + dismiss affordance on active pills (#528)
-- **Ada**: cleared after one blocker fix — portal dropdown was using `role="menu"` without Arrow-key navigation; fixed by removing menu roles and moving focus to first portal button on open
+- **Arch**: removed `imageGenerationEnabled` from `ModelConfig`
+- **Atlas**: added `gpt-5.6` to `MAX_COMPLETION_TOKENS_MODELS` (root cause of chain error); autochain priming chunks
+- **Aria**: toggle wiring removal, copy dropdown portal, table renderer, stale-conversation race, model selector first-load + dismiss affordance
+- **Ada**: cleared after blocker fix — portal dropdown keyboard pattern (removed menu roles, focus-on-open)
+- **Post-ship visual fixes**: palette icon restored (absolute positioning anchor back on outer div); palette offsets to `right-[22px]` when dismiss × also shows; alternating row shading stripped (CSS approach filed as #533)
 
 ## Key decisions
 
-- `gpt-5.6` is the first/default GPT version and requires `max_completion_tokens` — omitting it caused 400s which triggered the retry path, producing the misleading "gpt-5.5 not active" error
-- autochain now emits priming chunks per step (parallel and directed already did); `priming-chunks.test.ts` comment is stale — Scout issue #529 filed
-- Portal dropdown pattern: plain buttons with focus-on-open, not `role="menu"` — avoids unimplemented Arrow-key obligation
-- `imageGenerationEnabled` fully removed from types and UI — always-on via roster capabilities is the authoritative path
+- `gpt-5.6` requires `max_completion_tokens` — omitting it caused the 400→retry→"not active" chain
+- Portal dropdown: plain buttons + focus-on-open, not `role="menu"` (avoids Arrow-key obligation)
+- Alternating row shading: React-based approaches fail; follow-up #533 uses `.markdown-table tbody tr:nth-child(even)` in CSS
+- × dismiss button: hover-only + 16×16px is broken on mobile; Luma spec needed (#531) before Aria re-implements
+- `imageGenerationEnabled` fully removed — always-on via roster capabilities
 
 ## Open issues (priority order)
 
-- **#529** — Scout: update stale autochain comment + add priming test (Scout)
-- **#463** — error state tone: auth vs rate-limit vs network (Aria)
-- **#474** — MarkdownContent rehype plugin order regression test (Scout)
-- **#493** — per-model max_tokens override for custom/generic providers (Atlas)
-- **#494** — unbounded base64 attachment storage (Vault)
+- **#529** — Scout: update stale autochain comment + add priming test
+- **#533** — Aria: alternating table row shading via CSS nth-child (quick win)
+- **#531** — Luma → Aria: × dismiss button mobile redesign (touch target + hover-free)
+- **#532** — Ada: add WCAG 2.5.8 touch target checks to audit checklist
+- **#463** — Aria: error state tone — auth vs rate-limit vs network
+- **#474** — Scout: MarkdownContent rehype plugin order regression test
+- **#493** — Atlas: per-model max_tokens override for custom/generic providers
+- **#494** — Vault: unbounded base64 attachment storage
 - **#496/#495/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
 - **#497/#498/#499** — CI hardening wave (Forge)
-- **#527** — empty state visual polish (Luma → Aria)
-- **#501** — Luma ThinkingIndicator motion rows (Luma)
+- **#530** — Forge + Scout: Playwright smoke suite for AFK visual verification
+- **#527** — Luma → Aria: empty state visual polish
+- **#501** — Luma: ThinkingIndicator motion rows
 
 ## Gotchas
 
