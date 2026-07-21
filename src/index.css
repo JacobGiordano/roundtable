@@ -474,9 +474,11 @@ code.hljs {
     to   { opacity: 1; transform: none; }
   }
 
-  /* #533: Markdown table alternating row shading — browser-native :nth-child
-     avoids the React reconciler issues that prevented Tailwind even: from firing. */
-  .markdown-table tbody tr:nth-child(even) {
-    background-color: var(--border-subtle);
-  }
+}
+
+
+/* #533: Markdown table alternating row shading — browser-native :nth-child
+   avoids the React reconciler issues that prevented Tailwind even: from firing. */
+.markdown-table tbody tr:nth-child(even) {
+  background-color: var(--border-subtle);
 }
