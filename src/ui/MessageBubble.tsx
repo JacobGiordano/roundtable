@@ -204,7 +204,7 @@ function ImageCopyButton({ img, copyLabel }: { img: GeneratedImage; copyLabel: s
       aria-label={imgCopyState === 'copied' ? 'Copied!' : copyLabel}
       onClick={handleImgCopy}
       className={[
-        'flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]',
+        'flex items-center min-h-[24px] gap-1 px-1.5 py-0.5 rounded text-[11px]',
         imgCopyState === 'copied'
           ? 'text-success'
           : 'text-text-secondary hover:text-text-primary hover:bg-hover',
@@ -1249,13 +1249,13 @@ function MessageBubbleBase({
                         Layout: flex row, left-aligned, gap-1 between buttons.
                         Token contract: text-text-secondary / hover:text-text-primary /
                         hover:bg-hover — all established tokens, no novel color choices. */}
-                    <div className="mt-1 flex items-center gap-1">
+                    <div className="mt-1 flex items-center gap-2">
                       <button
                         type="button"
                         aria-label={downloadLabel}
                         onClick={() => downloadImage(img)}
                         className={[
-                          'flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]',
+                          'flex items-center min-h-[24px] gap-1 px-1.5 py-0.5 rounded text-[11px]',
                           'text-text-secondary hover:text-text-primary hover:bg-hover',
                           'transition-colors duration-fast',
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
@@ -1327,7 +1327,7 @@ function MessageBubbleBase({
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="mt-1.5 text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                  className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
                 >
                   Retry
                 </button>
@@ -1357,6 +1357,7 @@ function MessageBubbleBase({
                   type="button"
                   onClick={() => onDirectedReply!(message.modelId as ModelId)}
                   className={[
+                    'inline-flex items-center min-h-[24px]',
                     'text-[11px] font-medium min-w-0 truncate',
                     'hover:underline underline-offset-2',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',

@@ -221,7 +221,8 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
         'absolute top-2 right-2',
         'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
         'transition-opacity duration-[100ms]',
-        'px-2 py-1 rounded-sm',
+        'inline-flex items-center',
+        'min-h-[24px] px-2 py-1 rounded-sm',
         'text-[11px] font-medium leading-none',
         // bg-card = var(--surface-card) per tailwind.config.js — spec calls this bg-surface-card
         // but the Tailwind key is 'card', making the class bg-card.
