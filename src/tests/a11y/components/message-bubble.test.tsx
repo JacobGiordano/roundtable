@@ -421,12 +421,28 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
         tokenCountVisibility="never"
       />
     );
-    // The error detail <p> must contain the human-readable error message.
-    // Screen reader users navigating the thread via virtual cursor must encounter
-    // this text immediately after the model name header — there is no body paragraph
-    // in between to traverse (it was suppressed).
+    // #463: The error detail <p> now shows a curated tone-specific summary rather
+    // than the raw error.message string. The raw provider error text is preserved
+    // in a sr-only <span> immediately below the summary so screen reader users
+    // still get the full provider detail while sighted users see the gentler summary.
+    //
+    // For rate_limit the summary is "Rate limited — try again in a moment".
+    // For auth_failure: "Check your API key". For network_error: "Connection issue — Retry when ready".
+    // Unknown codes fall back to "Error: {error.message}" (raw text preserved in <p> directly).
+    //
+    // WCAG 1.3.1 — Info and Relationships: the semantically meaningful error description
+    // must be present in the AT reading order. Both the summary <p> and the sr-only
+    // raw-detail <span> satisfy this requirement.
     const errorParagraph = container.querySelector('p');
-    expect(errorParagraph?.textContent).toContain(MODEL_ERROR.message);
+    // Summary must be non-empty and informative.
+    expect(errorParagraph?.textContent?.trim().length).toBeGreaterThan(0);
+    // For the known rate_limit code, confirm the curated summary is present.
+    expect(errorParagraph?.textContent).toContain('Rate limited');
+    // The raw provider error.message must be in a sr-only span so screen readers
+    // can read the full technical detail without showing it visually.
+    const srOnlySpan = container.querySelector('.sr-only');
+    expect(srOnlySpan).not.toBeNull();
+    expect(srOnlySpan?.textContent).toContain(MODEL_ERROR.message);
   });
 
   it('warning glyph in error section is aria-hidden', () => {
@@ -438,11 +454,20 @@ describe('MessageBubble — Fix #271: Sentinel error state accessibility (WCAG 1
         tokenCountVisibility="never"
       />
     );
-    // The ⚠ glyph (&#9888;) is decorative — the adjacent <span> carries the
-    // human-readable error text. The glyph must be aria-hidden so screen readers
-    // do not announce "warning" or the raw Unicode codepoint before the message.
-    const hiddenGlyph = container.querySelector('[aria-hidden="true"].select-none');
-    expect(hiddenGlyph).not.toBeNull();
+    // #463: The generic ⚠ glyph was replaced with code-specific icons (KeyIcon for
+    // auth_failure, ClockIcon for rate_limit, WifiOffIcon for network_error). These
+    // are rendered inside a <span aria-hidden="true"> wrapper in the nameplate zone —
+    // the icons are purely decorative; error identity is conveyed by the body text.
+    // The SVG icons themselves also carry aria-hidden="true" via the iconSvg() factory.
+    //
+    // The .select-none selector previously targeted the ⚠ fallback span only (unknown
+    // error codes). Known codes render an SVG icon wrapped in an aria-hidden span instead.
+    //
+    // We verify that the nameplate error icon container is aria-hidden — either the
+    // wrapper <span aria-hidden="true"> (for known codes) or the SVG icon itself.
+    // For rate_limit, a ClockIcon SVG is expected inside the wrapper.
+    const ariaHiddenIcon = container.querySelector('span[aria-hidden="true"] svg[aria-hidden="true"]');
+    expect(ariaHiddenIcon).not.toBeNull();
   });
 
   it('has no axe violations — sentinel error state without Retry button', async () => {
@@ -911,13 +936,27 @@ describe('MessageBubble — Fix #322: Nameplate zone structure (WCAG 1.3.1, 4.1.
         tokenCountVisibility="never"
       />
     );
-    // The ⚠ glyph (&#9888;) in the nameplate is decorative — the error message text
-    // in the body zone conveys the error. The glyph must be aria-hidden so screen
-    // readers do not announce "warning" or the raw Unicode character before the model name.
-    const warningGlyph = container.querySelector('span[aria-hidden="true"].select-none');
-    expect(warningGlyph).not.toBeNull();
-    // Confirm it contains the warning character (not some other aria-hidden span)
-    expect(warningGlyph?.textContent?.trim()).toBeTruthy();
+    // #463: The ⚠ glyph (&#9888;) was replaced by code-specific SVG icons rendered
+    // inside a <span aria-hidden="true"> wrapper. For network_error, WifiOffIcon renders.
+    // For auth_failure, KeyIcon renders. For rate_limit, ClockIcon renders.
+    // Unknown codes still render the ⚠ fallback span with select-none.
+    //
+    // In all cases the nameplate icon is decorative — error identity is communicated
+    // by the body-zone error text. The icon/wrapper must be aria-hidden.
+    //
+    // For network_error (MODEL_ERROR.code here), we expect:
+    //   <span aria-hidden="true" ...>
+    //     <svg aria-hidden="true">...</svg>  ← WifiOffIcon from iconSvg()
+    //   </span>
+    //
+    // Note: the color dot <span aria-hidden="true"> also appears in the nameplate and
+    // is encountered first by querySelector. We use querySelectorAll and scan for the
+    // specific wrapper that contains an SVG child (the icon wrapper, not the dot).
+    const allAriaHiddenSpans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
+    const iconWrapper = allAriaHiddenSpans.find(
+      (span) => span.querySelector('svg[aria-hidden="true"]') !== null,
+    );
+    expect(iconWrapper).not.toBeUndefined();
   });
 
   // ─── Timestamp accessibility ──────────────────────────────────────────────
