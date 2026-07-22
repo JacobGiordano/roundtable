@@ -1,4 +1,4 @@
-Last updated: 2026-07-21 (ship: wave 16)
+Last updated: 2026-07-22 (ship: wave 17)
 
 ## Current phase
 
@@ -6,24 +6,22 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 16 shipped. Issues closed: #542 #543
+Wave 17 shipped. Issue closed: #530
 
-- **Aria + Ada**: all 7 WCAG 2.5.8 advisory touch targets fixed — `min-h-[24px]` + `inline-flex items-center` across 5 files; `gap-1 → gap-2` on image buttons; Ada re-audit passed (#542)
-- **Arch**: #543 already resolved in commit `9c6d81d` (2026-06-23) — closed as done
+- **Scout**: added `src/tests/e2e/scenarios.spec.ts` — 7 tests across 5 describe blocks covering all 5 acceptance-criteria scenarios (copy dropdown overflow, markdown table shading, model selector first-load, error bubbles via route interception, empty state recovery)
+- **Flint**: CONDITIONAL — ships as-is; Caveat 1 (no webServer auto-start) is pre-existing design; Caveats 2–3 are watch-at-CI items
 
 ## Key decisions
 
-- All WCAG 2.5.8 blocker and advisory touch targets are now resolved — no remaining open a11y size issues
-- Stale comment in `themeValidation.ts` line 276 ("declares only link and link-hover") is Gate cleanup on next touch — not worth a ticket
-- WCAG 2.5.8 eye-toggle buttons in ProviderSettingsPanel: repositioned `right-3` → `right-1` (wave 15) — verify visually in dev server
-- Vault eviction: in-memory cache retains full base64; only localStorage write is trimmed
+- `playwright.config.ts` intentionally omits `webServer` — dev must run `npm run dev` first; CI starts the server explicitly
+- `[role="alert"]` selector in Scenario 4 is broad but `ContainText('Error:')` guard is sufficient in practice
+- Scenario 5a assumes `isVisible: false` roster entries count as "not empty" for `isRosterEmpty` — verify at first CI run
 
 ## Open issues (priority order)
 
 - **#463** — Aria: error state tone — auth vs rate-limit vs network
 - **#495** — Vault/Aria: storage usage reporting UI (`getStorageUsage()` ready in `@/storage`)
 - **#496/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
-- **#530** — Forge + Scout: Playwright smoke suite for AFK visual verification
 - **#527** — Luma → Aria: empty state visual polish
 
 ## Gotchas
