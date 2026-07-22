@@ -485,6 +485,129 @@ describe('quota exceeded error', () => {
   });
 });
 
+// ─── Orphan ID cleanup (#481) ─────────────────────────────────────────────────
+
+describe('orphan ID cleanup (#481)', () => {
+  it('does not add the ID to the index when the data write fails (transactional ordering)', async () => {
+    // Simulate QuotaExceededError on the FIRST setItem call (the data key write).
+    // With the fixed ordering (data first, index second), the quota error fires
+    // before the index is touched — so the ID must NOT appear in the index.
+    const quotaError = new DOMException('Quota exceeded', 'QuotaExceededError');
+    let callCount = 0;
+    const original = globalThis.localStorage.setItem;
+    globalThis.localStorage.setItem = vi.fn().mockImplementation((key: string, value: string) => {
+      callCount++;
+      if (callCount === 1) {
+        // First write — the data key write. Throw to simulate quota failure.
+        throw quotaError;
+      }
+      original.call(globalThis.localStorage, key, value);
+    });
+
+    const conv = makeConversation({ id: 'quota-fail-conv' });
+    await expect(provider.saveConversation(conv)).rejects.toThrow('Storage quota exceeded');
+
+    globalThis.localStorage.setItem = original;
+
+    // The index must NOT contain the ID — the data write failed before the
+    // index was touched, so no orphan should have been created.
+    const list = await provider.listConversations();
+    expect(list.map((c) => c.id)).not.toContain('quota-fail-conv');
+  });
+
+  it('prunes orphan IDs from the index on the first listConversations call', async () => {
+    // Manually inject an orphan: write an ID into the index but provide no
+    // corresponding data key. This simulates the pre-fix state where
+    // writeIndex() succeeded but safeSet() for the data subsequently failed.
+    const orphanId = 'orphan-conv';
+    store.set('roundtable:index', JSON.stringify([orphanId]));
+    // Deliberately do NOT write roundtable:conv:orphan-conv.
+
+    // listConversations() should return an empty list (orphan is skipped)
+    // and should prune the orphan from the index as a side effect.
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(0);
+
+    // The index must now be empty — the orphan ID was pruned.
+    const rawIndex = store.get('roundtable:index');
+    const index = rawIndex ? JSON.parse(rawIndex) : [];
+    expect(index).not.toContain(orphanId);
+  });
+
+  it('preserves valid IDs when pruning orphans from the index', async () => {
+    const good = makeConversation({ id: 'good-conv', updatedAt: 1000 });
+    await provider.saveConversation(good);
+
+    // Inject an orphan ID alongside the valid one.
+    const rawIndex = store.get('roundtable:index');
+    const ids: string[] = rawIndex ? JSON.parse(rawIndex) : [];
+    ids.push('orphan-conv');
+    store.set('roundtable:index', JSON.stringify(ids));
+
+    // Reset the provider so the cache is cold and listConversations does a full scan.
+    provider = new LocalStorageProvider();
+
+    const list = await provider.listConversations();
+    // Only the valid conversation is returned.
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe('good-conv');
+
+    // The index must retain good-conv but not orphan-conv.
+    const rawIndexAfter = store.get('roundtable:index');
+    const indexAfter: string[] = rawIndexAfter ? JSON.parse(rawIndexAfter) : [];
+    expect(indexAfter).toContain('good-conv');
+    expect(indexAfter).not.toContain('orphan-conv');
+  });
+
+  it('does not rewrite the index when no orphans are found', async () => {
+    const conv = makeConversation({ id: 'clean-conv', updatedAt: 1000 });
+    await provider.saveConversation(conv);
+
+    // Track setItem calls to confirm no extra index write occurs.
+    const setCalls: string[] = [];
+    const original = globalThis.localStorage.setItem;
+    globalThis.localStorage.setItem = vi.fn().mockImplementation((key: string, value: string) => {
+      setCalls.push(key);
+      original.call(globalThis.localStorage, key, value);
+    });
+
+    // Reset the provider so the cache is cold.
+    provider = new LocalStorageProvider();
+    await provider.listConversations();
+
+    globalThis.localStorage.setItem = original;
+
+    // No index write should have occurred during the list (no orphans, no pruning needed).
+    expect(setCalls.filter((k) => k === 'roundtable:index')).toHaveLength(0);
+  });
+
+  it('prune is non-fatal: listConversations still returns valid data when prune write fails', async () => {
+    // Inject a valid conversation and an orphan.
+    const good = makeConversation({ id: 'good-conv', updatedAt: 1000 });
+    await provider.saveConversation(good);
+    const rawIndex = store.get('roundtable:index');
+    const ids: string[] = rawIndex ? JSON.parse(rawIndex) : [];
+    ids.push('orphan-conv');
+    store.set('roundtable:index', JSON.stringify(ids));
+
+    // Reset the provider so the cache is cold.
+    provider = new LocalStorageProvider();
+
+    // Make the index write inside pruneIndex throw.
+    const quotaError = new DOMException('Quota exceeded', 'QuotaExceededError');
+    const original = globalThis.localStorage.setItem;
+    globalThis.localStorage.setItem = vi.fn().mockImplementation(() => { throw quotaError; });
+
+    // listConversations must NOT throw even though the prune write fails.
+    const list = await provider.listConversations();
+    globalThis.localStorage.setItem = original;
+
+    // The valid conversation is still returned.
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe('good-conv');
+  });
+});
+
 describe('corrupt load', () => {
   it('returns null when the stored JSON is malformed', async () => {
     store.set('roundtable:conv:bad', '{ broken json }');
