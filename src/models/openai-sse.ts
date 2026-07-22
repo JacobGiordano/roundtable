@@ -7,7 +7,8 @@
  *
  * Exports:
  *   parseSSEStream        — yields raw SSE data payloads from a fetch Response
- *   mapHttpStatusToErrorCode — maps HTTP status codes to ModelErrorCode values
+ *   mapHttpStatusToErrorCode — maps HTTP status codes to ModelErrorCode values (status only)
+ *   classifyHttpError     — body-aware classification; prefer over mapHttpStatusToErrorCode
  *   buildModelError       — constructs a ModelError from a code + message
  *   emitErrorChunk        — emits a priming non-done chunk then an error done chunk
  *   filterMessagesForApi  — strips error-only assistant messages from history
@@ -26,21 +27,90 @@ import type { Message, ModelError, ModelErrorCode, ModelId, StreamHandler } from
 // ─── Error helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Map an HTTP status code to the closest ModelErrorCode.
+ * Map an HTTP status code to the closest ModelErrorCode (status only, no body).
  *
  * Covers the four meaningful cases from the Roundtable error contract:
  *   401, 403  → auth_failure   (invalid or missing API key)
  *   429       → rate_limit     (too many requests)
  *   400       → context_length_exceeded (request body was rejected; most
- *               commonly a context window overflow, but also covers other
- *               malformed-request cases — the cleanest single-code mapping
- *               we can make without reading the response body)
+ *               commonly a context window overflow — use classifyHttpError
+ *               when the response body is available to distinguish auth
+ *               failures that some providers surface as 400, e.g. xAI/Grok)
  *   anything else → unknown
+ *
+ * Prefer classifyHttpError when the response body is available.
  */
 export function mapHttpStatusToErrorCode(status: number): ModelErrorCode {
   if (status === 401 || status === 403) return 'auth_failure';
   if (status === 429) return 'rate_limit';
   if (status === 400) return 'context_length_exceeded';
+  return 'unknown';
+}
+
+/**
+ * Keywords in a provider error message body that indicate an authentication
+ * failure even when the HTTP status is 400 (as xAI/Grok does for bad API keys).
+ * Matched case-insensitively against the full error message string.
+ *
+ * Patterns cover confirmed xAI behavior and common OpenAI-compatible formulations:
+ *   - "invalid api key" / "invalid_api_key" / "invalid x-api-key"
+ *   - "incorrect api key"
+ *   - "no api key" / "api key not" / "api key missing"
+ *   - "authentication" — catches "authentication failed", "unauthenticated", etc.
+ *   - "unauthorized"   — xAI may include this in the 400 body
+ *   - "api key"        — broad fallback for novel provider formulations; acceptable
+ *                        because a 400 with "api key" in the message is almost
+ *                        certainly an auth problem, not a context-length overflow
+ */
+const AUTH_ERROR_KEYWORDS = [
+  'invalid api key',
+  'invalid_api_key',
+  'incorrect api key',
+  'no api key',
+  'api key not',
+  'api key missing',
+  'authentication',
+  'unauthorized',
+  'invalid x-api-key',
+  'api key',
+];
+
+/**
+ * Classify an HTTP error into a ModelErrorCode using both the status code and
+ * the provider error message text from the response body.
+ *
+ * This is the preferred function when the response body has already been read.
+ * It handles the Grok/xAI case where HTTP 400 signals a bad API key rather
+ * than a context-length overflow (issue #544).
+ *
+ * Classification logic:
+ *   401, 403                → auth_failure  (standard HTTP auth rejection)
+ *   429                     → rate_limit
+ *   400 + auth keywords     → auth_failure  (Grok/xAI and others returning 400 for bad keys)
+ *   400 (no auth keywords)  → context_length_exceeded
+ *   anything else           → unknown
+ *
+ * @param status       - The HTTP response status code.
+ * @param errorMessage - The error message string from the parsed response body
+ *                       (e.g. body.error?.message). Pass undefined or empty string
+ *                       when no body was readable — falls back to status-only mapping.
+ */
+export function classifyHttpError(status: number, errorMessage: string | undefined): ModelErrorCode {
+  if (status === 401 || status === 403) return 'auth_failure';
+  if (status === 429) return 'rate_limit';
+  if (status === 400) {
+    // Check whether the error body indicates an authentication failure.
+    // xAI/Grok returns HTTP 400 for a bad API key instead of the conventional 401.
+    // Inspect the lowercased message text for auth-related keywords before
+    // defaulting to context_length_exceeded.
+    if (errorMessage) {
+      const lower = errorMessage.toLowerCase();
+      if (AUTH_ERROR_KEYWORDS.some((kw) => lower.includes(kw))) {
+        return 'auth_failure';
+      }
+    }
+    return 'context_length_exceeded';
+  }
   return 'unknown';
 }
 

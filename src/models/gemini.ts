@@ -26,7 +26,7 @@ import { getProxyConfig } from '@/auth';
 import { getPricingTable } from '@/auth';
 import { MAX_TOKENS_GEMINI } from './constants';
 import {
-  mapHttpStatusToErrorCode,
+  classifyHttpError,
   buildModelError,
   parseSSEStream,
   emitErrorChunk,
@@ -313,7 +313,6 @@ export class GeminiModelProvider implements ModelProvider {
     }
 
     if (!response.ok) {
-      const code = mapHttpStatusToErrorCode(response.status);
       let detail = `HTTP ${response.status}`;
       try {
         const body = await response.json() as { error?: { message?: string } };
@@ -321,6 +320,10 @@ export class GeminiModelProvider implements ModelProvider {
       } catch {
         // ignore JSON parse failure — use status code detail
       }
+      // classifyHttpError inspects the error message body for auth keywords.
+      // Google returns standard 400 for invalid API keys passed as query params
+      // — body-aware classification ensures these surface as auth_failure (issue #544).
+      const code = classifyHttpError(response.status, detail);
       const error = buildModelError(code, detail);
       emitErrorChunk(this.config.modelId, error, onChunk);
       return {};

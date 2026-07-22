@@ -55,7 +55,7 @@ import type {
 } from '@/types';
 import { MAX_TOKENS_GENERIC } from './constants';
 import {
-  mapHttpStatusToErrorCode,
+  classifyHttpError,
   buildModelError,
   parseSSEStream,
   emitErrorChunk,
@@ -196,7 +196,7 @@ export class GenericOpenAIProvider implements ModelProvider {
     // credential lookup. If credentialKey is present but no key is stored, we
     // proceed with no Authorization header and let the endpoint respond.
     // Remote endpoints that genuinely need a key will respond with 401/403, which
-    // mapHttpStatusToErrorCode maps to auth_failure below.
+    // classifyHttpError maps to auth_failure below.
     //
     // This guards all three cases correctly:
     //   - requiresApiKey === false: skip lookup, never set Authorization header.
@@ -375,7 +375,6 @@ export class GenericOpenAIProvider implements ModelProvider {
     }
 
     if (!response.ok) {
-      const code = mapHttpStatusToErrorCode(response.status);
       let detail = `HTTP ${response.status}`;
       try {
         const body = await response.json() as { error?: { message?: string } };
@@ -383,6 +382,11 @@ export class GenericOpenAIProvider implements ModelProvider {
       } catch {
         // ignore JSON parse failure — use status code detail
       }
+      // classifyHttpError inspects the error message body for auth keywords.
+      // Custom OpenAI-compatible endpoints may return 400 for auth failures
+      // (same pattern as xAI/Grok) — body-aware classification handles these
+      // correctly without requiring per-endpoint special-casing (issue #544).
+      const code = classifyHttpError(response.status, detail);
       const error = buildModelError(code, detail);
       emitErrorChunk(modelId, error, onChunk);
       return {};

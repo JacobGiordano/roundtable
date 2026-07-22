@@ -49,7 +49,7 @@ import type { GeneratedImage, Message, ModelProviderConfig, StreamHandler, Token
 import { getCredentials } from '@/auth';
 import { MAX_TOKENS_GPT } from './constants';
 import { BaseOpenAIProvider } from './BaseOpenAIProvider';
-import { buildModelError, emitErrorChunk, mapHttpStatusToErrorCode } from './openai-sse';
+import { buildModelError, classifyHttpError, emitErrorChunk } from './openai-sse';
 
 // ─── Image-model config map (#399) ────────────────────────────────────────────
 
@@ -321,7 +321,6 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
     }
 
     if (!response.ok) {
-      const code = mapHttpStatusToErrorCode(response.status);
       let detail = `HTTP ${response.status}`;
       try {
         const body = await response.json() as { error?: { message?: string } };
@@ -329,6 +328,10 @@ export class GPT55ModelProvider extends BaseOpenAIProvider {
       } catch {
         // ignore JSON parse failure — use status code detail
       }
+      // classifyHttpError inspects the error message body for auth keywords.
+      // OpenAI returns standard 401 for bad keys, but body-aware classification
+      // is applied consistently for correctness (issue #544).
+      const code = classifyHttpError(response.status, detail);
       const error = buildModelError(code, detail);
       emitErrorChunk(this.config.modelId, error, onChunk);
       return {};

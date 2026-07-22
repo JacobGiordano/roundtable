@@ -37,7 +37,7 @@ import { getProxyConfig } from '@/auth';
 // permitted cross-agent import — pricing table read at send time per issue #352
 import { getPricingTable } from '@/auth';
 import {
-  mapHttpStatusToErrorCode,
+  classifyHttpError,
   buildModelError,
   parseSSEStream,
   emitErrorChunk,
@@ -296,7 +296,6 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
     }
 
     if (!response.ok) {
-      const code = mapHttpStatusToErrorCode(response.status);
       let detail = `HTTP ${response.status}`;
       try {
         const body = await response.json() as { error?: { message?: string } };
@@ -304,6 +303,10 @@ export abstract class BaseOpenAIProvider implements ModelProvider {
       } catch {
         // ignore JSON parse failure — use status code detail
       }
+      // classifyHttpError inspects the error message body for auth keywords.
+      // This correctly handles providers (e.g. xAI/Grok) that return HTTP 400
+      // for a bad API key rather than the conventional 401 (issue #544).
+      const code = classifyHttpError(response.status, detail);
       const error = buildModelError(code, detail);
       emitErrorChunk(this.config.modelId, error, onChunk);
       return {};
