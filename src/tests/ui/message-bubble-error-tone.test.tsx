@@ -24,7 +24,7 @@
  *   ModelError / ModelErrorCode (Arch, src/types/index.ts) — error shape
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MessageBubble } from '@/ui/MessageBubble';
 import type { Message, ModelConfig, ModelError } from '@/types/index';
@@ -126,6 +126,7 @@ describe('MessageBubble error tone — auth_failure (#463)', () => {
         modelConfig={CLAUDE_CONFIG}
         error={AUTH_ERROR}
         onRetry={() => {}}
+        onOpenSettings={vi.fn()}
         tokenCountVisibility="never"
       />
     );
