@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-21",
+  "updated": "2026-07-22",
   "providers": {
     "anthropic": [
       {
@@ -334,6 +334,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-3.6-flash",
+        "displayName": "Google: Gemini 3.6 Flash"
+      },
+      {
+        "id": "gemini-3.5-flash-lite",
+        "displayName": "Google: Gemini 3.5 Flash-Lite"
+      },
       {
         "id": "gemini-3.1-flash-lite-image",
         "displayName": "Google: Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)"
