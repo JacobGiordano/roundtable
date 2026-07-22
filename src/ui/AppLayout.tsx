@@ -459,6 +459,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             streamingMessages={streamingMessages}
             models={activeModels}
             onRetry={onRetry}
+            onOpenSettings={handleOpenProviderSettings}
             onDirectedReply={onDirectedReply}
             tokenCountVisibility={tokenCountVisibility}
             onExport={onExportConversation}

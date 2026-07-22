@@ -4,6 +4,11 @@ import type { BuiltInModelId, ProviderCapabilities, ProviderConfig, BuiltInProvi
 import { CustomThemeImport } from './CustomThemeImport';
 // TransferSetupPanel — Transfer setup section (Section 5) added per #305.
 import { TransferSetupPanel } from './TransferSetupPanel';
+// Vault cross-agent exception (#495): getStorageUsage() is a pure read-only utility
+// explicitly exported from @/storage for Aria's storage usage UI. It is not on the
+// StorageProvider contract (requires an Arch types PR). StorageUsage is the result type.
+import { getStorageUsage } from '@/storage';
+import type { StorageUsage } from '@/storage';
 // Gate cross-agent exception: provider roster CRUD functions and credential
 // helpers are pure Gate persistence utilities — permitted per CLAUDE.md.
 // BUILTIN_MODEL_IDS: Gate's canonical ReadonlySet<BuiltInModelId> — imported
@@ -2018,6 +2023,145 @@ function PricingUrlField() {
   );
 }
 
+// ─── StorageUsageSection (#495) ───────────────────────────────────────────────
+
+/**
+ * Renders a storage usage bar and byte breakdown in the settings panel.
+ *
+ * Fetches usage on mount and provides a manual refresh button. The usage bar
+ * uses semantic warning/success colors to signal proximity to the quota:
+ *   - ≥ 80% (STORAGE_WARN_THRESHOLD): warning color — quota is nearly full.
+ *   - < 80%: normal color (text-text-muted styled bar using bg-border-subtle).
+ *
+ * getStorageUsage() is imported from @/storage — permitted exception per
+ * CLAUDE.md and storageUsage.ts (explicitly exported for this companion UI).
+ *
+ * Token verification (two-step):
+ *   bg-warning: tailwind.config.js → colors.warning → var(--semantic-warning)
+ *   theme.ts applyTheme() → --semantic-warning set for all 7 themes. PASS.
+ *   bg-success: tailwind.config.js → colors.success → var(--semantic-success)
+ *   theme.ts applyTheme() → --semantic-success set for all 7 themes. PASS.
+ *   bg-border-subtle: tailwind.config.js → colors['border-subtle'] → var(--border-subtle)
+ *   theme.ts applyTheme() → --border-subtle set for all 7 themes. PASS.
+ */
+function StorageUsageSection() {
+  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const fetchUsage = useCallback(async () => {
+    setIsLoading(true);
+    setHasError(false);
+    try {
+      const result = await getStorageUsage();
+      setUsage(result);
+    } catch {
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchUsage();
+  }, [fetchUsage]);
+
+  /** Format bytes into a human-readable string (B, KB, MB). */
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  const isNearCapacity = usage !== null && usage.percentUsed >= 80;
+
+  return (
+    <div>
+      <h4 className="text-[12px] font-medium text-text-secondary mb-3">
+        localStorage usage
+      </h4>
+
+      {isLoading && (
+        <p className="text-[13px] text-text-muted" aria-live="polite">
+          Calculating…
+        </p>
+      )}
+
+      {hasError && !isLoading && (
+        <p className="text-[13px] text-error" role="alert">
+          Could not read storage usage.
+        </p>
+      )}
+
+      {usage && !isLoading && (
+        <div aria-label="Storage usage" role="group">
+          {/* Usage bar — full-width progress track with filled indicator.
+              aria-hidden: purely decorative; accessible summary is in the sr-only span below. */}
+          <div
+            className="w-full h-[6px] rounded-full bg-border-subtle overflow-hidden mb-2"
+            aria-hidden="true"
+          >
+            <div
+              className={[
+                'h-full rounded-full transition-[width] duration-medium',
+                isNearCapacity ? 'bg-warning' : 'bg-success',
+              ].join(' ')}
+              style={{ width: `${Math.min(usage.percentUsed, 100)}%` }}
+            />
+          </div>
+
+          {/* Byte breakdown — screen-reader accessible via the group label above */}
+          <div className="flex items-center justify-between text-[12px] text-text-muted mb-1">
+            <span>
+              <span className="font-medium text-text-secondary">{formatBytes(usage.used)}</span>
+              {' used'}
+            </span>
+            <span>
+              {formatBytes(usage.quota)} estimated quota
+            </span>
+          </div>
+
+          {/* Percentage row — warning callout when near capacity */}
+          <p
+            className={[
+              'text-[12px]',
+              isNearCapacity ? 'text-warning font-medium' : 'text-text-muted',
+            ].join(' ')}
+            role={isNearCapacity ? 'status' : undefined}
+          >
+            {usage.percentUsed.toFixed(1)}% used
+            {isNearCapacity && ' — storage is nearly full'}
+          </p>
+
+          {/* sr-only full summary for screen readers */}
+          <span className="sr-only">
+            {`Storage usage: ${formatBytes(usage.used)} of ${formatBytes(usage.quota)} used (${usage.percentUsed.toFixed(1)}%).`}
+            {isNearCapacity ? ' Storage is nearly full. Consider deleting old conversations.' : ''}
+          </span>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => void fetchUsage()}
+        disabled={isLoading}
+        aria-label="Refresh storage usage"
+        className={[
+          'mt-3 text-[12px] text-text-muted underline underline-offset-2',
+          // min-h-[24px]: matches touch target minimum for interactive elements (WCAG 2.5.8 advisory).
+          'min-h-[24px] inline-flex items-center',
+          'hover:text-text-secondary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          'transition-colors duration-fast',
+        ].join(' ')}
+      >
+        {isLoading ? 'Refreshing…' : 'Refresh'}
+      </button>
+    </div>
+  );
+}
+
 // ─── ProviderSettingsPanel ────────────────────────────────────────────────────
 
 interface ProviderSettingsPanelProps {
@@ -2334,11 +2478,21 @@ export function ProviderSettingsPanel({
 
         {/* ── Section 6: Data sources (#353) ────────────────────────────── */}
         {/* Pricing URL override — lets users point to a custom pricing.json. */}
-        <section className="border-t border-border pt-8">
+        <section className="border-t border-border pt-8 mb-8">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
             Data sources
           </h3>
           <PricingUrlField />
+        </section>
+
+        {/* ── Section 7: Storage (#495) ─────────────────────────────────── */}
+        {/* Storage usage bar — shows localStorage consumption so users know
+            how full their browser storage is before hitting the quota wall. */}
+        <section className="border-t border-border pt-8">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
+            Storage
+          </h3>
+          <StorageUsageSection />
         </section>
       </div>
     </div>

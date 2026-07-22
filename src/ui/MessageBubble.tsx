@@ -142,6 +142,14 @@ interface MessageBubbleProps {
   error?: ModelError;
   /** Called when the user clicks Retry on an errored bubble. Atlas wires the actual retry. */
   onRetry?: () => void;
+  /**
+   * Called when the user clicks "Go to Settings" on an auth_failure error bubble.
+   * Opens the credentials/API key settings panel. Wired in AppLayout via
+   * handleOpenProviderSettings. Distinct from onRetry — auth_failure directs the
+   * user to fix their key rather than retrying the same request.
+   * #545: Fixes the label/action mismatch where auth_failure called onRetry.
+   */
+  onOpenSettings?: () => void;
   /** Stagger index for bubble entrance animation delay (0-based). */
   entranceIndex?: number;
   /**
@@ -587,6 +595,7 @@ function MessageBubbleBase({
   modelConfig,
   error,
   onRetry,
+  onOpenSettings,
   entranceIndex = 0,
   onDirectedReply,
   targetModelConfig,
@@ -1337,7 +1346,9 @@ function MessageBubbleBase({
             };
             const summary = summaryMap[code] ?? `Error: ${error!.message}`;
             // Retry button label varies by error type.
-            const retryLabel = code === 'auth_failure' ? 'Go to Settings' : 'Retry';
+            // retryLabel is used for rate_limit and network_error only.
+            // auth_failure now calls onOpenSettings with a hardcoded "Go to Settings" label (#545).
+            const retryLabel = 'Retry';
             const hasDivider = message.content && message.content !== 'Error';
             return (
               <div
@@ -1352,14 +1363,29 @@ function MessageBubbleBase({
                 {summary !== `Error: ${error!.message}` && (
                   <span className="sr-only">{error!.message}</span>
                 )}
-                {onRetry && (
-                  <button
-                    type="button"
-                    onClick={onRetry}
-                    className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-                  >
-                    {retryLabel}
-                  </button>
+                {/* #545: auth_failure uses onOpenSettings to open the credentials panel;
+                    rate_limit and network_error use onRetry for the normal retry flow.
+                    Each button only renders when its respective callback is provided. */}
+                {error!.code === 'auth_failure' ? (
+                  onOpenSettings && (
+                    <button
+                      type="button"
+                      onClick={onOpenSettings}
+                      className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                    >
+                      Go to Settings
+                    </button>
+                  )
+                ) : (
+                  onRetry && (
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                    >
+                      {retryLabel}
+                    </button>
+                  )
                 )}
               </div>
             );

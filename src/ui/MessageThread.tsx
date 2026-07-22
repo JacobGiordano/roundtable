@@ -19,6 +19,12 @@ interface MessageThreadProps {
   models: ModelConfig[];
   onRetry?: (messageId: string) => void;
   /**
+   * Called when the user clicks "Go to Settings" on an auth_failure error bubble.
+   * Opens the credentials/API key settings panel. Threaded from AppLayout
+   * (handleOpenProviderSettings) → MessageThread → MessageBubble (#545).
+   */
+  onOpenSettings?: () => void;
+  /**
    * Called when the user clicks "Reply to [Model]" on an assistant bubble.
    * Sets a pending directed-reply target in App state; InputBar shows the pill.
    */
@@ -188,6 +194,7 @@ export function MessageThread({
   streamingMessages = [],
   models,
   onRetry,
+  onOpenSettings,
   onDirectedReply,
   tokenCountVisibility,
   onExport,
@@ -639,6 +646,7 @@ export function MessageThread({
                       targetModelConfig={targetModelConfig}
                       error={message.error}
                       onRetry={onRetry ? () => onRetry(message.id) : undefined}
+                      onOpenSettings={onOpenSettings}
                       onDirectedReply={onDirectedReply}
                       entranceIndex={entranceIndex}
                       tokenCountVisibility={tokenCountVisibility}
