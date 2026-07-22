@@ -409,6 +409,83 @@ export function CopyIcon({ size = 14, className }: IconProps) {
   );
 }
 
+// ─── KeyIcon ──────────────────────────────────────────────────────────────────
+/**
+ * Key icon. Used in auth_failure error state in MessageBubble (#463).
+ * Communicates "credential problem" rather than a generic alarm.
+ */
+export function KeyIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <>
+      <circle cx="5" cy="6.5" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M7 7.5l1 1 3-3M10.5 6l1 1"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  ));
+}
+
+// ─── WifiOffIcon ───────────────────────────────────────────────────────────────
+/**
+ * Wifi-off icon. Used in network_error state in MessageBubble (#463).
+ * Reassuring "connection issue" rather than alarm.
+ */
+export function WifiOffIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <>
+      <path
+        d="M1.5 1.5l11 11"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M5.5 9.5a2 2 0 0 1 3 0"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 7a6 6 0 0 1 2.9-1.7M8.5 5.9A6 6 0 0 1 11 7"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M1 4.5a9.5 9.5 0 0 1 3.3-2.1M9 2.7A9.5 9.5 0 0 1 13 4.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="7" cy="12" r="0.75" fill="currentColor" />
+    </>
+  ));
+}
+
+// ─── ClockIcon ────────────────────────────────────────────────────────────────
+/**
+ * Clock icon. Used in rate_limit state in MessageBubble (#463).
+ * Communicates "wait a moment" rather than an error alarm.
+ */
+export function ClockIcon({ size = 14, className }: IconProps) {
+  return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
+    <>
+      <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M7 4v3.5l2 1.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  ));
+}
+
 // ─── PhotoIcon ────────────────────────────────────────────────────────────────
 /**
  * Photo/image icon (mountain-in-frame silhouette). Used in the InputBar

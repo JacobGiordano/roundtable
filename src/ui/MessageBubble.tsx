@@ -36,7 +36,9 @@ import { MarkdownContent } from './components/MarkdownContent';
 import { Lightbox } from './components/Lightbox';
 // #405: CopyIcon extracted to shared icons so Lightbox can import the same component.
 // Uses a <mask> internally — no pageFill prop needed, renders correctly on any surface.
-import { CopyIcon } from './icons';
+// #463: KeyIcon (auth_failure), WifiOffIcon (network_error), ClockIcon (rate_limit)
+// differentiate the three error states with distinct tone-appropriate icons.
+import { CopyIcon, KeyIcon, WifiOffIcon, ClockIcon } from './icons';
 // #390: downloadImage + copyImageToClipboard shared utilities.
 // Extracted to utils/ so both Lightbox and MessageBubble share the same
 // implementation without cross-component imports.
@@ -1011,11 +1013,18 @@ function MessageBubbleBase({
             aria-hidden="true"
           />
 
-          {/* Warning icon — error state only, between dot and model name.
-              Plain text ⚠ is sufficient; no SVG import needed at this size. */}
+          {/* Error icon — error state only, between dot and model name.
+              #463: Three variants keyed on error.code — each communicates
+              a distinct tone: key = auth problem, clock = rate limit (wait),
+              wifi-off = connectivity issue. Fallback: ⚠ for unknown codes. */}
           {hasError && (
-            <span aria-hidden="true" className="text-error text-[12px] select-none leading-none shrink-0">
-              &#9888;
+            <span aria-hidden="true" className="text-error shrink-0 flex items-center">
+              {error!.code === 'auth_failure' && <KeyIcon size={13} />}
+              {error!.code === 'rate_limit'   && <ClockIcon size={13} />}
+              {error!.code === 'network_error' && <WifiOffIcon size={13} />}
+              {!['auth_failure', 'rate_limit', 'network_error'].includes(error!.code) && (
+                <span className="text-[12px] select-none leading-none">&#9888;</span>
+              )}
             </span>
           )}
 
@@ -1311,29 +1320,50 @@ function MessageBubbleBase({
               The divider (border-t) is only shown when there is visible body content.
               When content is the synthesized sentinel 'Error' or empty '', MessageContent
               returns null and no body is rendered — so the divider is suppressed.
-              The warning icon is in the nameplate; the body shows the message text only.
+              The error icon is in the nameplate; the body shows a code-specific message.
               role="alert": announces the error to screen readers when the element mounts
               (WCAG 4.1.3 Status Messages). Fires assertively without requiring focus —
-              a user who was not watching the streaming bubble still hears the failure. */}
-          {hasError && (
-            <div
-              role="alert"
-              className={message.content && message.content !== 'Error' ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}
-            >
-              <p className="text-[13px] text-error italic">
-                Error: {error!.message}
-              </p>
-              {onRetry && (
-                <button
-                  type="button"
-                  onClick={onRetry}
-                  className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-                >
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
+              a user who was not watching the streaming bubble still hears the failure.
+              #463: Three differentiated tones — auth (directive), rate-limit (informational),
+              network (reassuring). The raw error.message is retained as the sr-only detail
+              so screen reader users still get the specific provider error text. */}
+          {hasError && (() => {
+            const code = error!.code;
+            // Human-readable summaries per tone spec (#463).
+            const summaryMap: Record<string, string> = {
+              auth_failure:  'Check your API key',
+              rate_limit:    'Rate limited — try again in a moment',
+              network_error: 'Connection issue — Retry when ready',
+            };
+            const summary = summaryMap[code] ?? `Error: ${error!.message}`;
+            // Retry button label varies by error type.
+            const retryLabel = code === 'auth_failure' ? 'Go to Settings' : 'Retry';
+            const hasDivider = message.content && message.content !== 'Error';
+            return (
+              <div
+                role="alert"
+                className={hasDivider ? 'mt-3 pt-2 border-t border-border-subtle' : 'mt-1'}
+              >
+                <p className="text-[13px] text-error italic">
+                  {summary}
+                </p>
+                {/* sr-only: expose the raw provider error message to screen readers
+                    without showing the technical detail visually for transient errors. */}
+                {summary !== `Error: ${error!.message}` && (
+                  <span className="sr-only">{error!.message}</span>
+                )}
+                {onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="mt-1.5 inline-flex items-center min-h-[24px] text-[12px] text-text-secondary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+                  >
+                    {retryLabel}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Bottom row: directed-reply button (left) + token count (right).
               Only shown on completed assistant messages.
@@ -1378,7 +1408,12 @@ function MessageBubbleBase({
                   'always'/'active': rendered; aria-hidden when row is not visible since
                   this is non-interactive supplementary data.
                   #357: estimated cost appended when available (formatCost returns null
-                  for undefined/zero, so the · separator only renders with real data). */}
+                  for undefined/zero, so the · separator only renders with real data).
+                  #458: token breakdown (input/output split) exposed via sr-only span —
+                  replaces the unreliable `title` attribute which VoiceOver on iOS ignores
+                  and NVDA only announces in browse mode. The sr-only span announces the
+                  breakdown immediately after the total, giving screen reader users full
+                  access to the supplementary data (WCAG 1.3.1). */}
               {showTokenCount && (() => {
                 const costStr = formatCost(message.tokenUsage!.estimatedCost);
                 return (
@@ -1387,10 +1422,14 @@ function MessageBubbleBase({
                      an sr-only comma-phrase so screen readers announce it cleanly. */
                   <div
                     className="text-[11px] text-text-muted text-right shrink-0"
-                    title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
                     aria-hidden={!rowVisible}
                   >
                     {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                    {/* #458: sr-only breakdown replaces title attribute.
+                        Announces as: "… tokens (input: N, output: N)" */}
+                    <span className="sr-only">
+                      {' '}(input: {message.tokenUsage!.inputTokens.toLocaleString()}, output: {message.tokenUsage!.outputTokens.toLocaleString()})
+                    </span>
                     {costStr !== null && (
                       <>
                         <span aria-hidden="true"> · </span>
@@ -1631,10 +1670,13 @@ function MessageBubbleBase({
                      an sr-only comma-phrase so screen readers announce it cleanly. */
                   <div
                     className="text-[11px] text-text-muted text-right"
-                    title={`Input: ${message.tokenUsage!.inputTokens.toLocaleString()} · Output: ${message.tokenUsage!.outputTokens.toLocaleString()}`}
                     aria-hidden={!rowVisible}
                   >
                     {message.tokenUsage!.totalTokens.toLocaleString()} tokens
+                    {/* #458: sr-only breakdown replaces title attribute. */}
+                    <span className="sr-only">
+                      {' '}(input: {message.tokenUsage!.inputTokens.toLocaleString()}, output: {message.tokenUsage!.outputTokens.toLocaleString()})
+                    </span>
                     {costStr !== null && (
                       <>
                         <span aria-hidden="true"> · </span>

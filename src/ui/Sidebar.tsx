@@ -374,6 +374,28 @@ export function Sidebar({
   // Bulk selection: set of selected conversation IDs.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // #459: Conversation switch announcement for screen readers.
+  // When activeConversationId changes, update this string so the polite live region
+  // announces the title. Skip on initial mount (prevId === null) — the user did not
+  // "switch", they just loaded the app.
+  const [conversationSwitchAnnouncement, setConversationSwitchAnnouncement] = useState('');
+  const prevActiveIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevActiveIdRef.current === null) {
+      // Initial mount — record the ID but don't announce.
+      prevActiveIdRef.current = activeConversationId;
+      return;
+    }
+    if (activeConversationId !== prevActiveIdRef.current) {
+      prevActiveIdRef.current = activeConversationId;
+      if (activeConversationId) {
+        const conv = conversations.find((c) => c.id === activeConversationId);
+        const title = conv?.title?.trim() || 'Untitled conversation';
+        setConversationSwitchAnnouncement(`Switched to: ${title}`);
+      }
+    }
+  }, [activeConversationId, conversations]);
+
   // New conversation button tooltip state (#166).
   const [isNewConvTooltipVisible, setIsNewConvTooltipVisible] = useState(false);
   const newConvTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -588,6 +610,20 @@ export function Sidebar({
       // Pattern: isMobile && !isMobileOpen ? '' : undefined (HANDOFF gotcha).
       {...(isMobile && !isMobileOpen ? ({ inert: '' } as React.HTMLAttributes<HTMLElement>) : {})}
     >
+      {/* #459: Polite live region — announces conversation switches to screen readers.
+          aria-live="polite" defers until the user pauses (WCAG 4.1.3).
+          aria-atomic="true" reads the full string rather than a delta.
+          Pre-mounted so the region is registered before any content change fires.
+          Clears to '' after each announcement — updating the same content to a new
+          value is the reliable AT announcement trigger (replaces, not appends). */}
+      <span
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {conversationSwitchAnnouncement}
+      </span>
+
       {/* Drag handle — right edge of sidebar, desktop only */}
       <div
         role="separator"
@@ -768,6 +804,12 @@ export function Sidebar({
         aria-label="Conversations"
         aria-busy={isLoading}
       >
+        {/* #460: sr-only heading so screen reader users navigating by heading jump
+            have a heading landmark for the conversation list (WCAG 1.3.1 Info and
+            Relationships). The nav aria-label already creates a navigation landmark;
+            the h2 gives users navigating via heading keys a second entry point.
+            Visually hidden — does not affect the layout. */}
+        <h2 className="sr-only">Conversations</h2>
         {isLoading ? (
           // Skeleton state during initial load
           <ul className="py-1" aria-hidden="true">

@@ -46,6 +46,13 @@ interface InputBarProps {
   /** When true, shows the ghost mode SVG indicator and disables attachment (#285). */
   isGhostMode?: boolean;
   /**
+   * Called when the user clicks the ghost mode icon in the input bar to toggle
+   * ghost mode on/off. When provided, the ghost icon becomes a button mirroring
+   * the sidebar ghost-mode toggle (#470). When absent, the icon is display-only
+   * (tooltip remains available).
+   */
+  onToggleGhostMode?: () => void;
+  /**
    * When set, the InputBar is in directed-reply mode. A pill showing "→ [Model]"
    * is displayed above the input row, using the model's accent color.
    * Clearing it via onClearDirectedReply returns to broadcast mode.
@@ -131,6 +138,7 @@ export function InputBar({
   isStreaming = false,
   onStopMessage,
   isGhostMode = false,
+  onToggleGhostMode,
   directedReplyTarget,
   onClearDirectedReply,
   activeModelCount,
@@ -1077,45 +1085,64 @@ export function InputBar({
       >
         {/* Input row: ghost icon | live regions | attach button | textarea | stop/send */}
         <div className="flex items-end gap-2">
-          {isGhostMode && (
-            <div
-              className="flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded"
-              tabIndex={0}
-              aria-label="Ghost mode — this conversation won't be saved"
-              aria-describedby={ghostTooltipId}
-              onMouseEnter={handleGhostMouseEnter}
-              onMouseLeave={handleGhostMouseLeave}
-              onFocus={() => setIsGhostTooltipVisible(true)}
-              onBlur={() => setIsGhostTooltipVisible(false)}
-              onKeyDown={(e) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); }}
-            >
-              {/* #465: ghost-pulse class applies a slow opacity animation (0.4–0.9 over 3s)
-                  to communicate the ephemeral, non-persisted nature of ghost mode.
-                  Under prefers-reduced-motion the animation is suppressed and opacity
-                  is held at 0.65 — still visually distinct from full opacity.
-                  The GhostIcon SVG is already aria-hidden; the span is presentational. */}
-              <span className="ghost-pulse block">
-                <GhostIcon />
-              </span>
-              <div
-                id={ghostTooltipId}
-                role="tooltip"
-                className={[
-                  'absolute bottom-full left-0 mb-2',
-                  'bg-sidebar border border-border rounded-sm',
-                  'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
-                  'pointer-events-none transition-opacity duration-fast z-20',
-                  isGhostTooltipVisible ? 'opacity-100' : 'opacity-0',
-                ].join(' ')}
-              >
-                Ghost mode — this conversation won't be saved
-                <span
-                  className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
-                  aria-hidden="true"
-                />
+          {isGhostMode && (() => {
+            // #470: When onToggleGhostMode is provided, render as a button so clicking
+            // the icon toggles ghost mode (mirrors the sidebar toggle affordance).
+            // When absent, render as a div with tooltip (indicator-only, original behavior).
+            const sharedProps = {
+              className: 'flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+              'aria-label': onToggleGhostMode
+                ? 'Ghost mode on — click to turn off'
+                : 'Ghost mode — this conversation won\'t be saved',
+              'aria-describedby': ghostTooltipId,
+              'aria-pressed': onToggleGhostMode ? (true as boolean) : undefined,
+              onMouseEnter: handleGhostMouseEnter,
+              onMouseLeave: handleGhostMouseLeave,
+              onFocus: () => setIsGhostTooltipVisible(true),
+              onBlur: () => setIsGhostTooltipVisible(false),
+              onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Escape') setIsGhostTooltipVisible(false); },
+            };
+            const children = (
+              <>
+                {/* #465: ghost-pulse class applies a slow opacity animation (0.4–0.9 over 3s)
+                    to communicate the ephemeral, non-persisted nature of ghost mode.
+                    Under prefers-reduced-motion the animation is suppressed and opacity
+                    is held at 0.65 — still visually distinct from full opacity.
+                    The GhostIcon SVG is already aria-hidden; the span is presentational. */}
+                <span className="ghost-pulse block">
+                  <GhostIcon />
+                </span>
+                <div
+                  id={ghostTooltipId}
+                  role="tooltip"
+                  className={[
+                    'absolute bottom-full left-0 mb-2',
+                    'bg-sidebar border border-border rounded-sm',
+                    'px-3 py-2 text-[11px] leading-[1.4] text-text-primary whitespace-nowrap',
+                    'pointer-events-none transition-opacity duration-fast z-20',
+                    isGhostTooltipVisible ? 'opacity-100' : 'opacity-0',
+                  ].join(' ')}
+                >
+                  {onToggleGhostMode
+                    ? 'Ghost mode on — click to turn off'
+                    : 'Ghost mode — this conversation won\'t be saved'}
+                  <span
+                    className="absolute top-full left-3 -mt-px block border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-border"
+                    aria-hidden="true"
+                  />
+                </div>
+              </>
+            );
+            return onToggleGhostMode ? (
+              <button type="button" onClick={onToggleGhostMode} {...sharedProps}>
+                {children}
+              </button>
+            ) : (
+              <div tabIndex={0} {...sharedProps}>
+                {children}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Always-present live regions (WCAG 4.1.3) */}
           <span aria-live="polite" aria-atomic="true" className="sr-only">

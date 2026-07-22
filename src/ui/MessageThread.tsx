@@ -33,6 +33,7 @@ interface MessageThreadProps {
    * Called when the user selects an export format from the ExportButton popover.
    * Parent (App via AppLayout) handles the async exportConversation call and
    * triggers downloadExportedConversation. Omit to hide the export button.
+   * #468: ExportButton is now in a sticky thread header visible at all scroll depths.
    */
   onExport?: (format: ExportFormat) => void;
   /**
@@ -53,6 +54,20 @@ interface MessageThreadProps {
    * Issue #500.
    */
   onOpenModelSelector?: () => void;
+  /**
+   * The title of the active conversation. Displayed in the thread header area.
+   * When combined with onRenameConversation, the title is click-to-edit (#469).
+   * When omitted, no title is shown in the thread header.
+   */
+  conversationTitle?: string;
+  /**
+   * Called when the user confirms a rename in the thread header inline edit.
+   * Receives the new title string (trimmed). Empty string signals "clear the
+   * title and revert to auto-derived". The sidebar ThreadRow uses the same
+   * onRenameConversation callback — this surfaces the same affordance in the
+   * main thread area for when the sidebar is collapsed. Issue #469.
+   */
+  onRenameConversation?: (newTitle: string) => void;
 }
 
 function findModelConfig(modelId: string | undefined, models: ModelConfig[]): ModelConfig | undefined {
@@ -179,10 +194,55 @@ export function MessageThread({
   onEditMessage,
   onSuggestionSelect,
   onOpenModelSelector,
+  conversationTitle,
+  onRenameConversation,
 }: MessageThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   /** Ref for the scrollable message list container. */
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // ─── Inline rename (#469) ─────────────────────────────────────────────────
+  // When the user clicks the conversation title in the thread header, the title
+  // switches to an inline text input. Enter confirms, Escape cancels.
+  // The rename input ref is used for focus management — autofocus on open.
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRenameOpen = useCallback(() => {
+    setRenameValue(conversationTitle ?? '');
+    setIsRenaming(true);
+  }, [conversationTitle]);
+
+  // When isRenaming becomes true, focus the input.
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleRenameConfirm = useCallback(() => {
+    onRenameConversation?.(renameValue.trim());
+    setIsRenaming(false);
+  }, [onRenameConversation, renameValue]);
+
+  const handleRenameCancel = useCallback(() => {
+    setIsRenaming(false);
+  }, []);
+
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleRenameConfirm();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRenameCancel();
+      }
+    },
+    [handleRenameConfirm, handleRenameCancel],
+  );
 
   // ─── Per-model visibility (#165) ───────────────────────────────────────────
   // Ephemeral per-session state: which model IDs are currently hidden.
@@ -448,13 +508,73 @@ export function MessageThread({
         />
       ) : (
         <>
-          {/* Thread header — only shown when there are messages */}
-          {onExport && (
-            <div className="flex-shrink-0 flex items-center justify-end px-4 pt-3 pb-0">
-              <ExportButton
-                onExport={onExport}
-                disabled={messages.length === 0}
-              />
+          {/* Thread header — sticky, always visible at all scroll depths.
+              #468: ExportButton moved here so it's persistently accessible.
+              #469: Conversation title shown with click-to-rename affordance when
+              onRenameConversation is provided. */}
+          {(onExport || conversationTitle) && (
+            <div className="flex-shrink-0 flex items-center justify-between px-4 pt-2 pb-1 border-b border-border-subtle bg-bg">
+              {/* Left: conversation title with optional inline rename */}
+              <div className="flex-1 min-w-0 mr-3">
+                {conversationTitle !== undefined && onRenameConversation ? (
+                  isRenaming ? (
+                    /* Inline rename input — keyboard: Enter = confirm, Escape = cancel.
+                       #469: WCAG 2.4.3 focus managed via useEffect above.
+                       focus:outline-none suppresses browser default; focus-visible ring
+                       below the input via the className provides the visible indicator. */
+                    <input
+                      ref={renameInputRef}
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={handleRenameKeyDown}
+                      onBlur={handleRenameConfirm}
+                      aria-label="Rename conversation"
+                      className={[
+                        'w-full max-w-[360px] text-[13px] font-medium text-text-primary',
+                        'bg-transparent border-b border-border',
+                        'focus:outline-none focus-visible:border-focus',
+                        'placeholder:text-text-muted',
+                      ].join(' ')}
+                      placeholder="Conversation title"
+                    />
+                  ) : (
+                    /* Static title — click/Enter activates rename mode.
+                       Using a button so it's natively keyboard-activatable. */
+                    <button
+                      type="button"
+                      onClick={handleRenameOpen}
+                      title="Click to rename"
+                      className={[
+                        'text-[13px] font-medium text-text-secondary',
+                        'truncate max-w-[360px] block text-left',
+                        'hover:text-text-primary',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm',
+                        'transition-colors duration-fast',
+                      ].join(' ')}
+                    >
+                      {conversationTitle || 'Untitled'}
+                      {/* Pencil affordance — visible on hover (CSS group hover via parent not needed here) */}
+                      <span aria-hidden="true" className="ml-1.5 opacity-0 group-hover:opacity-100 text-text-muted text-[11px]">
+                        ✎
+                      </span>
+                    </button>
+                  )
+                ) : conversationTitle !== undefined ? (
+                  /* Title present but not editable */
+                  <span className="text-[13px] font-medium text-text-secondary truncate max-w-[360px] block">
+                    {conversationTitle || 'Untitled'}
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Right: export button */}
+              {onExport && (
+                <ExportButton
+                  onExport={onExport}
+                  disabled={messages.length === 0}
+                />
+              )}
             </div>
           )}
           {/* Scroll container — ref used by the smart-scroll listener (#161) */}
