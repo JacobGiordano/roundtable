@@ -140,7 +140,10 @@ describe('MessageBubble — Reply button accessibility (#46)', () => {
 
     // The token count text is rendered but supplementary — its container should
     // carry aria-hidden since it is non-interactive and the row is not yet hovered.
-    const tokenEl = screen.getByTitle(/input:/i);
+    // #458: title attribute replaced by sr-only span — find the container div via
+    // the sr-only span text and assert aria-hidden on its parentElement.
+    const srSpan = screen.getByText(/\(input:.*output:/i);
+    const tokenEl = srSpan.parentElement!;
     expect(tokenEl.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -159,7 +162,10 @@ describe('MessageBubble — Reply button accessibility (#46)', () => {
       />
     );
 
-    const tokenEl = screen.getByTitle(/input:/i);
+    // #458: title attribute replaced by sr-only span — find the container div via
+    // the sr-only span text and assert aria-hidden on its parentElement.
+    const srSpan = screen.getByText(/\(input:.*output:/i);
+    const tokenEl = srSpan.parentElement!;
     // aria-hidden={false} renders as no attribute or attribute value "false"
     expect(tokenEl.getAttribute('aria-hidden')).not.toBe('true');
   });
