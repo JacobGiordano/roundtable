@@ -2148,6 +2148,8 @@ function StorageUsageSection() {
         aria-label="Refresh storage usage"
         className={[
           'mt-3 text-[12px] text-text-muted underline underline-offset-2',
+          // min-h-[24px]: matches touch target minimum for interactive elements (WCAG 2.5.8 advisory).
+          'min-h-[24px] inline-flex items-center',
           'hover:text-text-secondary',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm',
           'disabled:opacity-50 disabled:cursor-not-allowed',
