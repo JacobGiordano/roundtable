@@ -1,4 +1,4 @@
-Last updated: 2026-07-22 (ship: wave 17)
+Last updated: 2026-07-22 (ship: wave 18)
 
 ## Current phase
 
@@ -6,23 +6,24 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 17 shipped. Issue closed: #530
+Wave 18 shipped. Issues closed: #463 #462 #465 #467 #468 #469 #470 #527 #457 #458 #459 #460 #461
 
-- **Scout**: added `src/tests/e2e/scenarios.spec.ts` — 7 tests across 5 describe blocks covering all 5 acceptance-criteria scenarios (copy dropdown overflow, markdown table shading, model selector first-load, error bubbles via route interception, empty state recovery)
-- **Flint**: CONDITIONAL — ships as-is; Caveat 1 (no webServer auto-start) is pre-existing design; Caveats 2–3 are watch-at-CI items
+- **Aria**: error tone differentiation (#463), sticky export button (#468), click-to-rename (#469), ghost mode InputBar toggle (#470), plus 6 issues already implemented in prior waves
+- **Scout**: 21 error-tone unit tests (#463), stale `aria-a11y-fixes.test.tsx` queries fixed after wave 18 title→sr-only migration (#458)
+- **Ada**: PASS — updated 3 pre-existing a11y test assertions for new error rendering
+- **Flint**: PASS — 17/17 checks; one behavioral finding → ticket #545
 
 ## Key decisions
 
-- `playwright.config.ts` intentionally omits `webServer` — dev must run `npm run dev` first; CI starts the server explicitly
-- `[role="alert"]` selector in Scenario 4 is broad but `ContainText('Error:')` guard is sufficient in practice
-- Scenario 5a assumes `isVisible: false` roster entries count as "not empty" for `isRosterEmpty` — verify at first CI run
+- `auth_failure` "Go to Settings" CTA currently calls `onRetry` — label/action mismatch; deferred to #545
+- Worktrees created during this wave pulled from remote main, not local — agents must check base commit if counting tests
 
 ## Open issues (priority order)
 
-- **#463** — Aria: error state tone — auth vs rate-limit vs network
+- **#545** — Aria: wire "Go to Settings" CTA to open settings panel on auth_failure (#463 follow-up)
 - **#495** — Vault/Aria: storage usage reporting UI (`getStorageUsage()` ready in `@/storage`)
 - **#496/#480/#481** — StorageProvider interface expansion wave (Vault + Arch)
-- **#527** — Luma → Aria: empty state visual polish
+- **#544** — Atlas: classify provider HTTP 400/401/429 into ModelErrorCode (Grok 400 confirmed gap)
 
 ## Gotchas
 
@@ -33,3 +34,4 @@ Wave 17 shipped. Issue closed: #530
 - `gpt-image-gen.test.ts` pre-existing failure — Atlas scope, issue #425
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `cd /workspace` before git operations
+- Worktrees may pull from remote main (not local) — verify base commit when test counts matter
