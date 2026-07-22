@@ -466,8 +466,14 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             onSuggestionSelect={setPrefillText}
             onOpenModelSelector={handleOpenModelSelector}
             conversationTitle={
-              /* #469: Derive active conversation title for the thread header rename affordance. */
-              conversations.find((c) => c.id === activeConversationId)?.title ?? undefined
+              /* #469: Derive active conversation title for the thread header rename affordance.
+                 Pass empty string (not undefined) when a conversation exists but has no title —
+                 undefined suppresses the rename affordance entirely, but we want it available
+                 for untitled conversations too. undefined is only passed when no conversation
+                 is active (which can't happen in this branch since isRosterEmpty is false). */
+              activeConversationId
+                ? (conversations.find((c) => c.id === activeConversationId)?.title ?? '')
+                : undefined
             }
             onRenameConversation={
               /* #469: Thread-area rename affordance — same callback as the sidebar rename.
