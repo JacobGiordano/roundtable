@@ -1229,6 +1229,31 @@ export type ExportOptions = {
 // ─── StorageProvider — Vault implements ───────────────────────────────────────
 
 /**
+ * Result of a bulk storage operation (bulkDeleteConversations or
+ * bulkArchiveConversations). Captures per-ID outcome so callers can surface
+ * partial-failure states to the user rather than treating all or nothing as done.
+ *
+ * `succeeded` contains the IDs for which the operation completed without error.
+ * `failed` contains the IDs for which the operation could not complete, each
+ * paired with a human-readable reason. On `LocalStorageProvider`, the only
+ * expected failure reason is a corrupt or missing record that could not be
+ * updated. On `ServerStorageProvider`, network errors, permission failures, and
+ * not-found IDs may appear here.
+ *
+ * An ID that does not exist in storage is NOT an error for `bulkDeleteConversations`
+ * (mirrors the idempotent-delete contract on `deleteConversation`). For
+ * `bulkArchiveConversations`, a non-existent ID produces a failure entry.
+ *
+ * Vault implements; Aria reads this to show a "N deleted, M failed" notice.
+ */
+export interface BulkOperationResult {
+  /** IDs for which the operation completed without error. */
+  succeeded: string[];
+  /** IDs that could not be processed, with a human-readable reason for each. */
+  failed: Array<{ id: string; reason: string }>;
+}
+
+/**
  * Serialized content produced by converting a conversation to a given format.
  * The caller decides what to do with it — trigger a download, stream over HTTP,
  * write to disk, etc.
@@ -1339,6 +1364,63 @@ export interface StorageProvider {
    * Absence is equivalent to `{}` — all options default to their off state.
    */
   exportConversation(id: string, format: ExportFormat, options?: ExportOptions): Promise<ExportedConversation | null>;
+
+  /**
+   * Return all conversations whose title or first message content contains the
+   * given query string (case-insensitive substring match), sorted newest-first
+   * by `updatedAt`.
+   *
+   * `LocalStorageProvider` implements this as a client-side filter over the full
+   * conversation list — loads all records and filters in memory. `ServerStorageProvider`
+   * may delegate to a backend query for efficiency.
+   *
+   * Archived conversations are included in search results — filtering by archive
+   * status is the UI's responsibility. Ghost conversations are never included.
+   * Corrupt records that cannot be parsed are silently omitted.
+   *
+   * An empty string or whitespace-only query returns all conversations (equivalent
+   * to `listConversations()`). Does not throw on empty input.
+   *
+   * Vault implements; Aria calls this when the user types in the conversation
+   * search input (#480).
+   */
+  searchConversations(query: string): Promise<Conversation[]>;
+
+  /**
+   * Permanently remove multiple conversations from storage in a single call.
+   *
+   * Idempotent: IDs that do not exist in storage are treated as already deleted
+   * and do NOT appear in `failed` — they are counted as `succeeded`. This mirrors
+   * the idempotent-delete contract on `deleteConversation`.
+   *
+   * Returns a `BulkOperationResult` describing per-ID outcomes. Aria uses this to
+   * surface a "N deleted, M failed" notice when not all deletes succeeded.
+   *
+   * Vault implements; Aria calls this when the user confirms a multi-select delete
+   * in the conversation sidebar (#496).
+   */
+  bulkDeleteConversations(ids: string[]): Promise<BulkOperationResult>;
+
+  /**
+   * Set or clear the `archivedAt` timestamp on multiple conversations in a single
+   * call.
+   *
+   * When `archive` is `true`, stamps `archivedAt` with the current timestamp on
+   * each conversation (archive). When `archive` is `false`, clears `archivedAt`
+   * (unarchive). This combines the single-record `archiveConversation` /
+   * `unarchiveConversation` operations into one bulk call.
+   *
+   * IDs that do not exist in storage produce a `failed` entry (unlike
+   * `bulkDeleteConversations`, which is idempotent on missing IDs — archiving a
+   * non-existent conversation is a caller error, not a no-op).
+   *
+   * Returns a `BulkOperationResult` describing per-ID outcomes. Aria uses this to
+   * surface a "N archived, M failed" notice when not all operations succeeded.
+   *
+   * Vault implements; Aria calls this when the user confirms a multi-select
+   * archive/unarchive action in the conversation sidebar (#496).
+   */
+  bulkArchiveConversations(ids: string[], archive: boolean): Promise<BulkOperationResult>;
 }
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
