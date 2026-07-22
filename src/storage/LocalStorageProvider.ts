@@ -24,6 +24,7 @@
  */
 
 import type {
+  BulkOperationResult,
   Conversation,
   ExportedConversation,
   ExportFormat,
@@ -374,6 +375,93 @@ export class LocalStorageProvider implements StorageProvider {
     const conv = await this.loadConversation(id);
     if (!conv) return null;
     return buildExportedConversation(conv, format, options);
+  }
+
+  /**
+   * Returns all conversations whose title or first user-message content
+   * contains `query` (case-insensitive substring match), sorted newest-first
+   * by `updatedAt`.
+   *
+   * Delegates to `listConversations()` so the result set is always in sync
+   * with the cache — no separate localStorage scan is required. An empty or
+   * whitespace-only query returns all conversations (equivalent to calling
+   * `listConversations()` directly).
+   */
+  async searchConversations(query: string): Promise<Conversation[]> {
+    const all = await this.listConversations();
+    const trimmed = query.trim();
+    if (trimmed === '') return all;
+    const lower = trimmed.toLowerCase();
+    return all.filter((conv) => {
+      if (conv.title?.toLowerCase().includes(lower)) return true;
+      const firstUserMessage = conv.messages.find((m) => m.role === 'user');
+      if (firstUserMessage?.content.toLowerCase().includes(lower)) return true;
+      return false;
+    });
+  }
+
+  /**
+   * Permanently remove multiple conversations in a single call.
+   *
+   * Idempotent: IDs that do not exist are treated as already deleted and
+   * counted as `succeeded` — this mirrors the contract on `deleteConversation`.
+   *
+   * Processes each ID independently so a failure on one does not block the
+   * remaining deletions. Returns a `BulkOperationResult` summarising per-ID
+   * outcomes for the caller to surface in the UI.
+   */
+  async bulkDeleteConversations(ids: string[]): Promise<BulkOperationResult> {
+    const result: BulkOperationResult = { succeeded: [], failed: [] };
+    for (const id of ids) {
+      try {
+        await this.deleteConversation(id);
+        result.succeeded.push(id);
+      } catch (err) {
+        result.failed.push({
+          id,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Set or clear `archivedAt` on multiple conversations in a single call.
+   *
+   * When `archive` is `true`, stamps `archivedAt` on each conversation.
+   * When `archive` is `false`, clears `archivedAt` (unarchive).
+   *
+   * IDs that do not exist in storage produce a `failed` entry — unlike
+   * `bulkDeleteConversations`, archiving a non-existent conversation is a
+   * caller error and is reported rather than silently ignored.
+   *
+   * Processes each ID independently so a failure on one does not block the
+   * remaining operations.
+   */
+  async bulkArchiveConversations(ids: string[], archive: boolean): Promise<BulkOperationResult> {
+    const result: BulkOperationResult = { succeeded: [], failed: [] };
+    for (const id of ids) {
+      try {
+        const conv = await this.loadConversation(id);
+        if (conv === null) {
+          result.failed.push({ id, reason: `Conversation "${id}" does not exist.` });
+          continue;
+        }
+        if (archive) {
+          await this.archiveConversation(id);
+        } else {
+          await this.unarchiveConversation(id);
+        }
+        result.succeeded.push(id);
+      } catch (err) {
+        result.failed.push({
+          id,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return result;
   }
 }
 

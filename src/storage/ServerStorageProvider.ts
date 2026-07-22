@@ -6,13 +6,16 @@
  * below. Uses `fetch` — no external dependencies.
  *
  * Endpoint map:
- *   listConversations()           → GET    /conversations
- *   loadConversation(id)          → GET    /conversations/:id
- *   saveConversation(conv)        → PUT    /conversations/:id
- *   deleteConversation(id)        → DELETE /conversations/:id
- *   archiveConversation(id)       → PATCH  /conversations/:id  { archived: true }
- *   unarchiveConversation(id)     → PATCH  /conversations/:id  { archived: false }
- *   exportConversation(id,format) → GET    /conversations/:id/export?format=<format>
+ *   listConversations()                    → GET    /conversations
+ *   loadConversation(id)                   → GET    /conversations/:id
+ *   saveConversation(conv)                 → PUT    /conversations/:id
+ *   deleteConversation(id)                 → DELETE /conversations/:id
+ *   archiveConversation(id)                → PATCH  /conversations/:id  { archived: true }
+ *   unarchiveConversation(id)              → PATCH  /conversations/:id  { archived: false }
+ *   exportConversation(id,format)          → GET    /conversations/:id/export?format=<format>
+ *   searchConversations(query)             → GET    /conversations/search?q=<query>
+ *   bulkDeleteConversations(ids)           → POST   /conversations/bulk-delete  { ids }
+ *   bulkArchiveConversations(ids, archive) → POST   /conversations/bulk-archive { ids, archive }
  *
  * Ghost-mode guard:
  *   `saveConversation` is the canonical write guard. If `conversation.isGhost`
@@ -35,6 +38,7 @@
  */
 
 import type {
+  BulkOperationResult,
   Conversation,
   ExportedConversation,
   ExportFormat,
@@ -329,6 +333,85 @@ export class ServerStorageProvider implements StorageProvider {
         'parse_error',
         `Failed to parse export response for conversation "${id}" (format: ${format})`
       );
+    }
+  }
+
+  /**
+   * Search conversations via GET /conversations/search?q=<query>.
+   * An empty or whitespace-only query returns all conversations.
+   * Returns an empty array if the response body cannot be parsed.
+   */
+  async searchConversations(query: string): Promise<Conversation[]> {
+    const url = `${this._baseUrl}/conversations/search?q=${encodeURIComponent(query.trim())}`;
+    const response = await this._fetch(url, {
+      method: 'GET',
+      headers: this._headers(),
+    });
+
+    if (!response.ok) {
+      await this._throwForStatus(response);
+    }
+
+    try {
+      const data = (await response.json()) as Conversation[];
+      if (!Array.isArray(data)) {
+        throw new StorageError(
+          'parse_error',
+          'Expected an array from GET /conversations/search but received a non-array response'
+        );
+      }
+      return data;
+    } catch (err: unknown) {
+      if (err instanceof StorageError) throw err;
+      throw new StorageError('parse_error', 'Failed to parse search response');
+    }
+  }
+
+  /**
+   * Bulk-delete conversations via POST /conversations/bulk-delete { ids }.
+   * Returns a BulkOperationResult describing per-ID outcomes.
+   * Idempotent: a 404 for an individual ID counts as succeeded.
+   */
+  async bulkDeleteConversations(ids: string[]): Promise<BulkOperationResult> {
+    const url = `${this._baseUrl}/conversations/bulk-delete`;
+    const response = await this._fetch(url, {
+      method: 'POST',
+      headers: this._headers(true),
+      body: JSON.stringify({ ids }),
+    });
+
+    if (!response.ok) {
+      await this._throwForStatus(response);
+    }
+
+    try {
+      return (await response.json()) as BulkOperationResult;
+    } catch {
+      throw new StorageError('parse_error', 'Failed to parse bulk-delete response');
+    }
+  }
+
+  /**
+   * Bulk-archive or unarchive conversations via
+   * POST /conversations/bulk-archive { ids, archive }.
+   * Returns a BulkOperationResult describing per-ID outcomes.
+   */
+  async bulkArchiveConversations(ids: string[], archive: boolean): Promise<BulkOperationResult> {
+    const url = `${this._baseUrl}/conversations/bulk-archive`;
+    const response = await this._fetch(url, {
+      method: 'POST',
+      headers: this._headers(true),
+      body: JSON.stringify({ ids, archive }),
+    });
+
+    if (!response.ok) {
+      await this._throwForStatus(response);
+    }
+
+    try {
+      return (await response.json()) as BulkOperationResult;
+    } catch {
+      throw new StorageError('parse_error', 'Failed to parse bulk-archive response');
     }
   }
 }

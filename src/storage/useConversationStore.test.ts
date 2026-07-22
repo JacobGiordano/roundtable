@@ -58,6 +58,9 @@ function makeProvider(convs: Conversation[]): StorageProvider {
     archiveConversation: vi.fn().mockResolvedValue(undefined),
     unarchiveConversation: vi.fn().mockResolvedValue(undefined),
     exportConversation: vi.fn().mockResolvedValue(null),
+    searchConversations: vi.fn().mockResolvedValue(convs),
+    bulkDeleteConversations: vi.fn().mockResolvedValue({ succeeded: [], failed: [] }),
+    bulkArchiveConversations: vi.fn().mockResolvedValue({ succeeded: [], failed: [] }),
   };
 }
 
