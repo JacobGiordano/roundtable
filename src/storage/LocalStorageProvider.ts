@@ -24,6 +24,7 @@
  */
 
 import type {
+  BulkOperationResult,
   Conversation,
   ExportedConversation,
   ExportFormat,
@@ -185,17 +186,25 @@ export class LocalStorageProvider implements StorageProvider {
       convToWrite = evicted;
     }
 
+    // Wrap in the StoredConversation envelope before writing.
+    // This records the current schemaVersion so the read path can migrate
+    // stale records written by older builds.
+    //
+    // IMPORTANT — transactional ordering: write the data key FIRST, update the
+    // index SECOND. If the data write throws (QuotaExceededError), the index is
+    // never touched and no orphan ID is created. Reversing this order was the
+    // root cause of #481: writeIndex() could succeed while the subsequent
+    // safeSet() failed, leaving an index entry pointing at a key that does not
+    // exist.
+    const envelope = wrapForStorage(convToWrite);
+    safeSet(convKey(conversation.id), JSON.stringify(envelope));
+
+    // Data write succeeded — now it is safe to update the index.
     const ids = readIndex();
     if (!ids.includes(conversation.id)) {
       ids.push(conversation.id);
       writeIndex(ids);
     }
-
-    // Wrap in the StoredConversation envelope before writing.
-    // This records the current schemaVersion so the read path can migrate
-    // stale records written by older builds.
-    const envelope = wrapForStorage(convToWrite);
-    safeSet(convKey(conversation.id), JSON.stringify(envelope));
 
     // Keep the cache in sync with the original (un-evicted) conversation so
     // Aria continues to render full base64 images for the current session.
@@ -231,12 +240,25 @@ export class LocalStorageProvider implements StorageProvider {
       // First call — full scan to populate the cache.
       const ids = readIndex();
       this._cache = new Map();
+      const orphanIds: string[] = [];
 
       for (const id of ids) {
         const conv = parseConversation(localStorage.getItem(convKey(id)));
         if (conv !== null) {
           this._cache.set(id, conv);
+        } else {
+          // The index references an ID with no corresponding data key — an orphan.
+          // Collect it for pruning below.
+          orphanIds.push(id);
         }
+      }
+
+      // Fire-and-forget background prune: remove orphan IDs from the index.
+      // This handles IDs that accumulated before the transactional-ordering fix
+      // for #481 (data write now precedes index write). Runs only when orphans
+      // are detected to avoid unnecessary index writes on every cold start.
+      if (orphanIds.length > 0) {
+        this._pruneOrphanIds(orphanIds);
       }
     }
 
@@ -244,6 +266,40 @@ export class LocalStorageProvider implements StorageProvider {
     const conversations = Array.from(this._cache.values());
     conversations.sort((a, b) => b.updatedAt - a.updatedAt);
     return conversations;
+  }
+
+  /**
+   * Removes a set of known-orphan IDs from the persisted index.
+   *
+   * Called as a background maintenance step after `listConversations()` warms
+   * the cache and detects index entries with no corresponding data key.
+   *
+   * Orphans are created when the index write succeeds but the subsequent data
+   * write fails (e.g. QuotaExceededError). The fix in `saveConversation()` that
+   * reverses the write order (data first, index second) prevents new orphans from
+   * forming. This method cleans up any that accumulated before the fix shipped.
+   *
+   * This method never throws — a failure to prune the index is non-fatal. The
+   * orphan IDs will simply be detected and re-queued on the next cold start.
+   */
+  private _pruneOrphanIds(orphanIds: string[]): void {
+    try {
+      const orphanSet = new Set(orphanIds);
+      const currentIds = readIndex();
+      const prunedIds = currentIds.filter((id) => !orphanSet.has(id));
+      if (prunedIds.length < currentIds.length) {
+        writeIndex(prunedIds);
+        console.info(
+          `[Vault] pruneIndex: removed ${currentIds.length - prunedIds.length} orphan ` +
+            `ID(s) from the conversation index: ${orphanIds.join(', ')}`
+        );
+      }
+    } catch {
+      // Non-fatal — swallow and log. The orphan IDs will be detected again on
+      // the next cold start. We do not surface this to the caller because it
+      // does not affect the correctness of the returned conversation list.
+      console.warn('[Vault] pruneIndex: failed to write pruned index; orphans will be retried on next cold start.');
+    }
   }
 
   /** Removes the conversation from both the index and its storage key. */
@@ -319,6 +375,93 @@ export class LocalStorageProvider implements StorageProvider {
     const conv = await this.loadConversation(id);
     if (!conv) return null;
     return buildExportedConversation(conv, format, options);
+  }
+
+  /**
+   * Returns all conversations whose title or first user-message content
+   * contains `query` (case-insensitive substring match), sorted newest-first
+   * by `updatedAt`.
+   *
+   * Delegates to `listConversations()` so the result set is always in sync
+   * with the cache — no separate localStorage scan is required. An empty or
+   * whitespace-only query returns all conversations (equivalent to calling
+   * `listConversations()` directly).
+   */
+  async searchConversations(query: string): Promise<Conversation[]> {
+    const all = await this.listConversations();
+    const trimmed = query.trim();
+    if (trimmed === '') return all;
+    const lower = trimmed.toLowerCase();
+    return all.filter((conv) => {
+      if (conv.title?.toLowerCase().includes(lower)) return true;
+      const firstUserMessage = conv.messages.find((m) => m.role === 'user');
+      if (firstUserMessage?.content.toLowerCase().includes(lower)) return true;
+      return false;
+    });
+  }
+
+  /**
+   * Permanently remove multiple conversations in a single call.
+   *
+   * Idempotent: IDs that do not exist are treated as already deleted and
+   * counted as `succeeded` — this mirrors the contract on `deleteConversation`.
+   *
+   * Processes each ID independently so a failure on one does not block the
+   * remaining deletions. Returns a `BulkOperationResult` summarising per-ID
+   * outcomes for the caller to surface in the UI.
+   */
+  async bulkDeleteConversations(ids: string[]): Promise<BulkOperationResult> {
+    const result: BulkOperationResult = { succeeded: [], failed: [] };
+    for (const id of ids) {
+      try {
+        await this.deleteConversation(id);
+        result.succeeded.push(id);
+      } catch (err) {
+        result.failed.push({
+          id,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Set or clear `archivedAt` on multiple conversations in a single call.
+   *
+   * When `archive` is `true`, stamps `archivedAt` on each conversation.
+   * When `archive` is `false`, clears `archivedAt` (unarchive).
+   *
+   * IDs that do not exist in storage produce a `failed` entry — unlike
+   * `bulkDeleteConversations`, archiving a non-existent conversation is a
+   * caller error and is reported rather than silently ignored.
+   *
+   * Processes each ID independently so a failure on one does not block the
+   * remaining operations.
+   */
+  async bulkArchiveConversations(ids: string[], archive: boolean): Promise<BulkOperationResult> {
+    const result: BulkOperationResult = { succeeded: [], failed: [] };
+    for (const id of ids) {
+      try {
+        const conv = await this.loadConversation(id);
+        if (conv === null) {
+          result.failed.push({ id, reason: `Conversation "${id}" does not exist.` });
+          continue;
+        }
+        if (archive) {
+          await this.archiveConversation(id);
+        } else {
+          await this.unarchiveConversation(id);
+        }
+        result.succeeded.push(id);
+      } catch (err) {
+        result.failed.push({
+          id,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return result;
   }
 }
 
