@@ -2366,6 +2366,24 @@ export function ProviderSettingsPanel({
           right than the left. mx-auto splits that gap evenly (32px each side). */}
       <div className="px-8 pt-6 pb-12 max-w-[640px] mx-auto">
 
+        {/* ── #454: Provider data processing disclosure ────────────────── */}
+        {/* Shown at the top of the panel so users see it before adding or
+            configuring any provider. Static informational paragraph — no
+            interaction required. role="note" makes the region findable in
+            the accessibility tree without live region semantics. */}
+        <aside
+          role="note"
+          className={[
+            'mb-8 px-4 py-3 rounded-md',
+            'bg-hover border border-border-subtle',
+            'text-[12px] leading-[1.5] text-text-secondary',
+          ].join(' ')}
+        >
+          Your messages are sent directly to your chosen AI providers and processed
+          under their privacy policies. Roundtable never stores your conversations
+          on its own servers.
+        </aside>
+
         {/* ── Section 1: Configured Providers ──────────────────────────── */}
         <section className="mb-8">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">

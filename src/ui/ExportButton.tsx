@@ -170,51 +170,74 @@ export function ExportButton({ onExport, disabled = false }: ExportButtonProps) 
       </button>
 
       {isOpen && (
+        // #455: Outer popup wrapper — rounded card shared by the menu and the disclosure
+        // paragraph. The menu (role="menu") contains only menuitem children per
+        // ARIA required-children; the disclosure paragraph sits outside the menu.
         <div
-          ref={menuRef}
-          role="menu"
-          aria-label="Export format"
           className={[
             'absolute right-0 top-full mt-1 z-50',
-            'min-w-[180px] py-1',
+            'min-w-[180px]',
             'bg-card border border-border rounded-md',
             'shadow-md',
           ].join(' ')}
         >
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => handleSelect('markdown')}
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label="Export format"
+            className="py-1"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => handleSelect('markdown')}
+              className={[
+                'w-full text-left px-3 py-2',
+                'text-[13px] text-text-primary',
+                'hover:bg-hover',
+                'transition-colors duration-fast',
+                // tabIndex={-1}: programmatic focus target only — not in Tab order.
+                // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
+                'focus:outline-none focus:bg-hover',
+              ].join(' ')}
+            >
+              Download as Markdown
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => handleSelect('html')}
+              className={[
+                'w-full text-left px-3 py-2',
+                'text-[13px] text-text-primary',
+                'hover:bg-hover',
+                'transition-colors duration-fast',
+                // tabIndex={-1}: programmatic focus target only — not in Tab order.
+                // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
+                'focus:outline-none focus:bg-hover',
+              ].join(' ')}
+            >
+              Download as HTML
+            </button>
+          </div>
+
+          {/* #455: Image export disclosure — sits outside role="menu" so the
+              aria-required-children constraint is not violated. The paragraph is
+              still visually and audibly accessible: it is in document order after
+              the menu items, and screen readers encounter it naturally when the
+              popup is open. No interactive role is needed — static informational
+              text does not require a live region here. */}
+          <p
             className={[
-              'w-full text-left px-3 py-2',
-              'text-[13px] text-text-primary',
-              'hover:bg-hover',
-              'transition-colors duration-fast',
-              // tabIndex={-1}: programmatic focus target only — not in Tab order.
-              // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
-              'focus:outline-none focus:bg-hover',
+              'px-3 pt-1.5 pb-2.5',
+              'text-[11px] leading-[1.4] text-text-muted',
+              'border-t border-border-subtle',
             ].join(' ')}
           >
-            Download as Markdown
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => handleSelect('html')}
-            className={[
-              'w-full text-left px-3 py-2',
-              'text-[13px] text-text-primary',
-              'hover:bg-hover',
-              'transition-colors duration-fast',
-              // tabIndex={-1}: programmatic focus target only — not in Tab order.
-              // Use focus:bg-hover (not focus-visible:ring) per the tabIndex={-1} rule.
-              'focus:outline-none focus:bg-hover',
-            ].join(' ')}
-          >
-            Download as HTML
-          </button>
+            Attached images are not included in conversation exports.
+          </p>
         </div>
       )}
     </div>
