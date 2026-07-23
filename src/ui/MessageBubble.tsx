@@ -293,6 +293,31 @@ const rehypePlugins: any[] = [
   [rehypeSanitize, sanitizeSchema],
 ];
 
+// ─── #452: StableMarkdown ──────────────────────────────────────────────────────
+//
+// The streaming path in MessageContent feeds an ever-growing stableContent string
+// into ReactMarkdown. Without memoization, ReactMarkdown re-parses the entire
+// stable portion on every streaming chunk — O(n) work per chunk, O(n²) total
+// for a complete streaming response.
+//
+// Wrapping ReactMarkdown in React.memo means React bails out when stableContent
+// hasn't changed (e.g. the parent re-renders for reasons unrelated to this
+// streaming message, or between chunks where the stable boundary didn't advance).
+// During active streaming the stable portion does grow each chunk, so the
+// re-parse is still necessary — but peer bubbles and unrelated parent re-renders
+// no longer pay the cost.
+//
+// A true AST cache would require react-markdown to expose its remark/rehype
+// pipeline externally; that's not supported and the complexity isn't justified at
+// typical AI response lengths (1–4 kB). The memo wrapper is the correct minimal fix.
+const StableMarkdown = memo(function StableMarkdown({ content }: { content: string }) {
+  return (
+    <ReactMarkdown rehypePlugins={rehypePlugins} components={markdownComponents}>
+      {content}
+    </ReactMarkdown>
+  );
+});
+
 // ─── Markdown component renderers ─────────────────────────────────────────────
 
 /**
@@ -514,13 +539,11 @@ function MessageContent({ message, isStreaming, hasError }: MessageContentProps)
         aria-live="polite"
         aria-atomic="false"
       >
+        {/* #452: StableMarkdown bails out via React.memo when stableContent
+            is unchanged — avoids re-parsing the full stable portion on every
+            peer-model streaming chunk or unrelated parent re-render. */}
         {stableContent && (
-          <ReactMarkdown
-            rehypePlugins={rehypePlugins}
-            components={markdownComponents}
-          >
-            {stableContent}
-          </ReactMarkdown>
+          <StableMarkdown content={stableContent} />
         )}
         {newChunk && (
           <span key={chunkKey} className="chunk-entering whitespace-pre-wrap">
