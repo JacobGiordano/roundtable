@@ -209,3 +209,85 @@ describe('InputBar — streaming state accessibility (#244)', () => {
     restoreRaf();
   });
 });
+
+// ─── Ghost mode live region — mount-suppression guard (#435) ─────────────────
+//
+// WCAG 4.1.3 Status Messages: ghost mode on/off transitions must be announced
+// by screen readers via aria-live="polite". However, the live region must NOT
+// announce on initial mount ("Ghost mode off" should not fire for every user who
+// opens the app). Issue #435 introduces a useRef guard: ghostModeHasMountedRef
+// flips to true after the first effect cycle, silencing the mount announcement.
+//
+// These tests verify:
+//   (a) The ghost mode live region is present with aria-live="polite" and aria-atomic="true"
+//   (b) The region is empty on initial mount (no "Ghost mode off" announcement)
+//   (c) Toggling isGhostMode to true populates the region with the correct text
+//   (d) Toggling back to false announces "Ghost mode off"
+//
+// jsdom does not fire useEffect synchronously — we rely on act() to flush effects
+// and check the live region content directly (DOM text, not AT announcements).
+
+describe('InputBar — ghost mode live region mount-suppression (#435, WCAG 4.1.3)', () => {
+  it('ghost mode live region has aria-live="polite" and aria-atomic="true"', () => {
+    const { container } = render(<InputBar onSend={vi.fn()} isGhostMode={false} />);
+    // The sr-only live region that announces ghost mode state changes
+    // is the first <span aria-live="polite"> inside the input row.
+    const liveRegions = container.querySelectorAll('span[aria-live="polite"][aria-atomic="true"]');
+    // InputBar mounts multiple live regions (ghost mode, streaming state, directed reply,
+    // attachment announcer). At least one must exist for ghost mode.
+    expect(liveRegions.length).toBeGreaterThan(0);
+  });
+
+  it('ghost mode live region is empty on mount — no spurious announcement (#435)', async () => {
+    // When the user first opens the app and InputBar mounts with isGhostMode=false,
+    // the live region must be empty. Without the useRef guard, it would contain
+    // "Ghost mode off" on every page load — spamming every screen reader user.
+    const { container } = render(<InputBar onSend={vi.fn()} isGhostMode={false} />);
+
+    // Find the first sr-only polite live region (ghost mode announcer — always first)
+    const srOnlyLiveRegions = container.querySelectorAll('span.sr-only[aria-live="polite"]');
+    expect(srOnlyLiveRegions.length).toBeGreaterThan(0);
+
+    // The ghost mode announcer is the first one in the row. It must be empty on mount.
+    // If the guard is missing, the content would be "Ghost mode off".
+    const ghostRegion = srOnlyLiveRegions[0];
+    expect(ghostRegion.textContent).toBe('');
+  });
+
+  it('live region announces "Ghost mode on" text when isGhostMode changes to true', async () => {
+    // Simulates the user clicking the ghost mode toggle button after mount.
+    // The useRef guard must NOT suppress this subsequent change.
+    const { container, rerender } = render(<InputBar onSend={vi.fn()} isGhostMode={false} />);
+
+    await act(async () => {
+      rerender(<InputBar onSend={vi.fn()} isGhostMode={true} />);
+    });
+
+    const srOnlyLiveRegions = container.querySelectorAll('span.sr-only[aria-live="polite"]');
+    const ghostRegion = srOnlyLiveRegions[0];
+    // The region must now contain the ghost-on announcement
+    expect(ghostRegion.textContent).toMatch(/ghost mode on/i);
+  });
+
+  it('live region announces "Ghost mode off" text when isGhostMode changes back to false', async () => {
+    // Simulates toggling ghost mode off after it was on.
+    const { container, rerender } = render(<InputBar onSend={vi.fn()} isGhostMode={true} />);
+
+    // First toggle: true → already mounted, guard is active → announces nothing on mount
+    // Then toggle false to trigger the second announcement.
+    await act(async () => {
+      rerender(<InputBar onSend={vi.fn()} isGhostMode={false} />);
+    });
+
+    const srOnlyLiveRegions = container.querySelectorAll('span.sr-only[aria-live="polite"]');
+    const ghostRegion = srOnlyLiveRegions[0];
+    // The region must contain the ghost-off announcement
+    expect(ghostRegion.textContent).toMatch(/ghost mode off/i);
+  });
+
+  it('has no axe violations with ghost mode active', async () => {
+    const { container } = render(<InputBar onSend={vi.fn()} isGhostMode={true} />);
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+});

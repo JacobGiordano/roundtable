@@ -19,7 +19,7 @@
  *     regardless of its current role.
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
@@ -504,5 +504,148 @@ describe('ThreadActionMenu — group-input aria-label regression (#246, WCAG 4.1
     // if aria-label were absent and only placeholder were present.
     const results = await axe(container);
     assertNoViolations(results);
+  });
+});
+
+// ─── #439: closeAndReturnFocus — document.contains() guard ───────────────────
+//
+// WCAG 2.4.3 Focus Order: when a conversation row is deleted, its trigger button
+// is removed from the DOM. Calling .focus() on a detached element is a no-op,
+// leaving focus on document.body (a WCAG 2.4.3 violation).
+//
+// Issue #439 adds a document.contains(trigger) check before calling trigger.focus().
+// If the trigger is detached, focus falls back to:
+//   1. First [aria-label="Conversation actions"] button in #app-sidebar
+//   2. [aria-label="New conversation (Ctrl+N)"] button as a guaranteed-stable target
+//
+// These tests verify:
+//   (a) When the trigger is in the DOM, closeAndReturnFocus returns focus to it
+//   (b) When the trigger is detached, focus moves to the first fallback in the sidebar
+//   (c) When no sidebar fallback exists either, focus moves to the New Conversation button
+//
+// Focus timing: closeAndReturnFocus uses double-rAF for DOM paint settling. We stub
+// requestAnimationFrame synchronously following the established project pattern.
+
+/** Replace window.requestAnimationFrame with a synchronous stub for testing. */
+function stubRafSync(): () => void {
+  const original = window.requestAnimationFrame;
+  window.requestAnimationFrame = (cb: FrameRequestCallback) => {
+    cb(performance.now());
+    return 0;
+  };
+  return () => { window.requestAnimationFrame = original; };
+}
+
+describe('ThreadActionMenu — #439: closeAndReturnFocus document.contains() guard (WCAG 2.4.3)', () => {
+  it('returns focus to the trigger button when it is still in the DOM', async () => {
+    const restoreRaf = stubRafSync();
+    const triggerRef = makeTriggerRef();
+    const onClose = vi.fn();
+
+    render(<ThreadActionMenu {...BASE_PROPS} onClose={onClose} triggerRef={triggerRef} />);
+
+    // Close the menu via Escape (calls closeAndReturnFocus)
+    const menu = screen.getByRole('menu');
+    await act(async () => {
+      fireEvent.keyDown(menu, { key: 'Escape', bubbles: true });
+    });
+
+    // Trigger is still in the DOM — focus must land on it
+    expect(onClose).toHaveBeenCalled();
+    expect(document.activeElement).toBe(triggerRef.current);
+
+    restoreRaf();
+  });
+
+  it('falls back to first [aria-label="Conversation actions"] button when trigger is detached', async () => {
+    const restoreRaf = stubRafSync();
+
+    // Set up a detached trigger (simulates a deleted conversation row)
+    const detachedBtn = document.createElement('button');
+    detachedBtn.setAttribute('aria-label', 'Conversation actions');
+    const detachedRef = { current: detachedBtn } as React.RefObject<HTMLButtonElement>;
+    // NOTE: detachedBtn is NOT appended to document — it is detached.
+
+    // Set up a sidebar with a fallback button
+    const sidebar = document.createElement('nav');
+    sidebar.id = 'app-sidebar';
+    const fallbackBtn = document.createElement('button');
+    fallbackBtn.setAttribute('aria-label', 'Conversation actions');
+    sidebar.appendChild(fallbackBtn);
+    document.body.appendChild(sidebar);
+
+    const onClose = vi.fn();
+    render(<ThreadActionMenu {...BASE_PROPS} onClose={onClose} triggerRef={detachedRef} />);
+
+    const menu = screen.getByRole('menu');
+    await act(async () => {
+      fireEvent.keyDown(menu, { key: 'Escape', bubbles: true });
+    });
+
+    expect(onClose).toHaveBeenCalled();
+    // Focus must land on the first fallback in the sidebar, not body
+    expect(document.activeElement).toBe(fallbackBtn);
+
+    restoreRaf();
+  });
+
+  it('falls back to New Conversation button when both trigger and sidebar fallback are absent', async () => {
+    const restoreRaf = stubRafSync();
+
+    // Detached trigger — not in DOM
+    const detachedBtn = document.createElement('button');
+    detachedBtn.setAttribute('aria-label', 'Conversation actions');
+    const detachedRef = { current: detachedBtn } as React.RefObject<HTMLButtonElement>;
+
+    // New Conversation button in the DOM (guaranteed-stable target)
+    const newConvBtn = document.createElement('button');
+    newConvBtn.setAttribute('aria-label', 'New conversation (Ctrl+N)');
+    document.body.appendChild(newConvBtn);
+
+    // No sidebar with a Conversation actions button
+
+    const onClose = vi.fn();
+    render(<ThreadActionMenu {...BASE_PROPS} onClose={onClose} triggerRef={detachedRef} />);
+
+    const menu = screen.getByRole('menu');
+    await act(async () => {
+      fireEvent.keyDown(menu, { key: 'Escape', bubbles: true });
+    });
+
+    expect(onClose).toHaveBeenCalled();
+    // Focus must land on the New Conversation button as the last-resort fallback
+    expect(document.activeElement).toBe(newConvBtn);
+
+    restoreRaf();
+  });
+
+  it('trigger.focus() is not called when document.contains(trigger) is false (#439 guard)', async () => {
+    const restoreRaf = stubRafSync();
+
+    const detachedBtn = document.createElement('button');
+    detachedBtn.setAttribute('aria-label', 'Conversation actions');
+    const focusSpy = vi.spyOn(detachedBtn, 'focus');
+    const detachedRef = { current: detachedBtn } as React.RefObject<HTMLButtonElement>;
+
+    // Sidebar fallback so the test doesn't leave focus on body
+    const sidebar = document.createElement('nav');
+    sidebar.id = 'app-sidebar';
+    const fallbackBtn = document.createElement('button');
+    fallbackBtn.setAttribute('aria-label', 'Conversation actions');
+    sidebar.appendChild(fallbackBtn);
+    document.body.appendChild(sidebar);
+
+    render(<ThreadActionMenu {...BASE_PROPS} triggerRef={detachedRef} />);
+    const menu = screen.getByRole('menu');
+
+    await act(async () => {
+      fireEvent.keyDown(menu, { key: 'Escape', bubbles: true });
+    });
+
+    // The detached button's .focus() must NEVER be called — calling focus()
+    // on a detached element is a no-op and indicates the guard is missing.
+    expect(focusSpy).not.toHaveBeenCalled();
+
+    restoreRaf();
   });
 });

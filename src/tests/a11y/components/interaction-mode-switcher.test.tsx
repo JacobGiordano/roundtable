@@ -1,40 +1,38 @@
 /**
- * InteractionModeSwitcher — Axe-core Accessibility Tests (#131, #199)
+ * InteractionModeSwitcher — Axe-core Accessibility Tests (#131, #199, #440)
  *
  * Issue #131 changed Manual and Auto-chain modes to "coming soon" disabled radio
- * items. Issue #299 wired Auto-chain into handleSend — Auto-chain is now a fully
- * interactive `<button role="radio">`. Only Manual remains disabled (`comingSoon:
- * true`), rendered as `<span role="radio" aria-disabled="true">`.
+ * items. Issue #299 wired Auto-chain into handleSend — Auto-chain became fully
+ * interactive. Issue #440 removed the Manual mode entry entirely because the
+ * feature does not exist; rendering a permanently-greyed placeholder created noise.
  *
- * Issue #199 fixed the ARIA ownership model. The previous approach used
- * aria-owns on the radiogroup to exclude coming-soon spans, but aria-owns
- * cannot remove DOM children from the ARIA ownership tree — it only adds
- * non-DOM children. The correct fix: give coming-soon items role="radio" +
- * aria-disabled="true" so every owned child of the radiogroup is a valid
- * radio member (satisfying aria-required-children). aria-disabled (not HTML
- * disabled) keeps items tab-reachable so keyboard users can discover the
- * "coming soon" tooltip.
+ * Current state (#440): two fully enabled modes — Parallel and Auto-chain.
+ * No disabled/coming-soon entries. The `comingSoon` rendering path in ModeButton
+ * is retained for future use but is currently unused.
  *
  * Audit targets:
- *   1. No axe violations with role="radio" + aria-disabled="true" on disabled items
- *   2. Disabled radio items ARE focusable via Tab (tabIndex={0}, aria-disabled not HTML disabled)
- *   3. Tooltip role="tooltip" is present for coming-soon items
- *   4. All three items in the radiogroup have role="radio" — ARIA integrity satisfied
- *   5. #199: disabled items carry aria-disabled="true" and aria-checked="false"
- *   6. #199: radiogroup has no aria-owns (all DOM children are valid radio members)
- *   7. sr-only "coming soon" note is outside the radiogroup DOM
+ *   1. No axe violations — radiogroup with two fully enabled members
+ *   2. Both modes have role="radio" — ARIA ownership satisfied
+ *   3. Neither mode carries aria-disabled (all modes are enabled)
+ *   4. Radiogroup has an accessible label ("Interaction mode")
+ *   5. Radiogroup has no aria-owns and no aria-describedby pointing at a removed note
+ *   6. Both buttons are operable via click — onModeChange fires
+ *   7. Tooltip role="tooltip" exists for each mode button
+ *   8. Arrow-key navigation moves focus between radios (WAI-ARIA radio group contract)
+ *   9. All enabled radio buttons use focus-visible ring (not bare focus:ring)
  *
  * WCAG criteria:
  *   - 4.1.2 Name, Role, Value — all radiogroup members have correct roles/names
- *   - 2.1.1 Keyboard — disabled radios remain tab-reachable (aria-disabled, not disabled)
- *   - 1.3.1 Info and Relationships — role="tooltip" provides semantic structure
+ *   - 2.1.1 Keyboard — arrow-key navigation, no keyboard traps
+ *   - 1.3.1 Info and Relationships — role="radiogroup" with label
+ *   - 1.4.13 Content on Hover or Focus — tooltip dismissible via Escape
  *
  * axe-core assertion pattern:
  *   assertNoViolations() helper — equivalent to toHaveNoViolations().
  *   Violation descriptions are included in failure output via the summary helper.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import type { AxeResults } from 'axe-core';
 import { describe, it, expect, vi } from 'vitest';
@@ -56,7 +54,7 @@ function assertNoViolations(results: AxeResults): void {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCAG 4.1.2, 2.1.1)', () => {
+describe('InteractionModeSwitcher — #440: two-mode all-enabled radiogroup (WCAG 4.1.2, 2.1.1)', () => {
   it('has no axe violations in default state (parallel selected)', async () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
@@ -65,86 +63,38 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     assertNoViolations(results);
   });
 
-  it('all three modes have role="radio" — radiogroup ownership model satisfied (#199)', () => {
+  it('has no axe violations when auto-chain is selected', async () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="auto-chain" onModeChange={() => {}} />
+    );
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('exactly two modes have role="radio" — #440: Manual removed, two remaining', () => {
     render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // All three members of the radiogroup must carry role="radio" so aria-required-children
-    // is satisfied without an aria-owns workaround. Previously only Parallel had role="radio".
     const radios = screen.queryAllByRole('radio');
-    expect(radios).toHaveLength(3);
+    // #440: only Parallel and Auto-chain remain. Manual was removed.
+    expect(radios).toHaveLength(2);
     const labels = radios.map((r) => r.getAttribute('aria-label') ?? '');
     expect(labels.some((l) => /parallel/i.test(l))).toBe(true);
-    expect(labels.some((l) => /manual/i.test(l))).toBe(true);
     expect(labels.some((l) => /auto-chain/i.test(l))).toBe(true);
+    // Manual must not be present in any form
+    expect(labels.some((l) => /manual/i.test(l))).toBe(false);
   });
 
-  it('disabled radio items have aria-disabled="true" and aria-checked="false" (#199)', () => {
+  it('no radio items carry aria-disabled — all modes are fully enabled (#440)', () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // aria-disabled (not HTML disabled) ensures keyboard users can Tab to the item
-    // and hear the "coming soon" tooltip — satisfying WCAG 2.1.1.
+    // #440: Manual (the only coming-soon mode) was removed. No disabled radios remain.
     const disabledRadios = container.querySelectorAll('[role="radio"][aria-disabled="true"]');
-    expect(disabledRadios.length).toBe(1);
-    for (const radio of disabledRadios) {
-      expect(radio.getAttribute('aria-checked')).toBe('false');
-    }
+    expect(disabledRadios.length).toBe(0);
   });
 
-  it('disabled radio items are Tab-reachable (tabIndex={0}, aria-disabled not HTML disabled)', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    // aria-disabled keeps items in the tab order. tabIndex={0} is required because
-    // <span> is not natively focusable. This enables keyboard users to discover the
-    // "coming soon" tooltip — satisfying WCAG 4.1.2 Name, Role, Value.
-    const disabledRadios = container.querySelectorAll('[role="radio"][aria-disabled="true"]');
-    for (const radio of disabledRadios) {
-      const tabIndex = radio.getAttribute('tabindex');
-      expect(tabIndex).not.toBeNull();
-      expect(parseInt(tabIndex!, 10)).toBeGreaterThanOrEqual(0);
-      // Must NOT have HTML disabled attribute (which would remove from tab order)
-      expect(radio.hasAttribute('disabled')).toBe(false);
-    }
-  });
-
-  it('coming-soon radio items have an accessible label describing their state', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    // Manual is the only remaining disabled mode — carries aria-label="Manual — coming soon"
-    const manualRadio = container.querySelector('[role="radio"][aria-label="Manual — coming soon"]');
-    expect(manualRadio).not.toBeNull();
-
-    // Auto-chain (#299) is now interactive — its aria-label describes the mode,
-    // not "coming soon". Confirm it is a <button> with an auto-chain label that
-    // does NOT include "coming soon".
-    const autoChainLabels = Array.from(
-      container.querySelectorAll('button[role="radio"]')
-    ).map((el) => el.getAttribute('aria-label') ?? '');
-    const autoChainLabel = autoChainLabels.find((l) => /auto-chain/i.test(l));
-    expect(autoChainLabel).toBeDefined();
-    expect(autoChainLabel).not.toMatch(/coming soon/i);
-    // The disabled coming-soon span must NOT be auto-chain
-    expect(
-      container.querySelector('[role="radio"][aria-disabled="true"][aria-label*="Auto-chain"]')
-    ).toBeNull();
-  });
-
-  it('tooltip elements carry role="tooltip"', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
-    );
-    const tooltips = container.querySelectorAll('[role="tooltip"]');
-    // Three mode buttons = three tooltips (Parallel + 2 coming-soon)
-    expect(tooltips.length).toBeGreaterThanOrEqual(2);
-    // At least one coming-soon tooltip contains the expected text
-    const tooltipTexts = Array.from(tooltips).map((t) => t.textContent ?? '');
-    expect(tooltipTexts.some((t) => t.includes('Coming soon'))).toBe(true);
-  });
-
-  it('the radiogroup itself has an accessible label', () => {
+  it('the radiogroup has an accessible label "Interaction mode"', () => {
     render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
@@ -152,73 +102,139 @@ describe('InteractionModeSwitcher — #131/#199: radiogroup ownership model (WCA
     expect(group.getAttribute('aria-label')).toBe('Interaction mode');
   });
 
-  it('radiogroup has no aria-owns — all DOM children are valid radio members (#199)', () => {
+  it('radiogroup has no aria-owns — all DOM children are valid radio members', () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // With role="radio" on all children, aria-owns is no longer needed.
-    // Its absence confirms the fix uses proper semantics rather than a workaround.
     const radiogroup = container.querySelector('[role="radiogroup"]');
     expect(radiogroup).not.toBeNull();
     expect(radiogroup?.hasAttribute('aria-owns')).toBe(false);
   });
 
-  it('Parallel radio button is accessible and operable', () => {
+  it('radiogroup has no aria-describedby pointing at a removed sr-only note (#440)', () => {
+    // #440 removed the sr-only coming-soon note (id="interaction-mode-coming-soon-note").
+    // The radiogroup must not reference it via aria-describedby — stale aria-describedby
+    // pointing at a non-existent element is an ARIA 1.2 violation.
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    const radiogroup = container.querySelector('[role="radiogroup"]');
+    expect(radiogroup).not.toBeNull();
+    expect(radiogroup?.hasAttribute('aria-describedby')).toBe(false);
+    // The note element itself must also be absent from the DOM
+    const note = container.querySelector('#interaction-mode-coming-soon-note');
+    expect(note).toBeNull();
+  });
+
+  it('Parallel radio has aria-checked="true" when selected and is a <button>', () => {
     render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={vi.fn()} />
     );
     const parallelRadio = screen.getByRole('radio', { name: /parallel/i });
-    expect(parallelRadio).toBeTruthy();
     expect(parallelRadio.getAttribute('aria-checked')).toBe('true');
+    // #440: fully enabled mode uses a <button> element, not a <span>
     expect(parallelRadio.tagName.toLowerCase()).toBe('button');
-    // Parallel is NOT aria-disabled — it is the one selectable mode
     expect(parallelRadio.hasAttribute('aria-disabled')).toBe(false);
   });
 
-  it('sr-only "coming soon" note is a sibling of the radiogroup, not inside it', () => {
-    // #221: the sr-only note must be outside the radiogroup to prevent AT from
-    // reading it twice in browse mode (once as aria-describedby, once as a child).
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+  it('Auto-chain radio has aria-checked="true" when selected and is a <button>', () => {
+    render(
+      <InteractionModeSwitcher activeMode="auto-chain" onModeChange={vi.fn()} />
     );
-    const note = container.querySelector('#interaction-mode-coming-soon-note');
-    expect(note).not.toBeNull();
-
-    const radiogroup = container.querySelector('[role="radiogroup"]');
-    expect(radiogroup).not.toBeNull();
-
-    // The note must NOT be a descendant of the radiogroup.
-    expect(radiogroup?.contains(note)).toBe(false);
-
-    // Verify it is referenced via aria-describedby from the radiogroup.
-    expect(radiogroup?.getAttribute('aria-describedby')).toBe(
-      'interaction-mode-coming-soon-note',
-    );
+    const autoChainRadio = screen.getByRole('radio', { name: /auto-chain/i });
+    expect(autoChainRadio.getAttribute('aria-checked')).toBe('true');
+    expect(autoChainRadio.tagName.toLowerCase()).toBe('button');
+    expect(autoChainRadio.hasAttribute('aria-disabled')).toBe(false);
   });
 
-  it('the sr-only note describes the coming-soon modes accurately', () => {
-    const { container } = render(
-      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+  it('clicking a radio calls onModeChange with the correct mode', () => {
+    const onModeChange = vi.fn();
+    render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={onModeChange} />
     );
-    const note = container.querySelector('#interaction-mode-coming-soon-note');
-    expect(note?.textContent).toMatch(/manual/i);
-    expect(note?.textContent).toMatch(/coming soon/i);
+    const autoChainRadio = screen.getByRole('radio', { name: /auto-chain/i });
+    fireEvent.click(autoChainRadio);
+    expect(onModeChange).toHaveBeenCalledWith('auto-chain');
   });
 
-  it('has no axe violations with role="radio" + aria-disabled ownership model in place', async () => {
+  it('each mode button has a tooltip with role="tooltip"', () => {
     const { container } = render(
       <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
     );
-    // Wrap in a labelled region so axe has a valid document context.
-    const wrapper = document.createElement('main');
-    wrapper.appendChild(container);
-    document.body.appendChild(wrapper);
+    const tooltips = container.querySelectorAll('[role="tooltip"]');
+    // Two mode buttons = two tooltips (Parallel + Auto-chain)
+    expect(tooltips.length).toBe(2);
+    // No tooltip should contain "Coming soon" since all modes are enabled
+    const tooltipTexts = Array.from(tooltips).map((t) => t.textContent ?? '');
+    expect(tooltipTexts.every((t) => !t.includes('Coming soon'))).toBe(true);
+  });
 
-    const { axe: runAxe } = await import('vitest-axe');
-    const results = await runAxe(wrapper);
-    const summary = results.violations
-      .map((v) => `[${v.impact}] ${v.id}: ${v.help}`)
-      .join('\n');
-    expect(results.violations, `Axe violations:\n${summary}`).toHaveLength(0);
+  it('all enabled radio buttons use focus-visible ring (not bare focus:ring)', () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    const radios = container.querySelectorAll('[role="radio"]');
+    expect(radios.length).toBeGreaterThan(0);
+    for (const radio of radios) {
+      expect(radio.className).toContain('focus-visible:ring-2');
+      expect(radio.className).not.toMatch(/(?<!\w)focus:ring/);
+    }
+  });
+
+  it('ArrowRight key moves focus from Parallel to Auto-chain (WAI-ARIA radio keyboard contract)', () => {
+    render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={vi.fn()} />
+    );
+    const radiogroup = screen.getByRole('radiogroup');
+    const parallelRadio = screen.getByRole('radio', { name: /parallel/i });
+    const autoChainRadio = screen.getByRole('radio', { name: /auto-chain/i });
+
+    parallelRadio.focus();
+    expect(document.activeElement).toBe(parallelRadio);
+
+    fireEvent.keyDown(radiogroup, { key: 'ArrowRight', bubbles: true });
+    expect(document.activeElement).toBe(autoChainRadio);
+  });
+
+  it('ArrowLeft key wraps from Parallel back to Auto-chain (last item)', () => {
+    render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={vi.fn()} />
+    );
+    const radiogroup = screen.getByRole('radiogroup');
+    const parallelRadio = screen.getByRole('radio', { name: /parallel/i });
+    const autoChainRadio = screen.getByRole('radio', { name: /auto-chain/i });
+
+    parallelRadio.focus();
+    fireEvent.keyDown(radiogroup, { key: 'ArrowLeft', bubbles: true });
+    // Wraps around — from Parallel (first) to Auto-chain (last)
+    expect(document.activeElement).toBe(autoChainRadio);
+  });
+
+  it('ArrowDown key moves focus from Parallel to Auto-chain (synonym for ArrowRight)', () => {
+    render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={vi.fn()} />
+    );
+    const radiogroup = screen.getByRole('radiogroup');
+    const parallelRadio = screen.getByRole('radio', { name: /parallel/i });
+    const autoChainRadio = screen.getByRole('radio', { name: /auto-chain/i });
+
+    parallelRadio.focus();
+    fireEvent.keyDown(radiogroup, { key: 'ArrowDown', bubbles: true });
+    expect(document.activeElement).toBe(autoChainRadio);
+  });
+
+  it('WCAG 2.2 2.5.8: both radio buttons meet 24×24px minimum target size via h-7 (28px)', () => {
+    const { container } = render(
+      <InteractionModeSwitcher activeMode="parallel" onModeChange={() => {}} />
+    );
+    // ModeButton renders h-7 (28px height) which satisfies WCAG 2.2 §2.5.8 minimum (24px).
+    // Width is determined by px-3 + content — "Parallel" and "Auto-chain" are both
+    // wide enough to exceed 24px at any reasonable font size.
+    const radios = container.querySelectorAll<HTMLElement>('[role="radio"]');
+    expect(radios.length).toBe(2);
+    for (const radio of radios) {
+      // h-7 = 28px. Verify the class is applied so the minimum is declared.
+      expect(radio.className).toContain('h-7');
+    }
   });
 });
