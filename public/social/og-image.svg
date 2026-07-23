@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <title>Roundtable — Multi-model AI conversation</title>
+
+  <!--
+    OG social image for Roundtable.
+    Canvas: 1200 × 630 px (standard OpenGraph / Twitter card ratio).
+    Brand palette:
+      Background: Roundtable Indigo #2D2B55
+      Mark / wordmark: white #FFFFFF
+      Tagline: Roundtable Mist #C4C2E8
+    Layout:
+      Left zone (0–440px): symbol mark, centered at (220, 315), 220×220px live area
+      Right zone (440–1140px): wordmark + tagline, vertically centered
+      Gutter: 60px left margin, 60px right margin, 80px between mark and text block
+    Mark geometry (scaled from 48-unit grid to 220px live area, factor ≈ 4.583):
+      Outer circle: r = 22 × 4.583 ≈ 101
+      Ring: r = 14 × 4.583 ≈ 64, stroke ≈ 9
+      Seat dot r = 3 × 4.583 ≈ 13.75 → 14
+      Center dot r = 3.5 × 4.583 ≈ 16 → 16
+      Center of mark: (220, 315)
+      Seat positions on ring at r=64 from (220,315), pointy-top:
+        Top:          (220,   251)  = (220+64*cos270°, 315+64*sin270°)
+        Upper-right:  (275.4, 283)  = (220+64*cos330°, 315+64*sin330°) = (220+55.4, 315-32)
+        Lower-right:  (275.4, 347)  = (220+55.4, 315+32)
+        Bottom:       (220,   379)  = (220, 315+64)
+        Lower-left:   (164.6, 347)  = (220-55.4, 315+32)
+        Upper-left:   (164.6, 283)  = (220-55.4, 315-32)
+      (64 × cos30° = 64 × 0.866 = 55.4; 64 × sin30° = 64 × 0.5 = 32)
+  -->
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#2D2B55"/>
+
+  <!-- Subtle divider line between mark zone and text zone -->
+  <line x1="420" y1="90" x2="420" y2="540" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.12"/>
+
+  <!-- Symbol mark, centered at (220, 315) -->
+  <g id="og-symbol">
+    <!-- Outer filled circle — white on indigo background -->
+    <circle cx="220" cy="315" r="101" fill="#FFFFFF" fill-opacity="0.10"/>
+    <!-- Ring -->
+    <circle cx="220" cy="315" r="64" fill="none" stroke="#FFFFFF" stroke-width="9"/>
+    <!-- Six seat dots -->
+    <circle cx="220"    cy="251"   r="14" fill="#FFFFFF"/>
+    <circle cx="275.4"  cy="283"   r="14" fill="#FFFFFF"/>
+    <circle cx="275.4"  cy="347"   r="14" fill="#FFFFFF"/>
+    <circle cx="220"    cy="379"   r="14" fill="#FFFFFF"/>
+    <circle cx="164.6"  cy="347"   r="14" fill="#FFFFFF"/>
+    <circle cx="164.6"  cy="283"   r="14" fill="#FFFFFF"/>
+    <!-- Center dot -->
+    <circle cx="220" cy="315" r="16" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Text block, left edge at x=490, vertically centered around y=315 -->
+  <g id="og-text">
+    <!-- Wordmark: "ROUNDTABLE" -->
+    <text
+      x="490"
+      y="305"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, -apple-system, sans-serif"
+      font-size="72"
+      font-weight="600"
+      letter-spacing="8"
+      fill="#FFFFFF"
+    >ROUNDTABLE</text>
+    <!-- Tagline -->
+    <text
+      x="492"
+      y="365"
+      font-family="'Space Grotesk', 'DM Sans', system-ui, -apple-system, sans-serif"
+      font-size="28"
+      font-weight="400"
+      letter-spacing="1.5"
+      fill="#C4C2E8"
+    >Multi-model AI conversation</text>
+  </g>
+</svg>
