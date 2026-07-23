@@ -85,3 +85,8 @@ export {
   savePricingUrl,
   refreshPricing,
 } from './pricing';
+export {
+  getLogoutOnClose,
+  saveLogoutOnClose,
+  clearLogoutOnClose,
+} from './logoutOnClose';

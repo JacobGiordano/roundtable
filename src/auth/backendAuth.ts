@@ -4,7 +4,7 @@
  * Backend auth support for self-hosted Roundtable instances (issue #25).
  *
  * Manages:
- *   - Server URL and auth token persistence in localStorage
+ *   - Server URL and auth token persistence in localStorage or sessionStorage
  *   - Login / logout flow (POST /auth/login, synchronous logout)
  *   - Token refresh (POST /auth/refresh)
  *   - Active StorageProvider factory (server mode if configured, local mode otherwise)
@@ -12,13 +12,24 @@
  *
  * localStorage keys (roundtable: prefix, consistent with accentColors.ts):
  *   "roundtable:server-url"   — base URL of the self-hosted backend
- *   "roundtable:auth-token"   — session token returned by the backend
+ *   "roundtable:auth-token"   — session token (localStorage path, logoutOnClose=false)
+ *
+ * sessionStorage keys:
+ *   "roundtable:auth-token"   — session token (sessionStorage path, logoutOnClose=true)
+ *
+ * Token storage path (issue #456):
+ *   When `logoutOnClose` preference is false (default): token is stored in
+ *   localStorage and persists until explicit logout. Suitable for personal machines.
+ *   When `logoutOnClose` preference is true: token is stored in sessionStorage
+ *   and is cleared automatically when the browser tab/window closes. Suitable
+ *   for shared machines.
  *
  * Security rules (non-negotiable):
  *   - Auth tokens are NEVER logged
  *   - Auth tokens are NEVER exported to any file or clipboard by this module
  *   - Auth tokens are NEVER transmitted except to the user-configured backend URL
- *   - localStorage is the sole persistence layer for tokens and server URL
+ *   - The logoutOnClose preference itself always lives in localStorage (it is
+ *     meta-config about how to store the token, not the token itself)
  *
  * Cross-boundary import note:
  *   `createStorageProvider` is imported from @/storage/storageFactory. This is
@@ -30,6 +41,7 @@
 import type { StorageProvider } from '@/types';
 // Sanctioned cross-boundary import — see module doc comment above.
 import { createStorageProvider } from '@/storage/storageFactory';
+import { getLogoutOnClose } from './logoutOnClose';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 
@@ -129,25 +141,56 @@ export function clearServerUrl(): void {
  * Returns undefined if no token has been saved.
  *
  * This is the ONLY function in this module that reads the auth token value.
- * Verified by inspection: no other function calls localStorage.getItem(AUTH_TOKEN_KEY).
+ * Checks sessionStorage first (logoutOnClose=true path), then localStorage
+ * (logoutOnClose=false path). This order allows a token written via either path
+ * to be read correctly regardless of whether the preference has since changed.
+ * Verified by inspection: no other function calls getItem(AUTH_TOKEN_KEY).
  */
 export function getAuthToken(): string | undefined {
-  return localStorage.getItem(AUTH_TOKEN_KEY) ?? undefined;
+  // Check sessionStorage first — a token stored there indicates logoutOnClose was
+  // true at login time. Fall back to localStorage for the default (persistent) path.
+  return (
+    sessionStorage.getItem(AUTH_TOKEN_KEY) ??
+    localStorage.getItem(AUTH_TOKEN_KEY) ??
+    undefined
+  );
 }
 
 /**
- * Persist an auth token to localStorage.
+ * Persist an auth token to the appropriate storage based on the logoutOnClose
+ * preference at the time of login.
+ *
+ * logoutOnClose=false (default): stores in localStorage — token survives tab
+ *   and browser close until explicit logout.
+ * logoutOnClose=true: stores in sessionStorage — token is cleared automatically
+ *   when the tab or window closes, preventing session persistence on shared machines.
+ *
  * Never log, export, or transmit the value outside of auth requests.
  */
 function saveAuthToken(token: string): void {
-  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  if (getLogoutOnClose()) {
+    // sessionStorage path: token cleared on tab/window close.
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+    // Ensure no stale token lingers in localStorage from a previous login where
+    // logoutOnClose was false.
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  } else {
+    // localStorage path: token persists across sessions until explicit logout.
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    // Ensure no stale token lingers in sessionStorage from a previous login where
+    // logoutOnClose was true.
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  }
 }
 
 /**
- * Remove the stored auth token.
+ * Remove the stored auth token from both storage backends.
+ * Clears both localStorage and sessionStorage to handle cases where the
+ * logoutOnClose preference was changed after the token was written.
  */
 export function clearAuthToken(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
 // ─── Login / logout ───────────────────────────────────────────────────────────
@@ -348,8 +391,12 @@ export function getActiveStorageProvider(): StorageProvider {
 // ─── Auth state helpers ───────────────────────────────────────────────────────
 
 /**
- * Returns true if both a server URL and auth token are stored in localStorage,
- * indicating that the user has logged in to a self-hosted backend.
+ * Returns true if both a server URL and auth token are stored, indicating that
+ * the user has logged in to a self-hosted backend.
+ *
+ * The server URL is always in localStorage. The auth token may be in either
+ * localStorage (logoutOnClose=false) or sessionStorage (logoutOnClose=true) —
+ * getAuthToken() checks both.
  *
  * Does not validate reachability or token validity — it only checks storage.
  */
