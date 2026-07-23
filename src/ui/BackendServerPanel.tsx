@@ -26,6 +26,8 @@ import {
   logout,
   isBackendConfigured,
   BackendAuthError,
+  getLogoutOnClose,
+  saveLogoutOnClose,
 } from '@/auth';
 import type { BackendAuthErrorCode } from '@/auth';
 import { EyeIcon, EyeOffIcon } from './icons';
@@ -208,6 +210,17 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
     [handleLogin, loginState],
   );
 
+  // ── logoutOnClose preference ───────────────────────────────────────────────
+  const [logoutOnClose, setLogoutOnClose] = useState<boolean>(() => getLogoutOnClose());
+
+  const handleLogoutOnCloseToggle = useCallback(() => {
+    setLogoutOnClose((prev) => {
+      const next = !prev;
+      saveLogoutOnClose(next);
+      return next;
+    });
+  }, []);
+
   // ── One-time sync on mount — detect external state change ─────────────────
   // If a token expired while the settings panel was closed, sync back to
   // disconnected without requiring a user action.
@@ -266,6 +279,57 @@ export function BackendServerPanel({ onConnectionChange }: BackendServerPanelPro
               {serverUrl}
             </p>
           )}
+
+          {/* logoutOnClose preference — only meaningful while connected */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div>
+              <p
+                id="logout-on-close-label"
+                className="text-[12px] font-medium text-text-secondary"
+              >
+                Log out on close
+              </p>
+              <p
+                id="logout-on-close-hint"
+                className="text-[11px] text-text-muted"
+              >
+                Clear your session when you close this tab
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={logoutOnClose}
+              aria-labelledby="logout-on-close-label"
+              aria-describedby="logout-on-close-hint"
+              onClick={handleLogoutOnCloseToggle}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  handleLogoutOnCloseToggle();
+                }
+              }}
+              className={[
+                // h-6/w-11 (24×44px) meets WCAG 2.2 — 2.5.8 target size minimum (24px)
+                'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent',
+                'transition-colors duration-fast cursor-pointer',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                logoutOnClose ? 'bg-success' : 'bg-border',
+              ].join(' ')}
+            >
+              <span className="sr-only">
+                {logoutOnClose ? 'Enabled' : 'Disabled'}
+              </span>
+              <span
+                aria-hidden="true"
+                className={[
+                  'inline-block h-4 w-4 rounded-full bg-white shadow-sm',
+                  'transition-transform duration-fast',
+                  logoutOnClose ? 'translate-x-5' : 'translate-x-0',
+                ].join(' ')}
+              />
+            </button>
+          </div>
         </div>
       ) : (
         /* ── Disconnected state — URL + login form ─────────────────────── */
