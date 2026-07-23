@@ -270,16 +270,21 @@ export class ClaudeModelProvider implements ModelProvider {
 
     if (!response.ok) {
       let detail = `HTTP ${response.status}`;
+      let errorCode: string | undefined;
+      let errorType: string | undefined;
       try {
-        const body = await response.json() as { error?: { message?: string } };
+        const body = await response.json() as { error?: { message?: string; code?: string; type?: string } };
         if (body.error?.message) detail = body.error.message;
+        errorCode = body.error?.code;
+        errorType = body.error?.type;
       } catch {
         // ignore JSON parse failure — use status code detail
       }
-      // classifyHttpError inspects the error message body for auth keywords.
+      // classifyHttpError uses the message, structured error code, and error type
+      // to distinguish context-length overflows from other 400 causes (issue #426).
       // Anthropic returns standard 401 for bad keys, but body-aware classification
       // is applied consistently across all providers for correctness (issue #544).
-      const code = classifyHttpError(response.status, detail);
+      const code = classifyHttpError(response.status, detail, errorCode, errorType);
       const error = buildModelError(code, detail);
       emitErrorChunk(this.config.modelId, error, onChunk);
       return {};

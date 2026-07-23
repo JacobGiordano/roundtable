@@ -314,16 +314,21 @@ export class GeminiModelProvider implements ModelProvider {
 
     if (!response.ok) {
       let detail = `HTTP ${response.status}`;
+      let errorCode: string | undefined;
+      let errorType: string | undefined;
       try {
-        const body = await response.json() as { error?: { message?: string } };
+        const body = await response.json() as { error?: { message?: string; code?: string; type?: string } };
         if (body.error?.message) detail = body.error.message;
+        errorCode = body.error?.code;
+        errorType = body.error?.type;
       } catch {
         // ignore JSON parse failure — use status code detail
       }
-      // classifyHttpError inspects the error message body for auth keywords.
+      // classifyHttpError uses the message, structured error code, and error type
+      // to distinguish context-length overflows from other 400 causes (issue #426).
       // Google returns standard 400 for invalid API keys passed as query params
       // — body-aware classification ensures these surface as auth_failure (issue #544).
-      const code = classifyHttpError(response.status, detail);
+      const code = classifyHttpError(response.status, detail, errorCode, errorType);
       const error = buildModelError(code, detail);
       emitErrorChunk(this.config.modelId, error, onChunk);
       return {};

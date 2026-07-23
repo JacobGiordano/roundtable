@@ -76,40 +76,102 @@ const AUTH_ERROR_KEYWORDS = [
 ];
 
 /**
- * Classify an HTTP error into a ModelErrorCode using both the status code and
- * the provider error message text from the response body.
+ * Keywords in a 400 error message that signal a context-length overflow.
+ * Matched case-insensitively against the error message text. Used by
+ * classifyHttpError to distinguish true context-length failures from other 400
+ * causes (invalid model string, malformed request, unsupported parameter) that
+ * should surface as `unknown` rather than the misleading `context_length_exceeded`
+ * (issue #426).
+ *
+ * The OpenAI structured error code 'context_length_exceeded' is checked separately
+ * via the errorCode parameter — these keywords serve as a message-text fallback
+ * when no structured code is available.
+ */
+const CONTEXT_LENGTH_KEYWORDS = [
+  'too many tokens',
+  'prompt is too long',
+  'maximum context length',
+  'context_length_exceeded',
+  'max_tokens',
+];
+
+/**
+ * Classify an HTTP error into a ModelErrorCode using the status code, the
+ * provider error message text, and the structured error code / type from the
+ * response body.
  *
  * This is the preferred function when the response body has already been read.
- * It handles the Grok/xAI case where HTTP 400 signals a bad API key rather
- * than a context-length overflow (issue #544).
+ * It handles two known non-standard cases:
+ *   - Grok/xAI returns HTTP 400 for a bad API key (issue #544).
+ *   - Unrecognized 400s (invalid model string, malformed request, unsupported
+ *     parameter) previously mapped to context_length_exceeded — they now map to
+ *     `unknown` unless a context-length signal is present (issue #426).
  *
  * Classification logic:
- *   401, 403                → auth_failure  (standard HTTP auth rejection)
- *   429                     → rate_limit
- *   400 + auth keywords     → auth_failure  (Grok/xAI and others returning 400 for bad keys)
- *   400 (no auth keywords)  → context_length_exceeded
- *   anything else           → unknown
+ *   401, 403                               → auth_failure
+ *   429                                    → rate_limit
+ *   400 + auth keywords in message         → auth_failure
+ *   400 + context-length signal*           → context_length_exceeded
+ *   400 (no recognized signal)             → unknown
+ *   anything else                          → unknown
+ *
+ * * Context-length signal (any one is sufficient):
+ *     - errorCode === 'context_length_exceeded' (OpenAI structured code)
+ *     - errorType === 'invalid_request_error' + context-length keyword in
+ *       message (Anthropic: uses invalid_request_error for all bad requests,
+ *       so the message check distinguishes context overflows from other causes)
+ *     - context-length keyword in message with no structured code/type present
+ *       (generic fallback for OpenAI-compatible providers that omit those fields)
  *
  * @param status       - The HTTP response status code.
  * @param errorMessage - The error message string from the parsed response body
- *                       (e.g. body.error?.message). Pass undefined or empty string
- *                       when no body was readable — falls back to status-only mapping.
+ *                       (e.g. body.error?.message). Pass undefined or empty
+ *                       string when no body was readable.
+ * @param errorCode    - The structured error code from the body, if present
+ *                       (e.g. body.error?.code). OpenAI uses 'context_length_exceeded'.
+ * @param errorType    - The structured error type from the body, if present
+ *                       (e.g. body.error?.type). Anthropic uses 'invalid_request_error'.
  */
-export function classifyHttpError(status: number, errorMessage: string | undefined): ModelErrorCode {
+export function classifyHttpError(
+  status: number,
+  errorMessage: string | undefined,
+  errorCode?: string,
+  errorType?: string,
+): ModelErrorCode {
   if (status === 401 || status === 403) return 'auth_failure';
   if (status === 429) return 'rate_limit';
   if (status === 400) {
     // Check whether the error body indicates an authentication failure.
     // xAI/Grok returns HTTP 400 for a bad API key instead of the conventional 401.
-    // Inspect the lowercased message text for auth-related keywords before
-    // defaulting to context_length_exceeded.
+    // Inspect the lowercased message text for auth-related keywords first.
     if (errorMessage) {
       const lower = errorMessage.toLowerCase();
       if (AUTH_ERROR_KEYWORDS.some((kw) => lower.includes(kw))) {
         return 'auth_failure';
       }
     }
-    return 'context_length_exceeded';
+
+    // Determine whether this is a genuine context-length overflow before
+    // falling back to `unknown`. Previously all unrecognized 400s were mapped
+    // to `context_length_exceeded`, which is actively misleading for cases like
+    // invalid model strings, malformed requests, or unsupported parameters
+    // (issue #426).
+    //
+    // Three signals — any one is sufficient to conclude context_length_exceeded:
+    //   1. OpenAI structured error code: body.error.code === 'context_length_exceeded'
+    //   2. Anthropic: body.error.type === 'invalid_request_error' + context-length
+    //      keyword in the message (Anthropic uses this type for all invalid requests,
+    //      so the keyword check narrows it to actual context overflows)
+    //   3. Generic fallback: context-length keyword in message with no structured
+    //      code or type present (covers OpenAI-compatible providers that omit them)
+    const messageLower = errorMessage?.toLowerCase() ?? '';
+    const hasContextKeyword = CONTEXT_LENGTH_KEYWORDS.some((kw) => messageLower.includes(kw));
+
+    if (errorCode === 'context_length_exceeded') return 'context_length_exceeded';
+    if (errorType === 'invalid_request_error' && hasContextKeyword) return 'context_length_exceeded';
+    if (!errorCode && !errorType && hasContextKeyword) return 'context_length_exceeded';
+
+    return 'unknown';
   }
   return 'unknown';
 }

@@ -225,7 +225,17 @@ export class GenericOpenAIProvider implements ModelProvider {
       content: string | GenericContentPart[];
     }> = [];
 
-    if (systemPrompt) {
+    // Gate system prompt injection on the capability flag (issue #438).
+    //
+    // ProviderCapabilities.systemPrompt defaults to true (optimistic — OpenAI Chat
+    // Completions format specifies system-role support and nearly all conformant
+    // endpoints implement it). When explicitly set to false, skip injection entirely:
+    // some minimalist endpoints (certain Ollama models, stripped-down inference
+    // servers) reject or silently drop system messages.
+    //
+    // The `!== false` check preserves the default-true semantics: absent capability
+    // (undefined) and explicit true both allow injection; only explicit false skips it.
+    if (systemPrompt && this.customConfig.capabilities?.systemPrompt !== false) {
       openaiMessages.push({ role: 'system', content: systemPrompt });
     }
 
@@ -376,17 +386,22 @@ export class GenericOpenAIProvider implements ModelProvider {
 
     if (!response.ok) {
       let detail = `HTTP ${response.status}`;
+      let errorCode: string | undefined;
+      let errorType: string | undefined;
       try {
-        const body = await response.json() as { error?: { message?: string } };
+        const body = await response.json() as { error?: { message?: string; code?: string; type?: string } };
         if (body.error?.message) detail = body.error.message;
+        errorCode = body.error?.code;
+        errorType = body.error?.type;
       } catch {
         // ignore JSON parse failure — use status code detail
       }
-      // classifyHttpError inspects the error message body for auth keywords.
-      // Custom OpenAI-compatible endpoints may return 400 for auth failures
-      // (same pattern as xAI/Grok) — body-aware classification handles these
-      // correctly without requiring per-endpoint special-casing (issue #544).
-      const code = classifyHttpError(response.status, detail);
+      // classifyHttpError uses the message, structured error code, and error type
+      // to distinguish context-length overflows from other 400 causes (issue #426),
+      // and to handle custom endpoints that return 400 for auth failures (same
+      // pattern as xAI/Grok) — body-aware classification handles these correctly
+      // without requiring per-endpoint special-casing (issue #544).
+      const code = classifyHttpError(response.status, detail, errorCode, errorType);
       const error = buildModelError(code, detail);
       emitErrorChunk(modelId, error, onChunk);
       return {};
