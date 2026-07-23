@@ -2,7 +2,9 @@
 export { LocalStorageProvider, downloadExportedConversation } from './LocalStorageProvider';
 export { conversationToMarkdown, conversationToHtml, buildExportedConversation } from './exporters';
 // ExportOptions re-exported so Aria can import it from @/storage for the export dialog (Wave 3).
-export type { ExportOptions } from './exporters';
+// The canonical definition is now in @/types/index (Arch PR for #453); re-exported here
+// so existing Aria imports from @/storage remain valid without change.
+export type { ExportOptions } from '@/types/index';
 // Browser file I/O primitives — Aria imports these for the #305 setup export/import feature.
 export { downloadJSON, readJSONFile } from './fileio';
 export { ServerStorageProvider } from './ServerStorageProvider';

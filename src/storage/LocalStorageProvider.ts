@@ -32,7 +32,7 @@ import type {
 } from '@/types/index';
 
 import { buildExportedConversation } from './exporters';
-import type { ExportOptions } from './exporters';
+import type { ExportOptions } from '@/types/index';
 import { triggerDownload } from './fileio';
 import { wrapForStorage, parseStoredConversation } from './migration';
 import { StorageError } from './StorageError';

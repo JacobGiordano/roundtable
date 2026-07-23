@@ -699,11 +699,26 @@ describe('Message.generatedImages — LocalStorage round-trip (issue #365)', () 
   });
 });
 
-describe('Message.generatedImages — markdown export (issue #365)', () => {
-  it('renders generatedImages as inline data-URI Markdown images', async () => {
+describe('Message.generatedImages — markdown export (issue #365, #453)', () => {
+  it('omits generatedImages by default (includeGeneratedImages not set)', async () => {
     const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
     await provider.saveConversation(conv);
     const result = await provider.exportConversation('conv-1', 'markdown');
+    expect(result!.content).not.toContain('data:');
+    expect(result!.content).not.toContain('![');
+  });
+
+  it('omits generatedImages when includeGeneratedImages is explicitly false', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: false });
+    expect(result!.content).not.toContain('data:');
+  });
+
+  it('renders generatedImages as inline data-URI Markdown images when includeGeneratedImages is true', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: true });
     expect(result!.content).toContain('![A test image](data:image/png;base64,iVBORw0KGgo=)');
   });
 
@@ -711,7 +726,7 @@ describe('Message.generatedImages — markdown export (issue #365)', () => {
     const msg = makeAssistantMessageWithImages({ generatedImages: [GENERATED_IMAGE_NO_ALT] });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'markdown');
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: true });
     expect(result!.content).toContain('![Generated image](data:image/webp;base64,UklGRg==)');
   });
 
@@ -720,7 +735,7 @@ describe('Message.generatedImages — markdown export (issue #365)', () => {
     const msg = makeAssistantMessageWithImages({ generatedImages: [imgWithBracket] });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'markdown');
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: true });
     expect(result!.content).toContain('![image [cropped\\]](data:image/png;base64,abc=)');
   });
 
@@ -730,7 +745,7 @@ describe('Message.generatedImages — markdown export (issue #365)', () => {
     });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'markdown');
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: true });
     expect(result!.content).toContain('![A test image](data:image/png;base64,iVBORw0KGgo=)');
     expect(result!.content).toContain('![Generated image](data:image/webp;base64,UklGRg==)');
   });
@@ -740,16 +755,32 @@ describe('Message.generatedImages — markdown export (issue #365)', () => {
       messages: [{ id: 'msg-plain', role: 'assistant', content: 'No images', modelId: 'claude', timestamp: 1000 }],
     });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'markdown');
+    const result = await provider.exportConversation('conv-1', 'markdown', { includeGeneratedImages: true });
     expect(result!.content).not.toContain('data:');
   });
 });
 
-describe('Message.generatedImages — HTML export (issue #365)', () => {
-  it('renders generatedImages as <img> elements with data-URI src', async () => {
+describe('Message.generatedImages — HTML export (issue #365, #453)', () => {
+  it('omits generatedImages by default (includeGeneratedImages not set)', async () => {
     const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
     await provider.saveConversation(conv);
     const result = await provider.exportConversation('conv-1', 'html');
+    expect(result!.content).not.toContain('<img ');
+    expect(result!.content).not.toContain('data:');
+  });
+
+  it('omits generatedImages when includeGeneratedImages is explicitly false', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: false });
+    expect(result!.content).not.toContain('<img ');
+    expect(result!.content).not.toContain('data:');
+  });
+
+  it('renders generatedImages as <img> elements with data-URI src when includeGeneratedImages is true', async () => {
+    const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
+    await provider.saveConversation(conv);
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     expect(result!.content).toContain('src="data:image/png;base64,iVBORw0KGgo="');
     expect(result!.content).toContain('alt="A test image"');
   });
@@ -758,7 +789,7 @@ describe('Message.generatedImages — HTML export (issue #365)', () => {
     const msg = makeAssistantMessageWithImages({ generatedImages: [GENERATED_IMAGE_NO_ALT] });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'html');
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     expect(result!.content).toContain('alt="Generated image"');
     expect(result!.content).toContain('src="data:image/webp;base64,UklGRg=="');
   });
@@ -768,7 +799,7 @@ describe('Message.generatedImages — HTML export (issue #365)', () => {
     const msg = makeAssistantMessageWithImages({ generatedImages: [imgWithQuote] });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'html');
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     expect(result!.content).toContain('alt="image &quot;quoted&quot;"');
   });
 
@@ -778,7 +809,7 @@ describe('Message.generatedImages — HTML export (issue #365)', () => {
     });
     const conv = makeConversation({ messages: [msg] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'html');
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     const imgCount = (result!.content.match(/<img /g) ?? []).length;
     expect(imgCount).toBe(2);
   });
@@ -786,7 +817,7 @@ describe('Message.generatedImages — HTML export (issue #365)', () => {
   it('wraps images in a .generated-images div', async () => {
     const conv = makeConversation({ messages: [makeAssistantMessageWithImages()] });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'html');
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     expect(result!.content).toContain('class="generated-images"');
   });
 
@@ -795,7 +826,7 @@ describe('Message.generatedImages — HTML export (issue #365)', () => {
       messages: [{ id: 'msg-plain', role: 'assistant', content: 'No images', modelId: 'claude', timestamp: 1000 }],
     });
     await provider.saveConversation(conv);
-    const result = await provider.exportConversation('conv-1', 'html');
+    const result = await provider.exportConversation('conv-1', 'html', { includeGeneratedImages: true });
     expect(result!.content).not.toContain('<img ');
     expect(result!.content).not.toContain('data:');
   });
