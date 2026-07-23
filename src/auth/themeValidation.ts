@@ -270,11 +270,8 @@ export function validateCustomTheme(json: unknown): ValidationResult {
   }
 
   // ── prose ───────────────────────────────────────────────────────────────────
-  // Full prose set per schema.md. Note: CustomThemeJSON in /src/types/index.ts
-  // currently declares only `link` and `link-hover`; the full prose set is
-  // required by Luma's schema and is validated here. This discrepancy should be
-  // resolved by Arch in a follow-up types PR — CustomThemeJSON.prose should be
-  // expanded to include all 7 fields.
+  // Full prose set per schema.md. CustomThemeJSON.prose in /src/types/index.ts
+  // declares all 7 fields — validator and type are now in sync (#429).
   validateSection(
     json.prose,
     'prose',
