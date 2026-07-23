@@ -1240,10 +1240,18 @@ export type SaveConversationDefaultsFn = (defaults: ConversationDefaults) => Pro
  *   embedded — only the identifying metadata is included to keep exports small
  *   and readable. When false (or absent), attachment metadata is silently omitted.
  *
- * Vault implements; Aria and any ServerStorageProvider caller may pass this.
+ * `includeGeneratedImages` (default `false`):
+ *   When true, `GeneratedImage.base64` blobs are embedded inline in the export.
+ *   This can produce very large exports — Aria must show a pre-download disclosure
+ *   notice to the user before the download begins whenever this flag is true.
+ *   When false (or absent), generated images are silently omitted from the export.
+ *
+ * Vault implements; Aria reads `includeGeneratedImages` to decide whether to
+ * show the disclosure notice before download.
  */
 export type ExportOptions = {
   includeAttachments?: boolean;
+  includeGeneratedImages?: boolean;
 };
 
 // ─── StorageProvider — Vault implements ───────────────────────────────────────
