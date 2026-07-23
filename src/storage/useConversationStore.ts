@@ -13,8 +13,9 @@
  *     without requiring a full `listConversations()` round-trip after each op.
  *   - Auto-title generation fires inside `updateConversation` when the
  *     conversation has no title yet and its messages now contain at least one
- *     user message. Title = first ~60 chars of that message, trimmed at a
- *     word boundary.
+ *     user message. Title = first ~60 chars of the first user message (after
+ *     stripping Markdown), trimmed at a word boundary. Falls back to "[Image]"
+ *     for image-only messages (empty content, non-empty attachments).
  *   - `getSessionTokenUsage` delegates to Atlas's utility function — this is
  *     the documented cross-agent exception (see CLAUDE.md and HANDOFF.md).
  */
@@ -38,24 +39,77 @@ import { getSessionTokenUsage as computeSessionTokenUsage } from '@/models';
 // ─── Title generation ─────────────────────────────────────────────────────────
 
 /**
+ * Strip common Markdown syntax from a string, returning plain text suitable
+ * for display as a conversation title. Only inline syntax is stripped — block
+ * constructs (code fences, ordered lists) are reduced to their content rather
+ * than being removed entirely, so the semantic meaning is preserved.
+ *
+ * Stripped: bold (**text** / __text__), italic (*text* / _text_), inline code
+ * (`text`), strikethrough (~~text~~), links ([text](url) → text), images
+ * (![alt](url) → alt), blockquote markers (leading >), heading markers
+ * (leading #), and horizontal rules (---, ***, ___). Remaining whitespace is
+ * collapsed to single spaces so the output is a clean single-line string.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    // Images: ![alt](url) → alt text
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Links: [text](url) → text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Bold: **text** or __text__ → text
+    .replace(/\*\*([^*]*)\*\*/g, '$1')
+    .replace(/__([^_]*)__/g, '$1')
+    // Italic: *text* or _text_ (single delimiters) → text
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Strikethrough: ~~text~~ → text
+    .replace(/~~([^~]*)~~/g, '$1')
+    // Inline code: `text` → text
+    .replace(/`([^`]*)`/g, '$1')
+    // Blockquote markers: leading > (possibly with spaces) → nothing
+    .replace(/^>+\s*/gm, '')
+    // Heading markers: leading # characters → nothing
+    .replace(/^#{1,6}\s*/gm, '')
+    // Horizontal rules (---, ***, ___) → nothing
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // Collapse whitespace (newlines, tabs, multiple spaces) → single space
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Derive an auto-title from the first user message in a conversation.
  *
- * Takes up to 60 characters from the start of the message content, then trims
- * back to the last word boundary so we never split mid-word. Returns undefined
- * if there are no user messages, so the caller can skip the title assignment.
+ * Markdown syntax is stripped before truncating so the title contains plain
+ * text (e.g. a message opening with "**Important**:" yields "Important:" as
+ * the title, not "**Important**:").
+ *
+ * Falls back to "[Image]" when the message content is empty but attachments
+ * are present (image-only messages), so the sidebar never shows "Untitled
+ * conversation" for a conversation the user clearly initiated.
+ *
+ * Returns undefined if there are no user messages, so the caller can skip
+ * the title assignment.
  */
 function deriveTitle(conversation: Conversation): string | undefined {
   const firstUserMsg = conversation.messages.find((m) => m.role === 'user');
   if (!firstUserMsg) return undefined;
 
-  const raw = firstUserMsg.content.trim();
-  if (!raw) return undefined;
+  const plain = stripMarkdown(firstUserMsg.content);
+
+  // Fallback for image-only messages: content is empty but attachments exist.
+  if (!plain) {
+    if (firstUserMsg.attachments && firstUserMsg.attachments.length > 0) {
+      return '[Image]';
+    }
+    return undefined;
+  }
 
   const MAX = 60;
-  if (raw.length <= MAX) return raw;
+  if (plain.length <= MAX) return plain;
 
   // Trim to MAX chars then walk back to a word boundary.
-  let truncated = raw.slice(0, MAX);
+  let truncated = plain.slice(0, MAX);
   const lastSpace = truncated.lastIndexOf(' ');
   if (lastSpace > 0) {
     truncated = truncated.slice(0, lastSpace);
