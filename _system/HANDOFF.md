@@ -1,4 +1,4 @@
-Last updated: 2026-07-22 (ship: wave 20)
+Last updated: 2026-07-23 (ship: wave 21)
 
 ## Current phase
 
@@ -6,25 +6,24 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 20 shipped. Issues closed: #546 #456 #490 #491 #447
+Wave 21 shipped. Issues closed: #455 #454 #452 #547 #448 #449 #446 #451 #450
 
-- **Scout**: Grok 400 auth regression test — 2 new cases covering `classifyHttpError()` body-inspection (#546)
-- **Gate**: `logoutOnClose` preference + sessionStorage token path; 20 new tests; UI toggle deferred to Aria (#456)
-- **Marque**: 192×192 + 512×512 PWA PNGs generated; manifest.json updated; 1200×630 OG image + spec (#490 #491)
-- **Forge**: OG/Twitter meta tags wired in index.html (#491); #447 bundle split already existed — verified 3 chunks, no chunk over 500 kB
+- **Aria**: image export disclosure (#455) + provider data processing disclosure (#454) + StableMarkdown memo wrapper for stableContent re-parse (#452) + ModelPill palette icon overlap fix (#547)
+- **#448 #449 #446 #451 #450**: all confirmed already implemented in prior waves — closed as pre-existing
+- **Ada**: PASS — ExportButton menu restructure satisfies aria-required-children; ProviderSettingsPanel role="note" valid; StableMarkdown no new roles
 
 ## Key decisions
 
-- `logoutOnClose` stored in localStorage; only the auth *token* moves to sessionStorage when pref is true
-- Gate exports `getLogoutOnClose/saveLogoutOnClose/clearLogoutOnClose` — Aria wires the settings toggle in a future wave
-- Forge's #447 `manualChunks` was already implemented in a prior CI commit — no code change needed
+- ExportButton disclosure sits outside `role="menu"` div (inside shared card wrapper) — `<p>` inside a menu violates aria-required-children
+- ProviderSettingsPanel disclosure uses `<aside role="note">` at top of panel body, before Section 1
+- stableContent AST caching not exposed by react-markdown API — StableMarkdown memo wrapper is the correct minimal fix
+- ModelPill palette icon: `right-[22px]` → `right-9` (36px = × width + gap + inner padding)
 
 ## Open issues (priority order)
 
-- **#455/#454** — Aria: image export disclosure + provider data processing disclosure (Wave 21 batch)
-- **#452–#448** — Aria: perf — React.memo MessageBubble, useMemo sanitize, auto-scroll, shimmer animation, stableContent O(n²)
-- **#446** — Aria: restrict highlight.js language set
-- **#456 (UI)** — Aria: settings toggle for logoutOnClose (deferred from Gate wave)
+- **#456 (UI)** — Aria: settings toggle for logoutOnClose (Gate layer done, UI deferred)
+- **#425** — Atlas: gpt-image-gen.test.ts pre-existing failure
+- **#455/#454** — shipped; Vera advisory layer complete
 
 ## Gotchas
 
@@ -36,4 +35,4 @@ Wave 20 shipped. Issues closed: #546 #456 #490 #491 #447
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - Parallel worktrees cross-contaminate /workspace staging — reset staging and merge branches manually if dirty
-- OG square variant (`og-image-square.png`) not wired — Forge used `summary_large_image` with 1200×630 per spec
+- Relay-applied worktree fixes may miss the merge window — cherry-pick from `git log --all` if needed
