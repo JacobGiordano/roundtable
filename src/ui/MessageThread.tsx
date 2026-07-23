@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ExportFormat, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
+import type { ExportFormat, ExportOptions, Message, ModelConfig, ModelId, TokenCountVisibility } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { ExportButton } from './ExportButton';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -40,8 +40,9 @@ interface MessageThreadProps {
    * Parent (App via AppLayout) handles the async exportConversation call and
    * triggers downloadExportedConversation. Omit to hide the export button.
    * #468: ExportButton is now in a sticky thread header visible at all scroll depths.
+   * #453: ExportOptions (including includeGeneratedImages) is now passed alongside format.
    */
-  onExport?: (format: ExportFormat) => void;
+  onExport?: (format: ExportFormat, options: ExportOptions) => void;
   /**
    * Called when the user clicks the edit button on a user message bubble.
    * Receives the 0-based index of that message in the `messages` array so App

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import type { Attachment, AutoChainConfig, Conversation, ExportFormat, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
+import type { Attachment, AutoChainConfig, Conversation, ExportFormat, ExportOptions, InteractionMode, Message, ModelConfig, ModelId, ProviderRoster, StopMessageFn } from '@/types';
 import { AppLayout } from '@/ui/AppLayout';
 import { RoundtableContext } from '@/ui/RoundtableContext';
 // #286: applyRosterAccentColors re-initialises --accent-custom-{id} CSS vars
@@ -1083,10 +1083,12 @@ export default function App() {
    * Only fires when there is an active conversation — ExportButton is disabled
    * when no conversation is active or it has no messages.
    */
+  // #453: options now includes includeGeneratedImages — passed from ExportButton
+  // through MessageThread → RoundtableContext → here → store.exportConversation.
   const handleExportConversation = useCallback(
-    async (format: ExportFormat) => {
+    async (format: ExportFormat, options: ExportOptions) => {
       if (!store.activeConversationId) return;
-      const result = await store.exportConversation(store.activeConversationId, format);
+      const result = await store.exportConversation(store.activeConversationId, format, options);
       if (result) downloadExportedConversation(result);
     },
     [store],
