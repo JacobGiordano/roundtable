@@ -10,6 +10,7 @@
  *   - getBackendFallbackStatus()
  *   - getServerUrl / saveServerUrl / clearServerUrl
  *   - clearAuthToken
+ *   - logoutOnClose token storage path (localStorage vs sessionStorage)
  *
  * Uses vi.stubGlobal to replace global fetch with a mock.
  * Uses vitest's localStorage mock via vi.stubEnv + real localStorage from
@@ -50,6 +51,25 @@ const localStorageMock = {
 
 vi.stubGlobal('localStorage', localStorageMock);
 
+// ─── sessionStorage stub ──────────────────────────────────────────────────────
+
+const sessionStorageStore: Record<string, string> = {};
+
+const sessionStorageMock = {
+  getItem: vi.fn((key: string) => sessionStorageStore[key] ?? null),
+  setItem: vi.fn((key: string, value: string) => {
+    sessionStorageStore[key] = value;
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete sessionStorageStore[key];
+  }),
+  clear: vi.fn(() => {
+    Object.keys(sessionStorageStore).forEach((k) => delete sessionStorageStore[k]);
+  }),
+};
+
+vi.stubGlobal('sessionStorage', sessionStorageMock);
+
 // ─── fetch mock ───────────────────────────────────────────────────────────────
 
 /**
@@ -73,8 +93,9 @@ function mockResponse(
 // ─── Test setup ───────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  // Clear localStorage store before every test.
+  // Clear both storage stores before every test.
   Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k]);
+  Object.keys(sessionStorageStore).forEach((k) => delete sessionStorageStore[k]);
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();
   localStorageMock.removeItem.mockClear();
@@ -117,6 +138,20 @@ describe('clearAuthToken', () => {
     localStorageStore['roundtable:auth-token'] = 'tok-123';
     clearAuthToken();
     expect(localStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('removes the auth token key from sessionStorage', () => {
+    sessionStorageStore['roundtable:auth-token'] = 'tok-session';
+    clearAuthToken();
+    expect(sessionStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('clears both storage backends in one call', () => {
+    localStorageStore['roundtable:auth-token'] = 'tok-local';
+    sessionStorageStore['roundtable:auth-token'] = 'tok-session';
+    clearAuthToken();
+    expect(localStorageStore['roundtable:auth-token']).toBeUndefined();
+    expect(sessionStorageStore['roundtable:auth-token']).toBeUndefined();
   });
 });
 
@@ -467,5 +502,100 @@ describe('refreshToken', () => {
     // Credentials should still be present — invalid_response does not mean the
     // token is revoked; it means the server sent a malformed response.
     expect(isBackendConfigured()).toBe(true);
+  });
+});
+
+// ─── logoutOnClose token storage path (issue #456) ───────────────────────────
+
+describe('logoutOnClose token storage path', () => {
+  const SERVER_URL = 'https://rt.example.com';
+  const TOKEN = 'tok-from-server';
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      mockResponse(200, { token: TOKEN })
+    ));
+  });
+
+  it('stores the token in localStorage when logoutOnClose=false (default)', async () => {
+    // No logoutOnClose preference set — defaults to false (localStorage path).
+    await login(SERVER_URL, 'alice', 'secret');
+
+    expect(localStorageStore['roundtable:auth-token']).toBe(TOKEN);
+    expect(sessionStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('stores the token in sessionStorage when logoutOnClose=true', async () => {
+    // Set logoutOnClose=true via localStorage preference key.
+    localStorageStore['roundtable:logout-on-close'] = 'true';
+
+    await login(SERVER_URL, 'alice', 'secret');
+
+    expect(sessionStorageStore['roundtable:auth-token']).toBe(TOKEN);
+    expect(localStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('isBackendConfigured returns true when token is in sessionStorage', async () => {
+    localStorageStore['roundtable:logout-on-close'] = 'true';
+
+    await login(SERVER_URL, 'alice', 'secret');
+
+    // getAuthToken checks sessionStorage first — isBackendConfigured should see the token.
+    expect(isBackendConfigured()).toBe(true);
+  });
+
+  it('isBackendConfigured returns true when token is in localStorage (default path)', async () => {
+    await login(SERVER_URL, 'alice', 'secret');
+
+    expect(isBackendConfigured()).toBe(true);
+  });
+
+  it('getAuthToken reads from sessionStorage when token is there', () => {
+    // Simulate a token written to sessionStorage (logoutOnClose=true path).
+    sessionStorageStore['roundtable:auth-token'] = 'tok-session';
+
+    // Import getAuthToken directly — it is exported from backendAuth.
+    // We already have it available via the module imports at the top, but
+    // backendAuth does not export getAuthToken publicly. We verify indirectly
+    // via isBackendConfigured, which calls getAuthToken internally.
+    localStorageStore['roundtable:server-url'] = SERVER_URL;
+    expect(isBackendConfigured()).toBe(true);
+  });
+
+  it('clears stale localStorage token when switching to sessionStorage path', async () => {
+    // Simulate a pre-existing localStorage token from when logoutOnClose was false.
+    localStorageStore['roundtable:auth-token'] = 'tok-old-local';
+
+    // User has since enabled logoutOnClose.
+    localStorageStore['roundtable:logout-on-close'] = 'true';
+
+    await login(SERVER_URL, 'alice', 'secret');
+
+    // New token should be in sessionStorage; stale localStorage token must be removed.
+    expect(sessionStorageStore['roundtable:auth-token']).toBe(TOKEN);
+    expect(localStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('clears stale sessionStorage token when switching back to localStorage path', async () => {
+    // Simulate a pre-existing sessionStorage token from when logoutOnClose was true.
+    sessionStorageStore['roundtable:auth-token'] = 'tok-old-session';
+
+    // User has since disabled logoutOnClose (back to default).
+    // No 'roundtable:logout-on-close' key means false (default).
+    await login(SERVER_URL, 'alice', 'secret');
+
+    // New token should be in localStorage; stale sessionStorage token must be removed.
+    expect(localStorageStore['roundtable:auth-token']).toBe(TOKEN);
+    expect(sessionStorageStore['roundtable:auth-token']).toBeUndefined();
+  });
+
+  it('logout clears token from sessionStorage path', async () => {
+    localStorageStore['roundtable:logout-on-close'] = 'true';
+    await login(SERVER_URL, 'alice', 'secret');
+
+    logout();
+
+    expect(sessionStorageStore['roundtable:auth-token']).toBeUndefined();
+    expect(isBackendConfigured()).toBe(false);
   });
 });
