@@ -108,16 +108,19 @@ export function getThemePreference(): ThemePreferences {
  * Pass a full ThemePreferences object. To clear a custom theme, omit the
  * `customTheme` field or pass `undefined`. Calling this function does NOT
  * activate a stored custom theme — use saveCustomTheme() for that.
+ *
+ * `customThemeActive` is always cleared on this path. This function expresses
+ * an explicit intent to use a built-in theme (or to update theme preferences
+ * while on a built-in theme). Carrying forward a `customThemeActive: true` flag
+ * would cause the custom theme to remain active even when the caller passes a
+ * new `activeThemeId`, silently ignoring the selection (issue #430).
+ *
+ * `customThemeActive` can only be set by `saveCustomTheme()`.
  */
 export function saveThemePreference(preferences: ThemePreferences): void {
-  // Preserve the customThemeActive flag so an in-flight custom theme activation
-  // is not inadvertently cleared by an unrelated preference write.
-  const raw = localStorage.getItem(THEME_STORAGE_KEY);
-  const existing = parseStoredPreferences(raw);
-  const toWrite: StoredThemePreferences = {
-    ...preferences,
-    ...(existing?.customThemeActive ? { customThemeActive: true } : {}),
-  };
+  // Deliberately omit customThemeActive — never carry it forward here.
+  // Only saveCustomTheme() may set that flag.
+  const toWrite: StoredThemePreferences = { ...preferences };
   localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(toWrite));
 }
 

@@ -258,8 +258,27 @@ export function importSetup(data: unknown): ImportResult {
   }
 
   // ── Write credentials ─────────────────────────────────────────────────────
+  // Allowlist: built-in credential keys (from MODEL_CREDENTIAL_MAP) plus the
+  // "custom:<id>" prefix pattern used by Gate for custom provider keys.
+  // Any key that does not match is silently skipped — unknown keys could be
+  // crafted to overwrite unrelated localStorage entries or to inject prototype
+  // pollution via "__proto__" / "constructor" etc. (issue #443).
+  const BUILTIN_CREDENTIAL_KEYS: ReadonlySet<string> = new Set(
+    Object.values(MODEL_CREDENTIAL_MAP),
+  );
+  const CUSTOM_CREDENTIAL_KEY_PATTERN = /^custom:[^\s]+$/;
+
+  function isAllowedCredentialKey(key: string): boolean {
+    return BUILTIN_CREDENTIAL_KEYS.has(key) || CUSTOM_CREDENTIAL_KEY_PATTERN.test(key);
+  }
+
   const rawCredentials = data['credentials'] as Record<string, unknown>;
   for (const [key, value] of Object.entries(rawCredentials)) {
+    if (!isAllowedCredentialKey(key)) {
+      // Skip unknown keys silently — do not surface them to the UI (the key
+      // name itself could be adversarially long or contain misleading content).
+      continue;
+    }
     if (typeof value !== 'string') {
       errors.push(`credentials.${key}: value must be a string`);
       continue;
