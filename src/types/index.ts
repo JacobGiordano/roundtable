@@ -1083,14 +1083,34 @@ export interface ModelError extends AppError {
  *
  * Extends `AppError` with `source: 'storage'` as the discriminant.
  *
+ * LocalStorageProvider codes:
  *   - `quota_exceeded` — localStorage quota exhausted (QuotaExceededError)
  *   - `parse_failure`  — stored data present but corrupt (JSON.parse failure)
  *   - `not_found`      — requested conversation ID does not exist
  *   - `unknown`        — any other storage-layer error
+ *
+ * ServerStorageProvider codes (added #427):
+ *   - `network_error`  — fetch() rejected: no network or DNS
+ *   - `server_error`   — HTTP 5xx from the backend
+ *   - `auth_failure`   — HTTP 401 / 403 from the backend
+ *   - `parse_error`    — response body could not be parsed as expected JSON
+ *
+ * Note: `parse_failure` (LocalStorageProvider) and `parse_error`
+ * (ServerStorageProvider) both describe a JSON parse failure but originate from
+ * different providers. Both are in the union so catch branches that switch on
+ * `err.code` remain exhaustive across all Vault implementations.
  */
 export interface StorageError extends AppError {
   source: 'storage';
-  code: 'quota_exceeded' | 'parse_failure' | 'not_found' | 'unknown';
+  code:
+    | 'quota_exceeded'
+    | 'parse_failure'
+    | 'not_found'
+    | 'unknown'
+    | 'network_error'
+    | 'server_error'
+    | 'auth_failure'
+    | 'parse_error';
 }
 
 /**
@@ -1456,6 +1476,15 @@ export interface CustomThemeJSON {
     'model-grok': string;
     'model-deepseek': string;
     'model-mistral': string;
+    /**
+     * User message identity accent — the color applied to the user's own message
+     * bubbles and the --accent-user CSS custom property. Added in #279 to Luma's
+     * schema and validated by Gate's `validateCustomTheme`. `applyTheme()` reads
+     * this field and sets `--accent-user`; absent custom themes fall back to
+     * `#A5B4FC` (periwinkle) via a cast that is now removable. All 7 built-in
+     * themes must supply this value.
+     */
+    user: string;
   };
   interactive: {
     hover: string;
