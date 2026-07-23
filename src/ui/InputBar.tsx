@@ -181,6 +181,11 @@ export function InputBar({
   // return focus when the stop→send swap actually occurs, not at mount time.
   const hasStreamedRef = useRef(false);
 
+  // #435: Track initial mount so the ghost mode live region does not announce
+  // on load. Without this guard every user hears "Ghost mode off" on first render
+  // even though no state has changed. Flips to true after the first effect cycle.
+  const ghostModeHasMountedRef = useRef(false);
+
   // ── Attachment management (#285) ──────────────────────────────────────────
   const {
     attachments,
@@ -274,6 +279,22 @@ export function InputBar({
     });
     onPrefillConsumed?.();
   }, [prefillText, onPrefillConsumed]);
+
+  // #435: Ghost mode announcement — suppress the initial render announcement.
+  // The live region must be empty on mount so screen readers do not announce
+  // "Ghost mode off" immediately when the InputBar first renders (even though no
+  // state has changed). After the first render cycle the ref flips to true, and
+  // all subsequent isGhostMode changes produce the appropriate announcement.
+  const [ghostModeAnnouncement, setGhostModeAnnouncement] = useState('');
+  useEffect(() => {
+    if (!ghostModeHasMountedRef.current) {
+      ghostModeHasMountedRef.current = true;
+      return;
+    }
+    setGhostModeAnnouncement(
+      isGhostMode ? "Ghost mode on — messages won't be saved" : 'Ghost mode off',
+    );
+  }, [isGhostMode]);
 
   // Announce attachment additions to screen readers (#368).
   // Watches attachments.length — when it increases (file added via drop, paste, or picker),
@@ -1145,8 +1166,11 @@ export function InputBar({
           })()}
 
           {/* Always-present live regions (WCAG 4.1.3) */}
+          {/* #435: ghostModeAnnouncement is empty on mount — populated only on
+              subsequent isGhostMode changes so screen readers are not spammed
+              with "Ghost mode off" on every page load. */}
           <span aria-live="polite" aria-atomic="true" className="sr-only">
-            {isGhostMode ? "Ghost mode on — messages won't be saved" : 'Ghost mode off'}
+            {ghostModeAnnouncement}
           </span>
           <span aria-live="polite" aria-atomic="true" className="sr-only">
             {isStreaming ? 'Generating response — press Stop to cancel' : ''}

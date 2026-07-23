@@ -433,10 +433,12 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
       </pre>
     );
   },
-  // Blockquote
+  // Blockquote — #431: match MarkdownContent.tsx spec (markdown-rendering.md §2.9):
+  // border-l-[3px] border-blockquote prevents visual jump when streaming ends
+  // and the done-state renderer (MarkdownContent) takes over.
   blockquote({ children }) {
     return (
-      <blockquote className="border-l-2 border-border pl-3 my-2 text-text-secondary italic">
+      <blockquote className="border-l-[3px] border-blockquote pl-3 my-2 text-text-secondary italic">
         {children}
       </blockquote>
     );
