@@ -138,8 +138,8 @@ export function ModelPill({
         onAnimationEnd={handleAnimationEnd}
         className={[
           'inline-flex items-center gap-2 h-8 rounded-full',
-          // Right padding: 40px in selector context (palette icon 24px + 8px gap + 8px inner), 12px otherwise.
-          showPaletteIcon ? 'pl-3 pr-10' : 'px-3',
+          // Right padding: 36px in selector context (palette icon 24px + 4px gap + 8px inner), 12px otherwise.
+          showPaletteIcon ? 'pl-3 pr-9' : 'px-3',
           'text-[13px] font-medium',
           'border',
           'transition-[background-color,border-color,opacity] duration-fast',
