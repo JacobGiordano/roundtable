@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 21)
+Last updated: 2026-07-23 (ship: wave 21 + ModelPill hotfix)
 
 ## Current phase
 
@@ -18,6 +18,7 @@ Wave 21 shipped. Issues closed: #455 #454 #452 #547 #448 #449 #446 #451 #450
 - ProviderSettingsPanel disclosure uses `<aside role="note">` at top of panel body, before Section 1
 - stableContent AST caching not exposed by react-markdown API — StableMarkdown memo wrapper is the correct minimal fix
 - ModelPill palette icon: `right-[22px]` → `right-9` (36px = × width + gap + inner padding)
+- ModelPill hotfix: pill padding stays `pr-7` in both dismiss/no-dismiss states; `right-9` alone compensates for × wrapper offset — conditional `pr-9` was shifting icon 8px right when active
 
 ## Open issues (priority order)
 
