@@ -93,12 +93,12 @@ The inner `<code>` element inside `<pre>` receives no additional classes — uns
 Element: `<code>` rendered as a custom component (when `inline === true`).
 
 ```
-className="bg-code border border-code text-code rounded-sm px-1 py-0.5 font-mono text-[13px] whitespace-nowrap"
+className="bg-code border border-code text-code-text rounded-sm px-1 py-0.5 font-mono text-[13px] whitespace-nowrap"
 ```
 
 - **Background**: `bg-code` (maps to `--prose-code-bg`)
 - **Border**: `border border-code` — 1px solid, maps to `--prose-code-border`
-- **Text color**: `text-code` (maps to `--prose-code-text` = `text.secondary` in all themes)
+- **Text color**: `text-code-text` (maps to `--prose-code-text` = `text.secondary` in all themes)
 - **Border-radius**: `rounded-sm` (4px — `{radius.sm}`)
 - **Padding**: `px-1 py-0.5` (4px horizontal, 2px vertical)
 - **Font**: `font-mono`
@@ -301,7 +301,7 @@ className="absolute top-2 right-2
            transition-opacity duration-[100ms]
            px-2 py-1 rounded-sm
            text-[11px] font-medium leading-none
-           bg-surface-card text-text-secondary
+           bg-card text-text-secondary
            border border-border
            hover:bg-hover hover:text-text-primary
            focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1"
@@ -310,7 +310,7 @@ className="absolute top-2 right-2
 - **Size**: `px-2 py-1` (8px horizontal, 4px vertical). Approximate rendered height: 24px.
 - **Border-radius**: `rounded-sm` (4px — `{radius.sm}`).
 - **Font**: `text-[11px] font-medium leading-none` — smaller than code text; reads as a UI control, not content.
-- **Background**: `bg-surface-card` — matches the card surface. Reads as a slightly elevated chip against the darker `bg-code-block` in dark themes; slightly lighter in light themes.
+- **Background**: `bg-card` — matches the card surface. Reads as a slightly elevated chip against the darker `bg-code-block` in dark themes; slightly lighter in light themes.
 - **Border**: `border border-border` — 1px border for definition.
 - **Text color idle**: `text-text-secondary`. **On hover**: `hover:text-text-primary`.
 - **Focus ring**: `focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1` — standard project focus pattern from `specs/tailwind-mapping.md`.
@@ -518,16 +518,16 @@ All treatments use design token Tailwind classes. Theme compatibility is structu
 |-----------|-------|-------------|
 | `bg-code-block` | `prose.block-bg` | Verified — `text.primary` on `prose.block-bg` passes WCAG AA in all themes |
 | `bg-code` | `prose.code-bg` | Background tint — perceptibly distinct from `surfaces.card` in all themes |
-| `text-code` | `prose.code-text` = `text.secondary` | Verified WCAG AA — all themes |
+| `text-code-text` | `prose.code-text` = `text.secondary` | Verified WCAG AA — all themes |
 | `text-link` | `prose.link` | Verified WCAG AA — all themes |
 | `text-link-hover` | `prose.link-hover` | Verified WCAG AA — all themes |
 | `border-blockquote` | `prose.blockquote-border` = `borders.strong` | 3:1+ structural threshold — all themes |
 | `text-success` | `semantic.success` | Pre-existing token; already verified |
 | `text-error` | `semantic.error` | Pre-existing token; already verified |
-| `bg-surface-card` | `surfaces.card` | Pre-existing token; already verified |
+| `bg-card` | `surfaces.card` | Pre-existing token; already verified |
 | `border-border` | `borders.default` | Pre-existing token; already verified |
 
-**Outrun note**: The copy-code button uses `bg-surface-card` (`#12203A`) and `text-text-secondary` (`#3DC8FF` electric blue) in Outrun — 9.47:1 contrast ratio, passes WCAG AA. Outrun's hot-pink `prose.code-border` on inline code and electric-blue `prose.code-text` are intentional neon design choices documented in `specs/markdown.md`.
+**Outrun note**: The copy-code button uses `bg-card` (`#12203A`) and `text-text-secondary` (`#3DC8FF` electric blue) in Outrun — 9.47:1 contrast ratio, passes WCAG AA. Outrun's hot-pink `prose.code-border` on inline code and electric-blue `prose.code-text` are intentional neon design choices documented in `specs/markdown.md`.
 
 ---
 
