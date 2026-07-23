@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 21 + ModelPill hotfix)
+Last updated: 2026-07-23 (ship: wave 22 — #456)
 
 ## Current phase
 
@@ -6,25 +6,22 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 21 shipped. Issues closed: #455 #454 #452 #547 #448 #449 #446 #451 #450
+Wave 22 shipped. Issue closed: #456
 
-- **Aria**: image export disclosure (#455) + provider data processing disclosure (#454) + StableMarkdown memo wrapper for stableContent re-parse (#452) + ModelPill palette icon overlap fix (#547)
-- **#448 #449 #446 #451 #450**: all confirmed already implemented in prior waves — closed as pre-existing
-- **Ada**: PASS — ExportButton menu restructure satisfies aria-required-children; ProviderSettingsPanel role="note" valid; StableMarkdown no new roles
+- **Aria**: logoutOnClose toggle in `BackendServerPanel` — connected state only; `role="switch"` pill, label "Log out on close", hint "Clear your session when you close this tab"; toggle height corrected to `h-6 w-11` (WCAG 2.5.8)
+- **Ada**: PASS — keyboard, ARIA, focus, screen reader, placement all clear
+- **#548 opened**: Scout follow-on for targeted toggle test coverage (ON state, role="switch", Space/Enter activation)
 
 ## Key decisions
 
-- ExportButton disclosure sits outside `role="menu"` div (inside shared card wrapper) — `<p>` inside a menu violates aria-required-children
-- ProviderSettingsPanel disclosure uses `<aside role="note">` at top of panel body, before Section 1
-- stableContent AST caching not exposed by react-markdown API — StableMarkdown memo wrapper is the correct minimal fix
-- ModelPill palette icon: `right-[22px]` → `right-9` (36px = × width + gap + inner padding)
-- ModelPill hotfix: pill padding stays `pr-7` in both dismiss/no-dismiss states; `right-9` alone compensates for × wrapper offset — conditional `pr-9` was shifting icon 8px right when active
+- Toggle renders only in connected state — meaningless without a backend session
+- `h-6 w-11` (24px height) required by WCAG 2.5.8 minimum target size
+- Test coverage deferred to #548 (not a ship blocker)
 
 ## Open issues (priority order)
 
-- **#456 (UI)** — Aria: settings toggle for logoutOnClose (Gate layer done, UI deferred)
+- **#548 (tests)** — Scout: targeted logoutOnClose toggle test coverage
 - **#425** — Atlas: gpt-image-gen.test.ts pre-existing failure
-- **#455/#454** — shipped; Vera advisory layer complete
 
 ## Gotchas
 
@@ -36,4 +33,3 @@ Wave 21 shipped. Issues closed: #455 #454 #452 #547 #448 #449 #446 #451 #450
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - Parallel worktrees cross-contaminate /workspace staging — reset staging and merge branches manually if dirty
-- Relay-applied worktree fixes may miss the merge window — cherry-pick from `git log --all` if needed
