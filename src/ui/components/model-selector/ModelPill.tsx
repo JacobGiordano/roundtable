@@ -177,7 +177,7 @@ export function ModelPill({
           onKeyDown={handlePaletteKeyDown}
           className={[
             'absolute top-1/2 -translate-y-1/2',
-            showDismiss ? 'right-[22px]' : 'right-2',
+            showDismiss ? 'right-9' : 'right-2',
             'w-6 h-6 flex items-center justify-center',
             'rounded',
             'text-text-muted hover:text-text-secondary',
