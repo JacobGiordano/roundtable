@@ -17,6 +17,7 @@ import { createContext, useContext } from 'react';
 import type {
   Conversation,
   ExportFormat,
+  ExportOptions,
   InteractionMode,
   Message,
   ModelConfig,
@@ -57,7 +58,9 @@ export interface RoundtableContextValue {
   onRetry: (messageId: string) => void;
   onDirectedReply: (modelId: ModelId) => void;
   tokenCountVisibility: TokenCountVisibility;
-  onExportConversation: ((format: ExportFormat) => void) | undefined;
+  // #453: ExportOptions (includeGeneratedImages) passed alongside format so
+  // the storage layer can embed or omit generated image blobs per user choice.
+  onExportConversation: ((format: ExportFormat, options: ExportOptions) => void) | undefined;
   onEditMessage: (messageIndex: number) => void;
 
   // ── Edit mode (InputBar + MessageThread) ─────────────────────────────────

@@ -40,6 +40,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExportButton } from './ExportButton';
+import type { ExportOptions } from '@/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,20 +163,34 @@ describe('ExportButton — format selection', () => {
     expect(screen.getByRole('menuitem', { name: /download as html/i })).toBeDefined();
   });
 
-  it('clicking "Download as Markdown" calls onExport with "markdown"', async () => {
+  it('clicking "Download as Markdown" calls onExport with "markdown" and default options', async () => {
     const { onExport } = renderButton();
     await userEvent.click(getExportButton());
     await userEvent.click(screen.getByRole('menuitem', { name: /download as markdown/i }));
     expect(onExport).toHaveBeenCalledTimes(1);
-    expect(onExport).toHaveBeenCalledWith('markdown');
+    const expectedOptions: ExportOptions = { includeGeneratedImages: false };
+    expect(onExport).toHaveBeenCalledWith('markdown', expectedOptions);
   });
 
-  it('clicking "Download as HTML" calls onExport with "html"', async () => {
+  it('clicking "Download as HTML" calls onExport with "html" and default options', async () => {
     const { onExport } = renderButton();
     await userEvent.click(getExportButton());
     await userEvent.click(screen.getByRole('menuitem', { name: /download as html/i }));
     expect(onExport).toHaveBeenCalledTimes(1);
-    expect(onExport).toHaveBeenCalledWith('html');
+    const expectedOptions: ExportOptions = { includeGeneratedImages: false };
+    expect(onExport).toHaveBeenCalledWith('html', expectedOptions);
+  });
+
+  it('clicking "Download as Markdown" with includeGeneratedImages on passes options', async () => {
+    const { onExport } = renderButton();
+    await userEvent.click(getExportButton());
+    // Enable the generated-images toggle.
+    const checkbox = screen.getByRole('checkbox', { name: /include generated images/i });
+    await userEvent.click(checkbox);
+    await userEvent.click(screen.getByRole('menuitem', { name: /download as markdown/i }));
+    expect(onExport).toHaveBeenCalledTimes(1);
+    const expectedOptions: ExportOptions = { includeGeneratedImages: true };
+    expect(onExport).toHaveBeenCalledWith('markdown', expectedOptions);
   });
 
   it('selecting a format closes the popover', async () => {
@@ -280,7 +295,8 @@ describe('ExportButton — keyboard navigation', () => {
     // Native button behaviour: Enter on a focused button fires its click handler.
     fireEvent.keyDown(items[0], { key: 'Enter' });
     fireEvent.click(items[0]);
-    expect(onExport).toHaveBeenCalledWith('markdown');
+    const expectedOptions: ExportOptions = { includeGeneratedImages: false };
+    expect(onExport).toHaveBeenCalledWith('markdown', expectedOptions);
   });
 
   it('keyboard navigation keys do not fire when the menu is closed', () => {
