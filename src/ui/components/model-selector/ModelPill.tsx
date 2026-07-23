@@ -138,8 +138,10 @@ export function ModelPill({
         onAnimationEnd={handleAnimationEnd}
         className={[
           'inline-flex items-center gap-2 h-8 rounded-full',
-          // Right padding: 28px in selector context (palette icon + gap), 12px otherwise.
-          showPaletteIcon ? 'pl-3 pr-7' : 'px-3',
+          // When dismiss × is visible the outer wrapper extends 28px right (× + margin),
+          // shifting the absolute palette icon left vs. the pre-× baseline. pr-9 restores
+          // the original gap; pr-7 is used when only the palette icon is present.
+          showDismiss ? 'pl-3 pr-9' : showPaletteIcon ? 'pl-3 pr-7' : 'px-3',
           'text-[13px] font-medium',
           'border',
           'transition-[background-color,border-color,opacity] duration-fast',
@@ -178,7 +180,7 @@ export function ModelPill({
           className={[
             'absolute top-1/2 -translate-y-1/2',
             showDismiss ? 'right-9' : 'right-2',
-            'w-6 h-6 flex items-center ml-1',
+            'w-6 h-6 flex items-center justify-center',
             'rounded',
             'text-text-muted hover:text-text-secondary',
             'transition-[opacity,color] duration-fast',
