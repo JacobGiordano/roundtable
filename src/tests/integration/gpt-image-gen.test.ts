@@ -206,7 +206,7 @@ describe('GPT image gen — happy path: b64_json → GeneratedImage (#377)', () 
     expect(url).not.toContain('/v1/chat/completions');
   });
 
-  it('request body contains model, prompt, n=1, size=1024x1024, response_format=b64_json', async () => {
+  it('request body contains model, prompt, n=1, size=1024x1024, output_format=png', async () => {
     const prompt = 'A red fox in the snow.';
     globalThis.localStorage.setItem('roundtable:key:openai', 'sk-test');
     const fetchMock = vi.fn().mockResolvedValue(
@@ -231,7 +231,9 @@ describe('GPT image gen — happy path: b64_json → GeneratedImage (#377)', () 
     expect(body.prompt).toBe(prompt);
     expect(body.n).toBe(1);
     expect(body.size).toBe('1024x1024');
-    expect(body.response_format).toBe('b64_json');
+    // gpt-image-2 uses output_format (not response_format — that is the gpt-image-1 parameter).
+    // Sending response_format to gpt-image-2 returns a 400 unknown-parameter error.
+    expect(body.output_format).toBe('png');
   });
 
   it('prompt is extracted from the last user message in the conversation', async () => {
