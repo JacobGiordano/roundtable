@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 22 — #456)
+Last updated: 2026-07-23 (ship: wave 22 — #456 + #548)
 
 ## Current phase
 
@@ -6,21 +6,20 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 22 shipped. Issue closed: #456
+Wave 22 shipped. Issues closed: #456 #548
 
-- **Aria**: logoutOnClose toggle in `BackendServerPanel` — connected state only; `role="switch"` pill, label "Log out on close", hint "Clear your session when you close this tab"; toggle height corrected to `h-6 w-11` (WCAG 2.5.8)
-- **Ada**: PASS — keyboard, ARIA, focus, screen reader, placement all clear
-- **#548 opened**: Scout follow-on for targeted toggle test coverage (ON state, role="switch", Space/Enter activation)
+- **Aria**: logoutOnClose toggle in `BackendServerPanel` — connected state only; `role="switch"` pill, WCAG 2.5.8 compliant (`h-6 w-11`)
+- **Ada**: PASS
+- **Scout**: 15 targeted tests for logoutOnClose toggle — presence, aria-checked state, Space/Enter/click activation, save contract, disconnected-state absence. 2361 passing, 1 pre-existing failure (#425)
 
 ## Key decisions
 
 - Toggle renders only in connected state — meaningless without a backend session
-- `h-6 w-11` (24px height) required by WCAG 2.5.8 minimum target size
-- Test coverage deferred to #548 (not a ship blocker)
+- `h-6 w-11` (24px) required by WCAG 2.5.8 minimum target size
+- Mock pattern for `getLogoutOnClose`/`saveLogoutOnClose` established in `logout-on-close-toggle.test.tsx`
 
 ## Open issues (priority order)
 
-- **#548 (tests)** — Scout: targeted logoutOnClose toggle test coverage
 - **#425** — Atlas: gpt-image-gen.test.ts pre-existing failure
 
 ## Gotchas
