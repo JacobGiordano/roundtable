@@ -45,7 +45,7 @@ import type {
   StorageProvider,
 } from '@/types/index';
 
-import type { ExportOptions } from './exporters';
+import type { ExportOptions } from '@/types/index';
 
 import { StorageError } from './StorageError';
 

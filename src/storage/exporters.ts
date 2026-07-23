@@ -21,11 +21,11 @@
  * unknown fields. The field survives the round-trip unchanged when present and
  * remains absent when not set. No code change was needed for persistence.
  *
- * Exports: unlike user `Attachment` objects — where only metadata (filename
- * and mimeType) is included because the original file lives on the user's
- * device — `GeneratedImage.base64` is the only copy of model-produced image
- * content. Both exporters embed it as an inline data-URI image so the exported
- * file is fully self-contained and the model's response is not truncated.
+ * Exports: `GeneratedImage.base64` is the only copy of model-produced image
+ * content. Both exporters embed it as an inline data-URI image when
+ * `ExportOptions.includeGeneratedImages` is `true` (issue #453). When false
+ * or absent (the default), generated images are silently omitted from the
+ * export to prevent unexpectedly large multi-MB files (Vera privacy audit).
  *
  * Privacy: `GeneratedImage.base64` is treated identically to `Message.content`
  * — included in exports only when the user explicitly triggers an export, never
@@ -34,38 +34,7 @@
  * covering the entire `Conversation` object including `messages[].generatedImages`).
  */
 
-import type { Conversation, ExportedConversation, ExportFormat } from '@/types/index';
-
-// ─── Export options ───────────────────────────────────────────────────────────
-
-/**
- * Options controlling what is included in a conversation export.
- *
- * `includeAttachments` (default `false`):
- *   When true, attachment metadata (filename and mimeType) is rendered beneath
- *   each user message that carries attachments. Raw base64 content is NEVER
- *   embedded — only the identifying metadata is included to keep exports small
- *   and readable.
- *
- *   Markdown output: one `[Attachment: <name> (<mimeType>)]` line per
- *   attachment, placed after the message content block.
- *
- *   HTML output: one `<span class="attachment">📎 <name></span>` element
- *   per attachment, placed after the message `<p>` element.
- *
- *   When `false` (or absent), attachment metadata is silently omitted.
- *
- * Phase 4 note: the `StorageProvider.exportConversation` interface in
- * `/src/types/index.ts` currently lacks `options?: ExportOptions`. When Phase 4
- * lands `ServerStorageProvider`, an Arch types PR should add the parameter so
- * server-side export can receive `includeAttachments` over HTTP. For now,
- * concrete implementations accept this parameter directly and the hook calls
- * `loadConversation` + `buildExportedConversation` to thread options through
- * without needing the interface widened.
- */
-export type ExportOptions = {
-  includeAttachments?: boolean;
-};
+import type { Conversation, ExportedConversation, ExportFormat, ExportOptions } from '@/types/index';
 
 // ─── Serializers ──────────────────────────────────────────────────────────────
 
@@ -81,15 +50,17 @@ export type ExportOptions = {
  * after the message content. The attachment display name is `filename` when
  * present, otherwise `mimeType` (clipboard pastes carry no filename).
  *
- * `Message.generatedImages` (issue #365): model-returned images are rendered
- * unconditionally as inline data-URI Markdown images
- * (`![alt](data:mimeType;base64,…)`). These images are model output — not user
- * uploads — and there is no external copy, so the base64 must be embedded for
- * the export to be complete. The `]` character in `altText` is escaped to
- * prevent it from prematurely closing the Markdown image alt-text bracket.
+ * `Message.generatedImages` (issue #365, #453): model-returned images are
+ * rendered as inline data-URI Markdown images (`![alt](data:mimeType;base64,…)`)
+ * only when `options.includeGeneratedImages` is `true`. When false or absent
+ * (the default), generated image content is silently omitted from the export.
+ * This prevents unexpectedly large multi-MB exports (Vera privacy audit, #453).
+ * The `]` character in `altText` is escaped to prevent it from prematurely
+ * closing the Markdown image alt-text bracket.
  */
 export function conversationToMarkdown(conv: Conversation, options?: ExportOptions): string {
   const includeAttachments = options?.includeAttachments ?? false;
+  const includeGeneratedImages = options?.includeGeneratedImages ?? false;
   const lines: string[] = [];
   lines.push(`# ${conv.title ?? 'Untitled conversation'}`);
   lines.push('');
@@ -116,11 +87,11 @@ export function conversationToMarkdown(conv: Conversation, options?: ExportOptio
     lines.push('');
     lines.push(msg.content);
 
-    // Generated images — inline data-URI Markdown images (issue #365).
-    // Rendered unconditionally: the base64 data is the only copy of
-    // model-produced image content. altText `]` is escaped to preserve
-    // Markdown image syntax.
-    if (msg.generatedImages?.length) {
+    // Generated images — inline data-URI Markdown images (issue #365, #453).
+    // Gated on includeGeneratedImages (default false) per Vera's privacy audit:
+    // embedding base64 blobs unconditionally produced unexpectedly large exports.
+    // altText `]` is escaped to preserve Markdown image syntax.
+    if (includeGeneratedImages && msg.generatedImages?.length) {
       lines.push('');
       for (const img of msg.generatedImages) {
         const alt = (img.altText ?? 'Generated image').replace(/]/g, '\\]');
@@ -158,13 +129,17 @@ export function conversationToMarkdown(conv: Conversation, options?: ExportOptio
  * only the identifying metadata is included. The `.attachment` class carries
  * minimal inline styling (pill shape, muted color).
  *
- * `Message.generatedImages` (issue #365): model-returned images are rendered
- * unconditionally as `<img>` elements with inline data-URI `src` attributes.
+ * `Message.generatedImages` (issue #365, #453): model-returned images are
+ * rendered as `<img>` elements with inline data-URI `src` attributes only when
+ * `options.includeGeneratedImages` is `true`. When false or absent (the default),
+ * generated image content is silently omitted from the export to prevent
+ * unexpectedly large multi-MB exports (Vera privacy audit, #453).
  * `altText` and `mimeType` are HTML-escaped; `base64` contains only the
  * characters `[A-Za-z0-9+/=]` and requires no escaping.
  */
 export function conversationToHtml(conv: Conversation, options?: ExportOptions): string {
   const includeAttachments = options?.includeAttachments ?? false;
+  const includeGeneratedImages = options?.includeGeneratedImages ?? false;
 
   const escape = (s: string): string =>
     s
@@ -188,12 +163,12 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
       const ts = new Date(msg.timestamp).toLocaleTimeString();
       const content = escape(msg.content).replace(/\n/g, '<br>');
 
-      // Generated images — inline data-URI <img> elements (issue #365).
-      // Rendered unconditionally: the base64 data is the only copy of
-      // model-produced image content. mimeType is escaped; base64 is
-      // restricted to [A-Za-z0-9+/=] and needs no escaping.
+      // Generated images — inline data-URI <img> elements (issue #365, #453).
+      // Gated on includeGeneratedImages (default false) per Vera's privacy audit:
+      // embedding base64 blobs unconditionally produced unexpectedly large exports.
+      // mimeType is escaped; base64 is restricted to [A-Za-z0-9+/=] and needs no escaping.
       let generatedImageHtml = '';
-      if (msg.generatedImages?.length) {
+      if (includeGeneratedImages && msg.generatedImages?.length) {
         const imgs = msg.generatedImages
           .map((img) => {
             const alt = escape(img.altText ?? 'Generated image');

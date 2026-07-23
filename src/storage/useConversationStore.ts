@@ -31,7 +31,7 @@ import type {
 } from '@/types/index';
 import { LocalStorageProvider } from './LocalStorageProvider';
 import { buildExportedConversation } from './exporters';
-import type { ExportOptions } from './exporters';
+import type { ExportOptions } from '@/types/index';
 // Documented exception: pure utility from @/models may be imported by Vault for
 // ConversationStore.getSessionTokenUsage delegation. See CLAUDE.md §exceptions.
 import { getSessionTokenUsage as computeSessionTokenUsage } from '@/models';
