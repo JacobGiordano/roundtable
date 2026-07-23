@@ -35,6 +35,7 @@ import { buildExportedConversation } from './exporters';
 import type { ExportOptions } from './exporters';
 import { triggerDownload } from './fileio';
 import { wrapForStorage, parseStoredConversation } from './migration';
+import { StorageError } from './StorageError';
 import {
   estimateLocalStorageBytes,
   estimateStringBytes,
@@ -68,7 +69,8 @@ function safeSet(key: string, value: string): void {
         // Firefox legacy name
         err.name === 'NS_ERROR_DOM_QUOTA_REACHED')
     ) {
-      throw new Error(
+      throw new StorageError(
+        'quota_exceeded',
         'Storage quota exceeded. Please delete some conversations to free space.'
       );
     }
