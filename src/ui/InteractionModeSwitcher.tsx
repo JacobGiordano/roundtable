@@ -7,14 +7,14 @@ import type { InteractionMode, InteractionModeConfig } from '@/types';
  * Typed registry of all supported interaction modes.
  * Drives the switcher UI and tooltip copy.
  *
- * `comingSoon: true` marks modes that are not yet implemented. These modes are
- * rendered as non-interactive — visually present, never selectable. A "coming
- * soon" tooltip communicates why. This prevents users from reaching a state
- * where their selected mode is silently ignored by App.tsx:handleSend, which
- * always broadcasts in parallel.
+ * #440: Manual mode removed entirely — it does not exist yet, and rendering a
+ * permanently-greyed "coming soon" placeholder on every session creates noise.
+ * Re-add when the feature ships. The `comingSoon` field and its associated
+ * aria-disabled rendering path in ModeButton remain in case they are needed for
+ * future not-yet-shipped modes.
  *
- * Issue #131: Manual is disabled (Option 2). Auto-chain is enabled — #299 wired
- * chainConfig into handleSend so the mode is fully functional.
+ * #131 / #299: Auto-chain is fully functional — chainConfig is wired into
+ * handleSend. Parallel is always available.
  */
 interface InteractionModeEntry extends InteractionModeConfig {
   comingSoon?: boolean;
@@ -25,12 +25,6 @@ const INTERACTION_MODES: InteractionModeEntry[] = [
     mode: 'parallel',
     label: 'Parallel',
     description: 'All active models respond simultaneously to every message.',
-  },
-  {
-    mode: 'manual',
-    label: 'Manual',
-    description: 'You choose which model to send each message to.',
-    comingSoon: true,
   },
   {
     mode: 'auto-chain',
@@ -283,22 +277,20 @@ export interface InteractionModeSwitcherProps {
 }
 
 /**
- * Segmented radio group for switching between Parallel / Manual / Auto-chain.
+ * Segmented radio group for switching between Parallel / Auto-chain.
  * Reads from the `INTERACTION_MODES` registry for labels and tooltip descriptions.
  * Place above the InputBar in AppLayout (e.g. in the bottom controls strip).
+ *
+ * #440: Manual mode removed — the feature does not exist. Re-add to
+ * INTERACTION_MODES when it ships. ModeButton's comingSoon rendering path is
+ * retained for future use; it is currently unused.
  *
  * Layout: the radiogroup is `inline-flex` so it renders at natural content width.
  * Buttons use `whitespace-nowrap` to stay fully readable at all sizes.
  * The parent wrapper in AppLayout carries `flex-shrink-0` so the switcher is
  * never compressed — the ModelSelectorPanel side yields space instead.
  * Tooltips are edge-anchored: first item left-aligns, last item right-aligns,
- * middle item centers — preventing right-edge clipping for Auto-chain.
- *
- * Non-interactive modes: Manual is rendered as `role="radio"` + `aria-disabled="true"`
- * with a "coming soon" tooltip. It cannot be selected but is Tab-reachable so
- * keyboard users can discover the tooltip. Every child of the radiogroup has
- * role="radio", satisfying aria-required-children without an aria-owns workaround
- * (#199). Parallel and Auto-chain are fully selectable. (#131 / #299)
+ * preventing right-edge clipping for Auto-chain.
  *
  * Tooltip delay: all tooltips in this component use the 600ms hover
  * intentionality filter per tooltip.md §1 (#211).
@@ -310,9 +302,9 @@ export function InteractionModeSwitcher({
   const lastIndex = INTERACTION_MODES.length - 1;
 
   // WAI-ARIA APG radio group keyboard pattern — arrow-key navigation.
-  // Left/Up: previous non-disabled radio (with wrap). Right/Down: next (with wrap).
-  // Disabled radios are skipped in the cycle but still tab-reachable.
-  // If focus is on the disabled button, arrows jump to the nearest enabled one.
+  // Left/Up: previous radio (with wrap). Right/Down: next (with wrap).
+  // The skip-loop for aria-disabled radios is retained for future comingSoon modes;
+  // it is a no-op with the current two-item registry (all entries are enabled).
   // The handler lives here (not in ModeButton) because it needs access to all
   // sibling radios and `onModeChange` — ModeButton only handles its own Escape.
   const handleRadioGroupKeyDown = useCallback(
@@ -363,42 +355,26 @@ export function InteractionModeSwitcher({
     [onModeChange],
   );
 
-  // #221: sr-only span is a sibling of the radiogroup (not inside it) to prevent
-  // double-read on older AT (JAWS ≤ 2022, some NVDA browse modes). The
-  // aria-describedby reference on the radiogroup remains valid regardless of
-  // DOM position — ids are document-scoped.
   return (
-    <>
-      <div
-        role="radiogroup"
-        aria-label="Interaction mode"
-        aria-describedby="interaction-mode-coming-soon-note"
-        onKeyDown={handleRadioGroupKeyDown}
-        className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
-      >
-        {INTERACTION_MODES.map((config, index) => {
-          const tooltipAlign: TooltipAlign =
-            index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
-          return (
-            <ModeButton
-              key={config.mode}
-              config={config}
-              isSelected={activeMode === config.mode}
-              onSelect={onModeChange}
-              tooltipAlign={tooltipAlign}
-            />
-          );
-        })}
-      </div>
-      {/* Visually-hidden note describing unavailable modes — #220/#221.
-          Screen readers announce this when entering the radiogroup (via aria-describedby).
-          Sits outside the radiogroup so AT does not read it twice in browse mode. */}
-      <span
-        id="interaction-mode-coming-soon-note"
-        className="sr-only"
-      >
-        Manual mode is coming soon and is not yet available.
-      </span>
-    </>
+    <div
+      role="radiogroup"
+      aria-label="Interaction mode"
+      onKeyDown={handleRadioGroupKeyDown}
+      className="inline-flex items-center gap-[2px] p-[3px] rounded-full bg-sidebar border border-border-subtle"
+    >
+      {INTERACTION_MODES.map((config, index) => {
+        const tooltipAlign: TooltipAlign =
+          index === 0 ? 'left' : index === lastIndex ? 'right' : 'center';
+        return (
+          <ModeButton
+            key={config.mode}
+            config={config}
+            isSelected={activeMode === config.mode}
+            onSelect={onModeChange}
+            tooltipAlign={tooltipAlign}
+          />
+        );
+      })}
+    </div>
   );
 }

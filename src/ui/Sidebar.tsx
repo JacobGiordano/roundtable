@@ -229,23 +229,12 @@ export function Sidebar({
       : false,
   );
 
-  // Detect mobile (< 768px) at mount for the inline width style guard below.
-  // The inline style must not apply on mobile because it overrides the Tailwind
-  // w-72 class (inline styles have higher specificity than Tailwind utility classes).
-  // Checked once — React re-renders on resize are not needed here because the
-  // CSS `md:` breakpoint classes handle the visual switch automatically.
-  const isMobileViewport = useRef(
-    typeof window !== 'undefined'
-      ? window.matchMedia('(max-width: 767px)').matches
-      : false,
-  );
-
-  // #260: Reactive mobile breakpoint state for inert gating.
-  // isMobileViewport (ref above) is used for the inline-style width guard and
-  // is never updated after mount. We need a reactive state here so that the
-  // `inert` attribute on <aside> correctly reflects the current viewport
-  // without stale values after orientation changes or resize.
-  // The mq listener updates state whenever the breakpoint crosses 768px.
+  // #260 / #432: Reactive mobile breakpoint state — single source of truth for
+  // both the `inert` attribute (WCAG 2.4.3) and the inline width style guard.
+  // The mq listener updates state whenever the breakpoint crosses 768px so that
+  // both uses are always current after window resize or device orientation change.
+  // The old `isMobileViewport` ref (set once at mount, never updated) was removed
+  // in #432 — it caused the width guard to serve stale values after resize.
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(max-width: 767px)').matches
@@ -601,7 +590,9 @@ export function Sidebar({
       // On mobile the Tailwind w-72 class controls width (288px fixed drawer).
       // On desktop the drag-resize inline style applies. Inline styles have higher
       // specificity than Tailwind classes, so we guard against mobile override here.
-      style={isMobileViewport.current ? undefined : { width: sidebarWidth }}
+      // #432: use reactive isMobile state (not the old stale ref) so this guard
+      // stays correct after window resize or device orientation change.
+      style={isMobile ? undefined : { width: sidebarWidth }}
       // #260: WCAG 2.4.3 — when the mobile drawer is closed, the sidebar is
       // visually off-screen (translated left via -translate-x-full) but its
       // interactive elements remain in the DOM tab order. Applying `inert` removes

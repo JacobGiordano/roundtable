@@ -121,15 +121,42 @@ export function ThreadActionMenu({
     }
   }, [menuState.type]);
 
-  /** Close the menu and return focus to the trigger button. */
+  /** Close the menu and return focus to the trigger button.
+   *
+   * #439: If the trigger button is no longer in the DOM (e.g. the deleted
+   * conversation was the active one and its row was removed), we must not
+   * call .focus() on a detached element — that is a no-op and focus falls
+   * to document.body (WCAG 2.4.3 violation). Instead we fall back to:
+   *   1. The first remaining thread-row button in the sidebar.
+   *   2. The "New Conversation" button as a guaranteed-stable target.
+   */
   const closeAndReturnFocus = useCallback(() => {
     onClose();
-    // Double-rAF: first frame lets React unmount the menu; second frame
-    // guarantees the browser has fully painted before restoring focus,
-    // preventing React from moving focus to <body> between the two steps.
+    // Double-rAF: first frame lets React unmount the menu and (for deletions)
+    // remove the conversation row; second frame guarantees the browser has fully
+    // painted and the DOM reflects the post-deletion state before we attempt focus.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        triggerRef.current?.focus();
+        const trigger = triggerRef.current;
+        if (trigger && document.contains(trigger)) {
+          trigger.focus();
+          return;
+        }
+        // Trigger is detached — row was deleted. Move focus to the next
+        // available conversation row button, or fall back to New Conversation.
+        const sidebar = document.getElementById('app-sidebar');
+        const firstThreadBtn = sidebar?.querySelector<HTMLElement>(
+          '[aria-label="Conversation actions"]',
+        );
+        if (firstThreadBtn && document.contains(firstThreadBtn)) {
+          firstThreadBtn.focus();
+          return;
+        }
+        // Last resort: New Conversation button — always present in the sidebar.
+        const newConvBtn = document.querySelector<HTMLElement>(
+          '[aria-label="New conversation (Ctrl+N)"]',
+        );
+        newConvBtn?.focus();
       });
     });
   }, [onClose, triggerRef]);
