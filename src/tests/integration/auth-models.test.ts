@@ -157,6 +157,61 @@ describe('auth + models — done chunk structure on auth failure', () => {
   });
 });
 
+/**
+ * Regression guard for #544 / #546 — classifyHttpError body-inspection.
+ *
+ * xAI/Grok returns HTTP 400 for an invalid API key instead of the conventional
+ * 401. classifyHttpError() inspects the response body to distinguish an auth
+ * failure ("Invalid API key provided") from a genuine context-length overflow
+ * ("Your prompt is too long").
+ *
+ * These tests exercise the full GrokModelProvider code path (real provider +
+ * mocked fetch at the network boundary) to guard against regressions where the
+ * body-inspection branch is accidentally removed or bypassed.
+ */
+describe('auth + models — Grok 400 body-inspection (regression #546)', () => {
+  it('Grok HTTP 400 with auth error body maps to auth_failure', async () => {
+    // Provide a credential so we pass the "no key" early-exit guard.
+    globalThis.localStorage.setItem('roundtable:key:xai', 'invalid-key');
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'Invalid API key provided' } }),
+    }));
+
+    const provider = new GrokModelProvider();
+    const acc = new ChunkAccumulator();
+
+    await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
+
+    const error = acc.errorFor('grok');
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe('auth_failure');
+    expect(error!.message).toContain('Invalid API key provided');
+  });
+
+  it('Grok HTTP 400 with context-length error body maps to context_length_exceeded', async () => {
+    globalThis.localStorage.setItem('roundtable:key:xai', 'valid-key');
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'Your prompt is too long' } }),
+    }));
+
+    const provider = new GrokModelProvider();
+    const acc = new ChunkAccumulator();
+
+    await provider.sendMessage(SAMPLE_MESSAGES, undefined, acc.onChunk);
+
+    const error = acc.errorFor('grok');
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe('context_length_exceeded');
+    expect(error!.message).toContain('Your prompt is too long');
+  });
+});
+
 describe('auth + models — network error classification (401/403 → auth_failure)', () => {
   it('HTTP 401 response maps to auth_failure error code', async () => {
     // Set a credential so we get past the "no key" guard and reach the HTTP layer.
