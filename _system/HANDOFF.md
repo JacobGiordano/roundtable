@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 23 + #425 test fix)
+Last updated: 2026-07-23 (ship: wave 23 + #425 test fix + #413 spec fix)
 
 ## Current phase
 
@@ -6,10 +6,11 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 23 + follow-on shipped. 13 issues closed + pre-existing gpt-image-gen test fixed.
+Wave 23 + follow-on shipped. 13 issues closed + pre-existing gpt-image-gen test fixed. #413 spec fix shipped.
 
 - **Wave 23**: Atlas (#426 #438), Arch (#427 #429), Gate (#429 #430 #443), Vault (#427 #428 #434), Aria (#431 #432 #440 #435 #439), Ada PASS
 - **#425 test fix**: gpt-image-gen.test.ts asserted `response_format=b64_json` on gpt-image-2 (wrong parameter — gpt-image-2 uses `output_format=png`). Test corrected by Scout. Suite now fully green: 2375 passing, 0 failures.
+- **#413 spec fix**: Luma corrected two token class mismatches in `/_design/specs/markdown-rendering.md` — `text-code` → `text-code-text`, `bg-surface-card` → `bg-card` (7 locations). Unblocks #409 implementation.
 
 ## Key decisions
 
@@ -26,7 +27,6 @@ Wave 23 + follow-on shipped. 13 issues closed + pre-existing gpt-image-gen test 
 - **#409** — Aria: render markdown in model responses (big standalone; follow-ons #410 #412 #414 #415 #416 #416)
 - **#408** — Aria: system prompt per conversation
 - **#407** — Aria: wire live model discovery into version picker
-- **#413** — Luma: correct token class names in markdown-rendering.md (Luma spec fix, precedes #409)
 
 ## Gotchas
 
