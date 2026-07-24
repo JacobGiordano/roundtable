@@ -8,8 +8,7 @@
 // API key rule: keys are passed in as parameters by the caller (Gate-mediated).
 // This module never reads localStorage directly.
 
-import type { ModelCatalogEntry } from '@/types';
-import type { ModelRegistryEntry } from './registry';
+import type { ModelCatalogEntry, ModelRegistryEntry } from '@/types';
 
 // ─── Security: model ID allowlist ─────────────────────────────────────────────
 //

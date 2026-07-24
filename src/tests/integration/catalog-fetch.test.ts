@@ -32,7 +32,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { fetchRemoteCatalog, fetchLiveApiCatalog, resolveVersionCatalog, resolveCustomProviderCatalog } from '@/models/catalog';
 import type { ModelCatalogEntry, ModelVersionOption } from '@/types';
-import type { ModelRegistryEntry } from '@/models/registry';
+import type { ModelRegistryEntry } from '@/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -79,7 +79,7 @@ import {
 } from '@/models/catalog';
 import { MODEL_REGISTRY } from '@/models/registry';
 import type { ModelVersionOption } from '@/types';
-import type { ModelRegistryEntry } from '@/models/registry';
+import type { ModelRegistryEntry } from '@/types';
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 

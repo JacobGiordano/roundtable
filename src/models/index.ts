@@ -19,7 +19,9 @@ export {
   MODEL_REGISTRY,
   buildDefaultModelConfigs,
 } from './registry';
-export type { ModelRegistryEntry } from './registry';
+// ModelRegistryEntry is the canonical type from @/types (promoted by Arch in #549).
+// Re-exported here for callers that import from @/models for convenience.
+export type { ModelRegistryEntry } from '@/types';
 
 // Remote and live-API catalog fetch utilities — documented cross-agent exceptions.
 // Aria may call these to populate the version picker with dynamically fetched

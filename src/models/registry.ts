@@ -15,7 +15,7 @@
  *   6. Add a ModelRegistryEntry to MODEL_REGISTRY
  */
 
-import type { ModelId, ModelVersionOption } from '@/types';
+import type { ModelRegistryEntry } from '@/types';
 import type { ModelProvider } from '@/types';
 import { claudeProvider, CLAUDE_CONFIG } from './claude';
 import { gpt55Provider, GPT55_CONFIG } from './gpt';
@@ -45,114 +45,17 @@ export const PROVIDERS: ModelProvider[] = [
 
 // ─── Registry entry — consumed by Aria for model selector UI ─────────────────
 
-/**
- * Rich display metadata for a registered model. Aria uses MODEL_REGISTRY to
- * populate the model selector without importing individual providers.
- *
- * This is the clean replacement for the MOCK_MODELS array in App.tsx.
- * Once Aria consumes MODEL_REGISTRY, App.tsx can remove MOCK_MODELS and its
- * `const [models, setModels]` initial state can seed from MODEL_REGISTRY.
- */
-export interface ModelRegistryEntry {
-  modelId: ModelId;
-  /** Display name shown in the model selector and message bubbles. */
-  name: string;
-  /**
-   * Human-readable provider/company name. Aria uses this in the model selector
-   * panel instead of hardcoding a per-model ternary.
-   * Examples: "Anthropic", "OpenAI", "Google", "xAI", "DeepSeek", "Mistral"
-   */
-  providerName: string;
-  /**
-   * Tailwind color token for the model's accent color, e.g. 'accent-claude'.
-   * Matches the token names used in the design system (Luma).
-   */
-  color: string;
-  /**
-   * Whether this model is active by default when a new conversation is created.
-   * Users can toggle this per-conversation.
-   */
-  defaultActive: boolean;
-  /**
-   * All selectable API-level model versions for this provider.
-   * The first entry is treated as the default (used when ModelConfig.selectedVersionId
-   * is absent or does not match any entry).
-   *
-   * Atlas populates these; Aria renders them as a version picker; Gate persists
-   * the user's choice via ModelConfig.selectedVersionId. The `id` on each entry
-   * is the exact string passed to the provider's API endpoint.
-   */
-  availableVersions: ModelVersionOption[];
-  /**
-   * URL of a remote `models.json` file to fetch at runtime via `fetchModelsFallbackJson`.
-   * When present, `resolveVersionCatalog` fetches this URL and returns the result.
-   * The URL is expected to be hosted on `raw.githubusercontent.com` (on the network
-   * allowlist). Falls back to `availableVersions` if the fetch fails.
-   *
-   * Built-in registry entries populate this with the GitHub raw URL for `models.json`
-   * so the version list can be updated without a code release. This is the second
-   * layer in the three-tier fallback chain: OpenRouter → models.json → bundled.
-   */
-  remoteCatalogUrl?: string;
-  /**
-   * Base API endpoint for live model discovery via `fetchLiveApiCatalog`.
-   * When present (and an `apiKey` is provided), `resolveVersionCatalog` calls
-   * `fetchLiveApiCatalog(liveApiEndpoint, apiKey)` and returns the result.
-   * Takes precedence over `remoteCatalogUrl` when both are set.
-   *
-   * Example: `"https://openrouter.ai/api/v1"` (note: openrouter.ai is NOT on
-   * the dev-container firewall allowlist — live fetch degrades to [] in dev).
-   *
-   * When `liveApiProvider` is also set, `resolveVersionCatalog` dispatches to
-   * the matching provider-specific fetcher instead of the generic OpenRouter
-   * fetcher (`fetchLiveApiCatalog`). In that case this field serves as a
-   * documentation note about the endpoint rather than being passed to `fetchLiveApiCatalog`.
-   */
-  liveApiEndpoint?: string;
-  /**
-   * Identifies which provider-specific live catalog fetcher to use when
-   * `liveApiEndpoint` is set. When absent, `fetchLiveApiCatalog` (OpenRouter
-   * wire format) is used. When set, `resolveVersionCatalog` dispatches to the
-   * matching named fetcher in catalog.ts.
-   *
-   *   'anthropic' — `fetchAnthropicCatalog(apiKey)` (Anthropic `/v1/models`)
-   *   'gemini'    — `fetchGeminiCatalog(apiKey)` (Google `/v1beta/models`)
-   *   'openai'    — `fetchOpenAICatalog(apiKey)` (OpenAI `/v1/models`)
-   *
-   * Custom providers always use the OpenRouter wire format via
-   * `resolveCustomProviderCatalog` — this field is only for built-in registry
-   * entries whose provider API differs from the OpenRouter shape.
-   *
-   * Note: the corresponding field in `/src/types/index.ts` currently declares
-   * `liveApiProvider?: 'anthropic' | 'gemini'`. Adding 'openai' here extends
-   * the Atlas-local type. The types contract will need a follow-up Arch PR to
-   * add 'openai' to that union (issue #420 / schema debt).
-   */
-  liveApiProvider?: 'anthropic' | 'gemini' | 'openai';
-  /**
-   * OpenRouter provider prefix for no-key built-in discovery via
-   * `fetchOpenRouterBuiltinCatalog`. When present, `resolveVersionCatalog`
-   * hits `GET https://openrouter.ai/api/v1/models` (no auth required — the
-   * endpoint is public), filters by this prefix, strips it, and returns the
-   * matching entries as the first tier of the fallback chain.
-   *
-   * OpenRouter model IDs follow the `<prefix>/<model-id>` format. After
-   * filtering by `openrouterPrefix`, the prefix is stripped so callers receive
-   * the native API-level model string (e.g. `anthropic/claude-opus-4-8` →
-   * `claude-opus-4-8`).
-   *
-   * This is the first layer in the three-tier chain:
-   *   1. OpenRouter (this field — no key, public endpoint)
-   *   2. models.json (remoteCatalogUrl — GitHub raw URL)
-   *   3. Bundled availableVersions
-   *
-   * Note: openrouter.ai is NOT on the dev-container firewall allowlist — live
-   * fetch will fail in the dev container and degrade silently to layer 2 or 3.
-   * In production (browser), the fetch succeeds without any auth header.
-   *
-   * Examples: `"anthropic"`, `"openai"`, `"google"`, `"x-ai"`, `"deepseek"`, `"mistralai"`
-   */
-  openrouterPrefix?: string;
+// ModelRegistryEntry is the canonical type from @/types/index.ts (promoted by
+// Arch in #549). The local interface formerly defined here is removed — use the
+// imported type directly.
+//
+// RegistryEntryWithDeprecation extends ModelRegistryEntry with the deprecated
+// and deprecationDate fields that have not yet been promoted to the canonical
+// type. These are Atlas-local for now; Aria reads them via its own local
+// RegistryEntryWithDeprecation cast in ModelSelectorPanel.tsx (issue #423).
+// When Arch promotes deprecated/deprecationDate to ModelRegistryEntry in a
+// future types PR, this local extension can be deleted.
+interface RegistryEntryWithDeprecation extends ModelRegistryEntry {
   /**
    * Whether this provider is deprecated. When true, Aria should surface a
    * deprecation warning so users have time to migrate before the API stops
@@ -180,8 +83,13 @@ export interface ModelRegistryEntry {
  * and to populate the model selector panel. The `color` values here use the
  * design-system token names (e.g. 'accent-claude') rather than raw Tailwind
  * colors, matching the pattern used in App.tsx's MOCK_MODELS.
+ *
+ * Typed as RegistryEntryWithDeprecation[] internally to accommodate the
+ * deprecated/deprecationDate fields on entries like DeepSeek. The array is
+ * assignable to ModelRegistryEntry[] at the export boundary since
+ * RegistryEntryWithDeprecation is a strict superset of ModelRegistryEntry.
  */
-export const MODEL_REGISTRY: ModelRegistryEntry[] = [
+export const MODEL_REGISTRY: RegistryEntryWithDeprecation[] = [
   {
     modelId: CLAUDE_CONFIG.modelId,
     name: CLAUDE_CONFIG.name,
@@ -230,16 +138,7 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       // Do NOT add UI affordances for this model; gpt-image-2 is the primary target.
       { id: 'gpt-image-1', displayName: 'GPT Image 1 (deprecated)', description: 'Legacy image generation — deprecated October 23 2026; use GPT Image 2' },
     ],
-    // Live model discovery via OpenAI's /v1/models endpoint (issue #420).
-    // Returns all chat-completion capable models (gpt-*, o1, o3, o4, chatgpt-*);
-    // image-gen, audio, and embedding models are filtered out by fetchOpenAICatalog.
-    // Note: the OpenAI API is CORS-blocked in most browser contexts without a proxy.
-    // When no proxy is configured, live fetch degrades to [] and the three-tier
-    // fallback chain (OpenRouter → models.json → bundled) takes over.
-    liveApiEndpoint: 'https://api.openai.com/v1/models',
-    liveApiProvider: 'openai' as const,
-    // OpenRouter no-key discovery: first tier of fallback chain (when no key available
-    // or when the live API fails). Strips 'openai/' prefix from model IDs.
+    // OpenRouter no-key discovery: first tier of fallback chain.
     openrouterPrefix: 'openai',
     // models.json fallback: second tier — fetched from GitHub raw URL without a key.
     remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',
