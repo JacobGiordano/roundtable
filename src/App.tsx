@@ -569,10 +569,14 @@ export default function App() {
       };
 
       // 2. Build the edited user message
+      // #433: stamp targetModelId from the @mention so the routing indicator and
+      // conversation persistence match the normal send path. atMentionTargetId is
+      // set by InputBar when the edited text still contains an @mention token.
       const editedUserMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
         content,
+        targetModelId: atMentionTargetId ?? undefined,
         timestamp: Date.now(),
       };
 
