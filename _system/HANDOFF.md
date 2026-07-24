@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 25 — #414 #415 #433 #416 #420 + Arch #549)
+Last updated: 2026-07-23 (ship: wave 26 — #408 #407 + Atlas cleanup + Tempo audit)
 
 ## Current phase
 
@@ -6,25 +6,27 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 25 shipped. Arch #549 also shipped in same session.
+Wave 26 shipped. Atlas registry cleanup landed. Tempo bundle audit completed — tickets opened.
 
-- **Wave 25**: Aria (#414+#415 streaming XSS fix, #433 @mention on edit), Scout (#416 XSS unit tests), Atlas (#420 live OpenAI model catalog)
-- **Wave 25 follow-on**: Arch (#549 — `'openai'` added to `liveApiProvider` union in types)
+- **Wave 25**: Aria (#414+#415+#433), Scout (#416), Atlas (#420), Arch (#549), Atlas cleanup
+- **Wave 26**: Aria (#408 system prompt, #407 live model discovery + Ada PASS)
+- **Tempo audit (#410)**: markdown chunk is justified; lazy-load is the one real win
 
 ## Key decisions
 
 - `includeGeneratedImages` defaults to `false` — opt-in matches Vera's privacy-conservative posture
-- `ExportOptions` local duplicate removed by Vault; all consumers import from `@/types/index`
-- Streaming path link renderer now mirrors done-path `SAFE_SCHEMES` — unsafe hrefs render as inert `<span>`
-- @mention restoration on edit: `useEffect` scans `originalContent` before focus; `targetModelId` stamped on edited messages
-- `liveApiProvider` union now includes `'openai'` in canonical types — Atlas local workaround in `registry.ts` can be cleaned up
+- Streaming path link renderer mirrors done-path `SAFE_SCHEMES` — unsafe hrefs render as inert `<span>`
+- Per-conversation system prompt is ephemeral (Map in App state) until Arch adds `conversationSystemPrompt` to `Conversation` type (#554)
+- `aria-live` span for catalog fetch always rendered (never conditionally mounted) — WCAG 4.1.3
+- `liveApiProvider` canonical type includes `'openai'`; local workaround in registry.ts removed
 
 ## Open issues (priority order)
 
-- **Atlas cleanup** — remove local `liveApiProvider` workaround in `src/models/registry.ts` (now redundant after #549)
-- **#408** — Aria: system prompt per conversation
-- **#407** — Aria: wire live model discovery into version picker
-- **#410** — Tempo: bundle size audit (markdown chunk ~347 kB)
+- **#554** — Arch: add `conversationSystemPrompt?: string` to `Conversation` interface (system prompt persistence)
+- **#551** — Forge: move `dompurify` into markdown manualChunk (prerequisite for lazy-load)
+- **#550** — Aria: lazy-load `MessageThread` to defer 105 kB markdown chunk off initial load (after #551)
+- **#552** — Aria: extract shared `HIGHLIGHT_LANGUAGES`/`rehypePlugins` to avoid streaming/done drift
+- **#553** — Aria: remove `markdown` hljs language (~2–3 kB gzip, fold into next Aria session)
 
 ## Gotchas
 
