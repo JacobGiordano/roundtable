@@ -16,6 +16,8 @@ import { MenuIcon, GearIcon, PlusIcon, PanelLeftIcon } from './icons';
 import { getSidebarOpen, setSidebarOpen } from '@/auth';
 // #178: Outrun entry flash — full-viewport overlay triggered on Outrun theme activation.
 import { OutrunFlash } from './OutrunFlash';
+// #408: per-conversation system prompt bar — collapsible textarea above the model selector.
+import { ConversationSystemPromptBar } from './components/ConversationSystemPromptBar';
 
 // #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
 // Cmd+N / ⌘N is a reserved system/browser shortcut on Mac; the handler
@@ -89,6 +91,8 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
     onModeChange,
     isRosterEmpty,
     onRosterChange,
+    conversationSystemPrompt,
+    onUpdateConversationSystemPrompt,
   } = useRoundtable();
 
   // #341: Suggestion chip prefill — set when user clicks a chip in ConversationEmptyState.
@@ -487,7 +491,15 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
           />
         )}
 
-        {/* Bottom section: model selector + mode switcher + input bar */}
+        {/* Bottom section: conversation system prompt + model selector + mode switcher + input bar */}
+
+        {/* #408: Per-conversation system prompt bar — collapsible, sits just above the model selector. */}
+        <ConversationSystemPromptBar
+          value={conversationSystemPrompt}
+          onChange={onUpdateConversationSystemPrompt}
+          hasActiveConversation={activeConversationId !== null}
+        />
+
         <div className="flex-shrink-0 px-4 pb-0">
           {/* Row: model selector trigger (left) + mode switcher (right) */}
           <div className="flex items-end justify-between">

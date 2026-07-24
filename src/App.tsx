@@ -173,6 +173,17 @@ export default function App() {
   // and there is no active conversation — see the defaults-apply useEffect below.)
   const [pendingMode, setPendingMode] = useState<InteractionMode>('parallel');
 
+  // Per-conversation system prompt (#408): shared system prompt sent to all models
+  // on every message. Stored as a Map so switching between conversations preserves
+  // each one's prompt independently. Value defaults to '' (empty — no prompt set).
+  //
+  // Type gap: Conversation has no systemPrompt field (Arch owns types/index.ts).
+  // Full persistence across page reloads requires Arch to add this field.
+  // Until then this is ephemeral — lost on reload.
+  const [conversationSystemPrompts, setConversationSystemPrompts] = useState<Map<string, string>>(
+    new Map(),
+  );
+
   // Conversation defaults (#342): loads last-used model roster + interaction mode
   // from storage on mount. App applies these to seed the UI when there is no
   // active conversation. Writes updated defaults whenever the user changes the
@@ -397,6 +408,13 @@ export default function App() {
         : u,
     );
   })();
+
+  // Derive the system prompt for the current active conversation (#408).
+  // '' when no active conversation or no prompt has been set.
+  const activeConversationSystemPrompt =
+    store.activeConversationId
+      ? (conversationSystemPrompts.get(store.activeConversationId) ?? '')
+      : '';
 
   // ── Streaming cancellation (#159) ─────────────────────────────────────────
   // abortControllerRef holds the AbortController for the in-flight sendMessage
@@ -693,6 +711,12 @@ export default function App() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsPending(true);
+    // Resolve the shared conversation system prompt for this send (#408).
+    // '' means no shared prompt — pass undefined so Atlas does not override
+    // per-model prompts with an empty string.
+    const sharedSystemPrompt =
+      conversationSystemPrompts.get(sendingConversationId)?.trim() || undefined;
+
     void sendMessage(
       {
         conversationId: sendingConversationId,
@@ -705,6 +729,8 @@ export default function App() {
         signal: controller.signal,
         // #285: pass attachments so Atlas can include them in vision-capable provider requests.
         attachments: attachments.length > 0 ? attachments : undefined,
+        // #408: per-conversation shared system prompt (lower priority than per-model prompts).
+        systemPrompt: sharedSystemPrompt,
       },
       handleChunk(sendingConversationId),
     ).finally(() => {
@@ -865,6 +891,21 @@ export default function App() {
       false,
     );
   };
+
+  /** Update the shared system prompt for the active conversation (#408). */
+  const handleUpdateConversationSystemPrompt = useCallback((value: string) => {
+    if (!store.activeConversationId) return;
+    const convId = store.activeConversationId;
+    setConversationSystemPrompts((prev) => {
+      const next = new Map(prev);
+      if (value.trim() === '') {
+        next.delete(convId);
+      } else {
+        next.set(convId, value);
+      }
+      return next;
+    });
+  }, [store.activeConversationId]);
 
   const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
     const updatedSystemPrompt = value || undefined;
@@ -1143,6 +1184,9 @@ export default function App() {
         onModeChange: handleModeChange,
         isRosterEmpty,
         onRosterChange: handleRosterChange,
+        // #408: per-conversation shared system prompt
+        conversationSystemPrompt: activeConversationSystemPrompt,
+        onUpdateConversationSystemPrompt: handleUpdateConversationSystemPrompt,
       }}
     >
       <AppLayout onSend={handleSend} onBackendConnectionChange={handleBackendConnectionChange} />

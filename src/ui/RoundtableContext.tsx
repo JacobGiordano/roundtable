@@ -94,6 +94,20 @@ export interface RoundtableContextValue {
   isRosterEmpty: boolean;
   /** Called whenever ProviderSettingsPanel closes; App re-reads the roster. */
   onRosterChange: () => void;
+
+  // ── Conversation system prompt (#408) ─────────────────────────────────────
+  /**
+   * Shared system prompt for the active conversation. Sent to all models on
+   * every message via SendMessageOptions.systemPrompt. Per-model system prompts
+   * take precedence when both are set (Atlas enforces precedence in sendMessage).
+   *
+   * Stored in App state as Map<conversationId, string>. Not persisted to storage
+   * (Conversation type has no systemPrompt field — see types gap in session summary).
+   * Value is empty string when no prompt is set.
+   */
+  conversationSystemPrompt: string;
+  /** Update the system prompt for the currently active conversation. */
+  onUpdateConversationSystemPrompt: (value: string) => void;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────

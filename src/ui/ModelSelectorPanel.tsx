@@ -3,7 +3,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronIcon } from './components/ChevronIcon';
 // #147: shared icon system — GearIcon and PlusIcon replace inline SVGs.
 import { GearIcon, PlusIcon } from './icons';
-import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, SessionTokenUsage, TokenCountVisibility } from '@/types';
+import type { ModelConfig, ModelId, ModelAccentColors, ModelVersionOption, ModelCatalogEntry, SessionTokenUsage, TokenCountVisibility } from '@/types';
+// #407: useLiveVersionCatalog fetches live model version catalogs from Atlas's
+// resolveVersionCatalog. Documented cross-agent exception — hook imports from
+// @/models and @/auth but only reads (never writes) those domains.
+import { useLiveVersionCatalog } from './hooks/useLiveVersionCatalog';
 // Cross-agent exception: MODEL_REGISTRY and ModelRegistryEntry are pure data/type
 // exports from @/models — read-only registry of all model display metadata
 // including providerName, availableVersions, and deprecation fields. Imported so
@@ -159,6 +163,24 @@ export function ModelSelectorPanel({
   // Ref that mirrors openPickerModelId for the focus trap closure.
   // Using a ref avoids re-registering the document listener on every picker open/close.
   const openPickerModelIdRef = useRef<ModelId | null>(null);
+
+  // #407: Live version catalog — fetches model version lists from Atlas's
+  // resolveVersionCatalog (live API → OpenRouter → models.json → bundled fallback).
+  // Fetch is triggered when the panel opens (deferred, not on mount) to avoid
+  // unnecessary network requests when the panel is never opened.
+  const { catalogMap, isFetching: isCatalogFetching, fetchCatalogs } = useLiveVersionCatalog();
+
+  // #407: Trigger live catalog fetch when the panel opens (first open per session).
+  // fetchCatalogs is a no-op if a fetch is already in progress.
+  // The panel shows static bundled versions immediately while the fetch completes.
+  useEffect(() => {
+    if (isOpen) {
+      void fetchCatalogs();
+    }
+  // fetchCatalogs is stable (useCallback with [isFetching] — but isFetching is internal
+  // to the hook and doesn't change the function identity when true). Safe to include.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // #500: Programmatic open — triggered by ConversationEmptyState CTA.
   // When requestOpen flips to true, open the panel (same path as clicking the trigger)
@@ -454,26 +476,49 @@ export function ModelSelectorPanel({
           </div>
 
           {/* ── Model versions section ──
+               #407: uses live catalog when available, falls back to bundled static list.
                Only rendered when at least one active model has > 1 version available. */}
           {(() => {
+            // Resolve versions per model: live catalog takes precedence over bundled list.
+            // ModelCatalogEntry is structurally compatible with ModelVersionOption (same
+            // id / displayName / description? fields) so ModelVersionRow accepts either.
+            const resolveVersions = (modelId: ModelId): (ModelCatalogEntry | ModelVersionOption)[] => {
+              const live = catalogMap.get(modelId);
+              if (live && live.length > 0) return live;
+              return AVAILABLE_VERSIONS_BY_MODEL_ID.get(modelId) ?? [];
+            };
+
             const versionableModels = activeModels.filter((m) => {
-              const versions = AVAILABLE_VERSIONS_BY_MODEL_ID.get(m.modelId);
-              return versions !== undefined && versions.length > 1;
+              const versions = resolveVersions(m.modelId);
+              return versions.length > 1;
             });
             if (versionableModels.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border-subtle">
-                <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em] mb-2">
-                  Model versions
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
+                    Model versions
+                  </p>
+                  {/* Loading indicator — visible only while catalog fetch is in progress */}
+                  {isCatalogFetching && (
+                    <span
+                      className="text-[11px] text-text-muted"
+                      aria-live="polite"
+                      aria-label="Fetching latest model versions"
+                    >
+                      Fetching…
+                    </span>
+                  )}
+                </div>
                 <div className="rounded-md border border-border-subtle overflow-hidden">
                   {versionableModels.map((model) => {
-                    const versions = AVAILABLE_VERSIONS_BY_MODEL_ID.get(model.modelId)!;
+                    const versions = resolveVersions(model.modelId);
                     return (
                       <ModelVersionRow
                         key={model.modelId}
                         model={model}
-                        availableVersions={versions}
+                        // Cast: ModelCatalogEntry satisfies ModelVersionOption structurally.
+                        availableVersions={versions as ModelVersionOption[]}
                         onSelect={onSelectModelVersion}
                         onClear={onClearModelVersion}
                       />
