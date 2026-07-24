@@ -233,6 +233,19 @@ function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
 }
 
+// ─── Security: Safe URL schemes for the streaming link renderer (#414 / #415) ─
+//
+// The streaming-path <a> renderer previously checked:
+//   `href?.startsWith('http') || href?.startsWith('//')`
+// The `//` branch allows protocol-relative URLs — a browser resolves `//evil.com`
+// relative to the current page's scheme. An attacker can craft `//evil.com/xss`
+// that looks innocuous but opens an attacker-controlled origin.
+//
+// Fix: mirror the done-path (MarkdownContent.tsx SAFE_SCHEMES) exactly.
+// Parse with `new URL()` and validate `.protocol` against this allowlist.
+// Non-parseable hrefs (relative paths, malformed URLs) render as plain text.
+const SAFE_SCHEMES_STREAMING = new Set(['http:', 'https:', 'mailto:']);
+
 // ─── Sanitize schema — extended for syntax highlighting ───────────────────────
 
 /**
@@ -377,12 +390,28 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
   li({ children }) {
     return <li className="text-text-primary break-words">{children}</li>;
   },
-  // Links: external links open in new tab.
+  // Links: #414 / #415 — scheme-validated using SAFE_SCHEMES_STREAMING (mirrors
+  // the done-path MarkdownContent.tsx SAFE_SCHEMES allowlist). Unsafe or
+  // non-parseable hrefs render as plain <span> text — never as a link element.
   // Color: text-link (colors.link → --prose-link) — the semantic link token shipped by Luma in #193.
   // WCAG AA-compliant across all 7 themes. Underline distinguishes links from
   // surrounding body text (WCAG 1.4.1 — non-color differentiator).
   a({ href, children }) {
-    const isExternal = href?.startsWith('http') || href?.startsWith('//');
+    let isSafe = false;
+    if (href) {
+      try {
+        const url = new URL(href);
+        isSafe = SAFE_SCHEMES_STREAMING.has(url.protocol);
+      } catch {
+        // Non-parseable href (relative path, malformed URL) — render as plain text.
+        isSafe = false;
+      }
+    }
+    if (!isSafe) {
+      // Unsafe scheme or unparseable href: render children as plain text.
+      return <span>{children}</span>;
+    }
+    const isExternal = href!.startsWith('http://') || href!.startsWith('https://');
     return (
       <a
         href={href}

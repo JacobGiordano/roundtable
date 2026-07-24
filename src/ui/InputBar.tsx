@@ -244,10 +244,24 @@ export function InputBar({
   }, [isStreaming, onStopMessage]);
 
   // Edit mode setup: pre-fill textarea, clear attachments, move focus.
+  // #433: restore mentionedModel if the original message contained an @mention.
+  // Without this, the user edits pre-filled content that still contains "@ModelName"
+  // but mentionedModel is null — so stripMentionFromContent skips stripping and
+  // the full "@ModelName ..." text is sent as content, with no targetModelId routed.
   useEffect(() => {
     if (editingMessage) {
       setValue(editingMessage.originalContent);
       clearAll(); // Edits don't carry attachments (#285).
+
+      // #433: scan the pre-filled content for a mention matching any active model.
+      // Match: exact "@ModelName" substring. Use the first match found.
+      // mentionedModel is cleared automatically on send (handleSend), so stale
+      // state from a prior send cannot contaminate a new edit session.
+      const content = editingMessage.originalContent;
+      const candidates = (activeModels ?? []).filter((m) => m.isActive);
+      const matched = candidates.find((m) => content.includes(`@${m.name}`));
+      setMentionedModel(matched ?? null);
+
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
@@ -256,7 +270,7 @@ export function InputBar({
         requestAnimationFrame(() => textareaRef.current?.focus());
       });
     }
-  }, [editingMessage, clearAll]);
+  }, [editingMessage, clearAll, activeModels]);
 
   // #341: Suggestion chip prefill — when AppLayout sets prefillText (via
   // ConversationEmptyState chip click), populate the textarea, resize it,
