@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 25 — #414 #415 #433 #416 #420)
+Last updated: 2026-07-23 (ship: wave 25 — #414 #415 #433 #416 #420 + Arch #549)
 
 ## Current phase
 
@@ -6,9 +6,10 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 25 shipped. All three branches merged to local main, lint + build clean.
+Wave 25 shipped. Arch #549 also shipped in same session.
 
 - **Wave 25**: Aria (#414+#415 streaming XSS fix, #433 @mention on edit), Scout (#416 XSS unit tests), Atlas (#420 live OpenAI model catalog)
+- **Wave 25 follow-on**: Arch (#549 — `'openai'` added to `liveApiProvider` union in types)
 
 ## Key decisions
 
@@ -16,11 +17,11 @@ Wave 25 shipped. All three branches merged to local main, lint + build clean.
 - `ExportOptions` local duplicate removed by Vault; all consumers import from `@/types/index`
 - Streaming path link renderer now mirrors done-path `SAFE_SCHEMES` — unsafe hrefs render as inert `<span>`
 - @mention restoration on edit: `useEffect` scans `originalContent` before focus; `targetModelId` stamped on edited messages
-- Atlas extended `liveApiProvider` locally in `registry.ts` to include `'openai'` (Arch debt open as #549)
+- `liveApiProvider` union now includes `'openai'` in canonical types — Atlas local workaround in `registry.ts` can be cleaned up
 
 ## Open issues (priority order)
 
-- **#549** — Arch: add `'openai'` to `liveApiProvider` union in `/src/types/index.ts` (Atlas workaround in `registry.ts` until this lands)
+- **Atlas cleanup** — remove local `liveApiProvider` workaround in `src/models/registry.ts` (now redundant after #549)
 - **#408** — Aria: system prompt per conversation
 - **#407** — Aria: wire live model discovery into version picker
 - **#410** — Tempo: bundle size audit (markdown chunk ~347 kB)
