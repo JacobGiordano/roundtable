@@ -40,6 +40,9 @@ export function ConversationSystemPromptBar({
 }: ConversationSystemPromptBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // WCAG 2.4.3: ref to the toggle button so Escape can return focus to it
+  // after collapsing the panel (WAI-ARIA APG Disclosure pattern).
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
   const textareaId = useId();
   const panelId = useId();
 
@@ -75,11 +78,16 @@ export function ConversationSystemPromptBar({
     }
   }, [onChange]);
 
-  // Keyboard: Escape collapses the bar.
+  // Keyboard: Escape collapses the bar and returns focus to the toggle button.
+  // WAI-ARIA APG Disclosure pattern: when the user presses Escape inside the
+  // disclosed region, close the disclosure and move focus to the trigger button.
+  // Without this, the browser moves focus to document.body when the `hidden`
+  // attribute is applied to the focused element (WCAG 2.4.3 Focus Order).
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
       setIsExpanded(false);
+      requestAnimationFrame(() => toggleButtonRef.current?.focus());
     }
   }, []);
 
@@ -92,8 +100,10 @@ export function ConversationSystemPromptBar({
       onKeyDown={handleKeyDown}
     >
       <div className="mb-2">
-        {/* Toggle button — always visible when a conversation is active */}
+        {/* Toggle button — always visible when a conversation is active.
+            ref={toggleButtonRef}: Escape in the panel returns focus here (WCAG 2.4.3). */}
         <button
+          ref={toggleButtonRef}
           type="button"
           aria-expanded={isExpanded}
           aria-controls={panelId}

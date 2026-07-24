@@ -499,16 +499,18 @@ export function ModelSelectorPanel({
                   <p className="text-[11px] font-semibold text-text-muted uppercase tracking-[0.06em]">
                     Model versions
                   </p>
-                  {/* Loading indicator — visible only while catalog fetch is in progress */}
-                  {isCatalogFetching && (
-                    <span
-                      className="text-[11px] text-text-muted"
-                      aria-live="polite"
-                      aria-label="Fetching latest model versions"
-                    >
-                      Fetching…
-                    </span>
-                  )}
+                  {/* Live region for catalog fetch status.
+                      Always rendered so AT registers it during initial parse — conditional
+                      mounting of aria-live regions causes VoiceOver/NVDA to miss the
+                      announcement when text is present on first insertion (WCAG 4.1.3).
+                      Text toggles between '' (idle) and 'Fetching…' (in-progress). */}
+                  <span
+                    className="text-[11px] text-text-muted"
+                    aria-live="polite"
+                    aria-label={isCatalogFetching ? 'Fetching latest model versions' : undefined}
+                  >
+                    {isCatalogFetching ? 'Fetching…' : ''}
+                  </span>
                 </div>
                 <div className="rounded-md border border-border-subtle overflow-hidden">
                   {versionableModels.map((model) => {
