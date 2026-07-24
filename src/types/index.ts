@@ -817,8 +817,9 @@ export interface ModelRegistryEntry {
    * When absent, the generic OpenRouter wire format fetcher is used.
    *   'anthropic' — Anthropic `/v1/models` endpoint
    *   'gemini'    — Google `/v1beta/models` endpoint
+   *   'openai'    — OpenAI `/v1/models` endpoint
    */
-  liveApiProvider?: 'anthropic' | 'gemini';
+  liveApiProvider?: 'anthropic' | 'gemini' | 'openai';
   /**
    * OpenRouter provider prefix for no-key built-in discovery.
    * When present, Atlas hits the public OpenRouter `/api/v1/models` endpoint,
