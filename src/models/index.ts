@@ -31,6 +31,7 @@ export type { ModelRegistryEntry } from './registry';
 //   fetchModelsFallbackJson(url, providerKey) — fetches shared models.json, extracts per-provider list
 //   fetchAnthropicCatalog(key)                — fetches Anthropic /v1/models with x-api-key auth
 //   fetchGeminiCatalog(key)                   — fetches Google /v1beta/models with key-as-query-param
+//   fetchOpenAICatalog(key)                   — fetches OpenAI /v1/models with Bearer auth (issue #420)
 //   resolveVersionCatalog(entry, key?)        — resolver: live API → OpenRouter → models.json → bundled
 //   resolveCustomProviderCatalog(ep, key)     — resolver for custom (non-registry) providers
 //
@@ -45,6 +46,7 @@ export {
   fetchModelsFallbackJson,
   fetchAnthropicCatalog,
   fetchGeminiCatalog,
+  fetchOpenAICatalog,
   resolveVersionCatalog,
   resolveCustomProviderCatalog,
 } from './catalog';

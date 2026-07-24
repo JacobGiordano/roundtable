@@ -117,12 +117,18 @@ export interface ModelRegistryEntry {
    *
    *   'anthropic' — `fetchAnthropicCatalog(apiKey)` (Anthropic `/v1/models`)
    *   'gemini'    — `fetchGeminiCatalog(apiKey)` (Google `/v1beta/models`)
+   *   'openai'    — `fetchOpenAICatalog(apiKey)` (OpenAI `/v1/models`)
    *
    * Custom providers always use the OpenRouter wire format via
    * `resolveCustomProviderCatalog` — this field is only for built-in registry
    * entries whose provider API differs from the OpenRouter shape.
+   *
+   * Note: the corresponding field in `/src/types/index.ts` currently declares
+   * `liveApiProvider?: 'anthropic' | 'gemini'`. Adding 'openai' here extends
+   * the Atlas-local type. The types contract will need a follow-up Arch PR to
+   * add 'openai' to that union (issue #420 / schema debt).
    */
-  liveApiProvider?: 'anthropic' | 'gemini';
+  liveApiProvider?: 'anthropic' | 'gemini' | 'openai';
   /**
    * OpenRouter provider prefix for no-key built-in discovery via
    * `fetchOpenRouterBuiltinCatalog`. When present, `resolveVersionCatalog`
@@ -224,7 +230,16 @@ export const MODEL_REGISTRY: ModelRegistryEntry[] = [
       // Do NOT add UI affordances for this model; gpt-image-2 is the primary target.
       { id: 'gpt-image-1', displayName: 'GPT Image 1 (deprecated)', description: 'Legacy image generation — deprecated October 23 2026; use GPT Image 2' },
     ],
-    // OpenRouter no-key discovery: first tier of fallback chain.
+    // Live model discovery via OpenAI's /v1/models endpoint (issue #420).
+    // Returns all chat-completion capable models (gpt-*, o1, o3, o4, chatgpt-*);
+    // image-gen, audio, and embedding models are filtered out by fetchOpenAICatalog.
+    // Note: the OpenAI API is CORS-blocked in most browser contexts without a proxy.
+    // When no proxy is configured, live fetch degrades to [] and the three-tier
+    // fallback chain (OpenRouter → models.json → bundled) takes over.
+    liveApiEndpoint: 'https://api.openai.com/v1/models',
+    liveApiProvider: 'openai' as const,
+    // OpenRouter no-key discovery: first tier of fallback chain (when no key available
+    // or when the live API fails). Strips 'openai/' prefix from model IDs.
     openrouterPrefix: 'openai',
     // models.json fallback: second tier — fetched from GitHub raw URL without a key.
     remoteCatalogUrl: 'https://raw.githubusercontent.com/JacobGiordano/roundtable/main/models.json',

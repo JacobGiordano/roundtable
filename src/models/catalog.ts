@@ -86,6 +86,35 @@ type OpenRouterModelsResponse = {
   data: OpenRouterModel[];
 };
 
+// ─── OpenAI live-API response shape (not exported) ────────────────────────────
+
+/**
+ * Single model entry as returned by the OpenAI `GET /v1/models` endpoint.
+ * Only the fields we consume are listed; the API returns a richer object.
+ *
+ * `id` is the API-level model string (e.g. "gpt-4o", "gpt-5.5").
+ * `owned_by` identifies the owning organization ("openai", "openai-internal", etc.).
+ *
+ * The /v1/models endpoint does not return context windows, capabilities (vision,
+ * tools), or human-readable display names. `id` is the only field that is both
+ * reliably present and useful for building a catalog entry. Display names are
+ * derived from `id` by `openaiDisplayName()` at parse time.
+ */
+type OpenAIModel = {
+  id: string;
+  object?: string;
+  created?: number;
+  owned_by?: string;
+};
+
+/**
+ * Top-level response body from the OpenAI `GET /v1/models` endpoint.
+ */
+type OpenAIModelsResponse = {
+  object?: string;
+  data: OpenAIModel[];
+};
+
 // ─── Anthropic live-API response shape (not exported) ─────────────────────────
 
 /**
@@ -192,6 +221,20 @@ function isOpenRouterModelsResponse(value: unknown): value is OpenRouterModelsRe
         item !== null &&
         typeof (item as Record<string, unknown>)['id'] === 'string' &&
         typeof (item as Record<string, unknown>)['name'] === 'string'
+    )
+  );
+}
+
+function isOpenAIModelsResponse(value: unknown): value is OpenAIModelsResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    Array.isArray(v['data']) &&
+    v['data'].every(
+      (item: unknown) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as Record<string, unknown>)['id'] === 'string'
     )
   );
 }
@@ -643,6 +686,9 @@ export async function resolveVersionCatalog(
       liveResult = await fetchAnthropicCatalog(apiKey);
     } else if (entry.liveApiProvider === 'gemini') {
       liveResult = await fetchGeminiCatalog(apiKey);
+    } else if (entry.liveApiProvider === 'openai') {
+      // OpenAI /v1/models — chat-completion models only (image-gen/audio/embeddings filtered).
+      liveResult = await fetchOpenAICatalog(apiKey);
     } else {
       // Default: OpenRouter / generic OpenAI-compatible /models endpoint.
       liveResult = await fetchLiveApiCatalog(entry.liveApiEndpoint, apiKey);
@@ -871,4 +917,155 @@ export async function fetchGeminiCatalog(apiKey: string): Promise<ModelCatalogEn
       source: 'live-api',
     };
   });
+}
+
+// ─── OpenAI display name helper ───────────────────────────────────────────────
+
+/**
+ * Derives a human-readable display name from an OpenAI model ID string.
+ *
+ * The OpenAI /v1/models endpoint does not return display names — only `id`.
+ * This function converts the raw API model string into a label suitable for
+ * the version picker (e.g. "gpt-4o" → "GPT-4o", "o3-mini" → "o3-mini").
+ *
+ * Transformation rules:
+ *   - IDs starting with "gpt-" → uppercase "GPT-" prefix, rest unchanged
+ *   - IDs starting with "o1", "o3", "o4" → already short, return as-is
+ *   - IDs starting with "chatgpt-" → "ChatGPT-" prefix, rest unchanged
+ *   - All others → returned unchanged (safe fallback)
+ *
+ * This is a cosmetic-only function. It never performs I/O and never reads the
+ * API key. It is intentionally simple — we prefer a readable label over a
+ * perfect one for the rare model IDs that fall through to the default.
+ */
+function openaiDisplayName(id: string): string {
+  if (id.startsWith('gpt-')) return `GPT-${id.slice('gpt-'.length)}`;
+  if (id.startsWith('chatgpt-')) return `ChatGPT-${id.slice('chatgpt-'.length)}`;
+  // o-series (o1, o3, o4, o1-mini, etc.) are already compact — return as-is.
+  return id;
+}
+
+// ─── OpenAI chat-model filter ─────────────────────────────────────────────────
+
+/**
+ * ID prefixes that identify OpenAI models usable for chat completions.
+ *
+ * The /v1/models endpoint returns all models — including image generation
+ * (dall-e-*), audio (tts-*, whisper-*), embeddings (text-embedding-*), and
+ * legacy completions (babbage-*, davinci-*, ft:*). Only models matching one
+ * of these chat-capable prefixes are included in the catalog.
+ *
+ * This list is not exhaustive — it covers all known chat-capable families as
+ * of July 2026 (gpt-4*, gpt-5*, o1, o3, o4, chatgpt-4o). New OpenAI model
+ * families that follow a different naming convention will be excluded until
+ * added here. The bundled `availableVersions` acts as the safety net when a
+ * newly released model ID does not match any prefix.
+ */
+const OPENAI_CHAT_PREFIXES = [
+  'gpt-3.5-',
+  'gpt-4',
+  'gpt-5',
+  'o1',
+  'o3',
+  'o4',
+  'chatgpt-',
+];
+
+/**
+ * Returns true when the given OpenAI model ID belongs to a chat-completion
+ * capable model family. False for image-gen, audio, embeddings, and legacy models.
+ */
+function isOpenAIChatModel(id: string): boolean {
+  return OPENAI_CHAT_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
+/**
+ * Fetches available models from the OpenAI `GET /v1/models` endpoint and
+ * returns the chat-completion capable subset as `ModelCatalogEntry[]` with
+ * `source: 'live-api'`.
+ *
+ * Authentication: `Authorization: Bearer <apiKey>`. The key is passed by the
+ * caller (Gate-mediated) — this function never reads localStorage directly.
+ *
+ * The OpenAI /v1/models response does not include context windows, capabilities
+ * (vision, tools, etc.), or display names — only `id` and `owned_by`. Fields
+ * mapped:
+ *   `id`  → `id` (exact API model string)
+ *   `id`  → `displayName` (derived via `openaiDisplayName()`)
+ *
+ * Non-chat models (dall-e-*, whisper-*, text-embedding-*, tts-*, babbage-*,
+ * davinci-*, ft:*) are filtered out using `isOpenAIChatModel()`.
+ *
+ * All model IDs are validated against the safe-character allowlist before
+ * inclusion (same guard used across all catalog fetchers — issue #387).
+ *
+ * URL resolution: The function calls the OpenAI API at
+ * `https://api.openai.com/v1/models` directly. In browser contexts without a
+ * CORS proxy this call may be blocked — callers handle graceful degradation
+ * to the bundled fallback automatically via `resolveVersionCatalog`.
+ *
+ * On any error (network, non-2xx, unexpected shape): logs a console.warn and
+ * returns []. Never throws.
+ *
+ * @param apiKey - OpenAI API key. Passed by Gate; never stored or logged here.
+ */
+export async function fetchOpenAICatalog(apiKey: string): Promise<ModelCatalogEntry[]> {
+  const url = 'https://api.openai.com/v1/models';
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchOpenAICatalog: network error fetching', url, err);
+    return [];
+  }
+
+  if (!response.ok) {
+    console.warn(
+      '[Atlas/catalog] fetchOpenAICatalog: non-2xx response',
+      response.status,
+      'from',
+      url
+    );
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch (err) {
+    console.warn('[Atlas/catalog] fetchOpenAICatalog: JSON parse failure from', url, err);
+    return [];
+  }
+
+  if (!isOpenAIModelsResponse(raw)) {
+    // Safe summary only — never log the raw body, which may be arbitrarily large or sensitive.
+    const bodyLen = raw === null ? 4 : JSON.stringify(raw)?.length ?? 0;
+    console.warn(
+      `[Atlas/catalog] fetchOpenAICatalog: unexpected response shape from ${url} — ~${bodyLen} chars`
+    );
+    return [];
+  }
+
+  const catalog: ModelCatalogEntry[] = [];
+  for (const model of raw.data) {
+    // Skip non-chat models (image-gen, audio, embeddings, legacy completions).
+    if (!isOpenAIChatModel(model.id)) continue;
+    // Validate model ID against safe-character allowlist (issue #387).
+    if (!SAFE_MODEL_ID.test(model.id)) {
+      console.warn('[catalog] skipping model with invalid ID', model.id);
+      continue;
+    }
+    catalog.push({
+      id: model.id,
+      displayName: openaiDisplayName(model.id),
+      source: 'live-api',
+    });
+  }
+  return catalog;
 }
