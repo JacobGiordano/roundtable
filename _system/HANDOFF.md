@@ -1,4 +1,4 @@
-Last updated: 2026-07-23 (ship: wave 23 + #425 test fix + #413 spec fix)
+Last updated: 2026-07-23 (ship: wave 24 — #453 export safety)
 
 ## Current phase
 
@@ -6,27 +6,26 @@ Phase 5 — Full gate process active.
 
 ## Session summary
 
-Wave 23 + follow-on shipped. 13 issues closed + pre-existing gpt-image-gen test fixed. #413 spec fix shipped.
+Wave 24 shipped. #409 and #412 discovered already in main (closed). Stale issues reconciled.
 
-- **Wave 23**: Atlas (#426 #438), Arch (#427 #429), Gate (#429 #430 #443), Vault (#427 #428 #434), Aria (#431 #432 #440 #435 #439), Ada PASS
-- **#425 test fix**: gpt-image-gen.test.ts asserted `response_format=b64_json` on gpt-image-2 (wrong parameter — gpt-image-2 uses `output_format=png`). Test corrected by Scout. Suite now fully green: 2375 passing, 0 failures.
-- **#413 spec fix**: Luma corrected two token class mismatches in `/_design/specs/markdown-rendering.md` — `text-code` → `text-code-text`, `bg-surface-card` → `bg-card` (7 locations). Unblocks #409 implementation.
+- **Wave 24**: Arch (#453 types), Vault (#453 export logic), Aria (#453 disclosure UI + Ada PASS)
+- **Reconciled**: #409 (markdown rendering) and #412 (heading downshift) were already in main from earlier waves — both closed.
 
 ## Key decisions
 
-- Both `parse_failure` (Local) and `parse_error` (Server) retained in `StorageErrorCode` — same concept, different provider literals
-- 400 error classification is now body-driven: OpenAI `error.code`, Anthropic `error.type` + keyword; falls back to `unknown` for unrecognized 400s
-- Manual mode removed from `InteractionModeSwitcher` entirely — re-add when the feature ships
-- Ghost mode live region suppresses on mount via `useRef` guard — announces on change only
-- Focus fallback order after deletion: next conversation three-dot button → New Conversation button
-- gpt-image-2 uses `output_format: 'png'` (not `response_format`); gpt-image-1 (deprecated Oct 23 2026) uses `response_format: 'b64_json'`
+- `includeGeneratedImages` defaults to `false` — opt-in model matches privacy-conservative posture Vera requires
+- `ExportOptions` local duplicate in `exporters.ts` removed by Vault; all consumers now import from `@/types/index`
+- Streaming path link renderer (#414 #415) gap confirmed: `MessageBubble.tsx:385` allows `//` (protocol-relative); `MarkdownContent.tsx` done path has full `SAFE_SCHEMES` — streaming path does not
 
 ## Open issues (priority order)
 
-- **#453** — Arch + Vault + Aria: image export opt-out + pre-download disclosure (Arch types gate first)
-- **#409** — Aria: render markdown in model responses (big standalone; follow-ons #410 #412 #414 #415 #416 #416)
+- **#414 + #415** — Aria: fix streaming path link renderer in MessageBubble.tsx — batch both in one Aria session (same file, same fix area)
+- **#416** — Scout: XSS payload unit tests for MarkdownContent
+- **#420** — Atlas: populate ChatGPT model list from OpenRouter catalog
+- **#433** — Aria: @mention detaches silently on message edit
 - **#408** — Aria: system prompt per conversation
 - **#407** — Aria: wire live model discovery into version picker
+- **#410** — Tempo: bundle size audit (markdown deps added ~347 kB chunk)
 
 ## Gotchas
 
@@ -37,5 +36,6 @@ Wave 23 + follow-on shipped. 13 issues closed + pre-existing gpt-image-gen test 
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - Parallel worktrees cross-contaminate /workspace staging — reset staging and merge branches manually if dirty
-- `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable (italic + indentation co-convey blockquote semantic); revisit only if italic styling is removed
+- `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable (italic + indentation co-convey blockquote semantic)
 - gpt-image-1 request body test (response_format assertion) is absent — low priority given Oct 23 2026 deprecation
+- Both `parse_failure` (Local) and `parse_error` (Server) retained in `StorageErrorCode`
