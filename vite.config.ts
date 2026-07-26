@@ -184,6 +184,7 @@ export default defineConfig({
             'rehype-sanitize',
             'remark-gfm',
             'highlight.js',
+            'dompurify',
           ],
         },
       },
