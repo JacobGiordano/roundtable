@@ -839,6 +839,29 @@ export interface Conversation {
   messages: Message[];
   models: ModelConfig[];
   interactionMode: InteractionMode;
+  /**
+   * Per-conversation system prompt applied to all models in this conversation.
+   *
+   * When present, this value is passed as `systemPrompt` on every
+   * `sendMessage` call for this conversation, applying the prompt uniformly
+   * across all active models. A per-model `ModelConfig.systemPrompt` takes
+   * precedence over this value for any model that has one set.
+   *
+   * Optional — absence means no shared conversation-level system prompt is
+   * applied (each model falls back to its own `ModelConfig.systemPrompt`,
+   * or no system prompt if that is also absent).
+   *
+   * Lifecycle:
+   *   - Aria writes this field when the user sets or clears the per-conversation
+   *     system prompt (issue #408). Currently stored ephemerally in App state
+   *     as a `Map<string, string>`.
+   *   - Vault persists this field as part of the `Conversation` record in
+   *     localStorage (issue #554 — prerequisite for persistence).
+   *   - Vault reads it back verbatim on `loadConversation` and `listConversations`.
+   *   - Existing conversations serialized without this field deserialize safely —
+   *     absence is equivalent to `undefined` (no prompt set).
+   */
+  conversationSystemPrompt?: string;
   /** Ghost mode: nothing is ever written to storage. */
   isGhost: boolean;
   createdAt: number;

@@ -1,7 +1,15 @@
 {
-  "updated": "2026-07-23",
+  "updated": "2026-07-26",
   "providers": {
     "anthropic": [
+      {
+        "id": "claude-opus-5-fast",
+        "displayName": "Claude Opus 5 (Fast)"
+      },
+      {
+        "id": "claude-opus-5",
+        "displayName": "Claude Opus 5"
+      },
       {
         "id": "claude-sonnet-5",
         "displayName": "Anthropic: Claude Sonnet 5"
