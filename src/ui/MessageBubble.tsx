@@ -3,29 +3,9 @@ import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-// #446: Restricted language set for the streaming ReactMarkdown path — same set
-// as MarkdownContent so highlighting is consistent between streaming and done states.
-import hljs_javascript from 'highlight.js/lib/languages/javascript';
-import hljs_typescript from 'highlight.js/lib/languages/typescript';
-import hljs_python     from 'highlight.js/lib/languages/python';
-import hljs_bash       from 'highlight.js/lib/languages/bash';
-import hljs_shell      from 'highlight.js/lib/languages/shell';
-import hljs_json       from 'highlight.js/lib/languages/json';
-import hljs_css        from 'highlight.js/lib/languages/css';
-import hljs_xml        from 'highlight.js/lib/languages/xml';
-import hljs_sql        from 'highlight.js/lib/languages/sql';
-import hljs_go         from 'highlight.js/lib/languages/go';
-import hljs_rust       from 'highlight.js/lib/languages/rust';
-import hljs_java       from 'highlight.js/lib/languages/java';
-import hljs_cpp        from 'highlight.js/lib/languages/cpp';
-import hljs_csharp     from 'highlight.js/lib/languages/csharp';
-import hljs_ruby       from 'highlight.js/lib/languages/ruby';
-import hljs_php        from 'highlight.js/lib/languages/php';
-import hljs_swift      from 'highlight.js/lib/languages/swift';
-import hljs_kotlin     from 'highlight.js/lib/languages/kotlin';
-import hljs_yaml       from 'highlight.js/lib/languages/yaml';
-import hljs_markdown   from 'highlight.js/lib/languages/markdown';
-import hljs_diff       from 'highlight.js/lib/languages/diff';
+// #552: HIGHLIGHT_LANGUAGES extracted to shared util — eliminates 21 duplicated hljs imports.
+// #553: markdown language removed from the shared set (~2–3 kB gzip savings).
+import { HIGHLIGHT_LANGUAGES } from './utils/markdownHighlight';
 import type { Attachment, GeneratedImage, Message, ModelConfig, ModelError, ModelId, TokenCountVisibility } from '@/types';
 // #409: Spec-compliant markdown renderer — DOMPurify pre-sanitization + remark-gfm +
 // copy-code button + Luma token classes. Replaces inline ReactMarkdown for "done" state.
@@ -273,31 +253,9 @@ const sanitizeSchema = {
   },
 };
 
-// #446: Restricted language map — same set as MarkdownContent for consistency.
-const HIGHLIGHT_LANGUAGES: Record<string, unknown> = {
-  javascript: hljs_javascript,
-  typescript: hljs_typescript,
-  python:     hljs_python,
-  bash:       hljs_bash,
-  shell:      hljs_shell,
-  json:       hljs_json,
-  css:        hljs_css,
-  xml:        hljs_xml,
-  html:       hljs_xml,
-  sql:        hljs_sql,
-  go:         hljs_go,
-  rust:       hljs_rust,
-  java:       hljs_java,
-  cpp:        hljs_cpp,
-  csharp:     hljs_csharp,
-  ruby:       hljs_ruby,
-  php:        hljs_php,
-  swift:      hljs_swift,
-  kotlin:     hljs_kotlin,
-  yaml:       hljs_yaml,
-  markdown:   hljs_markdown,
-  diff:       hljs_diff,
-};
+// #552/#553: HIGHLIGHT_LANGUAGES is now imported from ./utils/markdownHighlight.
+// The local copy (21 hljs imports + object literal) has been removed.
+// The markdown language has also been dropped (#553: ~2–3 kB gzip savings).
 
 /** Shared rehype plugin array for the streaming ReactMarkdown instance. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -140,7 +140,11 @@ export function useStreamingMessages({
             ...(chunk.error ? { error: chunk.error } : {}),
             ...(allImages.length > 0 ? { generatedImages: allImages } : {}),
           };
-          // Remove from accumulator so it no longer appears as streaming.
+
+          // Remove the completed entry immediately. Ghost-bubble prevention (#555)
+          // is handled in App.tsx via pendingAssistantMessages: handleMessageComplete
+          // adds the finalized message to a pending map that merges into the displayed
+          // messages array, bridging the gap until store.updateConversation settles.
           const next = { ...accumulatorRef.current };
           delete next[key];
           accumulatorRef.current = next;
@@ -190,7 +194,7 @@ export function useStreamingMessages({
         .map(([, msg]) => msg)
     : [];
 
-  const isStreaming = activeStreamingMessages.length > 0;
+  const isStreaming = activeStreamingMessages.some((m) => m.isStreaming);
 
   // #347: Clean up priming-chunk placeholders that never received real content.
   // When abort fires before the HTTP response starts, providers swallow the
