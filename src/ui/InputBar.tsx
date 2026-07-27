@@ -93,6 +93,13 @@ interface InputBarProps {
   prefillText?: string;
   /** Called after InputBar has consumed prefillText — resets it in AppLayout. */
   onPrefillConsumed?: () => void;
+  /**
+   * When incremented, auto-focuses the textarea. AppLayout increments this
+   * when a new empty conversation becomes active so the user can type immediately
+   * without clicking into the input field. Issue #557.
+   * Value of 0 (initial) never triggers focus — only increments do.
+   */
+  autoFocusKey?: number;
 }
 
 /**
@@ -148,6 +155,7 @@ export function InputBar({
   onCancelEdit,
   prefillText,
   onPrefillConsumed,
+  autoFocusKey,
 }: InputBarProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -293,6 +301,19 @@ export function InputBar({
     });
     onPrefillConsumed?.();
   }, [prefillText, onPrefillConsumed]);
+
+  // #557: Auto-focus when a new empty conversation becomes active.
+  // autoFocusKey is incremented by AppLayout each time an empty conversation is
+  // selected/created. Value 0 (initial) is intentionally skipped so the very
+  // first render does not steal focus during app load. Double rAF ensures focus
+  // lands after React's layout effects and any upstream scroll-restoration have
+  // completed — same pattern as edit-mode and prefill focus above.
+  useEffect(() => {
+    if (!autoFocusKey) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    });
+  }, [autoFocusKey]);
 
   // #435: Ghost mode announcement — suppress the initial render announcement.
   // The live region must be empty on mount so screen readers do not announce
