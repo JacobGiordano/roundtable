@@ -832,6 +832,77 @@ describe('Message.generatedImages — HTML export (issue #365, #453)', () => {
   });
 });
 
+// ─── conversationSystemPrompt round-trip (issue #559) ────────────────────────
+
+describe("conversationSystemPrompt — LocalStorage round-trip (issue #559)", () => {
+  it("persists conversationSystemPrompt and loads it back intact", async () => {
+    const conv = makeConversation({ conversationSystemPrompt: "You are a helpful assistant." });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded).not.toBeNull();
+    expect(loaded!.conversationSystemPrompt).toBe("You are a helpful assistant.");
+  });
+
+  it("preserves conversationSystemPrompt through listConversations", async () => {
+    const conv = makeConversation({
+      id: "conv-with-prompt",
+      conversationSystemPrompt: "Be concise.",
+    });
+    await provider.saveConversation(conv);
+    const list = await provider.listConversations();
+    expect(list).toHaveLength(1);
+    expect(list[0].conversationSystemPrompt).toBe("Be concise.");
+  });
+
+  it("loads correctly when conversationSystemPrompt is absent (existing data without field)", async () => {
+    // Simulate a conversation serialized before conversationSystemPrompt existed —
+    // the field is simply absent from the stored JSON. Deserialization must
+    // succeed and the field must be undefined (not null, not a default string).
+    const conv = makeConversation();
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded).not.toBeNull();
+    expect(loaded!.conversationSystemPrompt).toBeUndefined();
+  });
+
+  it("persists an empty string conversationSystemPrompt (user cleared the prompt)", async () => {
+    // An empty string is a valid value — it means the user explicitly cleared
+    // the prompt. It must round-trip as '' not undefined.
+    const conv = makeConversation({ conversationSystemPrompt: "" });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded!.conversationSystemPrompt).toBe("");
+  });
+
+  it("overwrites conversationSystemPrompt on upsert", async () => {
+    const conv = makeConversation({ conversationSystemPrompt: "First prompt." });
+    await provider.saveConversation(conv);
+    await provider.saveConversation({ ...conv, conversationSystemPrompt: "Second prompt." });
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded!.conversationSystemPrompt).toBe("Second prompt.");
+  });
+
+  it("does not persist conversationSystemPrompt when isGhost is true", async () => {
+    // Ghost conversations must never be written to storage — the conversationSystemPrompt
+    // field must not be an exception to this rule.
+    const ghost = makeConversation({
+      isGhost: true,
+      conversationSystemPrompt: "This must not be stored.",
+    });
+    await provider.saveConversation(ghost);
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded).toBeNull();
+  });
+
+  it("preserves multiline conversationSystemPrompt through round-trip", async () => {
+    const multiline = "Line one.\nLine two.\nLine three with special chars: <>&\"'";
+    const conv = makeConversation({ conversationSystemPrompt: multiline });
+    await provider.saveConversation(conv);
+    const loaded = await provider.loadConversation("conv-1");
+    expect(loaded!.conversationSystemPrompt).toBe(multiline);
+  });
+});
+
 describe('listConversations() cache', () => {
   it('populates cache on first call and serves it on subsequent calls without re-reading localStorage', async () => {
     const conv = makeConversation({ id: 'cache-test', updatedAt: 5000 });
