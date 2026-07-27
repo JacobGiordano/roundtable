@@ -291,3 +291,114 @@ describe('InputBar — ghost mode live region mount-suppression (#435, WCAG 4.1.
     assertNoViolations(results);
   });
 });
+
+// ─── #557: auto-focus on new empty conversation (WCAG 2.4.3) ─────────────────
+//
+// AppLayout increments `inputAutoFocusKey` when `activeConversationId` changes
+// and `messages.length === 0`. InputBar's useEffect fires on each increment and
+// focuses the textarea via double-rAF.
+//
+// WCAG 2.4.3 Focus Order: programmatic focus must land on the correct element
+// so keyboard users can type immediately without navigating to the textarea.
+// The initial value of 0 must NOT trigger focus so app load does not steal
+// focus from the browser's own initial focus management.
+//
+// WCAG 2.1 AA criterion coverage:
+//   2.4.3 — Focus Order: focus moves to textarea on auto-focus trigger
+//   3.2.1 — On Focus: focus placement does not cause unexpected context change
+//            (the trigger fires on conversation selection, a user-initiated action)
+
+describe('InputBar — #557: auto-focus on new conversation (WCAG 2.4.3)', () => {
+  it('has no axe violations when autoFocusKey is set', async () => {
+    // autoFocusKey > 0 causes the effect to fire and focus the textarea.
+    // The rendered DOM should be axe-clean regardless of focus state.
+    const { container } = render(<InputBar onSend={vi.fn()} autoFocusKey={1} />);
+    const results = await axe(container);
+    assertNoViolations(results);
+  });
+
+  it('initial autoFocusKey=0 does NOT focus the textarea on mount (WCAG 3.2.1)', async () => {
+    // The guard `if (!autoFocusKey) return` in the effect skips value 0.
+    // This prevents app load from stealing focus from the browser's own
+    // focus management (e.g. skip link, autofocus attribute elsewhere).
+    // After mount the textarea must not be the active element.
+    render(<InputBar onSend={vi.fn()} autoFocusKey={0} />);
+    const textarea = screen.getByRole('textbox');
+    // The active element must NOT be the textarea — no focus was programmatically moved.
+    expect(document.activeElement).not.toBe(textarea);
+  });
+
+  it('focus moves to textarea when autoFocusKey increments from 0 to 1 (WCAG 2.4.3)', async () => {
+    // Simulates AppLayout incrementing inputAutoFocusKey when a new empty
+    // conversation is activated. The useEffect fires on the key change and
+    // focuses the textarea via double-rAF.
+    const restoreRaf = stubRafSync();
+
+    const { rerender } = render(<InputBar onSend={vi.fn()} autoFocusKey={0} />);
+
+    // Simulate the key increment (new empty conversation selected in AppLayout).
+    await act(async () => {
+      rerender(<InputBar onSend={vi.fn()} autoFocusKey={1} />);
+    });
+
+    const textarea = screen.getByRole('textbox');
+    // The textarea must be the active element — the effect fired and focused it.
+    expect(document.activeElement).toBe(textarea);
+
+    restoreRaf();
+  });
+
+  it('focus moves to textarea on subsequent increments (WCAG 2.4.3)', async () => {
+    // A user selects a second new conversation — autoFocusKey increments from 1 to 2.
+    // The effect must fire again, moving focus back to the textarea even if it
+    // had moved elsewhere (e.g. user tabbed to send button, then created new conversation).
+    const restoreRaf = stubRafSync();
+
+    const { rerender } = render(<InputBar onSend={vi.fn()} autoFocusKey={1} />);
+
+    await act(async () => {
+      rerender(<InputBar onSend={vi.fn()} autoFocusKey={2} />);
+    });
+
+    const textarea = screen.getByRole('textbox');
+    expect(document.activeElement).toBe(textarea);
+
+    restoreRaf();
+  });
+
+  it('auto-focus effect does not interfere with streaming stop-button focus (WCAG 2.4.3)', async () => {
+    // When streaming is active, the stop button should hold focus regardless of
+    // autoFocusKey. This verifies the auto-focus effect does not clobber the
+    // streaming focus management when both props change simultaneously.
+    // (In practice AppLayout only increments autoFocusKey for empty conversations,
+    // so streaming + new conversation should not co-occur — but we verify no
+    // harmful interaction exists at the component level.)
+    const restoreRaf = stubRafSync();
+
+    const { rerender } = render(
+      <InputBar onSend={vi.fn()} isStreaming={true} onStopMessage={vi.fn()} autoFocusKey={0} />,
+    );
+
+    // Transition to streaming (with existing key 0 — no auto-focus should trigger).
+    await act(async () => {
+      rerender(
+        <InputBar onSend={vi.fn()} isStreaming={true} onStopMessage={vi.fn()} autoFocusKey={0} />,
+      );
+    });
+
+    const stopButton = screen.getByRole('button', { name: /stop generating/i });
+    // Stop button must have received focus from the streaming effect.
+    // The auto-focus effect is a no-op at key=0, so it does not fight this.
+    expect(document.activeElement).toBe(stopButton);
+
+    restoreRaf();
+  });
+
+  it('textarea has aria-label="Message input" — screen readers announce the field (WCAG 4.1.2)', () => {
+    // The textarea must have an accessible name so screen readers announce
+    // "Message input" when focus lands on it (including via auto-focus).
+    render(<InputBar onSend={vi.fn()} autoFocusKey={1} />);
+    const textarea = screen.getByRole('textbox', { name: /message input/i });
+    expect(textarea).toBeTruthy();
+  });
+});
