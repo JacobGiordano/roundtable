@@ -111,6 +111,24 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   // Stable callback — setPrefillText is a stable useState setter so this never changes reference.
   const handlePrefillConsumed = useCallback(() => setPrefillText(''), []);
 
+  // #557: Auto-focus chat input when a new empty conversation becomes active.
+  // Incremented whenever activeConversationId changes to a conversation that has no
+  // messages yet — which is the "new conversation" state. The value is passed to
+  // InputBar as autoFocusKey; InputBar focuses the textarea on each increment.
+  // Value 0 (initial) does not trigger focus in InputBar, so the app-load render
+  // does not steal focus. messages.length check avoids re-focusing when switching
+  // to an existing conversation that already has content.
+  const [inputAutoFocusKey, setInputAutoFocusKey] = useState(0);
+  useEffect(() => {
+    if (!activeConversationId || messages.length > 0) return;
+    setInputAutoFocusKey((prev) => prev + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId]);
+  // ^^ messages intentionally excluded from deps — we only want this to fire when
+  // the active conversation changes, not every time a message is added. The
+  // messages.length check prevents focus on conversations that already have content
+  // at the moment of selection (e.g. switching to a paused conversation).
+
   // #500: Model selector open request — set when the user clicks the empty-state CTA.
   // ModelSelectorPanel consumes this as requestOpen, opens the panel, then calls
   // onRequestOpenHandled to reset back to false. The flag is intentionally one-shot:
@@ -567,6 +585,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
             onCancelEdit={onCancelEdit}
             prefillText={prefillText}
             onPrefillConsumed={handlePrefillConsumed}
+            autoFocusKey={inputAutoFocusKey}
           />
         </div>
       </main>

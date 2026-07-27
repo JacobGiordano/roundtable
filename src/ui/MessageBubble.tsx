@@ -656,7 +656,7 @@ function MessageBubbleBase({
   const [lightboxGeneratedImageIdx, setLightboxGeneratedImageIdx] = useState<number | null>(null);
   const generatedImageLightboxReturnRef = useRef<HTMLElement | null>(null);
 
-  // ─── Thinking indicator state (#371) ─────────────────────────────────────
+  // ─── Thinking indicator state (#371 / #555) ──────────────────────────────
   // ThinkingIndicator and MessageContent are mutually exclusive in the body zone.
   // Render condition: assistant bubble, streaming, no content yet.
   // Transition-out: 100ms opacity fade before unmount (instant under reduced-motion).
@@ -665,32 +665,84 @@ function MessageBubbleBase({
   // thinkingMounted: whether ThinkingIndicator is in the DOM (trails isThinkingCondition
   //   by up to 100ms for the fade-out, then snaps to false).
   // thinkingFading: true only during the 100ms fade window; drives the opacity-0 class.
+  //
+  // #555 regression fix: thinkingFading must NOT be a useEffect dependency.
+  //
+  // Root cause: when setThinkingFading(true) was called inside the effect, React batched
+  // that state update, re-ran the effect, and ran the PREVIOUS effect's cleanup:
+  //   clearTimeout(timer)
+  // This cleared the 100ms unmount timer before it fired — so thinkingMounted stayed true
+  // indefinitely, leaving the body zone showing ThinkingIndicator (blank body) forever.
+  //
+  // This only manifested after the #555 wave-27 pendingAssistantMessages fix: before
+  // that fix, the bubble unmounted during the async gap (ghost bubble), which reset
+  // thinkingMounted to false on remount. After the fix the bubble stays alive and the
+  // timer-cancel bug is exposed.
+  //
+  // Fix: read thinkingFading via a ref (never causes re-renders / effect re-runs).
+  // thinkingFading state is still set at the same time as the ref, so the CSS class
+  // (opacity-0 during fade) remains correct. The effect deps are [isThinkingCondition,
+  // thinkingMounted] only — thinkingFading state change no longer triggers a re-run.
+  // The timer is stored in fadingTimerRef so it can be cancelled on unmount.
   const isThinkingCondition = message.role === 'assistant' && isStreaming && (message.content ?? '') === '';
   const [thinkingMounted, setThinkingMounted] = useState(() => isThinkingCondition);
   const [thinkingFading, setThinkingFading] = useState(false);
+  // Ref mirrors thinkingFading for reading inside the effect without triggering re-runs.
+  const thinkingFadingRef = useRef(false);
+  // Timer ref — allows the unmount cleanup to cancel a pending fade without the effect
+  // cleanup function cancelling it prematurely on every thinkingFading state change.
+  const fadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Unmount cleanup: cancel any pending fade timer so setState-after-unmount warnings
+  // are avoided. This is the ONLY place the timer is cleared on component teardown.
+  useEffect(() => {
+    return () => {
+      if (fadingTimerRef.current !== null) {
+        clearTimeout(fadingTimerRef.current);
+        fadingTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isThinkingCondition) {
       // Condition became true (re-used bubble or mount) — ensure indicator is shown.
-      setThinkingMounted(true);
+      // Cancel any in-progress fade so a re-used bubble shows the indicator immediately.
+      if (fadingTimerRef.current !== null) {
+        clearTimeout(fadingTimerRef.current);
+        fadingTimerRef.current = null;
+      }
+      thinkingFadingRef.current = false;
       setThinkingFading(false);
-    } else if (thinkingMounted && !thinkingFading) {
+      setThinkingMounted(true);
+    } else if (thinkingMounted && !thinkingFadingRef.current) {
       // Condition just became false and we're not already fading — start fade.
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (reducedMotion) {
         // Instant swap per spec: same render tick, no delay.
+        thinkingFadingRef.current = false;
         setThinkingMounted(false);
       } else {
         // 100ms opacity fade then unmount (CSS transition-opacity duration-fast ease-out).
+        // Write ref FIRST so any subsequent effect run (from setThinkingFading re-render)
+        // sees thinkingFadingRef.current = true and skips this branch.
+        thinkingFadingRef.current = true;
         setThinkingFading(true);
-        const timer = setTimeout(() => {
+        fadingTimerRef.current = setTimeout(() => {
+          fadingTimerRef.current = null;
+          thinkingFadingRef.current = false;
           setThinkingMounted(false);
           setThinkingFading(false);
         }, 100);
-        return () => clearTimeout(timer);
+        // No cleanup return — do NOT clear the timer here. The unmount effect above
+        // handles cleanup on component teardown. This effect intentionally omits
+        // cleanup to avoid cancelling the timer when thinkingFading changes state
+        // (which is the root cause of the #555 body-blank regression).
       }
     }
-  }, [isThinkingCondition, thinkingMounted, thinkingFading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isThinkingCondition, thinkingMounted]);
+  // ^^ thinkingFading intentionally excluded from deps — see #555 regression fix note above.
 
   const handleCopy = useCallback(() => {
     if (copyState === 'copied') return;
