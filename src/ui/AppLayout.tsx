@@ -1,5 +1,14 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { MessageThread } from './MessageThread';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+// #550: MessageThread (and its markdown/hljs subtree) lazy-loaded so it stays
+// out of the initial bundle. It only renders after a conversation is selected —
+// a natural lazy-load boundary. React.lazy requires a default export; the
+// `.then(m => ({ default: m.MessageThread }))` shim bridges the named export.
+// The markdown chunk (react-markdown, rehype-*, highlight.js, dompurify) was
+// already split by #551's manualChunks config — lazy loading MessageThread
+// ensures the chunk only loads when a conversation is first opened.
+const MessageThread = lazy(() =>
+  import('./MessageThread').then((m) => ({ default: m.MessageThread })),
+);
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
 import { Sidebar } from './Sidebar';
@@ -458,7 +467,13 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
         {isRosterEmpty ? (
           <OnboardingEmptyState onOpenProviderSettings={handleOpenProviderSettings} ctaId="skip-target" />
         ) : (
-          <MessageThread
+          // #550: Suspense boundary for the lazy-loaded MessageThread.
+          // Fallback: flex-1 placeholder preserves the layout height while the
+          // markdown chunk loads (typically < 100ms on a warm cache, imperceptible
+          // on first load). aria-hidden so screen readers skip the placeholder —
+          // there is nothing meaningful to announce until the thread renders.
+          <Suspense fallback={<div className="flex-1" aria-hidden="true" />}>
+            <MessageThread
             messages={messages}
             streamingMessages={streamingMessages}
             models={activeModels}
@@ -489,6 +504,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
                 : undefined
             }
           />
+          </Suspense>
         )}
 
         {/* Bottom section: conversation system prompt + model selector + mode switcher + input bar */}

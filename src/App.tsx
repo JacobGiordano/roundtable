@@ -283,22 +283,49 @@ export default function App() {
   const pendingMsg = store.activeConversationId
     ? pendingUserMessages.get(store.activeConversationId)
     : undefined;
-  const messages =
-    pendingMsg && !persistedMessages.some((m) => m.id === pendingMsg.id)
-      ? [...persistedMessages, pendingMsg]
-      : persistedMessages;
 
-  // Clean up stale pending entries after the store catches up (message ID found
-  // in persistedMessages). useEffect defers the cleanup until after paint so the
-  // render path above can still use the pendingMsg on that same render cycle.
-  // The effect fires whenever persistedMessages identity changes (i.e. after every
-  // store update) or the active conversation switches.
+  // #555 — Ghost bubble fix: pending assistant messages.
+  //
+  // The race: when a stream completes, setStreamingMessages removes the entry
+  // synchronously. store.updateConversation is async (awaits provider.saveConversation
+  // before calling setConversations). Between those two renders, the finalized message
+  // is in neither streamingMessages nor the persisted array — hence the ghost bubble.
+  //
+  // Fix: handleMessageComplete adds each finalized message to this Map (keyed by
+  // conversationId → Message[]). These pending entries are merged into the displayed
+  // messages array immediately, bridging the async gap. Once a message ID appears in
+  // persistedMessages (store write landed), the cleanup effect below removes it.
+  //
+  // Keyed by conversationId so parallel-model completions (multiple models finishing
+  // at different times in the same conversation) are all held pending until each one
+  // individually appears in the persisted array.
+  const [pendingAssistantMessages, setPendingAssistantMessages] = useState<
+    Map<string, Message[]>
+  >(new Map());
+
+  // Merge: start with persisted, add pending user message if not yet committed,
+  // then append pending assistant messages whose IDs are not yet in persisted.
+  const pendingAssistants = store.activeConversationId
+    ? (pendingAssistantMessages.get(store.activeConversationId) ?? [])
+    : [];
+  const pendingAssistantsUncommitted = pendingAssistants.filter(
+    (m) => !persistedMessages.some((p) => p.id === m.id),
+  );
+  const messages = [
+    ...persistedMessages,
+    ...(pendingMsg && !persistedMessages.some((m) => m.id === pendingMsg.id) ? [pendingMsg] : []),
+    ...pendingAssistantsUncommitted,
+  ];
+
+  // Clean up stale pending entries after the store catches up.
+  // useEffect defers until after paint so the render path above can still
+  // use the pending entries on that render cycle.
   useEffect(() => {
     if (!store.activeConversationId) return;
     const convId = store.activeConversationId;
     const pending = pendingUserMessages.get(convId);
     if (!pending) return;
-    // If the pending message is now in the persisted list, remove the Map entry.
+    // If the pending user message is now in the persisted list, remove the Map entry.
     if (persistedMessages.some((m) => m.id === pending.id)) {
       setPendingUserMessages((prev) => {
         const next = new Map(prev);
@@ -307,6 +334,25 @@ export default function App() {
       });
     }
   }, [persistedMessages, store.activeConversationId, pendingUserMessages]);
+
+  // Clean up pending assistant messages once each ID appears in persistedMessages.
+  useEffect(() => {
+    if (!store.activeConversationId) return;
+    const convId = store.activeConversationId;
+    const pending = pendingAssistantMessages.get(convId);
+    if (!pending || pending.length === 0) return;
+    const stillPending = pending.filter((m) => !persistedMessages.some((p) => p.id === m.id));
+    if (stillPending.length === pending.length) return; // nothing committed yet
+    setPendingAssistantMessages((prev) => {
+      const next = new Map(prev);
+      if (stillPending.length === 0) {
+        next.delete(convId);
+      } else {
+        next.set(convId, stillPending);
+      }
+      return next;
+    });
+  }, [persistedMessages, store.activeConversationId, pendingAssistantMessages]);
 
   // Derive active models from the shared models array
   const activeModels = models.filter((m) => m.isActive);
@@ -508,6 +554,21 @@ export default function App() {
         // Advance the ref so the next parallel model completion uses the correct
         // base (includes this assistant message too, not just the user message).
         sentConversationRef.current = updated;
+
+        // #555 — Ghost bubble fix: add the finalized message to the pending assistant
+        // messages map immediately. This bridges the async gap between setStreamingMessages
+        // removing the entry and store.updateConversation (async) landing in setConversations.
+        // Non-ghost only: ghost messages are stored in-memory and surfaced via
+        // getGhostConversation synchronously, so there is no async gap to bridge.
+        if (!updated.isGhost) {
+          setPendingAssistantMessages((prev) => {
+            const existing = prev.get(sendingConversationId) ?? [];
+            const next = new Map(prev);
+            next.set(sendingConversationId, [...existing, finalMsg]);
+            return next;
+          });
+        }
+
         if (updated.isGhost) {
           saveGhostConversation(updated);
         } else {
@@ -519,7 +580,7 @@ export default function App() {
         }
       }
     },
-    [store, getGhostConversation, saveGhostConversation],
+    [store, getGhostConversation, saveGhostConversation, setPendingAssistantMessages],
   );
 
   const {

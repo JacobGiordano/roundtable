@@ -29,32 +29,12 @@ import remarkGfm from 'remark-gfm';
 // #417: rehypeHighlight restores syntax highlighting in completed code blocks.
 // Plugin order is load-bearing: rehypeHighlight BEFORE rehypeSanitize so hljs-* classes
 // exist in the hast when sanitize evaluates them.
-// #446: Restricted language set — avoids bundling all 37 "common" highlight.js languages
-// (~9 MB source). Only languages commonly produced by AI models are included.
-// html/xml share the same module in highlight.js (xml.js registers both).
+// #552: HIGHLIGHT_LANGUAGES extracted to shared util — eliminates 21 duplicated hljs imports.
+// #553: markdown language removed from the shared set (~2–3 kB gzip savings).
 import rehypeHighlight from 'rehype-highlight';
-import hljs_javascript from 'highlight.js/lib/languages/javascript';
-import hljs_typescript from 'highlight.js/lib/languages/typescript';
-import hljs_python     from 'highlight.js/lib/languages/python';
-import hljs_bash       from 'highlight.js/lib/languages/bash';
-import hljs_shell      from 'highlight.js/lib/languages/shell';
-import hljs_json       from 'highlight.js/lib/languages/json';
-import hljs_css        from 'highlight.js/lib/languages/css';
-import hljs_xml        from 'highlight.js/lib/languages/xml';
-import hljs_sql        from 'highlight.js/lib/languages/sql';
-import hljs_go         from 'highlight.js/lib/languages/go';
-import hljs_rust       from 'highlight.js/lib/languages/rust';
-import hljs_java       from 'highlight.js/lib/languages/java';
-import hljs_cpp        from 'highlight.js/lib/languages/cpp';
-import hljs_csharp     from 'highlight.js/lib/languages/csharp';
-import hljs_ruby       from 'highlight.js/lib/languages/ruby';
-import hljs_php        from 'highlight.js/lib/languages/php';
-import hljs_swift      from 'highlight.js/lib/languages/swift';
-import hljs_kotlin     from 'highlight.js/lib/languages/kotlin';
-import hljs_yaml       from 'highlight.js/lib/languages/yaml';
-import hljs_markdown   from 'highlight.js/lib/languages/markdown';
-import hljs_diff       from 'highlight.js/lib/languages/diff';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+// #552: shared language map — same set used by the streaming path in MessageBubble.tsx.
+import { HIGHLIGHT_LANGUAGES } from '../utils/markdownHighlight';
 import DOMPurify from 'dompurify';
 
 // ─── Security: Safe URL schemes ───────────────────────────────────────────────
@@ -119,38 +99,11 @@ const sanitizeSchema = {
   },
 };
 
-// ─── rehype-highlight language map (#446) ────────────────────────────────────
-
-/**
- * Restricted language map for rehype-highlight.
- * Covers the languages most commonly produced by AI models.
- * html and xml are both registered by highlight.js/lib/languages/xml (the
- * highlight.js xml module registers itself under "html" and "xml" aliases).
- */
-const HIGHLIGHT_LANGUAGES: Record<string, unknown> = {
-  javascript: hljs_javascript,
-  typescript: hljs_typescript,
-  python:     hljs_python,
-  bash:       hljs_bash,
-  shell:      hljs_shell,
-  json:       hljs_json,
-  css:        hljs_css,
-  xml:        hljs_xml,
-  html:       hljs_xml, // highlight.js xml module handles html
-  sql:        hljs_sql,
-  go:         hljs_go,
-  rust:       hljs_rust,
-  java:       hljs_java,
-  cpp:        hljs_cpp,
-  csharp:     hljs_csharp,
-  ruby:       hljs_ruby,
-  php:        hljs_php,
-  swift:      hljs_swift,
-  kotlin:     hljs_kotlin,
-  yaml:       hljs_yaml,
-  markdown:   hljs_markdown,
-  diff:       hljs_diff,
-};
+// ─── rehype-highlight language map (#446 / #552) ─────────────────────────────
+//
+// #552: HIGHLIGHT_LANGUAGES is now imported from ../utils/markdownHighlight.
+// The local copy (21 hljs imports + object literal) has been removed.
+// #553: markdown language has also been dropped (~2–3 kB gzip savings).
 
 // ─── rehype plugin array (order-sensitive) ────────────────────────────────────
 
