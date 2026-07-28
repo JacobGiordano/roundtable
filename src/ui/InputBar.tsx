@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useId, useEffect } from 'react';
+import { useRef, useState, useCallback, useId, useEffect, lazy, Suspense } from 'react';
 import type { Attachment, ModelConfig, ModelId, BuiltInModelId } from '@/types';
 // #382: AtMentionAutocomplete — popover for @model autocomplete in the textarea.
 import { AtMentionAutocomplete, filterModels } from './components/AtMentionAutocomplete';
@@ -17,7 +17,11 @@ import { useAttachments } from './hooks/useAttachments';
 // #285: VisionWarningModal — pre-send warning when some active models lack vision support.
 import { VisionWarningModal } from './components/VisionWarningModal';
 // #332: ProxyOnboardingModal — first-run setup guide shown when no proxy is configured in PROD.
-import { ProxyOnboardingModal } from './components/ProxyOnboardingModal';
+// Wave 31b (Tempo): lazy-loaded — only rendered when pendingProxySend is set (PROD-only,
+// first send with no proxy configured). Never on the initial render path.
+const ProxyOnboardingModal = lazy(() =>
+  import('./components/ProxyOnboardingModal').then((m) => ({ default: m.ProxyOnboardingModal })),
+);
 // Cross-agent exception: getProviderRoster is a Gate pure-read utility imported here to
 // check per-provider vision capability at send time for the pre-send warning modal (#285).
 // Does not cross the model or storage boundaries. Same permitted-exception pattern as
@@ -940,13 +944,18 @@ export function InputBar({
       )}
 
       {/* Proxy onboarding modal (#332) — first-run setup when no proxy is configured in PROD.
-          Saves via Gate (saveProxyConfig) then re-submits the original message. */}
+          Saves via Gate (saveProxyConfig) then re-submits the original message.
+          Wave 31b (Tempo): Suspense wraps the lazy ProxyOnboardingModal; fallback is null
+          because the modal only shows on first proxy-less send — chunk fetch latency is
+          acceptable in this one-time flow. */}
       {pendingProxySend && (
-        <ProxyOnboardingModal
-          onSaveAndContinue={handleProxyModalContinue}
-          onDismiss={handleProxyModalDismiss}
-          returnFocusRef={focusReturnRef as React.RefObject<HTMLElement | null>}
-        />
+        <Suspense fallback={null}>
+          <ProxyOnboardingModal
+            onSaveAndContinue={handleProxyModalContinue}
+            onDismiss={handleProxyModalDismiss}
+            returnFocusRef={focusReturnRef as React.RefObject<HTMLElement | null>}
+          />
+        </Suspense>
       )}
 
       {/* Edit mode banner (#162) */}

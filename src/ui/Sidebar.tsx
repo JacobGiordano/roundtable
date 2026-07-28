@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Conversation } from '@/types';
 // Gate cross-agent exception: ApiKeyPanel and TokenCountControl are self-contained
 // Gate components mounted here per the issue spec. They manage their own state
@@ -9,7 +9,8 @@ import type { Conversation } from '@/types';
 // getSidebarWidth, saveSidebarWidth, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX: Gate
 // persistence functions for drag-resize UI (#62) — permitted exception per CLAUDE.md.
 import {
-  ApiKeyPanel,
+  // Wave 31b (Tempo): ApiKeyPanel is lazy-loaded (see below) — only the non-component
+  // Gate utilities remain in the static import.
   TokenCountControl,
   getRequiredCredentialKeys,
   getModelAccentColors,
@@ -25,12 +26,17 @@ import {
   getThemePreference,
   // Gate cross-agent exception (#279): user message accent color persistence API.
   // getUserAccentColor reads the stored hex (null = use theme default).
-  // setUserAccentColor / clearUserAccentColor are called by UserAccentColorPicker.
   getUserAccentColor,
   // Gate cross-agent exception (#286): getProviderRoster reads the roster so
   // applyRosterAccentColors can reinitialise --accent-custom-{id} vars on theme change.
   getProviderRoster,
 } from '@/auth';
+// Wave 31b (Tempo): ApiKeyPanel is lazy-loaded so it (and its exclusive transitive
+// dependencies — credentialTest, providerRoster) stay out of the initial bundle.
+// It only renders when the settings panel is open — a natural lazy boundary.
+const ApiKeyPanel = lazy(() =>
+  import('@/auth/ApiKeyPanel').then((m) => ({ default: m.ApiKeyPanel })),
+);
 import { groupConversations } from './groupConversations';
 // #136: sidebarUtils extracted pure functions — filterByArchiveStatus, deriveExistingGroups,
 // and the ArchiveFilter type live in sidebarUtils.ts so they can be unit-tested
@@ -43,7 +49,11 @@ import { filterByArchiveStatus, filterBySearchQuery, deriveExistingGroups, type 
 // for JSON — these live in theme.ts so both main.tsx and Sidebar share the same map).
 import { applyUserAccentColors, applyRosterAccentColors, applyTheme, applyUserMessageColor, THEME_MAP, THEME_IDS } from './theme';
 // #279: UserAccentColorPicker — color picker popover for the user's message accent.
-import { UserAccentColorPicker } from './UserAccentColorPicker';
+// Wave 31b (Tempo): lazy-loaded — only rendered when the user opens the settings panel
+// and then clicks the accent swatch. Never on the initial render path.
+const UserAccentColorPicker = lazy(() =>
+  import('./UserAccentColorPicker').then((m) => ({ default: m.UserAccentColorPicker })),
+);
 import type { ThemeId } from '@/types';
 import { RoundtableLogo } from './RoundtableLogo';
 // #150: shared ChevronIcon replaces the down-chevron SVG in the settings toggle.
@@ -63,11 +73,15 @@ import { BulkActionBar } from './components/sidebar/BulkActionBar';
 import { SearchBar } from './components/sidebar/SearchBar';
 import { ArchiveToggle, GroupHeader, ThreadSkeleton } from './components/sidebar/SidebarChrome';
 // #170: BackendServerPanel — Backend Server section in the settings panel.
-// Aria owns this component; it imports Gate functions via the sanctioned exception path.
-import { BackendServerPanel } from './BackendServerPanel';
+// Wave 31b (Tempo): lazy-loaded — only rendered when the settings panel is open.
+const BackendServerPanel = lazy(() =>
+  import('./BackendServerPanel').then((m) => ({ default: m.BackendServerPanel })),
+);
 // #332: ProxySettingsPanel — Connection Proxy section in the settings panel.
-// Aria owns this component; it imports Gate proxy functions via the sanctioned exception path.
-import { ProxySettingsPanel } from './ProxySettingsPanel';
+// Wave 31b (Tempo): lazy-loaded — only rendered when the settings panel is open.
+const ProxySettingsPanel = lazy(() =>
+  import('./ProxySettingsPanel').then((m) => ({ default: m.ProxySettingsPanel })),
+);
 
 // #263: Tooltip always shows Ctrl+N — the handler uses e.ctrlKey (not e.metaKey).
 // Cmd+N / ⌘N is a reserved system/browser shortcut on Mac that cannot be reliably
@@ -939,20 +953,25 @@ export function Sidebar({
 
         {/* Expanded settings body */}
         {isSettingsOpen && (
+          // Wave 31b (Tempo): Suspense wraps the settings panel because ApiKeyPanel,
+          // BackendServerPanel, and ProxySettingsPanel are lazy-loaded. Fallback is null
+          // — the panel only opens on explicit user interaction, so a momentary empty
+          // state (chunk fetch time is negligible on repeat visits) is acceptable.
+          <Suspense fallback={null}>
           <div
             id="sidebar-settings-panel"
             className="px-4 pb-4 pt-2 flex flex-col gap-4 overflow-y-auto max-h-[60vh]"
           >
-            {/* API key management — Gate component, self-contained */}
+            {/* API key management — Gate component, lazy-loaded (wave 31b) */}
             <ApiKeyPanel requiredKeys={requiredKeys} />
 
             {/* Token count visibility preference — Gate component, self-contained */}
             <TokenCountControl />
 
-            {/* Backend Server — login/logout for self-hosted backend (#170) */}
+            {/* Backend Server — login/logout for self-hosted backend (#170), lazy-loaded (wave 31b) */}
             <BackendServerPanel onConnectionChange={onBackendConnectionChange} />
 
-            {/* Connection Proxy — CORS proxy config for hosted/GitHub Pages deployments (#332) */}
+            {/* Connection Proxy — CORS proxy config for hosted/GitHub Pages deployments (#332), lazy-loaded (wave 31b) */}
             <ProxySettingsPanel />
 
             {/* Theme switcher — 7 themes rendered as a grid of labeled buttons */}
@@ -1037,15 +1056,20 @@ export function Sidebar({
               </div>
             </div>
 
-            {/* UserAccentColorPicker popover — rendered at root via portal-like positioning */}
+            {/* UserAccentColorPicker popover — rendered at root via portal-like positioning.
+                Wave 31b (Tempo): separate Suspense so the settings panel body stays visible
+                while the picker chunk loads on first interaction (after settings open). */}
             {userAccentPickerOpen && userAccentAnchorRect && (
-              <UserAccentColorPicker
-                currentColor={userAccentCurrentColor}
-                anchorRect={userAccentAnchorRect}
-                onClose={handleUserAccentPickerClose}
-              />
+              <Suspense fallback={null}>
+                <UserAccentColorPicker
+                  currentColor={userAccentCurrentColor}
+                  anchorRect={userAccentAnchorRect}
+                  onClose={handleUserAccentPickerClose}
+                />
+              </Suspense>
             )}
           </div>
+          </Suspense>
         )}
       </div>
     </aside>
