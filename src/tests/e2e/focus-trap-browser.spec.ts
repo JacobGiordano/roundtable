@@ -65,25 +65,19 @@ async function openModelSelectorPanel(page: Page) {
 }
 
 /**
- * Activate Claude in the MSP so that ModelPill renders.
- * Claude starts inactive — activate via the "Add model" dropdown.
- * Precondition: MSP must already be open.
+ * Open the AccentColorPicker for Claude.
+ *
+ * After wave 31b's #528 auto-activation fix, the first model in the roster is
+ * activated automatically on fresh load when no stored defaults exist. With a
+ * single-entry roster (just Claude), Claude is already active when the MSP
+ * opens — the ModelPill and its palette button are visible immediately. The
+ * former activateClaudeInMSP() step (which tried to use the "Add model"
+ * dropdown) is no longer needed and has been removed.
  */
-async function activateClaudeInMSP(page: Page) {
-  const addModelBtn = page.getByRole('button', { name: 'Add model to conversation' });
-  await addModelBtn.click();
-  await page.waitForTimeout(100);
-  const claudeItem = page.getByRole('menuitem', { name: /claude/i }).first();
-  await expect(claudeItem).toBeVisible({ timeout: 2000 });
-  await claudeItem.click();
-  await page.waitForTimeout(200);
-}
-
-/** Open the AccentColorPicker for Claude. */
 async function openAccentColorPicker(page: Page) {
   await openModelSelectorPanel(page);
-  await activateClaudeInMSP(page);
-  // The palette button aria-label is "Customize accent color for {model.name}"
+  // Claude is auto-activated on fresh load (#528). The ModelPill and its
+  // palette button render immediately without any extra activation step.
   const paletteBtn = page.getByRole('button', { name: /customize accent color for claude/i });
   await expect(paletteBtn).toBeVisible({ timeout: 2000 });
   await paletteBtn.click();

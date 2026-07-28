@@ -44,6 +44,17 @@ type Page = import('@playwright/test').Page;
  */
 async function seedMinimalRoster(page: Page) {
   await page.addInitScript(({ rosterKey }) => {
+    // Clear all roundtable:* keys to prevent cross-test state contamination.
+    // When tests run sequentially in the same browser context, localStorage
+    // state from a previous test (stored defaults, leftover conversation keys,
+    // credential keys) can interfere with this test's expectations.
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('roundtable:')) keysToRemove.push(key);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
     const roster = [
       { kind: 'builtin', modelId: 'claude', credentialKey: 'anthropic', isVisible: true },
     ];
@@ -72,24 +83,34 @@ async function seedConversationWithMessage(
     ({ indexKey, convKeyName, conversationId, userContent, assistantContent }) => {
       const now = Date.now();
 
+      // Conversation must include all required fields from the Conversation type:
+      //   models, interactionMode, isGhost — these are non-optional and the App
+      //   crashes at activeConversation.models.find() if models is undefined.
+      // models: [] — no models stored in the conversation; App seeds active
+      //   models from the current roster state on load.
+      // interactionMode: 'parallel' — default broadcast mode.
+      // isGhost: false — persisted conversation (never reaches Ghost storage path).
       const conversation = {
         id: conversationId,
         title: 'Test conversation',
         messages: [
           {
             id: `${conversationId}-u1`,
-            role: 'user' as const,
+            role: 'user',
             content: userContent,
             timestamp: now - 2000,
           },
           {
             id: `${conversationId}-a1`,
-            role: 'assistant' as const,
+            role: 'assistant',
             content: assistantContent,
             modelId: 'claude',
             timestamp: now - 1000,
           },
         ],
+        models: [],
+        interactionMode: 'parallel',
+        isGhost: false,
         createdAt: now - 3000,
         updatedAt: now - 1000,
       };
@@ -325,6 +346,14 @@ test.describe('scenario 4 — error bubbles appear on failed model requests', ()
     // Seed a roster with Claude so the model is active in the conversation.
     // Also seed a credential so the send flow doesn't bail out before fetching.
     await page.addInitScript(({ rosterKey, credKey }) => {
+      // Clear all roundtable:* keys first to prevent cross-test contamination.
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('roundtable:')) keysToRemove.push(key);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+
       const roster = [
         { kind: 'builtin', modelId: 'claude', credentialKey: 'anthropic', isVisible: true },
       ];
@@ -376,15 +405,51 @@ test.describe('scenario 5 — empty state recovery affordance renders and activa
 
   test('no messages + no active models → "Add a model to get started" button present and opens model selector', async ({ page }) => {
     // Seed a provider that is in the roster but marked isVisible: false so it
-    // does not auto-activate in the conversation. This produces ConversationEmptyState
-    // State A ("No models active") instead of the OnboardingEmptyState.
-    await page.addInitScript(({ rosterKey }) => {
-      // A provider with isVisible: false — in the roster but not active in conversations.
+    // is not the default active model.
+    //
+    // IMPORTANT: we must also seed an empty conversation with Claude explicitly
+    // marked isActive: false in its models array. Without a seeded conversation,
+    // App's #528 auto-activation effect fires (it activates the first model when
+    // there is no active conversation and no stored defaults), putting Claude into
+    // activeModels before ConversationEmptyState renders. With a conversation
+    // present, App's conversation-seeding effect restores isActive: false from the
+    // conversation's models array and #528 is skipped (it guards on !activeConversation).
+    await page.addInitScript(({ rosterKey, indexKey, convKey }) => {
+      // Clear all roundtable:* keys first to prevent cross-test contamination.
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('roundtable:')) keysToRemove.push(key);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+      // A provider with isVisible: false — in the roster but explicitly inactive.
       const roster = [
         { kind: 'builtin', modelId: 'claude', credentialKey: 'anthropic', isVisible: false },
       ];
       localStorage.setItem(rosterKey, JSON.stringify(roster));
-    }, { rosterKey: ROSTER_KEY });
+
+      // Seed an empty conversation (no messages) with Claude in models but isActive: false.
+      // The conversation-seeding effect in App.tsx restores this state on load,
+      // overriding the #528 auto-activation which only runs when !activeConversation.
+      const now = Date.now();
+      const convId = 'scenario-5-empty-conv';
+      const conversation = {
+        id: convId,
+        title: 'Empty conversation',
+        messages: [],
+        models: [
+          { modelId: 'claude', name: 'Claude', color: 'accent-claude', isActive: false },
+        ],
+        interactionMode: 'parallel',
+        isGhost: false,
+        createdAt: now - 1000,
+        updatedAt: now - 1000,
+      };
+      const envelope = { schemaVersion: 1, data: conversation };
+      localStorage.setItem(indexKey, JSON.stringify([convId]));
+      localStorage.setItem(convKey, JSON.stringify(envelope));
+    }, { rosterKey: ROSTER_KEY, indexKey: INDEX_KEY, convKey: convKey('scenario-5-empty-conv') });
 
     await page.goto('/');
     await page.waitForSelector('[role="img"][aria-label="Roundtable"]', { timeout: 10000 });
