@@ -34,7 +34,7 @@
  *   grok-3, grok-3-mini: 16 384 output tokens
  *
  * DeepSeek
- *   deepseek-chat, deepseek-reasoner: 8 192 output tokens
+ *   deepseek-v4-flash, deepseek-v4-pro: 8 192 output tokens (conservative default; V4 Pro context window is 1M but output limit matches prior gen)
  *
  * Mistral
  *   mistral-large-latest, mistral-small-latest, open-mistral-nemo: 8 192 output tokens
@@ -60,7 +60,7 @@ export const MAX_TOKENS_GEMINI = 8_192;
 /** xAI Grok 3 — 16 384 output tokens. */
 export const MAX_TOKENS_GROK = 16_384;
 
-/** DeepSeek — 8 192 output tokens. */
+/** DeepSeek V4 — 8 192 output tokens (conservative shared default for V4 Flash and V4 Pro). */
 export const MAX_TOKENS_DEEPSEEK = 8_192;
 
 /** Mistral — 8 192 output tokens. */

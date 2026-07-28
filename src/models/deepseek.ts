@@ -53,7 +53,7 @@ export class DeepSeekModelProvider extends BaseOpenAIProvider {
    * Matches the `id` of the first entry in MODEL_REGISTRY's availableVersions for DeepSeek.
    */
   protected get defaultModel(): string {
-    return 'deepseek-chat';
+    return 'deepseek-v4-flash';
   }
 
   protected get maxTokens(): number {

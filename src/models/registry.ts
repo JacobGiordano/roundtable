@@ -197,14 +197,9 @@ export const MODEL_REGISTRY: RegistryEntryWithDeprecation[] = [
     providerName: 'DeepSeek',
     color: 'accent-deepseek',
     defaultActive: false,
-    // DeepSeek APIs will stop responding 2026-07-24. Do not remove this entry
-    // until after that date so in-flight sessions can drain gracefully.
-    // Aria reads `deprecated` and `deprecationDate` to show a warning banner.
-    deprecated: true,
-    deprecationDate: '2026-07-24',
     availableVersions: [
-      { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: 'Deprecated 2026-07-24 — migrate to another provider' },
-      { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: 'Deprecated 2026-07-24 — migrate to another provider' },
+      { id: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', description: 'Fast — default' },
+      { id: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', description: 'Extended thinking, 1M context' },
     ],
     // OpenRouter no-key discovery: first tier of fallback chain.
     openrouterPrefix: 'deepseek',
