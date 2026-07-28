@@ -152,12 +152,16 @@ test.describe('scenario 1 — copy button dropdown is not clipped by bubble over
     await page.waitForSelector('.bubble-entering', { timeout: 5000 });
 
     // Hover over the assistant bubble to reveal the copy button.
+    // Re-locate after waitForSelector to guarantee we hover the actual rendered element.
     const assistantBubble = page.locator('.bubble-entering').filter({ hasText: 'This is a test response' });
+    await assistantBubble.waitFor({ state: 'visible', timeout: 5000 });
     await assistantBubble.hover();
 
     // The chevron button ("More copy options") opens the dropdown portal.
+    // Use a longer timeout to give CSS hover transitions time to complete and
+    // the button to become visible — this avoids the race that caused CI flakiness.
     const chevronButton = assistantBubble.getByRole('button', { name: 'More copy options' });
-    await expect(chevronButton).toBeVisible({ timeout: 3000 });
+    await expect(chevronButton).toBeVisible({ timeout: 6000 });
     await chevronButton.click();
 
     // The dropdown is rendered via createPortal into document.body — it has
@@ -376,10 +380,20 @@ test.describe('scenario 4 — error bubbles appear on failed model requests', ()
     await page.goto('/');
     await page.waitForSelector('[role="img"][aria-label="Roundtable"]', { timeout: 10000 });
 
-    // Type a message and send it.
+    // Type a message into the input first. Once text is present AND the #528 model
+    // auto-activation effect has fired (setting Claude active), the send button
+    // transitions from disabled to enabled. We wait for that enabled state before
+    // clicking — this eliminates the race between React's async defaults-loading +
+    // model activation and the test's send action.
     const messageInput = page.getByRole('textbox', { name: 'Message input' });
     await messageInput.fill('Hello, this message should error');
-    await page.getByRole('button', { name: 'Send message' }).click();
+
+    // Wait for the send button to become enabled. The button is disabled when
+    // canSend is false — which includes the period before the auto-activation
+    // effect fires and sets activeModelCount > 0. Once enabled, it is safe to click.
+    const sendButton = page.getByRole('button', { name: 'Send message' });
+    await expect(sendButton).toBeEnabled({ timeout: 5000 });
+    await sendButton.click();
 
     // An error bubble must appear. The error path renders a div[role="alert"]
     // inside the assistant bubble body zone (MessageBubble.tsx line ~1318).
