@@ -986,7 +986,7 @@ export default function App() {
         updatedAt: Date.now(),
       });
     }
-  }, [store.activeConversationId, store]);
+  }, [store]);
 
   const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
     const updatedSystemPrompt = value || undefined;
