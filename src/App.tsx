@@ -176,10 +176,9 @@ export default function App() {
   // Per-conversation system prompt (#408): shared system prompt sent to all models
   // on every message. Stored as a Map so switching between conversations preserves
   // each one's prompt independently. Value defaults to '' (empty — no prompt set).
-  //
-  // Type gap: Conversation has no systemPrompt field (Arch owns types/index.ts).
-  // Full persistence across page reloads requires Arch to add this field.
-  // Until then this is ephemeral — lost on reload.
+  // Seeded from conversationSystemPrompt on the Conversation object when the user
+  // switches conversations or the store finishes loading (see useEffect below).
+  // Persisted back via store.updateConversation() in handleUpdateConversationSystemPrompt.
   const [conversationSystemPrompts, setConversationSystemPrompts] = useState<Map<string, string>>(
     new Map(),
   );
@@ -374,6 +373,17 @@ export default function App() {
         return { ...m, isActive: savedModel.isActive };
       }),
     );
+
+    // Seed the conversation system prompt from the persisted value (#408).
+    // When activeConversation changes (switch or page load), restore the
+    // stored prompt into the ephemeral Map so the bar reflects the saved value.
+    if (activeConversation.conversationSystemPrompt) {
+      setConversationSystemPrompts((prev) => {
+        const next = new Map(prev);
+        next.set(activeConversation.id, activeConversation.conversationSystemPrompt!);
+        return next;
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isLoading, activeConversation?.id]);
 
@@ -966,7 +976,17 @@ export default function App() {
       }
       return next;
     });
-  }, [store.activeConversationId]);
+    // Persist the prompt to storage so it survives page reloads.
+    // Ghost-mode guard: ghost conversations are in-memory only; no storage write.
+    const conv = store.getActiveConversation();
+    if (conv && !conv.isGhost) {
+      void store.updateConversation({
+        ...conv,
+        conversationSystemPrompt: value.trim() === '' ? undefined : value,
+        updatedAt: Date.now(),
+      });
+    }
+  }, [store.activeConversationId, store]);
 
   const handleUpdateSystemPrompt = (modelId: ModelId, value: string) => {
     const updatedSystemPrompt = value || undefined;
