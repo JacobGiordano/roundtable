@@ -5,7 +5,7 @@
  * restore it across sessions.
  *
  * Storage key : 'roundtable:ui-sidebar-width'  (localStorage only)
- * Default     : 280 (px) — matches the hardcoded sidebar width prior to #62
+ * Default     : 330 (px) — wide enough for 4 header icons (logo + ghost + collapse + new + gear)
  *
  * Rules:
  *   - localStorage is the sole persistence layer
@@ -25,13 +25,13 @@ const SIDEBAR_WIDTH_STORAGE_KEY = 'roundtable:ui-sidebar-width' as const;
 const LEGACY_SIDEBAR_WIDTH_STORAGE_KEY = 'rt-ui-sidebar-width' as const;
 
 /** Minimum sidebar width in pixels. Aria should enforce the same floor in the drag UI. */
-export const SIDEBAR_WIDTH_MIN = 278;
+export const SIDEBAR_WIDTH_MIN = 330;
 
 /** Maximum sidebar width in pixels. Aria should enforce the same ceiling in the drag UI. */
 export const SIDEBAR_WIDTH_MAX = 600;
 
-/** Default sidebar width in pixels — matches the pre-#62 hardcoded value. */
-export const SIDEBAR_WIDTH_DEFAULT = 280;
+/** Default sidebar width in pixels — wide enough for all 4 desktop header icons. */
+export const SIDEBAR_WIDTH_DEFAULT = 330;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -80,7 +80,7 @@ describe('getSidebarWidth', () => {
     vi.clearAllMocks();
   });
 
-  it('returns SIDEBAR_WIDTH_DEFAULT (280) when nothing is stored', () => {
+  it('returns SIDEBAR_WIDTH_DEFAULT (330) when nothing is stored', () => {
     expect(getSidebarWidth()).toBe(SIDEBAR_WIDTH_DEFAULT);
   });
 
@@ -117,13 +117,13 @@ describe('getSidebarWidth', () => {
   // ─── Migration path ─────────────────────────────────────────────────────────
 
   it('migrates legacy rt-ui-sidebar-width to roundtable:ui-sidebar-width on read', () => {
-    setLegacy(320);
+    setLegacy(340);
 
     const width = getSidebarWidth();
 
-    expect(width).toBe(320);
+    expect(width).toBe(340);
     // New key should now have the value.
-    expect(getCanonicalRaw()).toBe('320');
+    expect(getCanonicalRaw()).toBe('340');
     // Old key should be gone.
     expect(getLegacyRaw()).toBeNull();
   });
@@ -245,11 +245,11 @@ describe('round-trip consistency', () => {
   });
 
   it('legacy key migration round-trip: value survives migration intact', () => {
-    setLegacy(320);
+    setLegacy(340);
     const first = getSidebarWidth();
-    expect(first).toBe(320);
+    expect(first).toBe(340);
     // Subsequent reads come from canonical key.
-    expect(getSidebarWidth()).toBe(320);
+    expect(getSidebarWidth()).toBe(340);
     expect(getLegacyRaw()).toBeNull();
   });
 });
