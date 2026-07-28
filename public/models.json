@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-27",
+  "updated": "2026-07-28",
   "providers": {
     "anthropic": [
       {
@@ -209,10 +209,6 @@
         "displayName": "OpenAI: GPT-5 Codex"
       },
       {
-        "id": "gpt-5-chat",
-        "displayName": "OpenAI: GPT-5 Chat"
-      },
-      {
         "id": "gpt-5",
         "displayName": "OpenAI: GPT-5"
       },
@@ -267,10 +263,6 @@
       {
         "id": "o1-pro",
         "displayName": "OpenAI: o1-pro"
-      },
-      {
-        "id": "gpt-4o-search-preview",
-        "displayName": "OpenAI: GPT-4o Search Preview"
       },
       {
         "id": "o3-mini-high",
