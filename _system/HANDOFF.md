@@ -1,4 +1,4 @@
-Last updated: 2026-07-27 (wave 31 shipped — #408 complete)
+Last updated: 2026-07-28 (wave 31 fully shipped — #408, lazy panels, sidebar fix)
 
 ## Current phase
 
@@ -13,6 +13,7 @@ Phase 5 — Full gate process active.
 - Live version picker (#407): fully implemented in wave 26 via `useLiveVersionCatalog` hook — `resolveVersionCatalog` fans out to all registry entries in parallel
 - System prompt persistence (#408): seeded from `Conversation.conversationSystemPrompt` on load/switch; persisted via `store.updateConversation()` on edit; ghost guard in place
 - Lazy panel boundaries (wave 31): `ProviderSettingsPanel` and `ModelSelectorPanel` split into separate chunks; index chunk 345 kB → 237 kB raw / 88 → 64 kB gzip. `ProviderSettingsPanel` uses mount-once guard (`hasEverOpenedProvider`) — chunk defers to first click, panel stays mounted after so close animation works. Dev server does not show chunks; verify lazy loading against `npm run build && npx serve dist`.
+- Sidebar min/default width (wave 31): raised from 278/280 → 330 px. Four desktop header icons (ghost + collapse + new + gear) need ~324 px; old default clipped the gear via `overflow-hidden`. Stored values below 330 auto-migrate via `parseStoredWidth` out-of-range guard. If a 5th icon is added, recalculate: 5×32 + 4×4 + logo(152) + padding(32) = 360 px.
 
 ## Open issues
 
