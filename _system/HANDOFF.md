@@ -1,4 +1,4 @@
-Last updated: 2026-07-28 (wave 32 — DeepSeek V4 migration, docs pass, E2E fixes in progress)
+Last updated: 2026-07-28 (wave 32 — DeepSeek V4 migration #563, docs pass #562, E2E fixes #560/#561)
 
 ## Current phase
 
@@ -17,8 +17,7 @@ Phase 5 — Full gate process active.
 
 ## Open issues
 
-- #560 — E2E: AccentColorPicker focus-trap tests timing out (Scout in progress)
-- #561 — E2E: 4 scenario tests failing (Scout in progress)
+None — backlog clear.
 
 ## Next up (not yet filed as issues)
 
