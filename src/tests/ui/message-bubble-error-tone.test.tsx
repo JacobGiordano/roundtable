@@ -81,7 +81,7 @@ function getNameplateIconContainer(container: HTMLElement): Element | null {
 describe('MessageBubble error tone — auth_failure (#463)', () => {
   const AUTH_ERROR = makeError('auth_failure', 'Invalid API key provided by the user.');
 
-  it('renders KeyIcon (SVG with key circle at cx=5) in the nameplate for auth_failure', () => {
+  it('renders KeyIcon (SVG with key ring circle at cx=4.5) in the nameplate for auth_failure', () => {
     const { container } = render(
       <MessageBubble
         message={ERROR_MESSAGE}
@@ -94,10 +94,11 @@ describe('MessageBubble error tone — auth_failure (#463)', () => {
     const iconWrapper = getNameplateIconContainer(container);
     expect(iconWrapper).not.toBeNull();
 
-    // KeyIcon uses a circle with cx="5" cy="6.5" — the distinguishing shape.
+    // KeyIcon (#558 redesign) uses a circle ring at cx="4.5" cy="5.5" r="2.5"
+    // (axis-aligned paths; the prior diagonal-stroke design used cx="5" cy="6.5").
     const svg = iconWrapper!.querySelector('svg');
     expect(svg).not.toBeNull();
-    const keyCircle = svg!.querySelector('circle[cx="5"]');
+    const keyCircle = svg!.querySelector('circle[cx="4.5"]');
     expect(keyCircle).not.toBeNull();
   });
 
