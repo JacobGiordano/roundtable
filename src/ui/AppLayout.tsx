@@ -9,12 +9,23 @@ import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 const MessageThread = lazy(() =>
   import('./MessageThread').then((m) => ({ default: m.MessageThread })),
 );
+// Wave 31 (Tempo): ModelSelectorPanel and ProviderSettingsPanel lazy-loaded to
+// reduce the initial index chunk. Both panels are interaction-triggered (not on
+// initial paint), making them natural lazy boundaries. Named-export shim pattern
+// mirrors MessageThread above. ProviderSettingsPanel is the primary savings target
+// at 2518 lines; ModelSelectorPanel adds secondary savings at 642 lines.
+// Suspense fallback is null — panels only render when user opens them so a
+// null fallback produces no visible flash.
+const ModelSelectorPanel = lazy(() =>
+  import('./ModelSelectorPanel').then((m) => ({ default: m.ModelSelectorPanel })),
+);
+const ProviderSettingsPanel = lazy(() =>
+  import('./ProviderSettingsPanel').then((m) => ({ default: m.ProviderSettingsPanel })),
+);
 import { InputBar } from './InputBar';
 import { InteractionModeSwitcher } from './InteractionModeSwitcher';
 import { Sidebar } from './Sidebar';
-import { ModelSelectorPanel } from './ModelSelectorPanel';
 import { RoundtableLogo } from './RoundtableLogo';
-import { ProviderSettingsPanel } from './ProviderSettingsPanel';
 import { OnboardingEmptyState } from './OnboardingEmptyState';
 import { useRoundtable } from './RoundtableContext';
 // #147: shared icon system — MenuIcon, GearIcon, PlusIcon replace inline SVGs.
@@ -319,12 +330,16 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
       {/* Provider settings panel (#99) — fixed overlay, z-index:40.
           Rendered at AppLayout level so it overlays the main content area (not the sidebar).
           Width is derived from --sidebar-width CSS var (set by Sidebar.tsx) so it
-          respects the actual sidebar width rather than assuming a fixed pixel value. */}
-      <ProviderSettingsPanel
-        isOpen={isProviderPanelOpen}
-        onClose={handleCloseProviderSettings}
-        triggerRef={providerSettingsTriggerRef}
-      />
+          respects the actual sidebar width rather than assuming a fixed pixel value.
+          Suspense fallback is null — the panel is closed on first load so a null
+          fallback produces no visible flash (wave 31 lazy boundary). */}
+      <Suspense fallback={null}>
+        <ProviderSettingsPanel
+          isOpen={isProviderPanelOpen}
+          onClose={handleCloseProviderSettings}
+          triggerRef={providerSettingsTriggerRef}
+        />
+      </Suspense>
 
       {/* Main area — flex-1.
           id="main-content" is the skip-link target (WCAG 2.4.1).
@@ -539,19 +554,24 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
           <div className="flex items-end justify-between">
             {/* Model selector side — min-w-0 + overflow-hidden so it yields space to the switcher */}
             <div className="min-w-0 overflow-hidden flex-1 mr-3">
-              <ModelSelectorPanel
-                models={allModels}
-                onToggleModel={onToggleModel}
-                onAddModel={onAddModel}
-                onUpdateSystemPrompt={onUpdateSystemPrompt}
-                onSelectModelVersion={onSelectModelVersion}
-                onClearModelVersion={onClearModelVersion}
-                sessionUsage={sessionUsage}
-                tokenCountVisibility={tokenCountVisibility}
-                onOpenProviderSettings={handleOpenProviderSettings}
-                requestOpen={modelSelectorRequestOpen}
-                onRequestOpenHandled={handleModelSelectorRequestHandled}
-              />
+              {/* Suspense fallback is null — ModelSelectorPanel renders its pill row
+                  immediately but the initial paint cost is small; null avoids layout
+                  shift on first load (wave 31 lazy boundary). */}
+              <Suspense fallback={null}>
+                <ModelSelectorPanel
+                  models={allModels}
+                  onToggleModel={onToggleModel}
+                  onAddModel={onAddModel}
+                  onUpdateSystemPrompt={onUpdateSystemPrompt}
+                  onSelectModelVersion={onSelectModelVersion}
+                  onClearModelVersion={onClearModelVersion}
+                  sessionUsage={sessionUsage}
+                  tokenCountVisibility={tokenCountVisibility}
+                  onOpenProviderSettings={handleOpenProviderSettings}
+                  requestOpen={modelSelectorRequestOpen}
+                  onRequestOpenHandled={handleModelSelectorRequestHandled}
+                />
+              </Suspense>
             </div>
             {/* Interaction mode switcher — flex-shrink-0 so it always renders at natural width */}
             <div className="mb-2 flex-shrink-0">
