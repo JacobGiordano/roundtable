@@ -108,12 +108,14 @@ Available model versions: Mistral Large, Mistral Small, Mistral Nemo
 | **Credential key** | `deepseek` |
 | **Key format** | `sk-…` |
 | **Get a key** | [platform.deepseek.com/api-keys](https://platform.deepseek.com/api-keys) |
-| **Status** | **Deprecated — 2026-07-24** |
+| **Status** | Active |
 
-DeepSeek's API stopped accepting requests on 2026-07-24. The provider remains
-in the registry so that sessions that were using DeepSeek can drain gracefully,
-but no new conversations should use it. A deprecation warning is shown in the
-UI when DeepSeek is selected. Migrate to another provider.
+Available model versions:
+
+| Model ID | Display name | Notes |
+|---|---|---|
+| `deepseek-v4-flash` | DeepSeek V4 Flash | Fast — default |
+| `deepseek-v4-pro` | DeepSeek V4 Pro | Extended thinking, 1M context |
 
 ---
 
