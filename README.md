@@ -35,12 +35,14 @@ See the [deployment guide](docs/deployment.md) to get started.
   when you return to the bottom
 
 **Models & providers**
-- **Six built-in providers** — Claude (Anthropic), GPT-5.5 (OpenAI), Gemini
-  (Google), Grok (xAI), DeepSeek, and Mistral
+- **Six built-in providers** — Claude (Anthropic), GPT (OpenAI), Gemini
+  (Google), Grok (xAI), Mistral, and DeepSeek (deprecated 2026-07-24 — UI
+  warning shown)
 - **Custom OpenAI-compatible providers** — add any compatible endpoint
   (OpenRouter, Ollama, etc.) with inline edit, credential test, and capability
   toggles
-- **Model version picker** — choose the specific API model string per provider
+- **Live version picker** — choose the specific API model string per provider;
+  live model lists fetched from each provider's API when available
 - **Accent color customization** — set a distinct color per model for
   at-a-glance differentiation
 - **Token count display** — per-message usage shown in the nameplate; toggle
@@ -51,6 +53,8 @@ See the [deployment guide](docs/deployment.md) to get started.
   Markdown or HTML (images optional)
 - **Conversation management** — search/filter, rename, per-model visibility
   toggle, and sidebar grouping
+- **System prompts** — set a per-conversation system prompt applied to all
+  active models; persisted with the conversation
 - **Ghost mode** — browse and export past sessions without creating new history
 
 **UI & setup**
@@ -94,7 +98,7 @@ See the [deployment guide](docs/deployment.md) to get started.
 
 ### Run locally (without dev container)
 
-Requirements: Node 24+
+Requirements: Node 20+
 
 ```bash
 npm install
@@ -146,8 +150,15 @@ npm run build      # type-check + production build
 npm run lint       # ESLint (zero warnings policy)
 npm test           # Vitest watch mode
 npm run test:run   # Vitest single run
+npm run test:e2e   # Playwright end-to-end tests
 npm run typecheck  # tsc --noEmit
 ```
+
+## Documentation
+
+- [Deployment guide](docs/deployment.md) — proxy setup and self-hosted backend
+- [Provider reference](docs/providers.md) — API key sources, storage, and provider status
+- [Custom themes](docs/themes.md) — theme token schema and import guide
 
 ## Contributing
 

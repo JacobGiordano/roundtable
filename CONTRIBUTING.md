@@ -14,7 +14,7 @@ be rejected.
 | Agent | Owns | Never touches |
 |-------|------|---------------|
 | **Aria** | `/src/ui` | `/src/models`, `/src/storage`, `/src/auth` |
-| **Atlas** | `/src/models`, `/backend` | `/src/ui`, `/src/storage`, `/src/auth` |
+| **Atlas** | `/src/models` | `/src/ui`, `/src/storage`, `/src/auth` |
 | **Vault** | `/src/storage` | `/src/ui`, `/src/models`, `/src/auth` |
 | **Gate** | `/src/auth` | `/src/ui`, `/src/models`, `/src/storage` |
 | **Marque** | `/_design/brand/` | `/_design/tokens/`, `/_design/themes/`, `/_design/specs/`, `/src/**`, root-level docs, `CLAUDE.md`, `_system/` |
@@ -26,8 +26,12 @@ be rejected.
 | **Spark** | *(called by Aria)* | Produces micro-interaction specs; no directory ownership |
 | **Coda** | *(coordinator)* | Sequences agents; no directory ownership |
 | **Flint** | *(reviewer)* | Read-only phase gate; no directory ownership |
-| **Forge** | `.github/workflows/` | `/src/**`, `/backend/src/**`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, root-level docs, `CLAUDE.md` |
+| **Forge** | `.github/workflows/`, `/backend/src/` (security middleware, rate limiting, infrastructure-level concerns only) | `/src/**`, `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, root-level docs, `CLAUDE.md` |
 | **Bastion** | `/backend/tests/` | `/backend/src/**`, `/src/**`, root-level docs, `CLAUDE.md` |
+| **Gauge** | *(cross-cutting reviewer — no directory ownership)* | Reads all dirs; proposes fixes only — never commits |
+| **Tempo** | *(cross-cutting performance reviewer — no directory ownership)* | Reads all dirs; proposes fixes only — never commits |
+| **Rune** | *(cross-cutting security reviewer — no directory ownership)* | Reads all dirs; proposes fixes only — never commits |
+| **Vera** | *(cross-cutting privacy advisor — no directory ownership)* | Reads all dirs; proposes fixes only — never commits |
 
 Cross-agent communication happens **only** through the interfaces defined in
 `/src/types/index.ts`. If your change needs something from another agent's
@@ -92,8 +96,12 @@ what's in flight. Always check `HANDOFF.md` before starting work.
 | **Spark** | Micro-interactions and delight work (called by Aria in Phase 2+) |
 | **Coda** | Multi-agent coordination, phase kickoff, dependency sequencing |
 | **Flint** | Phase gate validation — verifies acceptance criteria before advancing |
-| **Forge** | GitHub Actions workflows — lint, build, test, release, docker publish; ensures every PR is validated and every release is reproducible |
+| **Forge** | GitHub Actions workflows and `/backend/src/` infrastructure — lint, build, test, release, docker publish, security middleware, and rate limiting |
 | **Bastion** | Backend test suite in `/backend/tests/` — API integration tests, route tests, auth flow tests, database contract tests; counterpart to Scout |
+| **Gauge** | Cross-cutting code reviewer — logic bugs, dead code, and correctness checks across all agent domains; called before PRs with non-trivial logic changes |
+| **Tempo** | Cross-cutting performance engineer — bundle size, streaming latency, render throughput; called when bundle size grows or streaming behavior changes |
+| **Rune** | Cross-cutting security reviewer — OWASP Top 10, secure code review, API key hygiene; called before PRs touching auth flows, key handling, or backend routes |
+| **Vera** | Cross-cutting privacy advisor — PII scope, retention posture, ghost session guarantees, export safety; called when storage formats or export features change |
 
 ### One issue per agent per session
 
@@ -107,7 +115,6 @@ cross-agent collisions.
 - `npm run build` passes
 - No imports outside your assigned directory (except documented exceptions)
 - No modifications to `/src/types/index.ts` without going through Arch
-- `HANDOFF.md` updated before the final commit
 
 ## Branch naming
 

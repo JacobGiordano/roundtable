@@ -2,7 +2,7 @@
 
 Closes #
 
-**Agent:** (Aria / Atlas / Vault / Gate / Luma / Arch / Quill / Spark / Coda / Flint)
+**Agent:** (Aria / Atlas / Vault / Gate / Luma / Marque / Arch / Quill / Scout / Ada / Spark / Forge / Bastion / Gauge / Tempo / Rune / Vera / Coda / Flint)
 
 Brief description of what this PR does and why.
 
