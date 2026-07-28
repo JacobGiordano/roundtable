@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-26",
+  "updated": "2026-07-27",
   "providers": {
     "anthropic": [
       {
@@ -267,10 +267,6 @@
       {
         "id": "o1-pro",
         "displayName": "OpenAI: o1-pro"
-      },
-      {
-        "id": "gpt-4o-mini-search-preview",
-        "displayName": "OpenAI: GPT-4o-mini Search Preview"
       },
       {
         "id": "gpt-4o-search-preview",
