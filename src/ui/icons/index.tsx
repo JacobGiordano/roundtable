@@ -413,13 +413,19 @@ export function CopyIcon({ size = 14, className }: IconProps) {
 /**
  * Key icon. Used in auth_failure error state in MessageBubble (#463).
  * Communicates "credential problem" rather than a generic alarm.
+ *
+ * #558 — redesigned with axis-aligned paths: circle ring on the left,
+ * horizontal shaft, two downward teeth. Diagonal strokes in the prior design
+ * produced visual artefacts at 13px that resembled interlocked ovals.
  */
 export function KeyIcon({ size = 14, className }: IconProps) {
   return iconSvg(size, className, { viewBox: '0 0 14 14' }, (
     <>
-      <circle cx="5" cy="6.5" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+      {/* Key ring */}
+      <circle cx="4.5" cy="5.5" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+      {/* Horizontal shaft + two downward teeth */}
       <path
-        d="M7 7.5l1 1 3-3M10.5 6l1 1"
+        d="M7 5.5H12.5M9.5 5.5V8M11.5 5.5V7"
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"

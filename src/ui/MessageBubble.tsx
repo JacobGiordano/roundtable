@@ -740,7 +740,6 @@ function MessageBubbleBase({
         // (which is the root cause of the #555 body-blank regression).
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isThinkingCondition, thinkingMounted]);
   // ^^ thinkingFading intentionally excluded from deps — see #555 regression fix note above.
 
