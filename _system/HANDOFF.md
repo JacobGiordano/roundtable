@@ -12,6 +12,7 @@ Phase 5 — Full gate process active.
 - KeyIcon redesign (wave 30): axis-aligned paths replace diagonal strokes — diagonal strokes at 13px anti-alias into interlocked-oval artefacts
 - Live version picker (#407): fully implemented in wave 26 via `useLiveVersionCatalog` hook — `resolveVersionCatalog` fans out to all registry entries in parallel
 - System prompt persistence (#408): seeded from `Conversation.conversationSystemPrompt` on load/switch; persisted via `store.updateConversation()` on edit; ghost guard in place
+- Lazy panel boundaries (wave 31): `ProviderSettingsPanel` and `ModelSelectorPanel` split into separate chunks; index chunk 345 kB → 237 kB raw / 88 → 64 kB gzip. `ProviderSettingsPanel` uses mount-once guard (`hasEverOpenedProvider`) — chunk defers to first click, panel stays mounted after so close animation works. Dev server does not show chunks; verify lazy loading against `npm run build && npx serve dist`.
 
 ## Open issues
 
@@ -19,8 +20,7 @@ None — backlog clear.
 
 ## Next up (not yet filed as issues)
 
-- Tempo: sourcemap analysis of 344 kB index chunk — `ModelSelectorPanel` / `ProviderSettingsPanel` as lazy-load candidates (~20–40 kB gzip savings)
-- Scout: fix pre-existing KeyIcon test failure — `message-bubble-error-tone.test.tsx` uses `circle[cx="5"]` selector, stale after wave 30 axis-aligned redesign
+- Tempo follow-on: sourcemap analysis of remaining 237 kB index chunk — further lazy-load candidates if any emerge
 
 ## Gotchas
 
