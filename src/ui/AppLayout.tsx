@@ -174,6 +174,10 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   // ProviderSettingsPanel is rendered at the AppLayout level (fixed positioning,
   // z-index:40 per spec) so it overlays the main content area without touching the sidebar.
   const [isProviderPanelOpen, setIsProviderPanelOpen] = useState(false);
+  // Mount-once guard: ProviderSettingsPanel stays out of the DOM until first open,
+  // then remains mounted so the close animation plays correctly. The lazy chunk
+  // only fetches on first click — not on initial page load.
+  const [hasEverOpenedProvider, setHasEverOpenedProvider] = useState(false);
   // Ref to the sidebar gear icon button — ProviderSettingsPanel uses this to
   // return focus on close, per the accessibility spec.
   // Typed as RefObject<HTMLButtonElement> (not |null) so it matches Sidebar's prop type.
@@ -183,7 +187,10 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   // to return focus after closing the drawer (WCAG 2.1.2 + 2.4.3).
   const hamburgerTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const handleOpenProviderSettings = useCallback(() => setIsProviderPanelOpen(true), []);
+  const handleOpenProviderSettings = useCallback(() => {
+    setIsProviderPanelOpen(true);
+    setHasEverOpenedProvider(true);
+  }, []);
   const handleCloseProviderSettings = useCallback(() => {
     setIsProviderPanelOpen(false);
     // Notify App that the panel closed so it can re-read the roster.
@@ -333,13 +340,15 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
           respects the actual sidebar width rather than assuming a fixed pixel value.
           Suspense fallback is null — the panel is closed on first load so a null
           fallback produces no visible flash (wave 31 lazy boundary). */}
-      <Suspense fallback={null}>
-        <ProviderSettingsPanel
-          isOpen={isProviderPanelOpen}
-          onClose={handleCloseProviderSettings}
-          triggerRef={providerSettingsTriggerRef}
-        />
-      </Suspense>
+      {hasEverOpenedProvider && (
+        <Suspense fallback={null}>
+          <ProviderSettingsPanel
+            isOpen={isProviderPanelOpen}
+            onClose={handleCloseProviderSettings}
+            triggerRef={providerSettingsTriggerRef}
+          />
+        </Suspense>
+      )}
 
       {/* Main area — flex-1.
           id="main-content" is the skip-link target (WCAG 2.4.1).
