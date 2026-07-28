@@ -1,4 +1,4 @@
-Last updated: 2026-07-27 (waves 29 + 30 shipped)
+Last updated: 2026-07-27 (wave 31 shipped — #408 complete)
 
 ## Current phase
 
@@ -11,16 +11,16 @@ Phase 5 — Full gate process active.
 - Bundle audit (wave 29): GREEN vs. wave 27 baseline; lazy boundary working correctly
 - KeyIcon redesign (wave 30): axis-aligned paths replace diagonal strokes — diagonal strokes at 13px anti-alias into interlocked-oval artefacts
 - Live version picker (#407): fully implemented in wave 26 via `useLiveVersionCatalog` hook — `resolveVersionCatalog` fans out to all registry entries in parallel
-
-## Follow-on issues to file (next session)
-
-- Aria: wire App state ephemeral Map → `conversation.conversationSystemPrompt` on save/load
-- Tempo follow-on: sourcemap analysis of 344 kB index chunk — `ModelSelectorPanel` / `ProviderSettingsPanel` as lazy-load candidates (~20–40 kB gzip savings)
+- System prompt persistence (#408): seeded from `Conversation.conversationSystemPrompt` on load/switch; persisted via `store.updateConversation()` on edit; ghost guard in place
 
 ## Open issues
 
-- #408 — feat(ui): system prompt support per conversation (Aria + Vault + Arch — large)
-- #558 — CLOSED this wave
+None — backlog clear.
+
+## Next up (not yet filed as issues)
+
+- Tempo: sourcemap analysis of 344 kB index chunk — `ModelSelectorPanel` / `ProviderSettingsPanel` as lazy-load candidates (~20–40 kB gzip savings)
+- Scout: fix pre-existing KeyIcon test failure — `message-bubble-error-tone.test.tsx` uses `circle[cx="5"]` selector, stale after wave 30 axis-aligned redesign
 
 ## Gotchas
 
