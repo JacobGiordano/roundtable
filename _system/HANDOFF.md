@@ -1,4 +1,4 @@
-Last updated: 2026-07-28 (wave 31b — index chunk analysis complete)
+Last updated: 2026-07-28 (wave 32 — DeepSeek V4 migration, docs pass, E2E fixes in progress)
 
 ## Current phase
 
@@ -17,18 +17,19 @@ Phase 5 — Full gate process active.
 
 ## Open issues
 
-None — backlog clear.
+- #560 — E2E: AccentColorPicker focus-trap tests timing out (Scout in progress)
+- #561 — E2E: 4 scenario tests failing (Scout in progress)
 
 ## Next up (not yet filed as issues)
 
-None — index chunk fully optimized. Critical path only remains in index bundle.
+None.
 
 ## Gotchas
 
 - ProxyNudge only renders in import.meta.env.PROD
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically
-- DeepSeek deprecated 2026-07-24 — UI warning + registry flags in place
+- DeepSeek V4 active — migrated from retired deepseek-chat/reasoner to deepseek-v4-flash/v4-pro (#563)
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable
