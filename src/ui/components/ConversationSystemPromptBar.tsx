@@ -6,10 +6,6 @@
  * Per-model system prompts (ModelConfig.systemPrompt) take precedence over this shared value
  * when both are set — that precedence rule is enforced by Atlas in sendMessage.ts.
  *
- * Persistence note: the Conversation type has no systemPrompt field (Arch owns types/index.ts).
- * This value is stored in App state (Map<conversationId, string>) and is lost on page reload.
- * Full persistence requires Arch to add `conversationSystemPrompt?: string` to Conversation —
- * see types gap note in session summary.
  *
  * Placement: rendered just above the model selector, below the message thread, in AppLayout.
  */
