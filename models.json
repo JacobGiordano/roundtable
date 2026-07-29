@@ -1,7 +1,15 @@
 {
-  "updated": "2026-07-15",
+  "updated": "2026-07-28",
   "providers": {
     "anthropic": [
+      {
+        "id": "claude-opus-5-fast",
+        "displayName": "Claude Opus 5 (Fast)"
+      },
+      {
+        "id": "claude-opus-5",
+        "displayName": "Claude Opus 5"
+      },
       {
         "id": "claude-sonnet-5",
         "displayName": "Anthropic: Claude Sonnet 5"
@@ -201,10 +209,6 @@
         "displayName": "OpenAI: GPT-5 Codex"
       },
       {
-        "id": "gpt-5-chat",
-        "displayName": "OpenAI: GPT-5 Chat"
-      },
-      {
         "id": "gpt-5",
         "displayName": "OpenAI: GPT-5"
       },
@@ -259,14 +263,6 @@
       {
         "id": "o1-pro",
         "displayName": "OpenAI: o1-pro"
-      },
-      {
-        "id": "gpt-4o-mini-search-preview",
-        "displayName": "OpenAI: GPT-4o-mini Search Preview"
-      },
-      {
-        "id": "gpt-4o-search-preview",
-        "displayName": "OpenAI: GPT-4o Search Preview"
       },
       {
         "id": "o3-mini-high",
@@ -334,6 +330,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-3.6-flash",
+        "displayName": "Google: Gemini 3.6 Flash"
+      },
+      {
+        "id": "gemini-3.5-flash-lite",
+        "displayName": "Google: Gemini 3.5 Flash Lite"
+      },
       {
         "id": "gemini-3.1-flash-lite-image",
         "displayName": "Google: Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)"

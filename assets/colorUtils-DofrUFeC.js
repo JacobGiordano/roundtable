@@ -1,0 +1,1 @@
+function r(n){const c=parseInt(n.slice(1,3),16)/255,s=parseInt(n.slice(3,5),16)/255,o=parseInt(n.slice(5,7),16)/255,t=i=>i<=.04045?i/12.92:Math.pow((i+.055)/1.055,2.4),e=t(c),a=t(s),l=t(o);return .2126*e+.7152*a+.0722*l}function L(n,c){const s=r(n),o=r(c),t=Math.max(s,o),e=Math.min(s,o);return(t+.05)/(e+.05)}export{L as c};
