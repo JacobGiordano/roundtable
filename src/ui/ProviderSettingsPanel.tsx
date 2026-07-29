@@ -1360,6 +1360,12 @@ function validateForm(
  * fields. Explains the /dev-proxy/<url> prefix for routing external URLs
  * through Vite's Node process (not subject to the container iptables firewall).
  *
+ * Only providers that block browser-side requests (CORS-blocking) need the
+ * prefix — Anthropic, xAI, DeepSeek, and Mistral have named proxy entries in
+ * vite.config.ts for exactly this reason. CORS-enabled providers (e.g.
+ * OpenRouter) should use a plain https:// URL; routing them through the proxy
+ * mangles the Authorization header and produces "Missing Authentication header."
+ *
  * Guarded by import.meta.env.DEV — Vite strips this block from production
  * builds entirely, so no dead code ships.
  */
@@ -1367,10 +1373,18 @@ function DevProxyHint() {
   if (!import.meta.env.DEV) return null;
   return (
     <p className="mt-2 text-[11px] text-text-muted leading-[1.5]">
-      In the dev container, prefix your endpoint URL with{' '}
-      <code className="font-mono">/dev-proxy/</code> to route it through Vite
-      (e.g.{' '}
-      <code className="font-mono break-all">/dev-proxy/https://openrouter.ai/api/v1/chat/completions</code>).
+      In the dev container, use{' '}
+      <code className="font-mono">/dev-proxy/</code> only for providers that
+      block browser-side requests (e.g.{' '}
+      <code className="font-mono break-all">
+        /dev-proxy/https://api.some-provider.com/v1
+      </code>
+      ).{' '}
+      <strong>
+        CORS-enabled providers like OpenRouter work with a plain{' '}
+        <code className="font-mono">https://</code> URL
+      </strong>{' '}
+      — no prefix needed.
     </p>
   );
 }
