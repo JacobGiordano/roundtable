@@ -1,4 +1,4 @@
-Last updated: 2026-07-28 (CI green — E2E scenario 1 race fix #561)
+Last updated: 2026-07-29 (custom provider dot color fix)
 
 ## Current phase
 
@@ -29,6 +29,7 @@ None.
 - GitHub Pages source MUST be gh-pages branch, not main
 - Backend CI uses Node 22 specifically
 - DeepSeek V4 active — migrated from retired deepseek-chat/reasoner to deepseek-v4-flash/v4-pro (#563)
+- Custom provider dot color fix: `getModelAccentCssValue` now returns `var(--accent-custom-{id})` for custom providers instead of raw roster hex — dots update live after AccentColorPicker changes, consistent with `resolveAccentCssColor`
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable
