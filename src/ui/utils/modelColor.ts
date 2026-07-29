@@ -145,17 +145,14 @@ export function getModelAccentCssValue(modelId: string): string {
     return `var(--${builtinToken})`;
   }
 
-  // Custom provider — look up roster for its stored color.
+  // Custom provider — route through the CSS var so AccentColorPicker overrides
+  // applied via applyUserAccentColors() are picked up at render time, consistent
+  // with resolveAccentCssColor(). applyRosterAccentColors() seeds this var on
+  // init and theme change, so the roster color is always the starting value.
   const roster = getProviderRoster();
-  const custom = roster.find(
-    (p) => p.kind === 'custom' && p.id === modelId,
-  );
-  if (custom && custom.kind === 'custom' && custom.color) {
-    const c = custom.color;
-    // Hex color (e.g. "#FF5500") — use directly.
-    if (c.startsWith('#')) return c;
-    // CSS token (e.g. "accent-other") — wrap in var().
-    return `var(--${c})`;
+  const custom = roster.find((p) => p.kind === 'custom' && p.id === modelId);
+  if (custom) {
+    return `var(--accent-custom-${sanitizeCustomAccentId(modelId)})`;
   }
 
   // Final fallback.
