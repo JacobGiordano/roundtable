@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import DOMPurify from 'dompurify';
 // #552: HIGHLIGHT_LANGUAGES extracted to shared util — eliminates 21 duplicated hljs imports.
 // #553: markdown language removed from the shared set (~2–3 kB gzip savings).
 import { HIGHLIGHT_LANGUAGES } from './utils/markdownHighlight';
@@ -213,6 +214,29 @@ function getModelDataAttr(modelId: string | undefined): string {
   return modelId ?? 'other';
 }
 
+// ─── Security: DOMPurify pre-sanitizer for streaming path (#566) ─────────────
+//
+// The streaming path feeds model output into ReactMarkdown. Without DOMPurify
+// pre-sanitization, a model response that contains raw HTML (e.g. a full HTML page
+// returned by Kimi K2.6) would be passed through the rehype pipeline, where the
+// defaultSchema allowlist permits many element types (div, span, p, etc.) to
+// survive as DOM nodes. This is an XSS vector and caused visible rendering
+// artifacts when the model returned a full HTML document.
+//
+// Fix: mirror the done-path (MarkdownContent.tsx sanitizeMarkdown) exactly.
+// ALLOWED_TAGS: [] removes every HTML element before react-markdown parses the
+// content, so only markdown-derived structure (not raw HTML tags) reaches the DOM.
+// This is defense in depth on top of rehypeSanitize (which remains in place).
+//
+// DOMPurify is already a project dependency (used in MarkdownContent.tsx).
+// No new npm dependency is introduced by this fix.
+function sanitizeMarkdownStreaming(raw: string): string {
+  return DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  });
+}
+
 // ─── Security: Safe URL schemes for the streaming link renderer (#414 / #415) ─
 //
 // The streaming-path <a> renderer previously checked:
@@ -281,10 +305,21 @@ const rehypePlugins: any[] = [
 // A true AST cache would require react-markdown to expose its remark/rehype
 // pipeline externally; that's not supported and the complexity isn't justified at
 // typical AI response lengths (1–4 kB). The memo wrapper is the correct minimal fix.
+//
+// #566: DOMPurify pre-sanitization is applied to content before passing to
+// ReactMarkdown. sanitizeMarkdownStreaming() strips all raw HTML tags (ALLOWED_TAGS: [])
+// so a model response containing a full HTML document cannot inject DOM nodes via
+// react-markdown's HTML-in-markdown handling. This matches the done-path security
+// posture in MarkdownContent.tsx (same DOMPurify call). React.memo still bails out
+// on identical sanitized strings — performance impact is negligible because
+// sanitizeMarkdownStreaming is O(n) and DOMPurify is highly optimized.
 const StableMarkdown = memo(function StableMarkdown({ content }: { content: string }) {
+  // #566: Strip raw HTML before react-markdown parses the content.
+  // Mirrors MarkdownContent.tsx sanitizeMarkdown() exactly (ALLOWED_TAGS: [], ALLOWED_ATTR: []).
+  const sanitized = sanitizeMarkdownStreaming(content);
   return (
     <ReactMarkdown rehypePlugins={rehypePlugins} components={markdownComponents}>
-      {content}
+      {sanitized}
     </ReactMarkdown>
   );
 });

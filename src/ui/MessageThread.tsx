@@ -291,7 +291,7 @@ export function MessageThread({
     });
   }, [models.length]);
 
-  // ─── Smart scroll (#161) ───────────────────────────────────────────────────
+  // ─── Smart scroll (#161 / #567) ──────────────────────────────────────────────
   // pinnedToBottom: true when the user is at (or near) the bottom of the
   // scroll container. Auto-scroll fires only when pinned. Stored in a ref
   // (not state) so toggling it never triggers a re-render by itself.
@@ -302,18 +302,48 @@ export function MessageThread({
   /** Scroll threshold in pixels — within this distance = "at bottom". */
   const SCROLL_THRESHOLD = 100;
 
+  // #567: Programmatic scroll guard.
+  //
+  // Root cause: during streaming, the auto-scroll useEffect fires on every
+  // streamingMessages update (every chunk). It checks pinnedToBottom.current and
+  // calls scrollToBottom('instant') which calls scrollIntoView(). The browser
+  // fires a 'scroll' event in response — but the passive scroll listener runs
+  // ASYNCHRONOUSLY in the event queue. If the user scrolls up and the next chunk
+  // arrives before the browser delivers the scroll event to our listener, the ref
+  // still reads true, and scrollToBottom fires again before the listener can unpin.
+  //
+  // Fix: set isProgrammaticScroll.current = true immediately before any programmatic
+  // scrollIntoView call. The scroll listener skips updating pinnedToBottom when this
+  // flag is set, then clears it via requestAnimationFrame (after the browser has
+  // processed the scroll event). User-initiated scrolls are never preceded by
+  // isProgrammaticScroll = true, so their scroll events reach the listener normally
+  // and correctly update pinnedToBottom.
+  const isProgrammaticScroll = useRef(false);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    isProgrammaticScroll.current = true;
     bottomRef.current?.scrollIntoView({ behavior });
+    // Clear the flag after the browser has processed the scroll event.
+    // rAF fires after the current frame's layout and paint, by which point
+    // the programmatic scroll event has been dispatched to all listeners.
+    requestAnimationFrame(() => {
+      isProgrammaticScroll.current = false;
+    });
     pinnedToBottom.current = true;
     setShowScrollButton(false);
   }, []);
 
   // Attach scroll listener to the container to track whether user is pinned.
+  // #567: Skip updating pinnedToBottom when the scroll was programmatic — only
+  // user-initiated scrolls should change the pinned/unpinned state.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
+      // Ignore scroll events caused by our own scrollIntoView calls.
+      if (isProgrammaticScroll.current) return;
+
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
