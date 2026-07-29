@@ -1,4 +1,4 @@
-Last updated: 2026-07-29 (DevProxyHint copy fix — #565)
+Last updated: 2026-07-29 (HTML rendering + auto-scroll fixes — #566, #567)
 
 ## Current phase
 
@@ -19,6 +19,7 @@ Phase 5 — Full gate process active.
 
 - #564 docs: add Setup Transfer section to README (Quill)
 
+
 ## Next up (not yet filed as issues)
 
 None.
@@ -31,6 +32,8 @@ None.
 - DeepSeek V4 active — migrated from retired deepseek-chat/reasoner to deepseek-v4-flash/v4-pro (#563)
 - Custom provider dot color fix: `getModelAccentCssValue` now returns `var(--accent-custom-{id})` for custom providers instead of raw roster hex — dots update live after AccentColorPicker changes, consistent with `resolveAccentCssColor`
 - DevProxyHint (#565): `/dev-proxy/` only for CORS-blocking providers; CORS-enabled providers (e.g. OpenRouter) use plain `https://` URL — routing through proxy mangles `Authorization` header
+- HTML rendering (#566): DOMPurify pre-sanitization (`ALLOWED_TAGS: []`) now applied to streaming path in `MessageBubble.tsx` — mirrors `MarkdownContent.tsx`; raw HTML in model responses stripped before ReactMarkdown parses it
+- Auto-scroll (#567): `isProgrammaticScroll` ref in `MessageThread.tsx` guards scroll listener — programmatic `scrollIntoView` no longer overwrites `pinnedToBottom`; scroll-up during streaming correctly pauses auto-scroll
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable
