@@ -162,11 +162,38 @@ test.describe('scenario 1 — copy button dropdown is not clipped by bubble over
     // the button to become visible — this avoids the race that caused CI flakiness.
     const chevronButton = assistantBubble.getByRole('button', { name: 'More copy options' });
     await expect(chevronButton).toBeVisible({ timeout: 6000 });
+
+    // Move the mouse to the chevron button position and hold it there before
+    // clicking. This prevents a click-outside handler from closing the dropdown
+    // if the cursor drifts away between hover and click in CI.
+    const chevronBox = await chevronButton.boundingBox();
+    if (chevronBox) {
+      await page.mouse.move(
+        chevronBox.x + chevronBox.width / 2,
+        chevronBox.y + chevronBox.height / 2
+      );
+    }
     await chevronButton.click();
 
     // The dropdown is rendered via createPortal into document.body — it has
     // aria-label="Copy options". We must find it outside the bubble's DOM subtree.
     const dropdown = page.locator('[aria-label="Copy options"]');
+
+    // Wait explicitly for the dropdown to be visible before calling boundingBox().
+    // In CI (preview build, slower paint), the dropdown can close between the
+    // toBeVisible() assertion and the subsequent boundingBox() call if the mouse
+    // drifts. Move the mouse to the dropdown itself to keep any hover-out handler
+    // from firing, then re-assert visibility immediately before measuring.
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    const dropdownBox = await dropdown.boundingBox();
+    if (dropdownBox) {
+      await page.mouse.move(
+        dropdownBox.x + dropdownBox.width / 2,
+        dropdownBox.y + dropdownBox.height / 2
+      );
+    }
+    // Re-confirm visible after moving mouse — if it closed, this will fail fast
+    // with a clear message instead of a cryptic null boundingBox.
     await expect(dropdown).toBeVisible({ timeout: 3000 });
 
     // Verify the dropdown is within the visible viewport bounds.
@@ -349,7 +376,7 @@ test.describe('scenario 4 — error bubbles appear on failed model requests', ()
   test('intercepted 500 from provider API → error bubble appears in thread', async ({ page }) => {
     // Seed a roster with Claude so the model is active in the conversation.
     // Also seed a credential so the send flow doesn't bail out before fetching.
-    await page.addInitScript(({ rosterKey, credKey }) => {
+    await page.addInitScript(({ rosterKey, credKey, proxyKey }) => {
       // Clear all roundtable:* keys first to prevent cross-test contamination.
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -364,17 +391,47 @@ test.describe('scenario 4 — error bubbles appear on failed model requests', ()
       localStorage.setItem(rosterKey, JSON.stringify(roster));
       // Seed a fake API key so the send flow proceeds to the network layer.
       localStorage.setItem(credKey, 'sk-ant-e2e-test-key');
-    }, { rosterKey: ROSTER_KEY, credKey: 'roundtable:key:anthropic' });
+      // Seed a fake proxy config so shouldShowProxyOnboarding() returns false in
+      // the production build. Without this, clicking Send opens the proxy onboarding
+      // modal instead of dispatching the fetch — the request never reaches the route
+      // intercept and no error bubble appears. A proxy URL causes resolveAnthropicApiUrl()
+      // to return `${proxyUrl}/anthropic/v1/messages`, which still matches the
+      // `**/v1/messages` Playwright route pattern used below.
+      localStorage.setItem(proxyKey, JSON.stringify({ url: 'https://e2e-test-proxy.example.com' }));
+    }, { rosterKey: ROSTER_KEY, credKey: 'roundtable:key:anthropic', proxyKey: 'roundtable:proxy-config' });
 
     // Intercept all requests to the Anthropic API and return a 500 error.
     // The Claude model provider fetches https://api.anthropic.com/v1/messages.
     // We intercept the pattern to catch both direct and proxied paths.
+    //
+    // In the production build (npm run build + vite preview), import.meta.env.DEV
+    // is false, so resolveAnthropicApiUrl() returns the cross-origin URL
+    // https://api.anthropic.com/v1/messages. The browser sends a CORS OPTIONS
+    // preflight before the POST. If the route handler returns 500 for OPTIONS,
+    // the browser treats it as a failed CORS preflight and blocks the POST with
+    // a TypeError (network error) — not an HTTP 500 — and the app's error path
+    // that renders role="alert" is never reached.
+    //
+    // Fix: respond to OPTIONS with a 200 + CORS headers so the preflight
+    // succeeds, then return 500 for the actual POST so the app renders the error.
     await page.route('**/v1/messages', (route) => {
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: { type: 'server_error', message: 'Internal server error' } }),
-      });
+      if (route.request().method() === 'OPTIONS') {
+        route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers':
+              'content-type, authorization, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access',
+          },
+        });
+      } else {
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { type: 'server_error', message: 'Internal server error' } }),
+        });
+      }
     });
 
     await page.goto('/');
