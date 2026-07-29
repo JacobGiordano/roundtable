@@ -1,4 +1,4 @@
-Last updated: 2026-07-28 (wave 32 — DeepSeek V4 migration #563, docs pass #562, E2E fixes #560/#561)
+Last updated: 2026-07-28 (CI green — E2E scenario 1 race fix #561)
 
 ## Current phase
 
