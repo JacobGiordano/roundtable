@@ -1,4 +1,4 @@
-Last updated: 2026-07-29 (custom provider dot color fix)
+Last updated: 2026-07-29 (DevProxyHint copy fix — #565)
 
 ## Current phase
 
@@ -17,7 +17,7 @@ Phase 5 — Full gate process active.
 
 ## Open issues
 
-None — backlog clear.
+- #564 docs: add Setup Transfer section to README (Quill)
 
 ## Next up (not yet filed as issues)
 
@@ -30,6 +30,7 @@ None.
 - Backend CI uses Node 22 specifically
 - DeepSeek V4 active — migrated from retired deepseek-chat/reasoner to deepseek-v4-flash/v4-pro (#563)
 - Custom provider dot color fix: `getModelAccentCssValue` now returns `var(--accent-custom-{id})` for custom providers instead of raw roster hex — dots update live after AccentColorPicker changes, consistent with `resolveAccentCssColor`
+- DevProxyHint (#565): `/dev-proxy/` only for CORS-blocking providers; CORS-enabled providers (e.g. OpenRouter) use plain `https://` URL — routing through proxy mangles `Authorization` header
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable
