@@ -179,26 +179,27 @@ test.describe('scenario 1 — copy button dropdown is not clipped by bubble over
     // aria-label="Copy options". We must find it outside the bubble's DOM subtree.
     const dropdown = page.locator('[aria-label="Copy options"]');
 
-    // Wait explicitly for the dropdown to be visible before calling boundingBox().
-    // In CI (preview build, slower paint), the dropdown can close between the
-    // toBeVisible() assertion and the subsequent boundingBox() call if the mouse
-    // drifts. Move the mouse to the dropdown itself to keep any hover-out handler
-    // from firing, then re-assert visibility immediately before measuring.
-    await expect(dropdown).toBeVisible({ timeout: 5000 });
-    const dropdownBox = await dropdown.boundingBox();
-    if (dropdownBox) {
-      await page.mouse.move(
-        dropdownBox.x + dropdownBox.width / 2,
-        dropdownBox.y + dropdownBox.height / 2
-      );
-    }
-    // Re-confirm visible after moving mouse — if it closed, this will fail fast
-    // with a clear message instead of a cryptic null boundingBox.
-    await expect(dropdown).toBeVisible({ timeout: 3000 });
+    // Atomic measurement: poll until the dropdown element exists in the DOM,
+    // has positive dimensions, and is positioned within the viewport — all in
+    // a single browser-side evaluation. This eliminates the async race window
+    // between toBeVisible() and boundingBox() that caused the null return in CI.
+    const dropdownHandle = await page.waitForFunction(
+      () => {
+        const el = document.querySelector('[aria-label="Copy options"]');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        return {
+          width: rect.width,
+          height: rect.height,
+          x: rect.x,
+          y: rect.y,
+        };
+      },
+      { timeout: 6000 }
+    );
 
-    // Verify the dropdown is within the visible viewport bounds.
-    // A clipped dropdown would have rect dimensions of 0 or be off-screen.
-    const dropdownRect = await dropdown.boundingBox();
+    const dropdownRect = await dropdownHandle.jsonValue();
     expect(
       dropdownRect,
       'Scenario 1 — Copy dropdown bounding box should not be null (element must be painted)'
