@@ -12,6 +12,10 @@ persistence.
 First time? Built-in providers need a one-time free proxy setup (~2 minutes).
 See the [deployment guide](docs/deployment.md) to get started.
 
+## Preview
+
+![Roundtable showing parallel responses from Claude, Gemini, and Mistral](docs/assets/screenshot-conversation.png)
+
 ## Features
 
 **Conversation modes**
@@ -36,8 +40,7 @@ See the [deployment guide](docs/deployment.md) to get started.
 
 **Models & providers**
 - **Six built-in providers** — Claude (Anthropic), GPT (OpenAI), Gemini
-  (Google), Grok (xAI), Mistral, and DeepSeek (deprecated 2026-07-24 — UI
-  warning shown)
+  (Google), Grok (xAI), Mistral, and DeepSeek
 - **Custom OpenAI-compatible providers** — add any compatible endpoint
   (OpenRouter, Ollama, etc.) with inline edit, credential test, and capability
   toggles
@@ -75,6 +78,8 @@ See the [deployment guide](docs/deployment.md) to get started.
 > **Image support:** Vision-capable models (Claude, OpenAI, Gemini, and compatible custom endpoints) accept image attachments via the clip button, drag-and-drop, or paste — a warning appears when targeting a non-vision provider. Select models can also return generated images: GPT supports image generation via `gpt-image-2`; Gemini supports it via `gemini-2.5-flash-image`. Image generation requires selecting the appropriate model version and enabling the per-model toggle in settings.
 
 ## Quick start
+
+> **For using the app:** See the [hosted version](#hosted-version) above — no setup required.
 
 ### Prerequisites
 

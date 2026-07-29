@@ -109,6 +109,29 @@ Each agent works exactly one issue per session, then stops. Do not begin a
 second issue without explicit authorization. This prevents scope creep and
 cross-agent collisions.
 
+## Contributing without the agent setup
+
+You don't need Claude Code or the agent configuration to contribute. The agent
+model is how the maintainer works — it's not required for external PRs.
+
+**Fixing a bug or typo**
+
+1. Identify which directory the code lives in (see the ownership table above)
+2. Make your change in a branch
+3. Run `npm run lint` and `npm run build` — both must pass
+4. Open a PR describing what you changed and why
+
+**Proposing a feature**
+
+Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). If
+the agent scope field is unclear, just describe what the feature does — the
+maintainer will route it.
+
+**Questions**
+
+Open a [GitHub Discussion](../../discussions) or file an issue with the `question`
+label.
+
 ## Before opening a PR
 
 - `npm run lint` passes (zero warnings)

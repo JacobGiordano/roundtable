@@ -2,7 +2,7 @@
 
 Closes #
 
-**Agent:** (Aria / Atlas / Vault / Gate / Luma / Marque / Arch / Quill / Scout / Ada / Spark / Forge / Bastion / Gauge / Tempo / Rune / Vera / Coda / Flint)
+**Scope:** Which area of the codebase does this touch? (See [CONTRIBUTING.md](CONTRIBUTING.md) for directory ownership)
 
 Brief description of what this PR does and why.
 
