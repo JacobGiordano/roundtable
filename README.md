@@ -24,6 +24,8 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 
 **Stop streaming** cancels all in-flight responses from every active model at once.
 
+![ChatGPT and Kimi K2.6 responding in parallel mid-stream to a home server question in Slate theme — ChatGPT has begun a formatted markdown response, Kimi shows a loading ellipsis, and the stop-streaming button is visible in the bottom right](docs/assets/screenshot-streaming.png)
+
 ## Models and providers
 
 ![Model selector panel showing the Active Models row with all providers, Model Versions section with version pickers for Claude and ChatGPT, and System Prompts section](docs/assets/screenshot-model-selector.png)
@@ -31,6 +33,8 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 Six providers are built in: **Claude** (Anthropic), **ChatGPT** (OpenAI), **Gemini** (Google), **Grok** (xAI), **Mistral**, and **DeepSeek**. Each gets a distinct accent color so you can tell them apart at a glance.
 
 The **live version picker** lets you choose the specific API model string per provider. Model lists are fetched live from each provider's API when available, so you're never looking at a stale hardcoded list.
+
+![Model selector panel with the ChatGPT version picker dropdown open, showing a live GPT-5.6 model list — Active Models row shows Claude, Gemini, ChatGPT, Grok, DeepSeek, Mistral, and Kimi K](docs/assets/screenshot-version-picker.png)
 
 **Custom OpenAI-compatible endpoints** can be added directly — paste the base URL and key, run a credential test, and configure capability toggles. Works with OpenRouter, Ollama, and any local model that speaks the OpenAI API format.
 
@@ -53,6 +57,9 @@ The **live version picker** lets you choose the specific API model string per pr
 - Session persistence — conversations saved to localStorage; exportable as Markdown or HTML (images optional)
 - Conversation management — search/filter, rename, per-model visibility toggle, sidebar grouping
 - System prompts — set a per-conversation system prompt applied to all active models; persisted with the conversation
+
+![Empty conversation with the system prompt editor open showing "Keep responses brief and to the point..." — Auto-chain mode toggle highlighted in the bottom bar, ChatGPT and Kimi K2.6 active, Slate theme](docs/assets/screenshot-system-prompt.png)
+
 - Ghost mode — browse and export past sessions without writing new history
 
 **UI and themes**
