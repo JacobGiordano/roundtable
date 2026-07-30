@@ -1,4 +1,4 @@
-Last updated: 2026-07-29 (screenshot refresh — 8 shots, README fully illustrated)
+Last updated: 2026-07-29 (README docs complete — Setup Transfer #564, copy/image audit)
 
 ## Current phase
 
@@ -17,7 +17,7 @@ Phase 5 — Full gate process active.
 
 ## Open issues
 
-- #564 docs: add Setup Transfer section to README (Quill)
+None — backlog clear.
 
 
 ## Next up (not yet filed as issues)
@@ -35,6 +35,8 @@ None.
 - HTML rendering (#566): DOMPurify pre-sanitization (`ALLOWED_TAGS: []`) now applied to streaming path in `MessageBubble.tsx` — mirrors `MarkdownContent.tsx`; raw HTML in model responses stripped before ReactMarkdown parses it
 - Auto-scroll (#567): `isProgrammaticScroll` ref in `MessageThread.tsx` guards scroll listener — programmatic `scrollIntoView` no longer overwrites `pinnedToBottom`; scroll-up during streaming correctly pauses auto-scroll
 - Screenshot refresh: 8 shots in `docs/assets/`, all browser-chrome-free. Covers parallel broadcast, auto-chain, streaming mid-flight, version picker, model selector, code comparison, provider settings, system prompt + auto-chain. README fully illustrated across all sections.
+- Setup Transfer docs (#564): step-by-step instructions + explicit "API keys never exported" callout added to README
+- README copy/image audit: fixed 4 mismatches — parallel "three angles" → "multiple angles", streaming theme label (Chalk not Slate), provider settings alt text (removed sections not in cropped image), removed broken screenshot cross-reference in Transfer Setup prose
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Coda worktree drift: always `git checkout main` before any merge operations
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable
