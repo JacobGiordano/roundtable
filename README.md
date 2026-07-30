@@ -2,7 +2,7 @@
 
 Talk with multiple AI models simultaneously in a shared chat thread — compare responses, chain models together, and direct follow-ups to exactly who you want.
 
-![Roundtable showing parallel responses from Claude, Gemini, and Mistral on the question "What's the best first programming language to learn?"](docs/assets/screenshot-parallel.png)
+![Roundtable showing parallel responses from ChatGPT, Claude, and Kimi K2.6 on "What's one thing you're particularly good at?" in Slate theme, with token counts and Reply-to buttons visible on each response](docs/assets/screenshot-parallel.png)
 
 ## Try it now
 
@@ -14,7 +14,7 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 
 ## Conversation modes
 
-![Auto-chain mode: Gemini builds on Claude's answer, Mistral synthesizes both](docs/assets/screenshot-autochain.png)
+![Auto-chain mode with four models — Kimi K2.6, Claude, Step 3.7 Flash, and ChatGPT — each giving a distinct answer to "Favorite Ninja Turtle, Go!" Auto-chain active in the bottom bar](docs/assets/screenshot-autochain.png)
 
 **Parallel broadcast** sends your message to every active model at once. Each responds independently — you see the same question answered from three different angles, side by side.
 
@@ -26,7 +26,7 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 
 ## Models and providers
 
-![Model selector panel showing active models, version picker, and system prompt configuration](docs/assets/screenshot-model-selector.png)
+![Model selector panel showing the Active Models row with all providers, Model Versions section with version pickers for Claude and ChatGPT, and System Prompts section](docs/assets/screenshot-model-selector.png)
 
 Six providers are built in: **Claude** (Anthropic), **ChatGPT** (OpenAI), **Gemini** (Google), **Grok** (xAI), **Mistral**, and **DeepSeek**. Each gets a distinct accent color so you can tell them apart at a glance.
 
@@ -34,9 +34,14 @@ The **live version picker** lets you choose the specific API model string per pr
 
 **Custom OpenAI-compatible endpoints** can be added directly — paste the base URL and key, run a credential test, and configure capability toggles. Works with OpenRouter, Ollama, and any local model that speaks the OpenAI API format.
 
+![Provider settings panel showing the built-in provider list, custom endpoint form with capability toggles, Transfer Setup section for exporting configuration, and Storage section](docs/assets/screenshot-provider-settings.png)
+
 ## More features
 
 **Messages**
+
+![Three models — Kimi K2.6, ChatGPT, and Claude — each returning a rendered code block for "Write the classic hello world console log in js" in Slate theme](docs/assets/screenshot-code-parallel.png)
+
 - Markdown rendering — headings, code blocks, lists, and inline formatting in all responses
 - Image attachments and vision — attach via clip button, drag-and-drop, or paste; warning shown when addressing a non-vision provider
 - Image generation — GPT supports it via `gpt-image-2`; Gemini via `gemini-2.5-flash-image`
