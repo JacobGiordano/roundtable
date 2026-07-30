@@ -38,7 +38,7 @@ The **live version picker** lets you choose the specific API model string per pr
 
 **Custom OpenAI-compatible endpoints** can be added directly — paste the base URL and key, run a credential test, and configure capability toggles. Works with OpenRouter, Ollama, and any local model that speaks the OpenAI API format.
 
-![Provider settings panel showing the built-in provider list with key status for each provider, and the custom endpoint form for adding an OpenAI-compatible endpoint with capability toggles and accent color picker](docs/assets/screenshot-provider-settings.png)
+![Custom endpoint form showing a Step 3.7 Flash provider being configured via OpenRouter — display name, endpoint URL, model string, and capability toggles (Vision, Tool use, System prompt) all visible](docs/assets/screenshot-provider-settings.png)
 
 ## More features
 
