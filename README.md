@@ -16,7 +16,7 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 
 ![Auto-chain mode with four models — Kimi K2.6, Claude, Step 3.7 Flash, and ChatGPT — each giving a distinct answer to "Favorite Ninja Turtle, Go!" Auto-chain active in the bottom bar](docs/assets/screenshot-autochain.png)
 
-**Parallel broadcast** sends your message to every active model at once. Each responds independently — you see the same question answered from three different angles, side by side.
+**Parallel broadcast** sends your message to every active model at once. Each responds independently — you see the same question answered from multiple angles, side by side.
 
 **Auto-chain** lets models build on each other. Responses go out in sequence; each model sees what the others said before it answers. Order shuffles each pass so no model always goes last. Use it when you want synthesis, not just comparison.
 
@@ -24,7 +24,7 @@ Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a b
 
 **Stop streaming** cancels all in-flight responses from every active model at once.
 
-![ChatGPT and Kimi K2.6 responding in parallel mid-stream to a home server question in Slate theme — ChatGPT has begun a formatted markdown response, Kimi shows a loading ellipsis, and the stop-streaming button is visible in the bottom right](docs/assets/screenshot-streaming.png)
+![ChatGPT and Kimi K2.6 responding in parallel mid-stream to a home server question in Chalk theme — ChatGPT has begun a formatted markdown response, Kimi shows a loading ellipsis, and the stop-streaming button is visible in the bottom right](docs/assets/screenshot-streaming.png)
 
 ## Models and providers
 
@@ -38,7 +38,7 @@ The **live version picker** lets you choose the specific API model string per pr
 
 **Custom OpenAI-compatible endpoints** can be added directly — paste the base URL and key, run a credential test, and configure capability toggles. Works with OpenRouter, Ollama, and any local model that speaks the OpenAI API format.
 
-![Provider settings panel showing the built-in provider list, custom endpoint form with capability toggles, Transfer Setup section for exporting configuration, and Storage section](docs/assets/screenshot-provider-settings.png)
+![Provider settings panel showing the built-in provider list with key status for each provider, and the custom endpoint form for adding an OpenAI-compatible endpoint with capability toggles and accent color picker](docs/assets/screenshot-provider-settings.png)
 
 ## More features
 
@@ -70,7 +70,7 @@ The **live version picker** lets you choose the specific API model string per pr
 
 **Transfer your setup**
 
-Move your provider configuration to a new device without re-entering every setting from scratch. The Transfer Setup section is visible in the provider settings screenshot above.
+Move your provider configuration to a new device without re-entering every setting from scratch. Find it in Settings (gear icon) → scroll to **Transfer setup** near the bottom of the provider panel.
 
 What transfers: which providers are configured, model selection, custom endpoints, capability toggles, and accent color.
 
@@ -78,10 +78,9 @@ What does not transfer: **API keys are never included in the export** — by des
 
 To transfer your setup:
 
-1. Open Settings (gear icon) and scroll to **Transfer setup** near the bottom of the provider panel.
-2. Click **Export setup** — downloads `roundtable-setup-YYYY-MM-DD.json`.
-3. On the new device, open Roundtable → Settings → **Transfer setup** → **Import setup** → select the file.
-4. Re-enter your API keys on the new device. Keys were not exported, so this step is required.
+1. Click **Export setup** — downloads `roundtable-setup-YYYY-MM-DD.json`.
+2. On the new device, open Roundtable → Settings → **Transfer setup** → **Import setup** → select the file.
+3. Re-enter your API keys on the new device. Keys were not exported, so this step is required.
 
 **Privacy**
 - Client-side first — API keys stay in your browser; never logged, never exported, never transmitted except directly to each provider's official API endpoint
