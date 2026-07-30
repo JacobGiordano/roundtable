@@ -67,7 +67,21 @@ The **live version picker** lets you choose the specific API model string per pr
 - Custom theme import — bring your own theme via JSON (must pass the full token schema)
 - Mobile-responsive layout — collapsible sidebar drawer with proper touch targets
 - Onboarding — guided first-run flow when no providers are configured
-- Setup transfer — export your provider configuration (API keys excluded) and import it on another device
+
+**Transfer your setup**
+
+Move your provider configuration to a new device without re-entering every setting from scratch. The Transfer Setup section is visible in the provider settings screenshot above.
+
+What transfers: which providers are configured, model selection, custom endpoints, capability toggles, and accent color.
+
+What does not transfer: **API keys are never included in the export** — by design, not oversight. You re-enter keys on the new device.
+
+To transfer your setup:
+
+1. Open Settings (gear icon) and scroll to **Transfer setup** near the bottom of the provider panel.
+2. Click **Export setup** — downloads `roundtable-setup-YYYY-MM-DD.json`.
+3. On the new device, open Roundtable → Settings → **Transfer setup** → **Import setup** → select the file.
+4. Re-enter your API keys on the new device. Keys were not exported, so this step is required.
 
 **Privacy**
 - Client-side first — API keys stay in your browser; never logged, never exported, never transmitted except directly to each provider's official API endpoint
