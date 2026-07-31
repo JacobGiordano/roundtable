@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-30",
+  "updated": "2026-07-31",
   "providers": {
     "anthropic": [
       {
@@ -253,20 +253,8 @@
         "displayName": "OpenAI: GPT-5 Image"
       },
       {
-        "id": "o3-deep-research",
-        "displayName": "OpenAI: o3 Deep Research"
-      },
-      {
-        "id": "o4-mini-deep-research",
-        "displayName": "OpenAI: o4 Mini Deep Research"
-      },
-      {
         "id": "gpt-5-pro",
         "displayName": "OpenAI: GPT-5 Pro"
-      },
-      {
-        "id": "gpt-5-codex",
-        "displayName": "OpenAI: GPT-5 Codex"
       },
       {
         "id": "gpt-5",
@@ -638,6 +626,10 @@
       }
     ],
     "deepseek": [
+      {
+        "id": "deepseek-v4-flash-0731",
+        "displayName": "DeepSeek: DeepSeek V4 Flash 0731"
+      },
       {
         "id": "deepseek-v4-pro",
         "displayName": "DeepSeek: DeepSeek V4 Pro"
