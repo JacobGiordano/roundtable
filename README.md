@@ -8,9 +8,7 @@ Talk with multiple AI models simultaneously in a shared chat thread — compare 
 
 **[→ Open Roundtable](https://jacobgiordano.github.io/roundtable)** — runs in your browser, nothing to install.
 
-Built-in providers (Claude, GPT, Gemini, etc.) can't be called directly from a browser page due to a browser security rule called CORS. The fix is a small free Cloudflare Workers proxy — setup takes about 2 minutes and uses Cloudflare's free tier. See the [deployment guide](docs/deployment.md) to get started.
-
-**No proxy needed** if you're using an OpenAI-compatible endpoint (Ollama, OpenRouter, or a local model) — those handle CORS themselves and can be added directly in settings.
+> **Before you open the app:** built-in providers (Claude, GPT, Gemini, Grok, Mistral, DeepSeek) require a free Cloudflare Workers proxy — set it up in [2 minutes using the deployment guide](docs/deployment.md). OpenAI-compatible endpoints (OpenRouter, Ollama, local models) do not need one.
 
 ## Conversation modes
 
