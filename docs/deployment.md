@@ -19,7 +19,8 @@ This guide walks you through setting one up.
 ## Step 1 — Deploy your proxy
 
 The proxy is a small script that runs on Cloudflare's free tier. You don't
-need to write or edit any code.
+need to write or edit any code. Cloudflare is a free service — you only need
+an account, no credit card required.
 
 1. Click the **Deploy to Cloudflare** button:
 
@@ -27,12 +28,19 @@ need to write or edit any code.
 
 2. Cloudflare will ask you to log in or create a free account.
 
-3. Click **Deploy**. Cloudflare builds and deploys the proxy script
-   automatically — this takes about 30 seconds.
+3. You should land on a simple page with a project name field and a
+   **Deploy** button. Click **Deploy** — Cloudflare builds and deploys the
+   proxy script automatically in about 30 seconds.
 
-4. After deployment, Cloudflare shows your proxy URL. It looks like
-   `something.your-name.workers.dev`. **Copy it** — you'll paste it into the
-   app in the next step.
+   > **If you see a complex form** asking you to connect a GitHub or GitLab
+   > account, enter environment variables (VITE_BASE, VITE_ANTHROPIC_PROXY_URL,
+   > etc.), or create API tokens — you've landed on the wrong page. Go back and
+   > click the Deploy button above again, or check that you're not logged into
+   > a Cloudflare account that already has Workers set up under a different flow.
+
+4. After deployment, Cloudflare shows a success screen with your proxy URL.
+   It looks like `your-project.your-subdomain.workers.dev`. **Copy the full
+   URL including `https://`** — you'll paste it into the app in the next step.
 
 > **What the proxy does:** it forwards your API requests to the AI provider
 > and adds the headers that make your browser accept the response. It does not
