@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-03",
+  "updated": "2026-08-04",
   "providers": {
     "anthropic": [
       {
@@ -520,7 +520,7 @@
       },
       {
         "id": "deepseek-v4-flash",
-        "displayName": "DeepSeek: DeepSeek V4 Flash"
+        "displayName": "DeepSeek: DeepSeek V4 Flash 0423"
       },
       {
         "id": "deepseek-v3.2",
