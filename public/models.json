@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-31",
+  "updated": "2026-08-04",
   "providers": {
     "anthropic": [
       {
@@ -15,16 +15,8 @@
         "displayName": "Anthropic: Claude Sonnet 5"
       },
       {
-        "id": "claude-sonnet-5:batch",
-        "displayName": "Anthropic: Claude Sonnet 5 (batch)"
-      },
-      {
         "id": "claude-fable-5",
         "displayName": "Anthropic: Claude Fable 5"
-      },
-      {
-        "id": "claude-fable-5:batch",
-        "displayName": "Anthropic: Claude Fable 5 (batch)"
       },
       {
         "id": "claude-opus-4.8-fast",
@@ -35,20 +27,12 @@
         "displayName": "Anthropic: Claude Opus 4.8"
       },
       {
-        "id": "claude-opus-4.8:batch",
-        "displayName": "Anthropic: Claude Opus 4.8 (batch)"
-      },
-      {
         "id": "claude-opus-4.7-fast",
         "displayName": "Anthropic: Claude Opus 4.7 (Fast)"
       },
       {
         "id": "claude-opus-4.7",
         "displayName": "Anthropic: Claude Opus 4.7"
-      },
-      {
-        "id": "claude-opus-4.7:batch",
-        "displayName": "Anthropic: Claude Opus 4.7 (batch)"
       },
       {
         "id": "claude-sonnet-4.6",
@@ -59,40 +43,20 @@
         "displayName": "Anthropic: Claude Opus 4.6"
       },
       {
-        "id": "claude-opus-4.6:batch",
-        "displayName": "Anthropic: Claude Opus 4.6 (batch)"
-      },
-      {
         "id": "claude-opus-4.5",
         "displayName": "Anthropic: Claude Opus 4.5"
-      },
-      {
-        "id": "claude-opus-4.5:batch",
-        "displayName": "Anthropic: Claude Opus 4.5 (batch)"
       },
       {
         "id": "claude-haiku-4.5",
         "displayName": "Anthropic: Claude Haiku 4.5"
       },
       {
-        "id": "claude-haiku-4.5:batch",
-        "displayName": "Anthropic: Claude Haiku 4.5 (batch)"
-      },
-      {
         "id": "claude-sonnet-4.5",
         "displayName": "Anthropic: Claude Sonnet 4.5"
       },
       {
-        "id": "claude-sonnet-4.5:batch",
-        "displayName": "Anthropic: Claude Sonnet 4.5 (batch)"
-      },
-      {
         "id": "claude-opus-4.1",
         "displayName": "Anthropic: Claude Opus 4.1"
-      },
-      {
-        "id": "claude-opus-4.1:batch",
-        "displayName": "Anthropic: Claude Opus 4.1 (batch)"
       },
       {
         "id": "claude-opus-4",
@@ -145,10 +109,6 @@
         "displayName": "OpenAI: GPT-5.5"
       },
       {
-        "id": "gpt-5.5:batch",
-        "displayName": "OpenAI: GPT-5.5 (batch)"
-      },
-      {
         "id": "gpt-5.4-image-2",
         "displayName": "OpenAI: GPT-5.4 Image 2"
       },
@@ -157,16 +117,8 @@
         "displayName": "OpenAI: GPT-5.4 Nano"
       },
       {
-        "id": "gpt-5.4-nano:batch",
-        "displayName": "OpenAI: GPT-5.4 Nano (batch)"
-      },
-      {
         "id": "gpt-5.4-mini",
         "displayName": "OpenAI: GPT-5.4 Mini"
-      },
-      {
-        "id": "gpt-5.4-mini:batch",
-        "displayName": "OpenAI: GPT-5.4 Mini (batch)"
       },
       {
         "id": "gpt-5.4-pro",
@@ -175,10 +127,6 @@
       {
         "id": "gpt-5.4",
         "displayName": "OpenAI: GPT-5.4"
-      },
-      {
-        "id": "gpt-5.4:batch",
-        "displayName": "OpenAI: GPT-5.4 (batch)"
       },
       {
         "id": "gpt-5.3-chat",
@@ -213,24 +161,12 @@
         "displayName": "OpenAI: GPT-5.2"
       },
       {
-        "id": "gpt-5.2:batch",
-        "displayName": "OpenAI: GPT-5.2 (batch)"
-      },
-      {
         "id": "gpt-5.1-codex-max",
         "displayName": "OpenAI: GPT-5.1-Codex-Max"
       },
       {
         "id": "gpt-5.1",
         "displayName": "OpenAI: GPT-5.1"
-      },
-      {
-        "id": "gpt-5.1:batch",
-        "displayName": "OpenAI: GPT-5.1 (batch)"
-      },
-      {
-        "id": "gpt-5.1-chat",
-        "displayName": "OpenAI: GPT-5.1 Chat"
       },
       {
         "id": "gpt-5.1-codex",
@@ -261,24 +197,12 @@
         "displayName": "OpenAI: GPT-5"
       },
       {
-        "id": "gpt-5:batch",
-        "displayName": "OpenAI: GPT-5 (batch)"
-      },
-      {
         "id": "gpt-5-mini",
         "displayName": "OpenAI: GPT-5 Mini"
       },
       {
-        "id": "gpt-5-mini:batch",
-        "displayName": "OpenAI: GPT-5 Mini (batch)"
-      },
-      {
         "id": "gpt-5-nano",
         "displayName": "OpenAI: GPT-5 Nano"
-      },
-      {
-        "id": "gpt-5-nano:batch",
-        "displayName": "OpenAI: GPT-5 Nano (batch)"
       },
       {
         "id": "gpt-oss-120b",
@@ -395,16 +319,8 @@
         "displayName": "Google: Gemini 3.6 Flash"
       },
       {
-        "id": "gemini-3.6-flash:batch",
-        "displayName": "Google: Gemini 3.6 Flash (batch)"
-      },
-      {
         "id": "gemini-3.5-flash-lite",
         "displayName": "Google: Gemini 3.5 Flash Lite"
-      },
-      {
-        "id": "gemini-3.5-flash-lite:batch",
-        "displayName": "Google: Gemini 3.5 Flash Lite (batch)"
       },
       {
         "id": "gemini-3.1-flash-lite-image",
@@ -423,16 +339,8 @@
         "displayName": "Google: Gemini 3.5 Flash"
       },
       {
-        "id": "gemini-3.5-flash:batch",
-        "displayName": "Google: Gemini 3.5 Flash (batch)"
-      },
-      {
         "id": "gemini-3.1-flash-lite",
         "displayName": "Google: Gemini 3.1 Flash Lite"
-      },
-      {
-        "id": "gemini-3.1-flash-lite:batch",
-        "displayName": "Google: Gemini 3.1 Flash Lite (batch)"
       },
       {
         "id": "gemma-4-26b-a4b-it",
@@ -475,16 +383,8 @@
         "displayName": "Google: Gemini 3.1 Pro Preview"
       },
       {
-        "id": "gemini-3.1-pro-preview:batch",
-        "displayName": "Google: Gemini 3.1 Pro Preview (batch)"
-      },
-      {
         "id": "gemini-3-flash-preview",
         "displayName": "Google: Gemini 3 Flash Preview"
-      },
-      {
-        "id": "gemini-3-flash-preview:batch",
-        "displayName": "Google: Gemini 3 Flash Preview (batch)"
       },
       {
         "id": "gemini-3-pro-image-preview",
@@ -499,24 +399,12 @@
         "displayName": "Google: Gemini 2.5 Flash Lite"
       },
       {
-        "id": "gemini-2.5-flash-lite:batch",
-        "displayName": "Google: Gemini 2.5 Flash Lite (batch)"
-      },
-      {
         "id": "gemini-2.5-flash",
         "displayName": "Google: Gemini 2.5 Flash"
       },
       {
-        "id": "gemini-2.5-flash:batch",
-        "displayName": "Google: Gemini 2.5 Flash (batch)"
-      },
-      {
         "id": "gemini-2.5-pro",
         "displayName": "Google: Gemini 2.5 Pro"
-      },
-      {
-        "id": "gemini-2.5-pro:batch",
-        "displayName": "Google: Gemini 2.5 Pro (batch)"
       },
       {
         "id": "gemini-2.5-pro-preview",
@@ -555,10 +443,6 @@
       {
         "id": "mistral-small-2603",
         "displayName": "Mistral: Mistral Small 4"
-      },
-      {
-        "id": "devstral-2512",
-        "displayName": "Mistral: Devstral 2 2512"
       },
       {
         "id": "ministral-14b-2512",
@@ -636,7 +520,7 @@
       },
       {
         "id": "deepseek-v4-flash",
-        "displayName": "DeepSeek: DeepSeek V4 Flash"
+        "displayName": "DeepSeek: DeepSeek V4 Flash 0423"
       },
       {
         "id": "deepseek-v3.2",
