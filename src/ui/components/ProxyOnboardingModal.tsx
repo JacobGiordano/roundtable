@@ -33,7 +33,10 @@ import { useState, useRef, useEffect, useId, useCallback } from 'react';
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const CLOUDFLARE_DEPLOY_URL =
-  'https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable';
+  'https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable&dir=workers';
+
+const SETUP_GUIDE_URL =
+  'https://github.com/JacobGiordano/roundtable/blob/main/docs/deployment.md';
 
 // 100ms beat between "Saved" appearing and onSaveAndContinue firing (Spark spec).
 const SAVE_FEEDBACK_DELAY_MS = 100;
@@ -368,6 +371,31 @@ export function ProxyOnboardingModal({
           Your API keys go directly from your browser to the AI provider. The proxy just
           handles CORS — it never sees your keys.
         </p>
+
+        {/* ── Full setup guide link — escape hatch for users who get stuck ── */}
+        {/* Opens deployment.md in a new tab. Visually quiet: text-text-muted,
+            small, underline appears on hover so it doesn't compete with the
+            primary flow. WCAG 1.4.1: color + underline on hover/focus-visible
+            satisfies the two-cue requirement for links at rest (text-text-muted
+            is visually distinct from surrounding body text and underline appears
+            on interaction). aria-label includes "(opens in new tab)". */}
+        <div className="flex justify-center">
+          <a
+            href={SETUP_GUIDE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Full setup guide (opens in new tab)"
+            className={[
+              'text-[12px] text-text-muted',
+              'underline-offset-2',
+              'hover:text-text-secondary hover:underline',
+              'focus:outline-none',
+              'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:rounded-sm',
+            ].join(' ')}
+          >
+            Full setup guide →
+          </a>
+        </div>
 
         {/* ── Dismiss link (Spark: py-2 px-2, quiet, no underline at rest) ── */}
         <div className="flex justify-center -mt-1">
