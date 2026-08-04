@@ -1,4 +1,4 @@
-Last updated: 2026-07-29 (README docs complete — Setup Transfer #564, copy/image audit)
+Last updated: 2026-08-04 (proxy onboarding fixes #584)
 
 ## Current phase
 
@@ -23,6 +23,10 @@ None — backlog clear.
 ## Next up (not yet filed as issues)
 
 None.
+
+## Recently shipped
+
+- **#584 Proxy onboarding fixes** — broken `&dir=workers` deploy URL, setup guide link in modal, README blockquote callout, expanded deployment guide (Step 1 now covers Cloudflare UI, wrong-page warning, and post-deploy URL copy).
 
 ## Gotchas
 
