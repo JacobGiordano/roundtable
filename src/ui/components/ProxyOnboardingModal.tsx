@@ -430,12 +430,10 @@ export function ProxyOnboardingModal({
         </p>
 
         {/* ── Full setup guide link — escape hatch for users who get stuck ── */}
-        {/* Opens deployment.md in a new tab. Visually quiet: text-text-muted,
-            small, underline appears on hover so it doesn't compete with the
-            primary flow. WCAG 1.4.1: color + underline on hover/focus-visible
-            satisfies the two-cue requirement for links at rest (text-text-muted
-            is visually distinct from surrounding body text and underline appears
-            on interaction). aria-label includes "(opens in new tab)". */}
+        {/* Opens deployment.md in a new tab. Visually quiet: text-text-muted, small.
+            WCAG 1.4.1: underline present at rest (not color alone) satisfies the
+            two-cue requirement. hover:decoration-2 provides a distinct hover affordance
+            while keeping the resting style subdued. aria-label includes "(opens in new tab)". */}
         <div className="flex justify-center">
           <a
             href={SETUP_GUIDE_URL}
@@ -443,9 +441,9 @@ export function ProxyOnboardingModal({
             rel="noopener noreferrer"
             aria-label="Full setup guide (opens in new tab)"
             className={[
-              'text-[12px] text-text-muted',
+              'text-[12px] text-text-muted underline',
               'underline-offset-2',
-              'hover:text-text-secondary hover:underline',
+              'hover:text-text-secondary hover:decoration-2',
               'focus:outline-none',
               'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:rounded-sm',
             ].join(' ')}
