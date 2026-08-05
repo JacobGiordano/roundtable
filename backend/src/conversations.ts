@@ -172,7 +172,7 @@ conversationsRouter.patch('/:id', (req: Request, res: Response): void => {
 
   // Also update the archivedAt field inside the JSON blob so the full
   // Conversation object remains consistent with the archived column.
-  let conversation: Conversation | null = null;
+  let conversation: Conversation;
   try {
     conversation = JSON.parse(existing.data) as Conversation;
   } catch {
