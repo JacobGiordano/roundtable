@@ -250,9 +250,9 @@ export function ProxyOnboardingModal({
               <p className="text-[13px] font-semibold text-text-primary">
                 Deploy your proxy
               </p>
-              {/* Spark: time estimate as standalone sentence, not parenthetical */}
+              {/* Updated #585: Cloudflare now shows a multi-field setup form — prep users */}
               <p className="text-[13px] text-text-secondary leading-relaxed">
-                Create a free Cloudflare account and click Deploy. Takes about 30 seconds.
+                Create a free Cloudflare account if you don&apos;t have one. You&apos;ll see a setup form — connect your GitHub account, leave all four <code className="font-mono text-[12px]">VITE_</code> env var fields blank (those are for the main app, not the proxy), then click Deploy.
               </p>
               {/* Hero action — full-width, group for arrow nudge (Spark spec).
                   aria-label includes "(opens in new tab)" so screen reader users
