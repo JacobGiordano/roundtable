@@ -1,4 +1,4 @@
-Last updated: 2026-08-04 (OG/Twitter social card absolute URLs)
+Last updated: 2026-08-05 (CI peer dep fix — deploys unblocked)
 
 ## Current phase
 
@@ -26,6 +26,7 @@ None.
 
 ## Recently shipped
 
+- **CI peer dep fix** — Three dependabot PRs merged July 31 out of sync broke `npm ci` for 6 days; all GitHub Pages deploys skipped since. Fix: pinned `@vitest/coverage-v8→^1.6.1`, `@eslint/js→^9.9.0`, `eslint-plugin-react-hooks→^5.1.0-rc.0` back to pre-conflict versions. Also added `<meta name="description">` and fixed proxy-onboarding-modal a11y test count (4→5) for the #584 setup guide link.
 - **OG/Twitter social card fix** — `og:image` and `twitter:image` were relative paths; crawlers resolved them against the domain root (missing `/roundtable/` base) → 404. Fixed to absolute URLs. Added `og:url`, `og:site_name`, `twitter:title`, `twitter:description`.
 - **#584 Proxy onboarding fixes** — broken `&dir=workers` deploy URL, setup guide link in modal, README blockquote callout, expanded deployment guide (Step 1 now covers Cloudflare UI, wrong-page warning, and post-deploy URL copy).
 
