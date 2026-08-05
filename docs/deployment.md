@@ -22,34 +22,22 @@ The proxy is a small script that runs on Cloudflare's free tier. You don't
 need to write or edit any code. Cloudflare is a free service — you only need
 an account, no credit card required.
 
-1. Click the **Deploy to Cloudflare** button:
+1. In Roundtable, click **Copy proxy code**. This copies the proxy script to
+   your clipboard.
 
-   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable&dir=workers)
+2. Click **Open Cloudflare Workers →**. This opens
+   [workers.new](https://workers.new) in a new tab — Cloudflare's in-browser
+   editor.
 
-2. Cloudflare will ask you to log in or create a free account.
+3. If you don't have a Cloudflare account, you'll be prompted to create one
+   (free, no credit card).
 
-3. You'll land on a **Set up your application** form. Fill it out as follows:
+4. In the editor, select all the placeholder code (Ctrl+A or Cmd+A), paste,
+   then click **Save and Deploy**.
 
-   - **Git account** — Connect your GitHub account when prompted. Cloudflare
-     uses this to create a repository and deploy the proxy code automatically.
-     Every push to the production branch will redeploy.
-
-   - **Project name** — Defaults to `roundtable`. Leave it or rename it —
-     this only affects the URL Cloudflare assigns to your Worker.
-
-   - **VITE_BASE, VITE_PRICING_URL, VITE_ANTHROPIC_PROXY_URL,
-     VITE_OPENAI_PROXY_URL** — Leave all four fields blank. These variables
-     are for the main Roundtable frontend app, not the proxy Worker. The
-     proxy needs no environment variables.
-
-   - **Builds for non-production branches** and **Advanced settings** — Leave
-     these alone.
-
-4. Click **Deploy**. Cloudflare builds and deploys the proxy in about 30 seconds.
-
-5. After deployment, find your Worker URL in the Cloudflare dashboard — it
-   looks like `roundtable.yoursubdomain.workers.dev`. **Copy the full URL
-   including `https://`** — you'll paste it into the app in the next step.
+5. After about 30 seconds, Cloudflare shows your Worker URL — something like
+   `your-name.workers.dev`. **Copy the full URL including `https://`** — you'll
+   paste it into the app in the next step.
 
 > **What the proxy does:** it forwards your API requests to the AI provider
 > and adds the headers that make your browser accept the response. It does not
