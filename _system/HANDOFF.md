@@ -1,4 +1,4 @@
-Last updated: 2026-08-05 (CI green, deploy live — OG social card + backend lint fix)
+Last updated: 2026-08-05 (OG social card facelift — Midnight theme, chat UI mockup, both variants)
 
 ## Current phase
 

@@ -2,76 +2,237 @@
   <title>Roundtable — Multi-model AI conversation</title>
 
   <!--
-    OG social image for Roundtable.
+    OG social image for Roundtable. Redesigned 2026-08-05.
     Canvas: 1200 × 630 px (standard OpenGraph / Twitter card ratio).
-    Brand palette:
-      Background: Roundtable Indigo #2D2B55
-      Mark / wordmark: white #FFFFFF
-      Tagline: Roundtable Mist #C4C2E8
+    Theme: Midnight — the most polished dark theme, feels most "Roundtable."
+
+    Brand palette (on-dark variant):
+      Background:         Midnight bg       #060B18
+      Mark / wordmark:    Roundtable Mist   #C4C2E8
+      Tagline:            Secondary text    #94A3C8
+      Divider:            Midnight border   #1E2D4A
+      Card surface:       Midnight card     #0D1525
+      Card label rects:   Dark blue         #1A2840
+
+    Model accent colors (no Outrun palette):
+      Claude:   amber   #FBB034
+      GPT:      teal    #00CDB8
+      Gemini:   purple  #B06EFF
+      Grok:     blue    #38B6F0
+      User:     indigo  #A5B4FC
+
     Layout:
-      Left zone (0–440px): symbol mark, centered at (220, 315), 220×220px live area
-      Right zone (440–1140px): wordmark + tagline, vertically centered
-      Gutter: 60px left margin, 60px right margin, 80px between mark and text block
-    Mark geometry (scaled from 48-unit grid to 220px live area, factor ≈ 4.583):
-      Outer circle: r = 22 × 4.583 ≈ 101
-      Ring: r = 14 × 4.583 ≈ 64, stroke ≈ 9
-      Seat dot r = 3 × 4.583 ≈ 13.75 → 14
-      Center dot r = 3.5 × 4.583 ≈ 16 → 16
-      Center of mark: (220, 315)
-      Seat positions on ring at r=64 from (220,315), pointy-top:
-        Top:          (220,   251)  = (220+64*cos270°, 315+64*sin270°)
-        Upper-right:  (275.4, 283)  = (220+64*cos330°, 315+64*sin330°) = (220+55.4, 315-32)
-        Lower-right:  (275.4, 347)  = (220+55.4, 315+32)
-        Bottom:       (220,   379)  = (220, 315+64)
-        Lower-left:   (164.6, 347)  = (220-55.4, 315+32)
-        Upper-left:   (164.6, 283)  = (220-55.4, 315-32)
-      (64 × cos30° = 64 × 0.866 = 55.4; 64 × sin30° = 64 × 0.5 = 32)
+      Left zone  (0–440px):    Symbol mark + wordmark + tagline (UNCHANGED)
+      Divider:                 Vertical rule at x=440, y1=70 to y2=560
+      Right zone (440–1200px): User bubble + 4 model response cards
+
+    Mark geometry (scaled to OG size):
+      Mark center:   (220, 235)
+      Ghost halo:    r=70, #C4C2E8 at 5% opacity
+      Ring:          r=46, stroke 6.5px, #C4C2E8
+      Seat dots:     r=9.5, #C4C2E8, pointy-top on ring
+        Top:          (220,   189)  = center_y - 46
+        Upper-right:  (259.8, 212)  = center_x + 46×cos30°, center_y - 46×sin30° = +39.8, -23
+        Lower-right:  (259.8, 258)  = center_x + 39.8, center_y + 23
+        Bottom:       (220,   281)  = center_y + 46
+        Lower-left:   (180.2, 258)  = center_x - 39.8, center_y + 23
+        Upper-left:   (180.2, 212)  = center_x - 39.8, center_y - 23
+      Center dot:    r=11, #C4C2E8, at (220, 235)
+      (46 × cos30° = 46 × 0.866 = 39.8; 46 × sin30° = 46 × 0.5 = 23)
+
+    Right zone card layout:
+      User bubble:     y=86,  h=48,  w=420 (x=720 to x=1140, right-aligned)
+      Card 1 (Claude): y=148, h=90,  w=668 (x=472 to x=1140)
+      Card 2 (GPT):    y=250, h=90,  w=638 (x=472 to x=1110)
+      Card 3 (Gemini): y=352, h=90,  w=598 (x=472 to x=1070)
+      Card 4 (Grok):   y=454, h=90,  w=648 (x=472 to x=1120)
+      Top padding: 86px, bottom padding: 630-454-90=86px — balanced.
   -->
 
-  <!-- Background -->
-  <rect width="1200" height="630" fill="#2D2B55"/>
+  <defs>
+    <!-- Subtle radial gradient for background depth -->
+    <radialGradient id="bg-gradient" cx="50%" cy="50%" r="60%" fx="30%" fy="50%">
+      <stop offset="0%" stop-color="#101825"/>
+      <stop offset="100%" stop-color="#060B18"/>
+    </radialGradient>
 
-  <!-- Subtle divider line between mark zone and text zone -->
-  <line x1="420" y1="90" x2="420" y2="540" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.12"/>
+    <!-- Per-model glow gradients: horizontal, model color at 7% opacity fading to 0% -->
+    <linearGradient id="glow-user" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#A5B4FC" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#A5B4FC" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow-claude" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FBB034" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#FBB034" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow-gpt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00CDB8" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#00CDB8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow-gemini" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#B06EFF" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#B06EFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow-grok" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38B6F0" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#38B6F0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
 
-  <!-- Symbol mark, centered at (220, 315) -->
-  <g id="og-symbol">
-    <!-- Outer filled circle — white on indigo background -->
-    <circle cx="220" cy="315" r="101" fill="#FFFFFF" fill-opacity="0.10"/>
-    <!-- Ring -->
-    <circle cx="220" cy="315" r="64" fill="none" stroke="#FFFFFF" stroke-width="9"/>
-    <!-- Six seat dots -->
-    <circle cx="220"    cy="251"   r="14" fill="#FFFFFF"/>
-    <circle cx="275.4"  cy="283"   r="14" fill="#FFFFFF"/>
-    <circle cx="275.4"  cy="347"   r="14" fill="#FFFFFF"/>
-    <circle cx="220"    cy="379"   r="14" fill="#FFFFFF"/>
-    <circle cx="164.6"  cy="347"   r="14" fill="#FFFFFF"/>
-    <circle cx="164.6"  cy="283"   r="14" fill="#FFFFFF"/>
-    <!-- Center dot -->
-    <circle cx="220" cy="315" r="16" fill="#FFFFFF"/>
-  </g>
+  <!-- Background with subtle radial gradient for depth -->
+  <rect width="1200" height="630" fill="url(#bg-gradient)"/>
 
-  <!-- Text block, left edge at x=490, vertically centered around y=315 -->
-  <g id="og-text">
+  <!-- ============================================================
+       LEFT ZONE (0–440px): Branding — UNCHANGED
+       ============================================================ -->
+  <g id="og-branding">
+
+    <!-- Symbol mark, centered at (220, 235) — on-dark Mist variant -->
+    <g id="og-symbol">
+      <!-- Ghost halo: r=70, Mist at 5% opacity -->
+      <circle cx="220" cy="235" r="70" fill="#C4C2E8" fill-opacity="0.05"/>
+
+      <!-- Ring: r=46, stroke 6.5px, Mist -->
+      <circle cx="220" cy="235" r="46" fill="none" stroke="#C4C2E8" stroke-width="6.5"/>
+
+      <!-- Six seat dots: r=9.5, Mist, pointy-top arrangement -->
+      <circle cx="220"   cy="189"   r="9.5" fill="#C4C2E8"/>  <!-- Top -->
+      <circle cx="259.8" cy="212"   r="9.5" fill="#C4C2E8"/>  <!-- Upper-right -->
+      <circle cx="259.8" cy="258"   r="9.5" fill="#C4C2E8"/>  <!-- Lower-right -->
+      <circle cx="220"   cy="281"   r="9.5" fill="#C4C2E8"/>  <!-- Bottom -->
+      <circle cx="180.2" cy="258"   r="9.5" fill="#C4C2E8"/>  <!-- Lower-left -->
+      <circle cx="180.2" cy="212"   r="9.5" fill="#C4C2E8"/>  <!-- Upper-left -->
+
+      <!-- Center dot: r=11, Mist -->
+      <circle cx="220" cy="235" r="11" fill="#C4C2E8"/>
+    </g>
+
     <!-- Wordmark: "ROUNDTABLE" -->
     <text
-      x="490"
-      y="305"
+      x="62"
+      y="353"
       font-family="'Space Grotesk', 'DM Sans', system-ui, -apple-system, sans-serif"
-      font-size="72"
-      font-weight="600"
-      letter-spacing="8"
-      fill="#FFFFFF"
+      font-size="38"
+      font-weight="700"
+      letter-spacing="4"
+      fill="#C4C2E8"
     >ROUNDTABLE</text>
+
     <!-- Tagline -->
     <text
-      x="492"
-      y="365"
+      x="64"
+      y="397"
       font-family="'Space Grotesk', 'DM Sans', system-ui, -apple-system, sans-serif"
-      font-size="28"
+      font-size="20"
       font-weight="400"
       letter-spacing="1.5"
-      fill="#C4C2E8"
+      fill="#94A3C8"
     >Multi-model AI conversation</text>
+
   </g>
+
+  <!-- Vertical divider: x=440, y1=70 to y2=560, Midnight border -->
+  <line x1="440" y1="70" x2="440" y2="560" stroke="#1E2D4A" stroke-width="1"/>
+
+  <!-- ============================================================
+       RIGHT ZONE (440–1200px): User bubble + 4 model response cards
+
+       User bubble:     y=86,  h=48,  w=420 (x=472–892)
+       Card 1 (Claude): y=148, h=90,  w=668 (x=472–1140)
+       Card 2 (GPT):    y=250, h=90,  w=638 (x=472–1110)
+       Card 3 (Gemini): y=352, h=90,  w=598 (x=472–1070)
+       Card 4 (Grok):   y=454, h=90,  w=648 (x=472–1120)
+       ============================================================ -->
+  <g id="og-card-mockups">
+
+    <!-- User bubble — accent #A5B4FC, y=86, h=48, w=420, right-aligned (x=720 to x=1140) -->
+    <g id="bubble-user">
+      <!-- Body -->
+      <rect x="720" y="86"  width="420" height="48" rx="8" fill="#0D1525" stroke="#1E2D4A" stroke-width="1"/>
+      <!-- Glow wash -->
+      <rect x="720" y="86"  width="420" height="48" rx="8" fill="url(#glow-user)"/>
+      <!-- Left accent bar -->
+      <rect x="721" y="92"  width="4"   height="36" rx="2" fill="#A5B4FC"/>
+      <!-- User dot -->
+      <circle cx="739" cy="110" r="4.5" fill="#A5B4FC"/>
+      <!-- Label rect -->
+      <rect x="751" y="105" width="38"  height="9"  rx="4" fill="#1A2840"/>
+      <!-- Content line -->
+      <rect x="727" y="118" width="270" height="8"  rx="4" fill="#1A2840"/>
+    </g>
+
+    <!-- Card 1: Claude — amber #FBB034, y=148, h=90, w=668 -->
+    <g id="card-claude">
+      <!-- Card body -->
+      <rect x="472" y="148" width="668" height="90" rx="8" fill="#0D1525" stroke="#1E2D4A" stroke-width="1"/>
+      <!-- Left glow wash -->
+      <rect x="472" y="148" width="668" height="90" rx="8" fill="url(#glow-claude)"/>
+      <!-- Left accent bar -->
+      <rect x="473" y="154" width="4"   height="78" rx="2" fill="#FBB034"/>
+      <!-- Model dot -->
+      <circle cx="491" cy="166" r="4.5" fill="#FBB034"/>
+      <!-- Model label rect -->
+      <rect x="503" y="161" width="55"  height="9"  rx="4" fill="#1A2840"/>
+      <!-- Content lines -->
+      <rect x="479" y="182" width="560" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="198" width="490" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="214" width="350" height="8"  rx="4" fill="#152035"/>
+    </g>
+
+    <!-- Card 2: GPT — teal #00CDB8, y=250, h=90, w=638 -->
+    <g id="card-gpt">
+      <!-- Card body -->
+      <rect x="472" y="250" width="638" height="90" rx="8" fill="#0D1525" stroke="#1E2D4A" stroke-width="1"/>
+      <!-- Left glow wash -->
+      <rect x="472" y="250" width="638" height="90" rx="8" fill="url(#glow-gpt)"/>
+      <!-- Left accent bar -->
+      <rect x="473" y="256" width="4"   height="78" rx="2" fill="#00CDB8"/>
+      <!-- Model dot -->
+      <circle cx="491" cy="268" r="4.5" fill="#00CDB8"/>
+      <!-- Model label rect -->
+      <rect x="503" y="263" width="48"  height="9"  rx="4" fill="#1A2840"/>
+      <!-- Content lines -->
+      <rect x="479" y="284" width="530" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="300" width="440" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="316" width="290" height="8"  rx="4" fill="#152035"/>
+    </g>
+
+    <!-- Card 3: Gemini — purple #B06EFF, y=352, h=90, w=598 -->
+    <g id="card-gemini">
+      <!-- Card body -->
+      <rect x="472" y="352" width="598" height="90" rx="8" fill="#0D1525" stroke="#1E2D4A" stroke-width="1"/>
+      <!-- Left glow wash -->
+      <rect x="472" y="352" width="598" height="90" rx="8" fill="url(#glow-gemini)"/>
+      <!-- Left accent bar -->
+      <rect x="473" y="358" width="4"   height="78" rx="2" fill="#B06EFF"/>
+      <!-- Model dot -->
+      <circle cx="491" cy="370" r="4.5" fill="#B06EFF"/>
+      <!-- Model label rect -->
+      <rect x="503" y="365" width="62"  height="9"  rx="4" fill="#1A2840"/>
+      <!-- Content lines -->
+      <rect x="479" y="386" width="490" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="402" width="420" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="418" width="380" height="8"  rx="4" fill="#152035"/>
+    </g>
+
+    <!-- Card 4: Grok — blue #38B6F0, y=454, h=90, w=648 -->
+    <g id="card-grok">
+      <!-- Card body -->
+      <rect x="472" y="454" width="648" height="90" rx="8" fill="#0D1525" stroke="#1E2D4A" stroke-width="1"/>
+      <!-- Left glow wash -->
+      <rect x="472" y="454" width="648" height="90" rx="8" fill="url(#glow-grok)"/>
+      <!-- Left accent bar -->
+      <rect x="473" y="460" width="4"   height="78" rx="2" fill="#38B6F0"/>
+      <!-- Model dot -->
+      <circle cx="491" cy="472" r="4.5" fill="#38B6F0"/>
+      <!-- Model label rect -->
+      <rect x="503" y="467" width="50"  height="9"  rx="4" fill="#1A2840"/>
+      <!-- Content lines -->
+      <rect x="479" y="488" width="530" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="504" width="380" height="8"  rx="4" fill="#1A2840"/>
+      <rect x="479" y="520" width="260" height="8"  rx="4" fill="#152035"/>
+    </g>
+
+  </g>
+
 </svg>
