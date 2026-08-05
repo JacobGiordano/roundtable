@@ -1,4 +1,4 @@
-Last updated: 2026-08-04 (proxy onboarding fixes #584)
+Last updated: 2026-08-04 (OG/Twitter social card absolute URLs)
 
 ## Current phase
 
@@ -26,6 +26,7 @@ None.
 
 ## Recently shipped
 
+- **OG/Twitter social card fix** — `og:image` and `twitter:image` were relative paths; crawlers resolved them against the domain root (missing `/roundtable/` base) → 404. Fixed to absolute URLs. Added `og:url`, `og:site_name`, `twitter:title`, `twitter:description`.
 - **#584 Proxy onboarding fixes** — broken `&dir=workers` deploy URL, setup guide link in modal, README blockquote callout, expanded deployment guide (Step 1 now covers Cloudflare UI, wrong-page warning, and post-deploy URL copy).
 
 ## Gotchas
