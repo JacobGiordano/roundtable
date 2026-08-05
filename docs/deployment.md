@@ -28,19 +28,28 @@ an account, no credit card required.
 
 2. Cloudflare will ask you to log in or create a free account.
 
-3. You should land on a simple page with a project name field and a
-   **Deploy** button. Click **Deploy** — Cloudflare builds and deploys the
-   proxy script automatically in about 30 seconds.
+3. You'll land on a **Set up your application** form. Fill it out as follows:
 
-   > **If you see a complex form** asking you to connect a GitHub or GitLab
-   > account, enter environment variables (VITE_BASE, VITE_ANTHROPIC_PROXY_URL,
-   > etc.), or create API tokens — you've landed on the wrong page. Go back and
-   > click the Deploy button above again, or check that you're not logged into
-   > a Cloudflare account that already has Workers set up under a different flow.
+   - **Git account** — Connect your GitHub account when prompted. Cloudflare
+     uses this to create a repository and deploy the proxy code automatically.
+     Every push to the production branch will redeploy.
 
-4. After deployment, Cloudflare shows a success screen with your proxy URL.
-   It looks like `your-project.your-subdomain.workers.dev`. **Copy the full
-   URL including `https://`** — you'll paste it into the app in the next step.
+   - **Project name** — Defaults to `roundtable`. Leave it or rename it —
+     this only affects the URL Cloudflare assigns to your Worker.
+
+   - **VITE_BASE, VITE_PRICING_URL, VITE_ANTHROPIC_PROXY_URL,
+     VITE_OPENAI_PROXY_URL** — Leave all four fields blank. These variables
+     are for the main Roundtable frontend app, not the proxy Worker. The
+     proxy needs no environment variables.
+
+   - **Builds for non-production branches** and **Advanced settings** — Leave
+     these alone.
+
+4. Click **Deploy**. Cloudflare builds and deploys the proxy in about 30 seconds.
+
+5. After deployment, find your Worker URL in the Cloudflare dashboard — it
+   looks like `roundtable.yoursubdomain.workers.dev`. **Copy the full URL
+   including `https://`** — you'll paste it into the app in the next step.
 
 > **What the proxy does:** it forwards your API requests to the AI provider
 > and adds the headers that make your browser accept the response. It does not
