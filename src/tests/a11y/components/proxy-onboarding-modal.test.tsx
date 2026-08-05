@@ -380,16 +380,17 @@ describe('ProxyOnboardingModal — Dismiss button (WCAG 2.1.1)', () => {
 //   [0] Deploy to Cloudflare link   (a[href])
 //   [1] Proxy URL input             (input)
 //   [2] Save & continue button      (button)
-//   [3] I'll set this up later btn  (button)
+//   [3] Full setup guide link       (a[href]) — added in #584
+//   [4] I'll set this up later btn  (button)
 //
-// Tab on [3] must wrap to [0]. Shift+Tab on [0] must wrap to [3].
+// Tab on [4] must wrap to [0]. Shift+Tab on [0] must wrap to [4].
 
 describe('ProxyOnboardingModal — focus trap Tab forward (WCAG 2.1.2)', () => {
-  it('dialog panel contains exactly 4 focusable elements in initial state', () => {
+  it('dialog panel contains exactly 5 focusable elements in initial state', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
-    // [0] Deploy link, [1] URL input, [2] Save button, [3] Dismiss button
-    expect(focusables).toHaveLength(4);
+    // [0] Deploy link, [1] URL input, [2] Save button, [3] Setup guide link, [4] Dismiss button
+    expect(focusables).toHaveLength(5);
   });
 
   it('Tab on the last focusable element wraps to the first (Deploy link)', () => {
