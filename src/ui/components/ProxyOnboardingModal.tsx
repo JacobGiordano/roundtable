@@ -8,8 +8,11 @@
  * a three-step setup guide that gets the user from "no proxy" to "proxy working"
  * in under two minutes.
  *
- * Design spec: Spark (#332). Tone: warm, matter-of-fact, not a tutorial.
- * The "Deploy to Cloudflare →" button is the hero action.
+ * Flow (issue #586 — copy-paste deploy):
+ *   Step 1: Click "Copy proxy code" → script lands on clipboard
+ *   Step 2: Click "Open Cloudflare Workers →" → workers.new opens in new tab;
+ *           paste code, click Deploy, get Worker URL (~30 seconds)
+ *   Step 3: Paste Worker URL into the input field → "Save & continue"
  *
  * Animation (Spark spec):
  *   Entry: scale(0.97) → scale(1) + opacity(0) → opacity(1), 200ms ease-out.
@@ -18,7 +21,8 @@
  *
  * Dialog contract (WCAG 2.1 AA):
  *   - role="dialog" aria-modal="true" aria-labelledby pointing to title
- *   - Focus lands on "Deploy to Cloudflare →" hero button on open (double-rAF)
+ *   - Focus lands on "Copy proxy code" button on open (double-rAF) — Step 1 is
+ *     the first user action; focusing it directs attention correctly.
  *   - Full focus trap — Tab cycles through all interactive elements; Escape dismisses
  *   - Focus returns to the caller-supplied returnFocusRef on close (double-rAF)
  *
@@ -26,20 +30,32 @@
  *   - "Save & continue" button text changes to "Saved" instantly on click
  *   - 100ms beat (non-motion pause so user registers the confirmation)
  *   - Then onSaveAndContinue fires (InputBar handles save + send + modal unmount)
+ *
+ * Copy feedback:
+ *   - "Copy proxy code" → "Copied!" instantly on click
+ *   - Resets to "Copy proxy code" after 2000ms
+ *   - aria-live="polite" region announces the state change to screen readers
  */
 
 import { useState, useRef, useEffect, useId, useCallback } from 'react';
 
+// ?raw import — Vite bundles the proxy script as a plain string at build time.
+// The workers/ directory is at the project root (three levels up from this file).
+// workers/index.js is ~5.5 kB — included in the lazy-loaded modal chunk.
+import proxyCode from '../../../workers/index.js?raw';
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const CLOUDFLARE_DEPLOY_URL =
-  'https://deploy.workers.cloudflare.com/?url=https://github.com/JacobGiordano/roundtable&dir=workers';
+const CLOUDFLARE_WORKERS_URL = 'https://workers.new';
 
 const SETUP_GUIDE_URL =
   'https://github.com/JacobGiordano/roundtable/blob/main/docs/deployment.md';
 
 // 100ms beat between "Saved" appearing and onSaveAndContinue firing (Spark spec).
 const SAVE_FEEDBACK_DELAY_MS = 100;
+
+// 2000ms before copy button resets to idle state.
+const COPY_FEEDBACK_RESET_MS = 2000;
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -70,14 +86,18 @@ export function ProxyOnboardingModal({
 }: ProxyOnboardingModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const deployButtonRef = useRef<HTMLAnchorElement>(null);
+  // Initial focus target: copy button (Step 1 — the first user action).
+  const copyButtonRef = useRef<HTMLButtonElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // URL input state — held locally, passed to onSaveAndContinue on confirm.
   const [proxyUrl, setProxyUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   // Save feedback state per Spark spec: 'idle' → 'saved' → modal unmounts.
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
+  // Copy feedback state: 'idle' → 'copied' → 'idle' (after 2000ms).
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
 
   // ── Entry animation state (Spark spec) ────────────────────────────────────
   // Detect prefers-reduced-motion once at mount — check is stable for component lifetime.
@@ -97,19 +117,21 @@ export function ProxyOnboardingModal({
       requestAnimationFrame(() => setIsVisible(true));
     }
 
-    // Clean up the save-feedback timer if the component unmounts early.
+    // Clean up timers if the component unmounts early.
     return () => {
       if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
+      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Focus management ───────────────────────────────────────────────────────
-  // Focus "Deploy to Cloudflare →" when the modal mounts (WCAG 2.4.3 + Spark spec).
+  // Focus "Copy proxy code" when the modal mounts (WCAG 2.4.3).
+  // Step 1 is the first user action — directing focus there is semantically correct.
   // Double-rAF ensures the DOM has settled after React's render cycle.
   useEffect(() => {
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => deployButtonRef.current?.focus());
+      requestAnimationFrame(() => copyButtonRef.current?.focus());
     });
 
     // Capture returnFocusRef.current at effect-run time so cleanup restores
@@ -149,6 +171,17 @@ export function ProxyOnboardingModal({
       onSaveAndContinue(proxyUrl.trim());
     }, SAVE_FEEDBACK_DELAY_MS);
   }, [saveState, proxyUrl, validateUrl, onSaveAndContinue]);
+
+  // ── Copy proxy code ────────────────────────────────────────────────────────
+  const handleCopy = useCallback(() => {
+    if (copyState === 'copied') return; // Prevent double-fire during feedback window.
+    void navigator.clipboard.writeText(proxyCode).then(() => {
+      setCopyState('copied');
+      copyTimerRef.current = setTimeout(() => {
+        setCopyState('idle');
+      }, COPY_FEEDBACK_RESET_MS);
+    });
+  }, [copyState]);
 
   // ── Focus trap keydown handler ─────────────────────────────────────────────
   const handleKeyDown = useCallback(
@@ -229,7 +262,7 @@ export function ProxyOnboardingModal({
         // Prevent backdrop click from firing inside panel
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ── Header (Spark: "Connect your proxy") ─────────────────────────── */}
+        {/* ── Header ───────────────────────────────────────────────────────── */}
         <h2
           id={titleId}
           className="text-[16px] font-semibold text-text-primary leading-snug"
@@ -243,26 +276,65 @@ export function ProxyOnboardingModal({
             quirk. Without it, VoiceOver on Safari announces items without list
             context ("item 1 of 3" becomes absent). Ada advisory #332. */}
         <ol role="list" className="flex flex-col gap-5 list-none" aria-label="Setup steps">
-          {/* Step 1 — Deploy */}
+
+          {/* Step 1 — Copy the proxy code */}
           <li className="flex gap-3">
             <StepNumber n={1} />
             <div className="flex flex-col gap-2 flex-1 min-w-0">
               <p className="text-[13px] font-semibold text-text-primary">
-                Deploy your proxy
+                Copy the proxy code
               </p>
-              {/* Updated #585: Cloudflare now shows a multi-field setup form — prep users */}
               <p className="text-[13px] text-text-secondary leading-relaxed">
-                Create a free Cloudflare account if you don&apos;t have one. You&apos;ll see a setup form — connect your GitHub account, leave all four <code className="font-mono text-[12px]">VITE_</code> env var fields blank (those are for the main app, not the proxy), then click Deploy.
+                Click Copy to put the proxy script on your clipboard.
               </p>
-              {/* Hero action — full-width, group for arrow nudge (Spark spec).
+              {/* aria-live region announces copy state change to screen readers.
+                  aria-atomic ensures the full string is announced, not a diff.
+                  Ada advisory #586. */}
+              <div aria-live="polite" aria-atomic="true" className="sr-only">
+                {copyState === 'copied' ? 'Copied to clipboard.' : ''}
+              </div>
+              <button
+                ref={copyButtonRef}
+                type="button"
+                onClick={handleCopy}
+                aria-label={
+                  copyState === 'copied'
+                    ? 'Proxy code copied to clipboard'
+                    : 'Copy proxy code to clipboard'
+                }
+                className={[
+                  'flex items-center justify-center w-full',
+                  'px-4 py-2.5 rounded-md',
+                  'text-[14px] font-semibold',
+                  copyState === 'copied'
+                    ? 'bg-success/10 text-success border border-success/30 cursor-default'
+                    : 'bg-accent-claude text-text-inverse hover:opacity-90 active:opacity-80 transition-opacity duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                ].join(' ')}
+              >
+                {copyState === 'copied' ? 'Copied!' : 'Copy proxy code'}
+              </button>
+            </div>
+          </li>
+
+          {/* Step 2 — Open Cloudflare Workers */}
+          <li className="flex gap-3">
+            <StepNumber n={2} />
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-text-primary">
+                Open Cloudflare Workers
+              </p>
+              <p className="text-[13px] text-text-secondary leading-relaxed">
+                Paste the copied code into the editor (select all first), then click Save and Deploy. Takes about 30 seconds.
+              </p>
+              {/* Primary external action — full-width, group for arrow nudge (Spark spec).
                   aria-label includes "(opens in new tab)" so screen reader users
-                  know the link opens a new browser context (Ada advisory #332). */}
+                  know the link opens a new browser context. Ada advisory #332. */}
               <a
-                ref={deployButtonRef}
-                href={CLOUDFLARE_DEPLOY_URL}
+                href={CLOUDFLARE_WORKERS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Deploy to Cloudflare (opens in new tab)"
+                aria-label="Open Cloudflare Workers (opens in new tab)"
                 className={[
                   'group flex items-center justify-center w-full',
                   'px-4 py-2.5 rounded-md',
@@ -272,7 +344,7 @@ export function ProxyOnboardingModal({
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 ].join(' ')}
               >
-                Deploy to Cloudflare
+                Open Cloudflare Workers
                 {/* Arrow nudges right on hover (Spark spec: translate-x-0.5 at fast 100ms) */}
                 <span
                   className={[
@@ -290,30 +362,15 @@ export function ProxyOnboardingModal({
             </div>
           </li>
 
-          {/* Step 2 — Copy URL (Spark: "Copy your Worker URL") */}
-          <li className="flex gap-3">
-            <StepNumber n={2} />
-            <div className="flex flex-col gap-1 flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-text-primary">
-                Copy your Worker URL
-              </p>
-              {/* Spark: "gives you" (warmer), em dash, "Something like" */}
-              <p className="text-[13px] text-text-secondary leading-relaxed">
-                After deploying, Cloudflare gives you a Worker URL — something like{' '}
-                <code className="font-mono text-[12px] bg-hover rounded px-1 py-0.5">
-                  your-name.workers.dev
-                </code>
-                . Copy it.
-              </p>
-            </div>
-          </li>
-
-          {/* Step 3 — Paste & save */}
+          {/* Step 3 — Paste your Worker URL */}
           <li className="flex gap-3">
             <StepNumber n={3} />
             <div className="flex flex-col gap-2 flex-1 min-w-0">
               <p className="text-[13px] font-semibold text-text-primary">
-                Paste it here
+                Paste your Worker URL
+              </p>
+              <p className="text-[13px] text-text-secondary leading-relaxed">
+                After deploying, copy the URL from the Cloudflare dashboard and paste it here.
               </p>
               <div className="flex gap-2 items-start">
                 <div className="flex-1 min-w-0">
