@@ -1,4 +1,4 @@
-Last updated: 2026-08-06 (proxy deploy flow overhaul — copy+open replaces broken Cloudflare deploy button)
+Last updated: 2026-08-06 (proxy deploy flow: copy+open via workers.new — paste → Go → Deploy)
 
 ## Current phase
 
@@ -28,7 +28,7 @@ None.
 
 - **CI + deploy unblocked** — Three dependabot PRs merged July 31 out of sync broke `npm ci` for 6 days (all deploys skipped). Fix: pinned `@vitest/coverage-v8→^1.6.1`, `@eslint/js→^9.9.0`, `eslint-plugin-react-hooks→^5.1.0-rc.0` back to pre-conflict versions. Backend `conversations.ts:175` had useless null init flagged by ESLint 10 `no-useless-assignment` — removed. CI now green; deploy fired.
 - **OG/Twitter social card fix** — `og:image` and `twitter:image` were relative paths; crawlers resolved them against the domain root (missing `/roundtable/` base) → 404. Fixed to absolute URLs. Added `og:url`, `og:site_name`, `twitter:title`, `twitter:description`.
-- **Proxy deploy flow overhaul** — replaced broken Cloudflare one-click deploy button with a copy+open flow. "Copy proxy code" button bundles `workers/index.js` via Vite `?raw` import (lazy modal chunk, +5.5 kB). "Open Cloudflare Workers →" link opens `workers.new` in new tab. Eliminates GitHub account connection and confusing VITE_ env var fields entirely. `deployment.md` Step 1 rewritten to match. Ada: caught and fixed WCAG 1.4.1 resting-state underline on "Full setup guide" link.
+- **Proxy deploy flow overhaul** — replaced broken Cloudflare one-click deploy button with a copy+open flow. "Copy proxy code" button bundles `workers/index.js` via Vite `?raw` import (lazy modal chunk, +5.5 kB). "Open Cloudflare Workers →" link opens `workers.new`. Correct sequence: paste → click **Go** (applies code to preview runtime) → click **Deploy** (ships preview). Clicking Deploy before Go silently deploys the Hello World template. `deployment.md` Step 1 rewritten to match. Ada: caught and fixed WCAG 1.4.1 resting-state underline on "Full setup guide" link.
 - **#584 Proxy onboarding fixes** — broken `&dir=workers` deploy URL, setup guide link in modal, README blockquote callout, expanded deployment guide (Step 1 now covers Cloudflare UI, wrong-page warning, and post-deploy URL copy).
 
 ## Gotchas
