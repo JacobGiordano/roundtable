@@ -325,7 +325,7 @@ export function ProxyOnboardingModal({
                 Open Cloudflare Workers
               </p>
               <p className="text-[13px] text-text-secondary leading-relaxed">
-                Paste the copied code into the editor (select all first), then click Save and Deploy. Takes about 30 seconds.
+                Select all (Ctrl+A), paste, click Go to apply the code, then click Deploy. Takes about 30 seconds.
               </p>
               {/* Primary external action — full-width, group for arrow nudge (Spark spec).
                   aria-label includes "(opens in new tab)" so screen reader users
