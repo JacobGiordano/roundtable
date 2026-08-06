@@ -7,7 +7,7 @@
  * Standards: WCAG 2.1 Level AA
  *
  * States under test:
- *   - Initial render (4 focusable elements, Deploy link receives focus)
+ *   - Initial render (6 focusable elements, Copy button receives focus)
  *   - URL validation error (aria-invalid + role="alert" error paragraph)
  *   - Save & continue (button disabled + text change after successful save)
  *
@@ -18,7 +18,8 @@
  *   - Focus trap: Tab forward cycle, Shift+Tab backward cycle (WCAG 2.1.2)
  *   - Escape key: calls onDismiss (WCAG 2.1.2)
  *   - Enter key on URL input: triggers validation
- *   - Deploy to Cloudflare link: is a native <a> with href, rel="noopener noreferrer"
+ *   - Copy proxy code button: is a native <button> with accessible name + aria-live region
+ *   - Open Cloudflare Workers link: is a native <a> with href, rel="noopener noreferrer"
  *   - Reduced motion: modal renders in final state without animation
  *
  * Contrast audit: SKIPPED — all tokens (bg-accent-claude, text-text-inverse,
@@ -270,39 +271,78 @@ describe('ProxyOnboardingModal — URL input ARIA attributes (WCAG 1.3.1, 3.3.1)
   });
 });
 
-// ─── Deploy to Cloudflare link (WCAG 1.4.1, 2.4.4) ───────────────────────────
+// ─── Copy proxy code button (WCAG 4.1.2, 1.3.1) ──────────────────────────────
+//
+// Step 1 in the new copy+open flow. Replaces the old "Deploy to Cloudflare →"
+// deploy link. Is a native <button> (not an <a>) because it triggers a clipboard
+// action, not navigation. Has an aria-live region to announce state changes to
+// screen readers without moving focus.
 
-describe('ProxyOnboardingModal — Deploy to Cloudflare link (WCAG 1.4.1, 2.4.4)', () => {
-  it('Deploy button is a native <a> element (not a styled div)', () => {
+describe('ProxyOnboardingModal — Copy proxy code button (WCAG 4.1.2, 1.3.1)', () => {
+  it('Copy button is a native <button> element (not a styled div or link)', () => {
     render(<ModalWrapper />);
-    const deployLink = screen.getByRole('link', { name: /deploy to cloudflare/i });
-    expect(deployLink.tagName.toLowerCase()).toBe('a');
+    // aria-label changes between idle and copied states — match the idle label.
+    const copyBtn = screen.getByRole('button', { name: /copy proxy code to clipboard/i });
+    expect(copyBtn.tagName.toLowerCase()).toBe('button');
   });
 
-  it('Deploy link has a non-empty href (keyboard operable via Enter)', () => {
+  it('Copy button has a non-empty accessible name (WCAG 4.1.2)', () => {
     render(<ModalWrapper />);
-    const deployLink = screen.getByRole('link', { name: /deploy to cloudflare/i });
-    const href = deployLink.getAttribute('href');
+    const copyBtn = screen.getByRole('button', { name: /copy proxy code to clipboard/i });
+    // Accessible name comes from aria-label attribute.
+    const ariaLabel = copyBtn.getAttribute('aria-label');
+    expect(ariaLabel).toBeTruthy();
+    expect(ariaLabel!.length).toBeGreaterThan(0);
+  });
+
+  it('aria-live="polite" region exists for screen reader copy announcement (WCAG 4.1.3)', () => {
+    render(<ModalWrapper />);
+    const dialog = screen.getByRole('dialog');
+    // The aria-live region is a visually-hidden div adjacent to the copy button.
+    const liveRegion = dialog.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeTruthy();
+    expect(liveRegion!.getAttribute('aria-atomic')).toBe('true');
+  });
+});
+
+// ─── Open Cloudflare Workers link (WCAG 1.4.1, 2.4.4) ────────────────────────
+//
+// Step 2 in the new copy+open flow. Replaced the old one-click deploy button with
+// a plain navigation link to workers.new. Opens in a new tab so the user can
+// return to the modal to paste the Worker URL.
+
+describe('ProxyOnboardingModal — Open Cloudflare Workers link (WCAG 1.4.1, 2.4.4)', () => {
+  it('Open Workers button is a native <a> element (not a styled div)', () => {
+    render(<ModalWrapper />);
+    const workersLink = screen.getByRole('link', { name: /open cloudflare workers/i });
+    expect(workersLink.tagName.toLowerCase()).toBe('a');
+  });
+
+  it('Open Workers link has href="https://workers.new" (keyboard operable via Enter)', () => {
+    render(<ModalWrapper />);
+    const workersLink = screen.getByRole('link', { name: /open cloudflare workers/i });
+    const href = workersLink.getAttribute('href');
     expect(href).toBeTruthy();
-    expect(href).toContain('cloudflare.com');
+    expect(href).toBe('https://workers.new');
   });
 
-  it('Deploy link opens in new tab with rel="noopener noreferrer"', () => {
+  it('Open Workers link opens in new tab with rel="noopener noreferrer"', () => {
     render(<ModalWrapper />);
-    const deployLink = screen.getByRole('link', { name: /deploy to cloudflare/i });
-    expect(deployLink.getAttribute('target')).toBe('_blank');
-    expect(deployLink.getAttribute('rel')).toBe('noopener noreferrer');
+    const workersLink = screen.getByRole('link', { name: /open cloudflare workers/i });
+    expect(workersLink.getAttribute('target')).toBe('_blank');
+    expect(workersLink.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
-  it('Deploy link accessible name does not include the decorative arrow (aria-hidden)', () => {
+  it('Open Workers link accessible name does not include the decorative arrow (aria-hidden)', () => {
     render(<ModalWrapper />);
     // The arrow "→" span is aria-hidden="true". The computed accessible name
-    // should be the link text only, not "Deploy to Cloudflare →".
-    // We verify this indirectly: the link is found by the name without the arrow.
-    const deployLink = screen.getByRole('link', { name: /deploy to cloudflare/i });
-    expect(deployLink).toBeTruthy();
-    // Arrow span must be aria-hidden
-    const arrowSpan = deployLink.querySelector('[aria-hidden="true"]');
+    // comes from aria-label which excludes the arrow. We verify via two checks:
+    // 1) the link is findable by name without the arrow character
+    // 2) the arrow span is explicitly aria-hidden
+    const workersLink = screen.getByRole('link', { name: /open cloudflare workers/i });
+    expect(workersLink).toBeTruthy();
+    // Arrow span must be aria-hidden so AT reads aria-label instead.
+    const arrowSpan = workersLink.querySelector('[aria-hidden="true"]');
     expect(arrowSpan).toBeTruthy();
     expect(arrowSpan!.textContent).toBe('→');
   });
@@ -376,28 +416,30 @@ describe('ProxyOnboardingModal — Dismiss button (WCAG 2.1.1)', () => {
 // ─── Focus trap — Tab and Shift+Tab (WCAG 2.1.2) ─────────────────────────────
 //
 // The focus trap is implemented via onKeyDown on the dialog panel div.
-// Four focusable elements in DOM order (initial state):
-//   [0] Deploy to Cloudflare link   (a[href])
-//   [1] Proxy URL input             (input)
-//   [2] Save & continue button      (button)
-//   [3] Full setup guide link       (a[href]) — added in #584
-//   [4] I'll set this up later btn  (button)
+// Six focusable elements in DOM order (initial state — issue #586 added copy button):
+//   [0] Copy proxy code button      (button)
+//   [1] Open Cloudflare Workers link (a[href])
+//   [2] Proxy URL input             (input)
+//   [3] Save & continue button      (button)
+//   [4] Full setup guide link       (a[href])
+//   [5] I'll set this up later btn  (button)
 //
-// Tab on [4] must wrap to [0]. Shift+Tab on [0] must wrap to [4].
+// Tab on [5] must wrap to [0]. Shift+Tab on [0] must wrap to [5].
 
 describe('ProxyOnboardingModal — focus trap Tab forward (WCAG 2.1.2)', () => {
-  it('dialog panel contains exactly 5 focusable elements in initial state', () => {
+  it('dialog panel contains exactly 6 focusable elements in initial state', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
-    // [0] Deploy link, [1] URL input, [2] Save button, [3] Setup guide link, [4] Dismiss button
-    expect(focusables).toHaveLength(5);
+    // [0] Copy button, [1] Workers link, [2] URL input, [3] Save button,
+    // [4] Setup guide link, [5] Dismiss button
+    expect(focusables).toHaveLength(6);
   });
 
-  it('Tab on the last focusable element wraps to the first (Deploy link)', () => {
+  it('Tab on the last focusable element wraps to the first (Copy button)', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
     const last = focusables[focusables.length - 1]; // Dismiss button
-    const first = focusables[0]; // Deploy link
+    const first = focusables[0]; // Copy proxy code button
 
     act(() => { last.focus(); });
     expect(document.activeElement).toBe(last);
@@ -418,8 +460,8 @@ describe('ProxyOnboardingModal — focus trap Tab forward (WCAG 2.1.2)', () => {
   it('Tab on the URL input moves to the Save & continue button', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
-    const urlInput = focusables[1]; // URL input
-    const saveBtn = focusables[2]; // Save & continue
+    const urlInput = focusables[2]; // URL input
+    const saveBtn = focusables[3]; // Save & continue
 
     act(() => { urlInput.focus(); });
     expect(document.activeElement).toBe(urlInput);
@@ -441,7 +483,7 @@ describe('ProxyOnboardingModal — focus trap Shift+Tab backward (WCAG 2.1.2)', 
   it('Shift+Tab on the first focusable wraps to the last (Dismiss button)', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
-    const first = focusables[0]; // Deploy link
+    const first = focusables[0]; // Copy proxy code button
     const last = focusables[focusables.length - 1]; // Dismiss button
 
     act(() => { first.focus(); });
@@ -462,8 +504,8 @@ describe('ProxyOnboardingModal — focus trap Shift+Tab backward (WCAG 2.1.2)', 
   it('Shift+Tab on the Save button moves to the URL input', () => {
     render(<ModalWrapper />);
     const focusables = getDialogFocusables();
-    const saveBtn = focusables[2]; // Save & continue
-    const urlInput = focusables[1]; // URL input
+    const saveBtn = focusables[3]; // Save & continue
+    const urlInput = focusables[2]; // URL input
 
     act(() => { saveBtn.focus(); });
     expect(document.activeElement).toBe(saveBtn);
@@ -632,7 +674,8 @@ describe('ProxyOnboardingModal — step numbers (WCAG 1.3.1)', () => {
     // hiding the visual number prevents double announcement.
     const dialog = screen.getByRole('dialog');
     const hiddenSpans = dialog.querySelectorAll('span[aria-hidden="true"]');
-    // Decorative spans: 3 step numbers + 1 arrow in Deploy link = 4 total.
+    // Decorative spans: 3 step numbers + 1 arrow in Open Workers link + 1 arrow in
+    // Full setup guide link footer = 5 total aria-hidden spans.
     // We only need to confirm step number spans exist and are aria-hidden.
     const stepNumberSpans = Array.from(hiddenSpans).filter((el) =>
       ['1', '2', '3'].includes(el.textContent?.trim() ?? ''),
