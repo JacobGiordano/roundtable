@@ -33,7 +33,7 @@ an account, no credit card required.
    (free, no credit card).
 
 4. In the editor, select all the placeholder code (Ctrl+A or Cmd+A), paste,
-   then click **Save and Deploy**.
+   click **Go** to apply the code, then click **Deploy**.
 
 5. After about 30 seconds, Cloudflare shows your Worker URL — something like
    `your-name.workers.dev`. **Copy the full URL including `https://`** — you'll
