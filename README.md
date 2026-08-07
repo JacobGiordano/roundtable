@@ -10,6 +10,17 @@ Talk with multiple AI models simultaneously in a shared chat thread — compare 
 
 > **Before you open the app:** built-in providers (Claude, GPT, Gemini, Grok, Mistral, DeepSeek) require a free Cloudflare Workers proxy — set it up in [2 minutes using the deployment guide](docs/deployment.md). OpenAI-compatible endpoints (OpenRouter, Ollama, local models) do not need one.
 
+## Why Roundtable?
+
+You could open three browser tabs. The problem: you're manually copying the same prompt into each one, then flipping between tabs to compare answers that are already drifting out of context.
+
+Roundtable keeps one shared thread. Send once, all active models answer. Useful when:
+
+- **You want a second opinion on code or writing** — different models catch different things. One might spot the off-by-one; another might flag the naming.
+- **You're not sure which model to trust** — when one hallucinates and another doesn't, you see the gap immediately instead of finding out later.
+- **You want to use each model's strengths** — ask a reasoning model and a fast model the same question; direct follow-ups to whichever answered better.
+- **You want synthesis, not just comparison** — auto-chain mode lets each model read what the others said before it answers, so you get a conversation between models, not parallel monologues.
+
 ## Conversation modes
 
 ![Auto-chain mode with four models — Kimi K2.6, Claude, Step 3.7 Flash, and ChatGPT — each giving a distinct answer to "Favorite Ninja Turtle, Go!" Auto-chain active in the bottom bar](docs/assets/screenshot-autochain.png)
