@@ -35,6 +35,38 @@
  */
 
 import type { Conversation, ExportedConversation, ExportFormat, ExportOptions } from '@/types/index';
+import DOMPurify from 'dompurify';
+import { micromark } from 'micromark';
+import { gfm, gfmHtml } from 'micromark-extension-gfm';
+
+// ─── Security: markdown-to-HTML converter for HTML export ────────────────────
+//
+// Model responses arrive as markdown. The HTML export must render that markdown
+// as structured HTML so the downloaded file is human-readable in any browser
+// without a markdown viewer.
+//
+// Conversion pipeline:
+//   1. micromark + GFM extensions: markdown string → HTML string.
+//      micromark and micromark-extension-gfm are already installed as transitive
+//      dependencies of react-markdown / remark-gfm — no new npm dep is introduced.
+//   2. DOMPurify.sanitize: strip any XSS from the converted HTML before injecting
+//      it into the export template. Model output is untrusted; DOMPurify is the
+//      same library used in MarkdownContent.tsx (UI side). No new dep introduced.
+//
+// User messages are NOT run through this pipeline — user input is rendered as
+// plain text (HTML-escaped, newlines → <br>). Markdown in user messages is
+// literal syntax, not intended markup.
+//
+// DOMPurify requires a browser DOM (window/document). This function is only
+// called from conversationToHtml(), which is only called during a browser export
+// action. The vitest environment uses jsdom, which provides the necessary DOM.
+function markdownToSafeHtml(markdown: string): string {
+  const rawHtml = micromark(markdown, {
+    extensions: [gfm()],
+    htmlExtensions: [gfmHtml()],
+  });
+  return DOMPurify.sanitize(rawHtml);
+}
 
 // ─── Serializers ──────────────────────────────────────────────────────────────
 
@@ -119,13 +151,21 @@ export function conversationToMarkdown(conv: Conversation, options?: ExportOptio
 /**
  * Serialize a conversation to a self-contained HTML document.
  *
- * All user-supplied content is HTML-escaped. Newlines in message content are
- * converted to `<br>` tags. The output includes inline styles for basic
- * readability in any browser.
+ * Assistant message content is rendered from markdown to HTML via `markdownToSafeHtml`
+ * (micromark + GFM extensions → DOMPurify sanitization), so the downloaded file
+ * renders correctly in any browser — bold, lists, code blocks, and other markdown
+ * elements appear as formatted HTML rather than raw syntax characters.
+ *
+ * User message content is rendered as plain text (HTML-escaped, newlines → `<br>`).
+ * User input is literal text, not intended markdown, so markdown parsing is not applied.
+ *
+ * Security: assistant content passes through DOMPurify before injection into the
+ * template. Model output is untrusted; DOMPurify strips XSS vectors (script tags,
+ * event handler attributes, javascript: hrefs, etc.) from the micromark-generated HTML.
  *
  * When `options.includeAttachments` is true, each user message with attachments
  * has one `<span class="attachment">📎 <name></span>` element per attachment
- * appended after the message `<p>` element. No inline images are rendered;
+ * appended after the message content. No inline images are rendered;
  * only the identifying metadata is included. The `.attachment` class carries
  * minimal inline styling (pill shape, muted color).
  *
@@ -161,7 +201,14 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
         role = escape(modelConfig?.name ?? msg.modelId ?? 'Assistant');
       }
       const ts = new Date(msg.timestamp).toLocaleTimeString();
-      const content = escape(msg.content).replace(/\n/g, '<br>');
+      // Assistant messages: render markdown to HTML (micromark + GFM → DOMPurify).
+      // User messages: plain text — HTML-escaped, newlines converted to <br>.
+      // User content is literal input, not intended markdown, so markdown parsing
+      // would corrupt text that happens to contain asterisks or backticks.
+      const content =
+        msg.role === 'assistant'
+          ? markdownToSafeHtml(msg.content)
+          : escape(msg.content).replace(/\n/g, '<br>');
 
       // Generated images — inline data-URI <img> elements (issue #365, #453).
       // Gated on includeGeneratedImages (default false) per Vera's privacy audit:
@@ -191,7 +238,15 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
         attachmentHtml = `<div class="attachments">${pills}</div>`;
       }
 
-      return `<div class="message ${msg.role}"><strong>${role}</strong> <small>${ts}</small><p>${content}</p>${generatedImageHtml}${attachmentHtml}</div>`;
+      // Assistant content is block-level HTML from markdownToSafeHtml (contains <p>, <ul>, etc.),
+      // so it is injected directly into a <div class="content"> — not wrapped in <p>.
+      // User content is inline (escaped text + <br>) and is wrapped in <p>.
+      const contentHtml =
+        msg.role === 'assistant'
+          ? `<div class="content">${content}</div>`
+          : `<p>${content}</p>`;
+
+      return `<div class="message ${msg.role}"><strong>${role}</strong> <small>${ts}</small>${contentHtml}${generatedImageHtml}${attachmentHtml}</div>`;
     })
     .join('\n');
 
@@ -202,11 +257,34 @@ export function conversationToHtml(conv: Conversation, options?: ExportOptions):
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-    .message { margin-bottom: 1.5rem; }
-    .user { color: #1e40af; }
-    .assistant { color: #065f46; }
-    small { color: #6b7280; }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #111827; line-height: 1.6; }
+    .message { margin-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; }
+    .message:last-child { border-bottom: none; }
+    .user strong { color: #1e40af; }
+    .assistant strong { color: #065f46; }
+    small { color: #6b7280; margin-left: 0.5rem; }
+    /* Markdown-rendered content for assistant messages */
+    .content p { margin: 0.5rem 0; }
+    .content p:first-child { margin-top: 0.25rem; }
+    .content p:last-child { margin-bottom: 0; }
+    .content ul, .content ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    .content li { margin: 0.25rem 0; }
+    .content h1, .content h2, .content h3, .content h4, .content h5, .content h6 { margin: 1rem 0 0.5rem; font-weight: 600; line-height: 1.3; }
+    .content h1 { font-size: 1.25rem; }
+    .content h2 { font-size: 1.125rem; }
+    .content h3, .content h4, .content h5, .content h6 { font-size: 1rem; }
+    .content pre { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.75rem 1rem; overflow-x: auto; font-size: 0.875rem; margin: 0.75rem 0; }
+    .content code { font-family: ui-monospace, 'Cascadia Code', Menlo, monospace; font-size: 0.875em; }
+    .content pre code { font-size: inherit; background: none; padding: 0; border: none; }
+    .content :not(pre) > code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.25rem; padding: 0.125rem 0.375rem; }
+    .content blockquote { border-left: 3px solid #9ca3af; margin: 0.5rem 0; padding-left: 0.75rem; color: #6b7280; font-style: italic; }
+    .content table { border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-size: 0.9rem; }
+    .content th, .content td { border: 1px solid #e5e7eb; padding: 0.375rem 0.75rem; text-align: left; }
+    .content th { background: #f9fafb; font-weight: 600; }
+    .content hr { border: none; border-top: 1px solid #e5e7eb; margin: 1rem 0; }
+    .content a { color: #2563eb; text-decoration: underline; }
+    .content strong { font-weight: 600; }
+    .content em { font-style: italic; }
     .generated-images { margin-top: 0.5rem; }
     .attachments { margin-top: 0.5rem; }
     .attachment { display: inline-block; font-size: 0.75rem; color: #374151; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 9999px; padding: 0.125rem 0.5rem; margin-right: 0.25rem; }
