@@ -44,11 +44,12 @@ interface MessageThreadProps {
    */
   onExport?: (format: ExportFormat, options: ExportOptions) => void;
   /**
-   * Called when the user clicks the edit button on a user message bubble.
-   * Receives the 0-based index of that message in the `messages` array so App
-   * can truncate at that point and re-send with edited content (#162).
+   * Called when the user confirms an inline edit on a user message bubble (#586).
+   * Receives the 0-based index in `messages` and the new content from the inline
+   * textarea. App pre-fills InputBar with newContent and sets editingMessage so
+   * the send path truncates and re-sends from that point.
    */
-  onEditMessage?: (messageIndex: number) => void;
+  onEditMessage?: (messageIndex: number, newContent?: string) => void;
   /**
    * Called when the user clicks a suggestion chip in ConversationEmptyState.
    * Receives the chip text; AppLayout stores it as prefillText and passes it
@@ -291,7 +292,7 @@ export function MessageThread({
     });
   }, [models.length]);
 
-  // ─── Smart scroll (#161 / #567) ──────────────────────────────────────────────
+  // ─── Smart scroll (#161 / #567 / #585) ──────────────────────────────────────
   // pinnedToBottom: true when the user is at (or near) the bottom of the
   // scroll container. Auto-scroll fires only when pinned. Stored in a ref
   // (not state) so toggling it never triggers a re-render by itself.
@@ -320,7 +321,33 @@ export function MessageThread({
   // and correctly update pinnedToBottom.
   const isProgrammaticScroll = useRef(false);
 
+  // #585: User scroll intent guard.
+  //
+  // Remaining race after #567: even with isProgrammaticScroll protection, rapid
+  // streaming can still trap the user:
+  //   1. User wheels upward (intending to scroll up).
+  //   2. A chunk arrives before the scroll event from the wheel lands in the listener.
+  //   3. useEffect fires → pinnedToBottom.current is still true → scrollToBottom('instant')
+  //      snaps back to bottom, overriding the user's upward wheel gesture.
+  //   4. When the user's scroll event finally fires, the container is back at the
+  //      bottom → distanceFromBottom = 0 → isNearBottom = true → stays pinned.
+  //   5. User "always loses the fight."
+  //
+  // Fix: wheel and touch events fire BEFORE their resulting scroll events and
+  // BEFORE any React effect triggered by a streaming chunk in the same frame.
+  // A wheel listener immediately sets userScrolledUp = true and unpins when the
+  // user scrolls upward. scrollToBottom checks this flag and bails out early if
+  // the user has expressed upward intent. The flag is cleared when the scroll
+  // listener sees the user return to within SCROLL_THRESHOLD of the bottom.
+  const userScrolledUp = useRef(false);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    // #585: Respect explicit user scroll-up intent — bail out if the user has
+    // wheeled or swiped upward since they were last at the bottom. This prevents
+    // streaming chunks from snapping the view back down before the user's scroll
+    // event can update pinnedToBottom.current.
+    if (userScrolledUp.current) return;
+
     isProgrammaticScroll.current = true;
     bottomRef.current?.scrollIntoView({ behavior });
     // Clear the flag after the browser has processed the scroll event.
@@ -336,6 +363,8 @@ export function MessageThread({
   // Attach scroll listener to the container to track whether user is pinned.
   // #567: Skip updating pinnedToBottom when the scroll was programmatic — only
   // user-initiated scrolls should change the pinned/unpinned state.
+  // #585: Clears userScrolledUp when the user returns to the bottom so auto-scroll
+  // resumes naturally once they scroll back down.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -349,10 +378,54 @@ export function MessageThread({
       const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
       pinnedToBottom.current = isNearBottom;
       setShowScrollButton(!isNearBottom);
+
+      // #585: Clear the user-scroll-up guard when the user returns to the bottom.
+      // This re-enables auto-scroll once they voluntarily scroll back down.
+      if (isNearBottom) {
+        userScrolledUp.current = false;
+      }
+    };
+
+    // #585: Wheel listener — fires before scroll events, giving us early detection
+    // of upward scroll intent. Immediately sets userScrolledUp so the next streaming
+    // auto-scroll effect bails out before it can snap the view back to bottom.
+    // passive: true — we never call preventDefault(), browser can optimize scrolling.
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) {
+        // Negative deltaY = user is scrolling upward.
+        pinnedToBottom.current = false;
+        userScrolledUp.current = true;
+        setShowScrollButton(true);
+      }
+    };
+
+    // #585: Touch listeners — covers mobile and touch-enabled trackpads.
+    // touchstart records the initial Y position; touchmove detects upward swipe
+    // (finger moving downward on the screen = content scrolling upward).
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      const currentY = e.touches[0]?.clientY ?? 0;
+      if (currentY > touchStartY) {
+        // Finger moved downward on screen = content scrolling upward.
+        pinnedToBottom.current = false;
+        userScrolledUp.current = true;
+        setShowScrollButton(true);
+      }
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    container.addEventListener('wheel', handleWheel, { passive: true });
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+    };
   }, []);
 
   // ─── Live region 1: streaming completion (#48) ─────────────────────────────
@@ -478,7 +551,11 @@ export function MessageThread({
       // The user just sent a new message — always scroll to bottom and re-pin.
       // Use smooth only for the initial scroll-to-new-message; streaming chunks
       // use instant below (#451).
+      // #585: Clear userScrolledUp so the new-message scroll is never blocked
+      // by a prior upward scroll gesture. Sending a message implicitly returns
+      // the user to "follow the response" mode.
       lastUserMessageIdRef.current = lastUserMsg.id;
+      userScrolledUp.current = false;
       scrollToBottom('smooth');
       return;
     }
@@ -699,7 +776,7 @@ export function MessageThread({
                 <button
                   type="button"
                   aria-label="Scroll to bottom"
-                  onClick={() => scrollToBottom('smooth')}
+                  onClick={() => { userScrolledUp.current = false; scrollToBottom('smooth'); }}
                   className={[
                     'pointer-events-auto',
                     'flex items-center justify-center',
