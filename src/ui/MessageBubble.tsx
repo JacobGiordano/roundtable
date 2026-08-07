@@ -728,11 +728,18 @@ function MessageBubbleBase({
 
   // Confirm: call onEditMessage with the new content, then close the inline editor.
   // App will pre-fill InputBar with newContent and trigger the edit→send flow (#162).
+  //
+  // #586 / WCAG 2.4.3: After closing the inline editor via Save, focus is restored
+  // to the edit button via requestAnimationFrame (same pattern as handleEditCancel).
+  // rAF defers the focus call until after React has re-rendered (restoring the edit
+  // button to the DOM). Without rAF, the button would not yet be in the DOM when
+  // focus is called, producing a no-op and leaving keyboard users without a position.
   const handleEditConfirm = useCallback(() => {
     if (onEditMessage && messageIndex !== undefined) {
       onEditMessage(messageIndex, editContent.trim());
     }
     setIsEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
   }, [onEditMessage, messageIndex, editContent]);
 
   // Keyboard handling for the inline edit textarea.
