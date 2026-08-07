@@ -153,11 +153,13 @@ interface MessageBubbleProps {
    */
   tokenCountVisibility?: TokenCountVisibility;
   /**
-   * Called when the user clicks the edit button on a user message bubble.
-   * Receives the message's index in the thread so App can truncate at that point.
-   * Only provided for user message bubbles — omitting hides the edit button.
+   * Called when the user confirms an inline edit on a user message bubble (#586).
+   * messageIndex: 0-based index in the persisted messages array.
+   * newContent: edited text from the inline textarea — App uses this to pre-fill
+   * InputBar and set editingMessage so the send path re-submits from that point.
+   * Only provided for user message bubbles — omitting hides the edit affordance.
    */
-  onEditMessage?: (messageIndex: number) => void;
+  onEditMessage?: (messageIndex: number, newContent?: string) => void;
   /**
    * The 0-based index of this message in the full messages array.
    * Required when onEditMessage is provided so the click handler can pass the
@@ -690,6 +692,61 @@ function MessageBubbleBase({
   // generatedImageLightboxReturnRef: trigger button for focus restoration on close.
   const [lightboxGeneratedImageIdx, setLightboxGeneratedImageIdx] = useState<number | null>(null);
   const generatedImageLightboxReturnRef = useRef<HTMLElement | null>(null);
+
+  // ─── Inline edit state (#586) ────────────────────────────────────────────
+  // isEditing: true when the user has clicked the edit button on a user message.
+  // editContent: the textarea's current value during editing.
+  // editTextareaRef: used for focus management (WCAG 2.4.3) — focus moves to the
+  // textarea when edit mode opens, returns to the edit button when it closes.
+  // editButtonRef: the trigger that opened edit mode — focus is restored here on cancel.
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Open edit mode: populate the textarea with the original message content and focus it.
+  const handleEditOpen = useCallback(() => {
+    setEditContent(message.content ?? '');
+    setIsEditing(true);
+  }, [message.content]);
+
+  // Focus the textarea when edit mode opens (WCAG 2.4.3 Focus Order).
+  useEffect(() => {
+    if (isEditing && editTextareaRef.current) {
+      const el = editTextareaRef.current;
+      el.focus();
+      // Move cursor to end so the user can edit from where they left off.
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, [isEditing]);
+
+  // Cancel: discard edit and return focus to the edit button.
+  const handleEditCancel = useCallback(() => {
+    setIsEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
+  }, []);
+
+  // Confirm: call onEditMessage with the new content, then close the inline editor.
+  // App will pre-fill InputBar with newContent and trigger the edit→send flow (#162).
+  const handleEditConfirm = useCallback(() => {
+    if (onEditMessage && messageIndex !== undefined) {
+      onEditMessage(messageIndex, editContent.trim());
+    }
+    setIsEditing(false);
+  }, [onEditMessage, messageIndex, editContent]);
+
+  // Keyboard handling for the inline edit textarea.
+  // Enter (without Shift) = confirm; Shift+Enter = newline (default).
+  // Escape = cancel.
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEditConfirm();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleEditCancel();
+    }
+  }, [handleEditConfirm, handleEditCancel]);
 
   // ─── Thinking indicator state (#371 / #555) ──────────────────────────────
   // ThinkingIndicator and MessageContent are mutually exclusive in the body zone.
@@ -1647,11 +1704,13 @@ function MessageBubbleBase({
           <div className="ml-auto flex items-center gap-2">
             {/* Edit button — user messages only, left of copy.
                 Always in DOM (opacity toggled, not conditional) so Tab reaches it.
-                Calls onEditMessage(messageIndex) → App truncate+resend path. */}
-            {onEditMessage && messageIndex !== undefined && (
+                #586: Opens inline edit state in the bubble body (handleEditOpen).
+                ref={editButtonRef} enables focus restoration on cancel (WCAG 2.4.3). */}
+            {onEditMessage && messageIndex !== undefined && !isEditing && (
               <button
+                ref={editButtonRef}
                 type="button"
-                onClick={() => onEditMessage(messageIndex)}
+                onClick={handleEditOpen}
                 aria-label="Edit message"
                 className={[
                   'w-6 h-6 rounded flex items-center justify-center shrink-0',
@@ -1768,12 +1827,87 @@ function MessageBubbleBase({
             </div>
           )}
 
-          {/* Message body — plain whitespace-preserving text for user messages. */}
-          <MessageContent
-            message={message}
-            isStreaming={isStreaming}
-            hasError={false}
-          />
+          {/* Message body — inline edit state or rendered message content. */}
+          {isEditing ? (
+            // ── Inline edit mode (#586) ─────────────────────────────────────
+            // Replaces the read-only message body with an editable textarea.
+            // Confirm: Enter (without Shift) or the Save button.
+            // Cancel: Escape or the Cancel button.
+            // Focus: textarea auto-focused on open (useEffect above, WCAG 2.4.3).
+            // Keyboard contract: Tab / Shift+Tab cycles textarea → Cancel → Save.
+            // Token verification:
+            //   bg-input: tailwind.config.js → var(--surface-input); applyTheme() ✓
+            //   border-border: tailwind.config.js → var(--border-default); applyTheme() ✓
+            //   text-text-primary: tailwind.config.js → var(--text-primary); applyTheme() ✓
+            <div className="flex flex-col gap-2">
+              <textarea
+                ref={editTextareaRef}
+                value={editContent}
+                onChange={(e) => {
+                  setEditContent(e.target.value);
+                  // Auto-resize to content (same pattern as InputBar).
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 300)}px`;
+                }}
+                onKeyDown={handleEditKeyDown}
+                aria-label="Edit message content"
+                rows={1}
+                className={[
+                  'w-full resize-none rounded-md px-3 py-2',
+                  'bg-input border border-border',
+                  'text-[15px] font-normal leading-[1.6] text-text-primary',
+                  'placeholder:text-text-muted',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  'transition-shadow duration-fast',
+                ].join(' ')}
+              />
+              {/* Edit action buttons: Cancel | Save.
+                  Button order: Cancel first (safer action, avoids accidental confirm),
+                  Save second (primary action). Tab order: textarea → Cancel → Save. */}
+              <div
+                className="flex items-center justify-end gap-2"
+                role="group"
+                aria-label="Edit actions"
+              >
+                <button
+                  type="button"
+                  onClick={handleEditCancel}
+                  className={[
+                    'px-3 py-1 rounded text-[12px] font-medium',
+                    'text-text-secondary hover:text-text-primary hover:bg-hover',
+                    'transition-colors duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditConfirm}
+                  disabled={!editContent.trim()}
+                  className={[
+                    'px-3 py-1 rounded text-[12px] font-medium',
+                    // bg-accent-claude + text-text-inverse: established primary action
+                    // pattern (matches Send button, ProviderSettingsPanel). Both tokens
+                    // verified in tailwind.config.js and applyTheme() for all 7 themes.
+                    'bg-accent-claude text-text-inverse',
+                    'hover:brightness-110',
+                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                    'transition-[filter,opacity] duration-fast',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+                  ].join(' ')}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <MessageContent
+              message={message}
+              isStreaming={isStreaming}
+              hasError={false}
+            />
+          )}
 
           {/* Bottom row — token count only (no directed-reply on user bubbles).
               Visibility is driven by tokenCountVisibility same as assistant bubbles.

@@ -61,7 +61,13 @@ export interface RoundtableContextValue {
   // #453: ExportOptions (includeGeneratedImages) passed alongside format so
   // the storage layer can embed or omit generated image blobs per user choice.
   onExportConversation: ((format: ExportFormat, options: ExportOptions) => void) | undefined;
-  onEditMessage: (messageIndex: number) => void;
+  /**
+   * Called when the user confirms an inline edit on a user message bubble (#586).
+   * messageIndex: 0-based index in the persisted messages array.
+   * newContent: the edited text typed in the inline textarea. When provided, App
+   * pre-fills InputBar with this content instead of the original message text.
+   */
+  onEditMessage: (messageIndex: number, newContent?: string) => void;
 
   // ── Edit mode (InputBar + MessageThread) ─────────────────────────────────
   editingMessage: { messageIndex: number; originalContent: string } | undefined;

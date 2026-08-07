@@ -859,16 +859,20 @@ export default function App() {
   };
 
   /**
-   * Called by MessageBubble (via MessageThread) when the user clicks the edit button.
-   * Sets edit mode: InputBar pre-fills with the original content of that message.
-   * The conversation is truncated and re-sent when the user submits the edit.
+   * Called by MessageBubble (via MessageThread) when the user confirms an inline edit (#586).
+   * messageIndex: 0-based index of the message to edit in the persisted messages array.
+   * newContent: optional edited text from the inline textarea. When provided, InputBar
+   * pre-fills with this content (the edited version). When absent, falls back to the
+   * original message text from the store (preserves the prior edit-via-InputBar path).
+   * Sets editingMessage so handleSend truncates the conversation at messageIndex and
+   * re-sends with the edited content.
    */
-  const handleEditMessage = useCallback((messageIndex: number) => {
+  const handleEditMessage = useCallback((messageIndex: number, newContent?: string) => {
     const conv = store.getActiveConversation() ??
       (store.activeConversationId ? getGhostConversation(store.activeConversationId) : undefined);
     const msg = conv?.messages[messageIndex];
     if (!msg || msg.role !== 'user') return;
-    setEditingMessage({ messageIndex, originalContent: msg.content });
+    setEditingMessage({ messageIndex, originalContent: newContent ?? msg.content });
   }, [store, getGhostConversation]);
 
   /** Called by InputBar Cancel button or Escape key — abandons the current edit. */
