@@ -1,0 +1,1 @@
+import{r as i}from"./markdown-ZSVVB-on.js";function m(s,e,t=!0){i.useEffect(()=>{if(!t)return;function n(o){const u=o.target;s.some(r=>r.current&&r.current.contains(u))||e()}return document.addEventListener("mousedown",n),()=>document.removeEventListener("mousedown",n)},[t,e])}export{m as u};
