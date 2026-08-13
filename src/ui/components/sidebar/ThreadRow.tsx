@@ -182,7 +182,7 @@ export function ThreadRow({
         onClick={handleMenuOpen}
         className={[
           'absolute right-1.5 top-1/2 -translate-y-1/2 z-10',
-          'w-7 h-7 rounded flex items-center justify-center',
+          'w-7 h-7 min-w-[44px] min-h-[44px] rounded flex items-center justify-center',
           'text-text-muted hover:text-text-secondary hover:bg-hover',
           'transition-colors duration-fast',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',

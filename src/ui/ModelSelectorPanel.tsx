@@ -336,7 +336,7 @@ export function ModelSelectorPanel({
         aria-expanded={false}
         className={[
           'inline-flex items-center gap-[6px]',
-          'h-7 px-[10px]',
+          'h-7 min-h-[44px] px-[10px]',
           'text-[12px] font-medium text-text-muted',
           'bg-transparent border border-border-subtle rounded-full',
           'hover:border-border transition-[border-color] duration-fast',
@@ -598,7 +598,7 @@ export function ModelSelectorPanel({
         onClick={handleTriggerClick}
         className={[
           'inline-flex items-center gap-[6px]',
-          'h-7 px-[10px]',
+          'h-7 min-h-[44px] px-[10px]',
           'text-[12px] font-medium text-text-secondary',
           'bg-transparent border border-border-subtle rounded-full',
           'hover:border-border transition-[border-color] duration-fast',

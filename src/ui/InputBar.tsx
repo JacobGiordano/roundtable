@@ -1155,7 +1155,7 @@ export function InputBar({
             // the icon toggles ghost mode (mirrors the sidebar toggle affordance).
             // When absent, render as a div with tooltip (indicator-only, original behavior).
             const sharedProps = {
-              className: 'flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded',
+              className: 'flex-shrink-0 text-text-muted self-center relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded min-w-[44px] min-h-[44px] flex items-center justify-center',
               'aria-label': onToggleGhostMode
                 ? 'Ghost mode on — click to turn off'
                 : 'Ghost mode — this conversation won\'t be saved',
