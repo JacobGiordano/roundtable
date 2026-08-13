@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-08",
+  "updated": "2026-08-13",
   "providers": {
     "anthropic": [
       {
@@ -219,10 +219,6 @@
       {
         "id": "gpt-5.4:batch",
         "displayName": "OpenAI: GPT-5.4 (batch)"
-      },
-      {
-        "id": "gpt-5.3-chat",
-        "displayName": "OpenAI: GPT-5.3 Chat"
       },
       {
         "id": "gpt-5.3-codex",
@@ -731,6 +727,10 @@
     ],
     "deepseek": [
       {
+        "id": "deepseek-v4-pro-0813",
+        "displayName": "DeepSeek: DeepSeek V4 Pro 0813"
+      },
+      {
         "id": "deepseek-v4-flash-0731",
         "displayName": "DeepSeek: DeepSeek V4 Flash 0731"
       },
@@ -780,6 +780,10 @@
       }
     ],
     "x-ai": [
+      {
+        "id": "grok-4.6",
+        "displayName": "SpaceXAI: Grok 4.6"
+      },
       {
         "id": "grok-4.5",
         "displayName": "SpaceXAI: Grok 4.5"

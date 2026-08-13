@@ -384,7 +384,9 @@ export function ModelSelectorPanel({
     <div className="w-full">
       {/* Slide-up panel — appears between thread and trigger.
           panelRef is attached here so the focus trap useEffect can query
-          focusable descendants. The trap activates only when isOpen is true. */}
+          focusable descendants. The trap activates only when isOpen is true.
+          #594: On mobile the panel is full-width via the .model-selector-panel
+          media query in index.css (fixed positioning, 100vw, bottom-aligned). */}
       <div
         ref={panelRef}
         id="model-selector-panel"
@@ -401,9 +403,9 @@ export function ModelSelectorPanel({
         <div
           className={[
             'bg-sidebar border border-border rounded-lg shadow-lg',
-            // Cap panel height on small screens so it doesn't push off-screen.
-            // overflow-y-auto lets the panel scroll when content exceeds 70vh.
-            'max-h-[70vh] overflow-y-auto',
+            // #594: 85vh on mobile so more models are visible; 70vh on desktop.
+            // The outer .model-selector-panel CSS class is also updated in index.css.
+            'max-h-[85vh] md:max-h-[70vh] overflow-y-auto',
             'p-4 mb-2',
           ].join(' ')}
         >

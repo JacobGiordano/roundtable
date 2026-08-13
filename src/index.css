@@ -295,6 +295,33 @@ body {
   }
 }
 
+/* #594: Mobile model selector panel — taller max-height.
+   AppLayout's flex layout on mobile is stacked (flex-col), giving ModelSelectorPanel
+   full container width (no mr-3 constraint). The outer animation cap is raised from
+   70vh → 85vh on mobile so more models and options are visible without scrolling.
+   The inner content div in ModelSelectorPanel.tsx also uses max-h-[85vh] md:max-h-[70vh]. */
+@media (max-width: 767px) {
+  .model-selector-panel.is-open {
+    max-height: 85vh;
+  }
+}
+
+/* ─── Provider Settings Panel ───────────────────────────────────────────────── */
+
+/* #593: On mobile (< md = 768px) the sidebar is a fixed overlay that takes no
+   layout space. The inline-style width `calc(100vw - var(--sidebar-width))` would
+   leave the panel narrower than the viewport. Override to 100vw on mobile so the
+   panel is always full-width. max-width: none removes the 704px desktop cap so
+   it does not conflict with the 100vw rule on narrow screens.
+   CSS specificity: media query + class selector beats the inline width only when
+   we use !important — necessary because inline styles win by default. */
+@media (max-width: 767px) {
+  .provider-settings-panel {
+    width: 100vw !important;
+    max-width: none !important;
+  }
+}
+
 /* ─── Syntax Highlighting (highlight.js / rehype-highlight, #359) ───────────── */
 /*
  * atom-one-dark sets `.hljs { background: #282c34 }` globally.

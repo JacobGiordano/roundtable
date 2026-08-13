@@ -178,8 +178,10 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   // then remains mounted so the close animation plays correctly. The lazy chunk
   // only fetches on first click — not on initial page load.
   const [hasEverOpenedProvider, setHasEverOpenedProvider] = useState(false);
-  // Ref to the sidebar gear icon button — ProviderSettingsPanel uses this to
-  // return focus on close, per the accessibility spec.
+  // Ref to the provider settings trigger button — ProviderSettingsPanel uses this to
+  // return focus on close (WCAG 2.4.3). Shared between the desktop sidebar gear
+  // (inside Sidebar's hidden md:flex div) and the mobile header gear (md:hidden).
+  // Only one renders at a time so the ref always resolves to the visible trigger.
   // Typed as RefObject<HTMLButtonElement> (not |null) so it matches Sidebar's prop type.
   const providerSettingsTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -422,19 +424,23 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
           {/* Logo — symbol only on very small screens, wordmark appears at sm (640px) */}
           <RoundtableLogo />
 
-          {/* Right-side controls: settings gear + new conversation */}
+          {/* Right-side controls: provider settings gear + new conversation */}
           <div className="flex items-center">
-            {/* Settings gear — opens the mobile drawer and the settings panel within it.
-                Must fire both: open the drawer (so the panel is visible) and open settings.
-                data-testid distinguishes this from the sidebar settings toggle; both
-                legitimately share aria-controls="sidebar-settings-panel" (same panel). */}
+            {/* Provider settings gear — opens the ProviderSettingsPanel overlay directly.
+                #592: on mobile the gear should open the provider panel (same semantic as
+                the desktop sidebar gear), not the settings panel inside the sidebar drawer.
+                Settings remain accessible via the hamburger → sidebar.
+                ref forwarded to providerSettingsTriggerRef so ProviderSettingsPanel can
+                return focus here on close (WCAG 2.4.3). This ref is shared with the
+                desktop sidebar gear (also providerSettingsTriggerRef) — since only one
+                renders at a time (this button is md:hidden; desktop gear is hidden md:flex)
+                the ref always resolves to the visible trigger. */}
             <button
+              ref={providerSettingsTriggerRef}
               type="button"
-              onClick={() => { handleOpenMobileMenu(); if (!isSettingsOpen) handleToggleSettings(); }}
-              aria-label="Settings"
-              aria-expanded={isSettingsOpen}
-              aria-controls="sidebar-settings-panel"
-              data-testid="mobile-settings-toggle"
+              onClick={handleOpenProviderSettings}
+              aria-label="Provider settings"
+              data-testid="mobile-provider-settings-toggle"
               className={[
                 'flex items-center justify-center',
                 'min-w-[44px] min-h-[44px]',
@@ -559,10 +565,15 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
         />
 
         <div className="flex-shrink-0 px-4 pb-0">
-          {/* Row: model selector trigger (left) + mode switcher (right) */}
-          <div className="flex items-end justify-between">
-            {/* Model selector side — min-w-0 + overflow-hidden so it yields space to the switcher */}
-            <div className="min-w-0 overflow-hidden flex-1 mr-3">
+          {/* #594: Model selector + mode switcher layout.
+              Desktop (md+): single flex row — selector (flex-1) beside switcher (flex-shrink-0).
+              Mobile (< md): stacked — model selector is full-width so the slide-up panel
+              spans the viewport; mode switcher is right-aligned in its own row below.
+              `overflow-x-hidden` on the selector wrapper clips the horizontally-scrollable
+              pill row without blocking the panel's vertical expansion. */}
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between">
+            {/* Model selector — full-width on mobile (no mr-3), flex-1 + mr-3 on desktop */}
+            <div className="min-w-0 overflow-x-hidden md:flex-1 md:mr-3">
               {/* Suspense fallback is null — ModelSelectorPanel renders its pill row
                   immediately but the initial paint cost is small; null avoids layout
                   shift on first load (wave 31 lazy boundary). */}
@@ -582,8 +593,10 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
                 />
               </Suspense>
             </div>
-            {/* Interaction mode switcher — flex-shrink-0 so it always renders at natural width */}
-            <div className="mb-2 flex-shrink-0">
+            {/* Interaction mode switcher — right-aligned on both viewports.
+                On desktop it sits beside the model selector; on mobile it is below
+                the trigger chip in its own row (the panel opens above the trigger). */}
+            <div className="mb-2 flex-shrink-0 self-end">
               <InteractionModeSwitcher
                 activeMode={activeMode}
                 onModeChange={onModeChange}
