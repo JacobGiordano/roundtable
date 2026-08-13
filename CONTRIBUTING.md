@@ -157,6 +157,28 @@ fix(models): handle streaming timeout for Gemini responses
 chore: update handoff for issue #12
 ```
 
+## Automated commits on main
+
+A GitHub Actions workflow syncs the OpenRouter model catalog to `models.json`
+and `public/models.json` every day at 06:00 UTC. When new or updated models are
+available, the workflow commits directly to `main` with the message:
+
+```
+chore(models): sync models.json from OpenRouter [skip ci]
+```
+
+If you have a local branch open when this runs, remote `main` will have a commit
+yours doesn't. This is expected and always safe to merge — only those two JSON
+files change. Before you push, pull the latest main into your branch:
+
+```
+git pull --no-rebase origin main
+```
+
+Resolve any conflict in `models.json` or `public/models.json` by accepting the
+remote version (it is always the authoritative one). Your feature code is
+unaffected.
+
 ## Questions
 
 Open an issue or start a discussion. Check `_system/HANDOFF.md` for the current
