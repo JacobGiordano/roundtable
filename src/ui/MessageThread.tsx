@@ -333,13 +333,22 @@ export function MessageThread({
   //      bottom → distanceFromBottom = 0 → isNearBottom = true → stays pinned.
   //   5. User "always loses the fight."
   //
-  // Fix: wheel and touch events fire BEFORE their resulting scroll events and
-  // BEFORE any React effect triggered by a streaming chunk in the same frame.
-  // A wheel listener immediately sets userScrolledUp = true and unpins when the
-  // user scrolls upward. scrollToBottom checks this flag and bails out early if
-  // the user has expressed upward intent. The flag is cleared when the scroll
+  // Fix: wheel events fire BEFORE their resulting scroll events and BEFORE any
+  // React effect triggered by a streaming chunk in the same frame. A wheel
+  // listener immediately sets userScrolledUp = true and unpins when the user
+  // scrolls upward. scrollToBottom checks this flag and bails out early if the
+  // user has expressed upward intent. The flag is cleared when the scroll
   // listener sees the user return to within SCROLL_THRESHOLD of the bottom.
+  //
+  // #598: Touch (mobile) detection via scrollTop delta in the scroll listener.
+  // The previous touchstart/touchmove coordinate approach was unreliable on mobile:
+  // clientY coordinates are not always consistent across browsers, and touchstart
+  // reference can be stale between rapid swipes. The scroll listener fires reliably
+  // on both iOS and Android — comparing current scrollTop to prevScrollTopRef gives
+  // accurate upward-scroll detection without touch coordinate math.
   const userScrolledUp = useRef(false);
+  /** Tracks scrollTop from the previous scroll event for delta-based direction detection (#598). */
+  const prevScrollTopRef = useRef(0);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     // #585: Respect explicit user scroll-up intent — bail out if the user has
@@ -376,6 +385,22 @@ export function MessageThread({
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
+
+      // #598: Detect upward scroll direction via scrollTop delta.
+      // This works reliably on mobile (iOS/Android) where the scroll event fires
+      // for both touch and wheel input. Comparing to prevScrollTopRef gives us
+      // direction without relying on touch coordinates which can be unreliable.
+      const didScrollUp = scrollTop < prevScrollTopRef.current;
+      prevScrollTopRef.current = scrollTop;
+
+      if (didScrollUp && !isNearBottom) {
+        // User scrolled upward and is no longer near the bottom — pause auto-scroll.
+        pinnedToBottom.current = false;
+        userScrolledUp.current = true;
+        setShowScrollButton(true);
+        return;
+      }
+
       pinnedToBottom.current = isNearBottom;
       setShowScrollButton(!isNearBottom);
 
@@ -387,9 +412,11 @@ export function MessageThread({
     };
 
     // #585: Wheel listener — fires before scroll events, giving us early detection
-    // of upward scroll intent. Immediately sets userScrolledUp so the next streaming
-    // auto-scroll effect bails out before it can snap the view back to bottom.
+    // of upward scroll intent on desktop. Immediately sets userScrolledUp so the
+    // next streaming auto-scroll effect bails out before snapping back to bottom.
     // passive: true — we never call preventDefault(), browser can optimize scrolling.
+    // On mobile, upward-scroll detection is handled by the scroll listener's
+    // scrollTop delta check above, which is more reliable than touch coordinates.
     const handleWheel = (e: WheelEvent) => {
       if (e.deltaY < 0) {
         // Negative deltaY = user is scrolling upward.
@@ -399,32 +426,15 @@ export function MessageThread({
       }
     };
 
-    // #585: Touch listeners — covers mobile and touch-enabled trackpads.
-    // touchstart records the initial Y position; touchmove detects upward swipe
-    // (finger moving downward on the screen = content scrolling upward).
-    let touchStartY = 0;
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0]?.clientY ?? 0;
-    };
-    const handleTouchMove = (e: TouchEvent) => {
-      const currentY = e.touches[0]?.clientY ?? 0;
-      if (currentY > touchStartY) {
-        // Finger moved downward on screen = content scrolling upward.
-        pinnedToBottom.current = false;
-        userScrolledUp.current = true;
-        setShowScrollButton(true);
-      }
-    };
+    // Initialize prevScrollTopRef to the current scrollTop so the first scroll
+    // event computes a correct delta (avoids a spurious "scrolled up" on mount).
+    prevScrollTopRef.current = container.scrollTop;
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     container.addEventListener('wheel', handleWheel, { passive: true });
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: true });
     return () => {
       container.removeEventListener('scroll', handleScroll);
       container.removeEventListener('wheel', handleWheel);
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
     };
   }, []);
 
@@ -770,9 +780,12 @@ export function MessageThread({
 
             {/* Scroll-to-bottom FAB (#161) — appears when the user scrolls up.
                 Sticky at the bottom of the visible scroll viewport, right-aligned.
-                Clicking re-pins and scrolls to the latest message. */}
+                Clicking re-pins and scrolls to the latest message.
+                #598: z-10 ensures the button renders above message content within the
+                scroll container. bottom-6 gives extra clearance on mobile where the
+                browser's bottom toolbar may encroach on the scroll area edge. */}
             {showScrollButton && (
-              <div className="sticky bottom-4 flex justify-end pr-2 pointer-events-none">
+              <div className="sticky bottom-6 z-10 flex justify-end pr-2 pointer-events-none">
                 <button
                   type="button"
                   aria-label="Scroll to bottom"
@@ -780,7 +793,7 @@ export function MessageThread({
                   className={[
                     'pointer-events-auto',
                     'flex items-center justify-center',
-                    'w-8 h-8',
+                    'w-10 h-10 md:w-8 md:h-8',
                     'rounded-full',
                     'bg-bg-elevated border border-border',
                     'text-text-secondary hover:text-text-primary',
