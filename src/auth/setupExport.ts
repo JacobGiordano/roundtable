@@ -51,6 +51,7 @@ import {
 import { getSidebarOpen, setSidebarOpen } from './sidebarOpen';
 import { getModelVersions, setModelVersion, clearModelVersion } from './modelVersion';
 import { getServerUrl, saveServerUrl } from './backendAuth';
+import { getProxyConfig, saveProxyConfig } from './proxyConfig';
 import { BUILTIN_MODEL_IDS } from './builtinModelIds';
 
 // ─── Schema version ───────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export const SETUP_SCHEMA_VERSION = 1 as const;
  *   - sidebarOpen (boolean)
  *   - modelVersions (per-model selected version id)
  *   - serverUrl (self-hosted backend URL; omitted when not configured)
+ *   - proxyUrl (Cloudflare Workers proxy URL; omitted when not configured)
  *
  * Auth tokens are NEVER exported — session state is not portable.
  *
@@ -140,6 +142,12 @@ export function exportSetup(): SetupExport {
   const serverUrl = getServerUrl();
   if (serverUrl !== undefined) {
     preferences['serverUrl'] = serverUrl;
+  }
+
+  // proxy URL is not a secret — safe to include in settings export (not an API key)
+  const proxyConfig = getProxyConfig();
+  if (proxyConfig !== null) {
+    preferences['proxyUrl'] = proxyConfig.url;
   }
 
   return {
@@ -392,6 +400,11 @@ export function importSetup(data: unknown): ImportResult {
     // Server URL — not a secret (just a URL to a self-hosted backend).
     if (typeof prefs['serverUrl'] === 'string' && (prefs['serverUrl'] as string).length > 0) {
       saveServerUrl(prefs['serverUrl'] as string);
+    }
+
+    // Proxy URL — not a secret (just a URL to a self-hosted proxy).
+    if (typeof prefs['proxyUrl'] === 'string' && (prefs['proxyUrl'] as string).length > 0) {
+      saveProxyConfig({ url: prefs['proxyUrl'] as string });
     }
   }
 
