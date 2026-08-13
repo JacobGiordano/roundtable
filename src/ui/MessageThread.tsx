@@ -129,7 +129,7 @@ function ModelVisibilityBar({ models, hiddenModelIds, onToggleVisibility }: Mode
             aria-disabled={isLastVisible ? true : undefined}
             onClick={() => { if (!isLastVisible) onToggleVisibility(model.modelId); }}
             className={[
-              'flex items-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-medium',
+              'flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] rounded text-[11px] font-medium',
               'border transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
               isVisible
@@ -793,7 +793,7 @@ export function MessageThread({
                   className={[
                     'pointer-events-auto',
                     'flex items-center justify-center',
-                    'w-10 h-10 md:w-8 md:h-8',
+                    'w-10 h-10 md:w-8 md:h-8 md:min-w-[44px] md:min-h-[44px]',
                     'rounded-full',
                     'bg-bg-elevated border border-border',
                     'text-text-secondary hover:text-text-primary',

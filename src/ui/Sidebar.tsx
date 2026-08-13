@@ -666,7 +666,7 @@ export function Sidebar({
               aria-label="Ghost mode"
               aria-pressed={isGhostMode}
               className={[
-                'w-8 h-8 rounded-md flex items-center justify-center',
+                'w-8 h-8 min-w-[44px] min-h-[44px] rounded-md flex items-center justify-center',
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 isGhostMode
@@ -691,7 +691,7 @@ export function Sidebar({
                 aria-controls="app-sidebar"
                 onClick={onToggleDesktop}
                 className={[
-                  'w-8 h-8 rounded-md flex items-center justify-center',
+                  'w-8 h-8 min-w-[44px] min-h-[44px] rounded-md flex items-center justify-center',
                   'text-text-muted hover:text-text-secondary hover:bg-hover',
                   'transition-colors duration-fast',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
@@ -714,7 +714,7 @@ export function Sidebar({
                 onFocus={handleNewConvFocus}
                 onBlur={handleNewConvBlur}
                 className={[
-                  'w-8 h-8 rounded-md flex items-center justify-center',
+                  'w-8 h-8 min-w-[44px] min-h-[44px] rounded-md flex items-center justify-center',
                   'text-text-secondary hover:bg-hover',
                   'transition-colors duration-fast',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
@@ -754,7 +754,7 @@ export function Sidebar({
               aria-label="Provider settings"
               onClick={onOpenProviderSettings}
               className={[
-                'w-8 h-8 rounded-md flex items-center justify-center',
+                'w-8 h-8 min-w-[44px] min-h-[44px] rounded-md flex items-center justify-center',
                 'text-text-muted hover:text-text-secondary hover:bg-hover',
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
@@ -771,7 +771,7 @@ export function Sidebar({
             onClick={onMobileClose}
             aria-label="Close navigation"
             className={[
-              'md:hidden w-8 h-8 rounded-md flex items-center justify-center',
+              'md:hidden w-8 h-8 min-w-[44px] min-h-[44px] rounded-md flex items-center justify-center',
               'text-text-secondary hover:bg-hover',
               'transition-colors duration-fast',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
