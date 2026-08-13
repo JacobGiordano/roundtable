@@ -2331,6 +2331,10 @@ export function ProviderSettingsPanel({
       // cast rather than import the experimental types globally.
       {...({ inert: !isOpen ? '' : undefined } as React.HTMLAttributes<HTMLDivElement>)}
       className={[
+        // #593: provider-settings-panel class carries the mobile width override via index.css.
+        // On mobile (< md) the sidebar is a fixed overlay (no layout space) so the panel
+        // must be 100vw. On desktop the width is derived from --sidebar-width (see inline style).
+        'provider-settings-panel',
         'fixed top-0 right-0 h-screen bg-bg overflow-y-auto z-40',
         'motion-reduce:transition-none',
         !isOpen ? 'pointer-events-none' : '',
@@ -2339,6 +2343,8 @@ export function ProviderSettingsPanel({
         // --sidebar-width is set on :root by Sidebar.tsx and updated on every
         // drag-resize. The 280px fallback matches SIDEBAR_WIDTH_DEFAULT from Gate
         // and handles the brief window before Sidebar mounts.
+        // On mobile this value is overridden by the .provider-settings-panel media
+        // query in index.css (100vw — sidebar is an overlay, not a layout column).
         width: 'calc(100vw - var(--sidebar-width, 280px))',
         // maxWidth caps the drawer shell to the content width on wide desktops.
         // The content body inside is constrained to max-w-[640px] with px-8 (64px
