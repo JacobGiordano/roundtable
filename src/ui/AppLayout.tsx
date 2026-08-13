@@ -251,7 +251,7 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   const newConvShortcut = 'Ctrl+N';
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg">
+    <div className="flex h-dvh w-screen overflow-hidden bg-bg">
       {/* #178: Outrun entry flash — self-contained; listens for data-theme="outrun"
           via MutationObserver. Renders via createPortal into document.body to
           escape any ancestor stacking/transform contexts. No-op on all other themes

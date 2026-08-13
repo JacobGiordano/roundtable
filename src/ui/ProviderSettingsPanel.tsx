@@ -2335,7 +2335,7 @@ export function ProviderSettingsPanel({
         // On mobile (< md) the sidebar is a fixed overlay (no layout space) so the panel
         // must be 100vw. On desktop the width is derived from --sidebar-width (see inline style).
         'provider-settings-panel',
-        'fixed top-0 right-0 h-screen bg-bg overflow-y-auto z-40',
+        'fixed top-0 right-0 h-dvh bg-bg overflow-y-auto z-40',
         'motion-reduce:transition-none',
         !isOpen ? 'pointer-events-none' : '',
       ].join(' ')}
