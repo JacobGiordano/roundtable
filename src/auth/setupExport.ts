@@ -52,6 +52,7 @@ import { getSidebarOpen, setSidebarOpen } from './sidebarOpen';
 import { getModelVersions, setModelVersion, clearModelVersion } from './modelVersion';
 import { getServerUrl, saveServerUrl } from './backendAuth';
 import { getProxyConfig, saveProxyConfig } from './proxyConfig';
+import { getFontScalePreferences, saveFontScalePreferences } from './fontScale';
 import { BUILTIN_MODEL_IDS } from './builtinModelIds';
 
 // ─── Schema version ───────────────────────────────────────────────────────────
@@ -149,6 +150,11 @@ export function exportSetup(): SetupExport {
   if (proxyConfig !== null) {
     preferences['proxyUrl'] = proxyConfig.url;
   }
+
+  // Font scale — UI and content multipliers; always included (have defaults)
+  const fontScale = getFontScalePreferences();
+  preferences['fontScaleUi'] = fontScale.ui;
+  preferences['fontScaleContent'] = fontScale.content;
 
   return {
     schemaVersion: SETUP_SCHEMA_VERSION,
@@ -405,6 +411,21 @@ export function importSetup(data: unknown): ImportResult {
     // Proxy URL — not a secret (just a URL to a self-hosted proxy).
     if (typeof prefs['proxyUrl'] === 'string' && (prefs['proxyUrl'] as string).length > 0) {
       saveProxyConfig({ url: prefs['proxyUrl'] as string });
+    }
+
+    // Font scale — UI and content multipliers.
+    // saveFontScalePreferences() validates each value against its range and
+    // silently ignores out-of-range values, so we can pass both unconditionally.
+    // Only pass numeric values — non-numbers are silently skipped entirely.
+    const fontScaleUpdate: { ui?: number; content?: number } = {};
+    if (typeof prefs['fontScaleUi'] === 'number') {
+      fontScaleUpdate.ui = prefs['fontScaleUi'] as number;
+    }
+    if (typeof prefs['fontScaleContent'] === 'number') {
+      fontScaleUpdate.content = prefs['fontScaleContent'] as number;
+    }
+    if (fontScaleUpdate.ui !== undefined || fontScaleUpdate.content !== undefined) {
+      saveFontScalePreferences(fontScaleUpdate);
     }
   }
 
