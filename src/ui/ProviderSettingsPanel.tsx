@@ -2238,16 +2238,18 @@ function FontScaleStepper({
   const atMin = value <= min + 1e-9;
   const atMax = value >= max - 1e-9;
 
-  // Round to avoid floating-point drift (e.g. 1.0000000001)
-  const round = (v: number) => Math.round(v / step) * step;
-
   const decrement = useCallback(() => {
-    if (!atMin) onChange(round(value - step));
-  }, [atMin, onChange, value, step, round]);
+    if (!atMin) {
+      // Round to avoid floating-point drift (e.g. 1.0000000001)
+      onChange(Math.round((value - step) / step) * step);
+    }
+  }, [atMin, onChange, value, step]);
 
   const increment = useCallback(() => {
-    if (!atMax) onChange(round(value + step));
-  }, [atMax, onChange, value, step, round]);
+    if (!atMax) {
+      onChange(Math.round((value + step) / step) * step);
+    }
+  }, [atMax, onChange, value, step]);
 
   // Spinbutton keyboard handler per WAI-ARIA spinbutton pattern.
   const handleSpinbuttonKeyDown = useCallback(
