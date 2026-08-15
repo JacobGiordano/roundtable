@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-09",
+  "updated": "2026-08-15",
   "providers": {
     "anthropic": [
       {
@@ -219,10 +219,6 @@
       {
         "id": "gpt-5.4:batch",
         "displayName": "OpenAI: GPT-5.4 (batch)"
-      },
-      {
-        "id": "gpt-5.3-chat",
-        "displayName": "OpenAI: GPT-5.3 Chat"
       },
       {
         "id": "gpt-5.3-codex",
@@ -499,6 +495,14 @@
     ],
     "google": [
       {
+        "id": "gemini-3.7-flash",
+        "displayName": "Google: Gemini 3.7 Flash"
+      },
+      {
+        "id": "gemini-3.7-flash:batch",
+        "displayName": "Google: Gemini 3.7 Flash (batch)"
+      },
+      {
         "id": "gemini-3.6-flash",
         "displayName": "Google: Gemini 3.6 Flash"
       },
@@ -731,6 +735,10 @@
     ],
     "deepseek": [
       {
+        "id": "deepseek-v4-pro-0813",
+        "displayName": "DeepSeek: DeepSeek V4 Pro 0813"
+      },
+      {
         "id": "deepseek-v4-flash-0731",
         "displayName": "DeepSeek: DeepSeek V4 Flash 0731"
       },
@@ -780,6 +788,10 @@
       }
     ],
     "x-ai": [
+      {
+        "id": "grok-4.6",
+        "displayName": "SpaceXAI: Grok 4.6"
+      },
       {
         "id": "grok-4.5",
         "displayName": "SpaceXAI: Grok 4.5"
