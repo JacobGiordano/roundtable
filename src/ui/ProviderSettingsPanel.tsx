@@ -2198,6 +2198,10 @@ export function ProviderSettingsPanel({
   const newRowRef = useRef<HTMLDivElement | null>(null);
   // Ref to the drawer container — used by the focus trap (WCAG 2.1.2, 2.4.3, #116).
   const drawerRef = useRef<HTMLDivElement>(null);
+  // Captures the active element at open time so we can return focus to it on close (WCAG 2.4.3).
+  // More robust than forwarded triggerRef: works regardless of which button opened the panel
+  // and avoids the ref-overwrite bug when the same ref is attached to multiple buttons.
+  const returnFocusTargetRef = useRef<HTMLElement | null>(null);
 
   // Re-read roster from Gate after any mutation.
   const refreshRoster = useCallback(() => {
@@ -2205,8 +2209,11 @@ export function ProviderSettingsPanel({
   }, []);
 
   // Focus the close button when the panel opens; refresh roster.
+  // Capture the active element before focusing the close button so we can
+  // return focus to the original trigger on close (WCAG 2.4.3).
   useEffect(() => {
     if (isOpen) {
+      returnFocusTargetRef.current = document.activeElement as HTMLElement;
       refreshRoster();
       setNewlyAddedId(null);
       requestAnimationFrame(() => {
@@ -2216,10 +2223,15 @@ export function ProviderSettingsPanel({
   }, [isOpen, refreshRoster]);
 
   // Return focus to gear trigger on close.
+  // Primary: use returnFocusTargetRef (captured at open time) — this correctly
+  // targets whichever visible gear button opened the panel regardless of which
+  // DOM element the shared triggerRef currently points to.
+  // Fallback: triggerRef (the desktop gear forwarded from AppLayout).
   const handleClose = useCallback(() => {
     onClose();
+    const returnTarget = returnFocusTargetRef.current;
     requestAnimationFrame(() => {
-      triggerRef.current?.focus();
+      (returnTarget ?? triggerRef.current)?.focus();
     });
   }, [onClose, triggerRef]);
 
