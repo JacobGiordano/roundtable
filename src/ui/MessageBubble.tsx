@@ -1202,12 +1202,16 @@ function MessageBubbleBase({
           {/* Model name label — uppercase, semibold, secondary color.
               min-w-0 enables truncation in flex context (flex items default to min-w: auto
               which prevents overflow from triggering ellipsis). truncate handles the rest.
-              In error state the label switches to semantic-error color. */}
+              In error state the label switches to semantic-error color.
+              #600: max() floor — 12px base, floor at 10px per spec §5.4.
+              At content scale 0.875×: calc(12px * 0.875) = 10.5px → clamped to 10px.
+              At scale 1.0×+: max() has no effect; element scales with content scale. */}
           <span
             className={[
-              'text-[12px] font-semibold uppercase tracking-[0.04em] truncate min-w-0',
+              'font-semibold uppercase tracking-[0.04em] truncate min-w-0',
               hasError ? 'text-error' : 'text-text-secondary',
             ].join(' ')}
+            style={{ fontSize: 'max(10px, calc(12px * var(--font-scale-content, 1)))' }}
           >
             {modelConfig?.name ?? message.modelId ?? 'Model'}
           </span>
@@ -1221,9 +1225,13 @@ function MessageBubbleBase({
               Note: targetModelConfig here is the model that was @mentioned by the user,
               which is the same model rendering this bubble (i.e. message.modelId). We
               show its display name rather than re-deriving it from modelConfig to be
-              explicit about the data source. */}
+              explicit about the data source.
+              #600: max() floor — 11px base, floor at 10px per spec §5.4. */}
           {targetModelConfig && (
-            <span className="text-[11px] font-normal text-text-muted shrink-0 flex items-center gap-0.5">
+            <span
+              className="font-normal text-text-muted shrink-0 flex items-center gap-0.5"
+              style={{ fontSize: 'max(10px, calc(11px * var(--font-scale-content, 1)))' }}
+            >
               <span aria-hidden="true">→</span>
               <span className="sr-only">Directed to</span>
               <span>{targetModelConfig.name}</span>
@@ -1235,10 +1243,12 @@ function MessageBubbleBase({
               This keeps the copy button at a consistent position regardless of name length. */}
           <div className="ml-auto flex items-center gap-2">
             <NameplateCopyButton />
-            {/* #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction. */}
+            {/* #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction.
+                #600: max() floor — 11px base, floor at 10px per spec §5.4. */}
             <time
               dateTime={new Date(message.timestamp).toISOString()}
-              className="text-[11px] text-text-muted shrink-0"
+              className="text-text-muted shrink-0"
+              style={{ fontSize: 'max(10px, calc(11px * var(--font-scale-content, 1)))' }}
             >
               {relativeTimestamp}
             </time>
@@ -1735,10 +1745,12 @@ function MessageBubbleBase({
             <NameplateCopyButton />
 
             {/* Timestamp — always rightmost in the group.
-                #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction. */}
+                #400: relativeTimestamp is recomputed on mouseenter (hoverTick) so stale values refresh on interaction.
+                #600: max() floor — 11px base, floor at 10px per spec §5.4. */}
             <time
               dateTime={new Date(message.timestamp).toISOString()}
-              className="text-[11px] text-text-muted shrink-0"
+              className="text-text-muted shrink-0"
+              style={{ fontSize: 'max(10px, calc(11px * var(--font-scale-content, 1)))' }}
             >
               {relativeTimestamp}
             </time>
@@ -1823,11 +1835,15 @@ function MessageBubbleBase({
               CSS var routing. (#286)
               A11y: aria-label is prohibited on role="generic" (plain <div>, ARIA 1.2 §6.2.6).
               "Directed to" framing is expressed as visible text so screen readers announce the
-              full context. The → glyph remains decorative (aria-hidden). */}
+              full context. The → glyph remains decorative (aria-hidden).
+              #600: max() floor — 11px base, floor at 10px per spec §5.4. */}
           {targetModelConfig && (
             <div
-              className="mb-2 flex items-center gap-1 text-[11px] font-medium"
-              style={{ color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId) }}
+              className="mb-2 flex items-center gap-1 font-medium"
+              style={{
+                color: resolveAccentCssColor(targetModelConfig.color ?? 'accent-other', targetModelConfig.modelId),
+                fontSize: 'max(10px, calc(11px * var(--font-scale-content, 1)))',
+              }}
             >
               <span aria-hidden="true">→</span>
               <span>Directed to {targetModelConfig.name}</span>

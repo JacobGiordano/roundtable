@@ -33,7 +33,11 @@ import { useRoundtable } from './RoundtableContext';
 import { MenuIcon, GearIcon, PlusIcon, PanelLeftIcon } from './icons';
 // #280: getSidebarOpen / setSidebarOpen — Gate persistence for desktop sidebar open state.
 // Pure Gate persistence functions — permitted exception per CLAUDE.md.
-import { getSidebarOpen, setSidebarOpen } from '@/auth';
+// #600: getFontScalePreferences — reads stored font scale preferences on mount so the
+// CSS custom properties --font-scale-ui and --font-scale-content can be applied to
+// :root before first paint. These are preference vars, not design tokens — they do not
+// belong in applyTheme() or the theme JSON files.
+import { getSidebarOpen, setSidebarOpen, getFontScalePreferences } from '@/auth';
 // #178: Outrun entry flash — full-viewport overlay triggered on Outrun theme activation.
 import { OutrunFlash } from './OutrunFlash';
 // #408: per-conversation system prompt bar — collapsible textarea above the model selector.
@@ -114,6 +118,19 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
     conversationSystemPrompt,
     onUpdateConversationSystemPrompt,
   } = useRoundtable();
+
+  // #600: Font scale CSS custom property initialization.
+  // Reads stored font scale preferences and applies them to :root on mount.
+  // --font-scale-ui and --font-scale-content are unitless multipliers consumed
+  // by the two scoping containers (UI chrome and message thread). These are
+  // preference vars, not design tokens — applyTheme() does not set them.
+  // ProviderSettingsPanel updates them live via document.documentElement.style.setProperty()
+  // whenever the user changes a stepper value — no callback needed here.
+  useEffect(() => {
+    const prefs = getFontScalePreferences();
+    document.documentElement.style.setProperty('--font-scale-ui', String(prefs.ui));
+    document.documentElement.style.setProperty('--font-scale-content', String(prefs.content));
+  }, []);
 
   // #341: Suggestion chip prefill — set when user clicks a chip in ConversationEmptyState.
   // InputBar watches this via useEffect, populates the textarea, focuses it, then calls
@@ -251,7 +268,18 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
   const newConvShortcut = 'Ctrl+N';
 
   return (
-    <div className="flex h-dvh w-screen overflow-hidden bg-bg">
+    // #600: UI scale scoping container.
+    // font-size: calc(1rem * var(--font-scale-ui)) makes this element the "base" for
+    // em-based child text. All chrome text (sidebar, input bar, settings panel, model
+    // selector) descends from here. The CSS variable is set on :root by the useEffect
+    // above. Tailwind rem-based text-* classes in children are NOT automatically affected
+    // by this — they remain rem-relative to <html>. Only elements that use em units or
+    // explicit inline style overrides will scale. The four small-text metadata elements
+    // in message bubbles use max() floor via inline style (#600 spec §5.4).
+    // Note: this wraps ALL content including the message thread — the content scale
+    // scoping container in MessageThread.tsx provides a nested override that takes
+    // precedence inside the thread scroll area.
+    <div className="flex h-dvh w-screen overflow-hidden bg-bg" style={{ fontSize: 'calc(1rem * var(--font-scale-ui, 1))' }}>
       {/* #178: Outrun entry flash — self-contained; listens for data-theme="outrun"
           via MutationObserver. Renders via createPortal into document.body to
           escape any ancestor stacking/transform contexts. No-op on all other themes

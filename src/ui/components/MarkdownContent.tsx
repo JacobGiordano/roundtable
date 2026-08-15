@@ -165,6 +165,10 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
         ? 'text-error'
         : '';
 
+  // #600: max() floor on font-size — 11px base, floor at 10px per spec §5.4.
+  // Code block copy button label is content scale (lives inside the message bubble
+  // content scope). At content scale 0.875×: calc(11px * 0.875) ≈ 9.6px → 10px floor.
+  // At scale 1.0×+: max() has no effect; text scales with the content scale container.
   return (
     <button
       type="button"
@@ -176,7 +180,7 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
         'transition-opacity duration-[100ms]',
         'inline-flex items-center',
         'min-h-[24px] px-2 py-1 rounded-sm',
-        'text-[11px] font-medium leading-none',
+        'font-medium leading-none',
         // bg-card = var(--surface-card) per tailwind.config.js — spec calls this bg-surface-card
         // but the Tailwind key is 'card', making the class bg-card.
         'bg-card text-text-secondary',
@@ -184,6 +188,7 @@ function CopyCodeButton({ codeText }: { codeText: string }) {
         'hover:bg-hover hover:text-text-primary',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
       ].join(' ')}
+      style={{ fontSize: 'max(10px, calc(11px * var(--font-scale-content, 1)))' }}
     >
       {/* aria-live="polite": announces state changes to screen readers (WCAG 4.1.3). */}
       <span aria-live="polite" className={labelColorClass}>
