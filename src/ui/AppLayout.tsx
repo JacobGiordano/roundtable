@@ -430,13 +430,13 @@ export function AppLayout({ onSend, onBackendConnectionChange }: AppLayoutProps)
                 #592: on mobile the gear should open the provider panel (same semantic as
                 the desktop sidebar gear), not the settings panel inside the sidebar drawer.
                 Settings remain accessible via the hamburger → sidebar.
-                ref forwarded to providerSettingsTriggerRef so ProviderSettingsPanel can
-                return focus here on close (WCAG 2.4.3). This ref is shared with the
-                desktop sidebar gear (also providerSettingsTriggerRef) — since only one
-                renders at a time (this button is md:hidden; desktop gear is hidden md:flex)
-                the ref always resolves to the visible trigger. */}
+                No ref here — ProviderSettingsPanel now captures document.activeElement at
+                open time (returnFocusTargetRef) and returns focus to that element on close
+                (WCAG 2.4.3). Attaching providerSettingsTriggerRef to both this button and
+                the desktop sidebar gear caused the ref to always resolve to whichever button
+                React committed last (the mobile one), pointing to a display:none element
+                at desktop viewport width and silently failing focus return. */}
             <button
-              ref={providerSettingsTriggerRef}
               type="button"
               onClick={handleOpenProviderSettings}
               aria-label="Provider settings"
