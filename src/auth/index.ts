@@ -90,3 +90,7 @@ export {
   saveLogoutOnClose,
   clearLogoutOnClose,
 } from './logoutOnClose';
+export {
+  getFontScalePreferences,
+  saveFontScalePreferences,
+} from './fontScale';
