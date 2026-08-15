@@ -126,14 +126,22 @@ All elements inside the message thread scroll area — text that is conversation
 
 **Code blocks**
 - The `<pre>`/`<code>` area (`text-[13px]`, `font-mono`)
-- Copy button text within code blocks (the "Copy" / "Copied" label) — this is inside the content scope; scale it with content
+- Copy button text within code blocks (the "Copy" / "Copied" label) — content scale; 11px base, use `max()` floor (see §5.4)
 
 **Message metadata (per bubble)**
-- Model name label in bubble header (`text-[12px]`)
-- Timestamp text (`text-[11px]`)
-- "→ ModelName" directed reply label (`text-[11px]`)
+- Model name label in bubble header (`text-[12px]`) — content scale; use `max()` floor (see §5.4)
+- Timestamp text (`text-[11px]`) — content scale; use `max()` floor (see §5.4)
+- "→ ModelName" directed reply label (`text-[11px]`) — content scale; use `max()` floor (see §5.4)
 - Token count or cost display (if present)
 - Thinking indicator text (if present inside bubbles)
+
+**Minimum floor for small metadata text:** Any element in this category with a base size ≤ 11px scales with `--font-scale-content` but uses a CSS `max()` floor to prevent illegible rendering at the 0.875× minimum. The implementation pattern for Aria:
+
+```css
+font-size: max(10px, calc(11px * var(--font-scale-content)));
+```
+
+This preserves scale-up behavior (the dominant use case — users enlarging content to 150% or 200%) while preventing sub-10px text at the 0.875× floor. The 10px floor value is the minimum legible size for incidental text; it applies only when the calculated value would fall below it (i.e. at 0.875× on 11px base, `calc` yields ~9.6px — the `max()` clamps to 10px).
 
 **Ambiguous elements — resolution documented below**
 
@@ -360,31 +368,40 @@ The sidebar model dots (7px per `components.md`) are not text, so they do not sc
 1. Inline `style` prop on the scoping container (`style={{ fontSize: `calc(1rem * ${scale})` }}`), with all children using relative `em` units for their sizing
 2. CSS custom property on `:root` + a wrapper element whose `font-size` is set via inline style, with children using `em` — this is the recommended path per this spec
 
-**`text-xs` minimum:** Tailwind's `text-xs` = 12px. At content scale 0.875, a `text-xs` element in a scoped container would render at ~10.5px. This is at the legibility floor — Aria should not apply content scale to any element that is already at `text-xs` or smaller (11px metadata text). The spec carves out a minimum: elements with a base size ≤ 11px (`text-[11px]`, model metadata, timestamps) are excluded from content scale. They remain fixed at their specified pixel value. This prevents metadata from becoming unreadably small at 0.875 content scale.
+**`text-xs` minimum and the `max()` floor pattern:** Tailwind's `text-xs` = 12px. At content scale 0.875, a `text-xs` element in a scoped container would render at ~10.5px. For elements that are content and should scale — timestamps, directed-reply labels, bubble header model names, code block copy button labels — the correct resolution is a CSS `max()` floor, not exclusion from scaling. Excluding these elements creates the worse problem in the opposite direction: at content scale 1.5× or 2.0×, a fixed 11px timestamp next to 24–30px body text looks tiny and disconnected. The scale-up case is far more common than scale-down, and the 0.875× floor concern is an implementation detail, not a reason for exclusion.
 
-**Updated content scale exclusions (11px floor):**
-The following text elements within the message content scope are **fixed size** and do NOT scale with `--font-scale-content`:
-- Timestamp text (`text-[11px]`)
-- "→ ModelName" directed reply label (`text-[11px]`)
-- Model name label in bubble header (`text-[12px]`) — this is small enough that scaling it down to 0.875 = 10.5px would be problematic. Keep fixed. At content scale 2.0, it will look intentionally large (26.25px → round to 12px fixed). Resolution: **fix the bubble header model label at 12px** regardless of content scale. It is identity information, not reading content.
+**Implementation pattern for small text elements (base size ≤ 11px):**
+
+```css
+font-size: max(10px, calc(11px * var(--font-scale-content)));
+```
+
+For the 12px bubble header model name:
+
+```css
+font-size: max(10px, calc(12px * var(--font-scale-content)));
+```
+
+The `max()` floor prevents the calculated value from dropping below 10px at the 0.875× minimum. At 0.875×, `calc(11px * 0.875)` = 9.625px — the `max()` clamps to 10px. At 1.0× and above, the `max()` has no effect and the element scales normally. The 10px floor value is the minimum legible size for incidental metadata text.
 
 **Revised content scale scope (final):**
 
-Elements that scale with `--font-scale-content`:
+Elements that scale with `--font-scale-content` (no floor needed — base size > 11px):
 - Message body text (15px base)
 - Markdown headings (18px, 16px, 15px, 14px, 13px, 12px)
 - Markdown paragraphs, lists, blockquotes (15px base)
 - Inline code spans (13px)
 - Code block content (13px)
-- Code block copy button label (11px — **exception: keep fixed at 11px**, do not scale)
 
-Elements that do NOT scale despite being inside the message thread:
-- Timestamp text (11px — fixed)
-- Directed reply label (11px — fixed)
-- Bubble header model name label (12px — fixed for identity clarity)
-- Code block copy button label (11px — fixed)
+Elements that scale with `--font-scale-content` using `max(10px, ...)` floor:
+- Timestamp text (11px base — use `max(10px, calc(11px * var(--font-scale-content)))`)
+- Directed reply label (11px base — use `max(10px, calc(11px * var(--font-scale-content)))`)
+- Bubble header model name label (12px base — use `max(10px, calc(12px * var(--font-scale-content)))`)
+- Code block copy button label (11px base — use `max(10px, calc(11px * var(--font-scale-content)))`)
 
-Aria should apply the content scale scoping container to the message body text region, not the entire bubble. The bubble header (model name, timestamp) sits outside the scaled container.
+All four small-text elements are content. They are visually integrated into the message bubble or code block. Leaving them fixed while body text scales to 200% produces a broken visual result. The `max()` floor handles the only real concern (sub-10px rendering at minimum scale) without sacrificing the scale-up behavior users need.
+
+Aria should apply the content scale scoping container to the full bubble interior, including header metadata. The `max()` floor pattern applies individually to each small-text element via inline style or a scoped CSS rule — not by excluding them from the scoped container.
 
 ### 5.5 Interaction Between the Two Scales
 
@@ -420,7 +437,7 @@ UI chrome wrapper:     style={{ fontSize: `calc(1rem * var(--font-scale-ui))` }}
 Message thread wrapper: style={{ fontSize: `calc(1rem * var(--font-scale-content))` }}
 ```
 
-Child elements within each scope should use `em` for text sizes where scaling is desired, keeping `px` only for elements explicitly excluded from scaling (see §5.4).
+Child elements within each scope should use `em` for text sizes where scaling is desired. Elements with a base size ≤ 11px use the `max()` floor pattern (see §5.4) rather than being excluded from scaling — they are content and must track content scale.
 
 ---
 
