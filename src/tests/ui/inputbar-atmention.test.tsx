@@ -41,7 +41,9 @@ import { CLAUDE_MODEL, GPT_MODEL } from '../fixtures/conversations';
 // InputBar calls getProviderRoster() (vision check) and getProxyConfig()
 // (proxy onboarding gate). Return minimal stubs so neither modal fires.
 
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   getProviderRoster: vi.fn(() => []),
   getProxyConfig: vi.fn(() => null),
   saveProxyConfig: vi.fn(),
@@ -49,7 +51,8 @@ vi.mock('@/auth', () => ({
   getModelVersions: () => [],
   getModelVersion: () => undefined,
   setModelVersion: () => {},
-}));
+};
+});
 
 // ─── scrollIntoView stub ──────────────────────────────────────────────────────
 

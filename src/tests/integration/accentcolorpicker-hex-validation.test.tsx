@@ -26,11 +26,14 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 
 // ─── Module mocks (must be declared before imports that consume them) ─────────
 
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   setModelAccentColor: vi.fn(),
   clearModelAccentColor: vi.fn(),
   getModelAccentColors: vi.fn(() => ({})),
-}));
+};
+});
 
 vi.mock('@/ui/theme', () => ({
   applyUserAccentColors: vi.fn(),

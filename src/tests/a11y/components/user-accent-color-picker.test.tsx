@@ -42,11 +42,14 @@ import { UserAccentColorPicker } from '@/ui/UserAccentColorPicker';
 
 // Gate functions — stubbed so tests run without localStorage.
 // vi.mock() is hoisted by Vitest, so these mocks are applied before any import.
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   getUserAccentColor: vi.fn(() => null),
   setUserAccentColor: vi.fn(),
   clearUserAccentColor: vi.fn(),
-}));
+};
+});
 
 // applyUserMessageColor — no-op in jsdom (no real CSS vars)
 vi.mock('@/ui/theme', () => ({

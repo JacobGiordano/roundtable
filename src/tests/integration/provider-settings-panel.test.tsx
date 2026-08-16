@@ -37,7 +37,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 // ─── Module mocks (hoisted before any import that would consume @/auth) ────────
 
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   getProviderRoster: vi.fn(),
   addBuiltInProvider: vi.fn(),
   addCustomProvider: vi.fn(),
@@ -57,7 +59,8 @@ vi.mock('@/auth', () => ({
   getPricingUrl: vi.fn(() => null),
   savePricingUrl: vi.fn(),
   refreshPricing: vi.fn(() => Promise.resolve()),
-}));
+};
+});
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
