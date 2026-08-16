@@ -38,6 +38,10 @@ import {
   getPricingUrl,
   savePricingUrl,
   refreshPricing,
+  // #600: Font scale persistence — reads and writes the two unitless scale multipliers
+  // (ui: 0.875–1.25, content: 0.875–2.0). Gate owns storage; Aria owns the controls.
+  getFontScalePreferences,
+  saveFontScalePreferences,
 } from '@/auth';
 import type { TestResult } from '@/auth';
 // #148: getModelAccentCssValue is the shared utility for model identity dot colors.
@@ -2176,6 +2180,298 @@ function StorageUsageSection() {
   );
 }
 
+// ─── Reading section (#600) ───────────────────────────────────────────────────
+
+/**
+ * Valid scale step constants — mirrored from Gate's fontScale.ts so the UI
+ * can compute next/prev values without importing Gate's private constants.
+ * Gate's saveFontScalePreferences() silently ignores out-of-range values as
+ * a safety net, but the UI should never send them.
+ */
+const FONT_SCALE_STEP = 0.125;
+const FONT_SCALE_MIN = 0.875;
+const FONT_SCALE_UI_MAX = 1.25;
+const FONT_SCALE_CONTENT_MAX = 2.0;
+
+/**
+ * FontScaleStepper — a labeled +/– stepper with spinbutton keyboard semantics.
+ *
+ * Renders a single font scale control row per Luma spec §4.3:
+ *   [Label]                    [–] [Value display] [+]
+ *
+ * The value display uses role="spinbutton" (ARIA §4.4) so arrow keys adjust
+ * the value — Up/Right = increment, Down/Left = decrement, Home = min, End = max.
+ *
+ * The +/– buttons are standard <button> elements — Enter/Space activate them.
+ * Arrow keys on the buttons are not wired (spec §4.3: "Arrow keys do NOT adjust
+ * the value from the buttons — they are standard buttons, not a slider").
+ *
+ * Focus: the spinbutton sits between the two buttons in DOM order (matching
+ * visual order) and is keyboard-focusable (tabIndex={0}).
+ *
+ * Disabled state: when at min/max, the respective button gets aria-disabled
+ * (stays in tab order — WCAG 2.4.3) with opacity-40 and cursor-not-allowed.
+ */
+interface FontScaleStepperProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  decrementAriaLabel: string;
+  incrementAriaLabel: string;
+  spinbuttonAriaLabel: string;
+  onChange: (newValue: number) => void;
+}
+
+function FontScaleStepper({
+  label,
+  value,
+  min,
+  max,
+  step,
+  decrementAriaLabel,
+  incrementAriaLabel,
+  spinbuttonAriaLabel,
+  onChange,
+}: FontScaleStepperProps) {
+  const atMin = value <= min + 1e-9;
+  const atMax = value >= max - 1e-9;
+
+  const decrement = useCallback(() => {
+    if (!atMin) {
+      // Round to avoid floating-point drift (e.g. 1.0000000001)
+      onChange(Math.round((value - step) / step) * step);
+    }
+  }, [atMin, onChange, value, step]);
+
+  const increment = useCallback(() => {
+    if (!atMax) {
+      onChange(Math.round((value + step) / step) * step);
+    }
+  }, [atMax, onChange, value, step]);
+
+  // Spinbutton keyboard handler per WAI-ARIA spinbutton pattern.
+  const handleSpinbuttonKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'ArrowRight':
+          e.preventDefault();
+          increment();
+          break;
+        case 'ArrowDown':
+        case 'ArrowLeft':
+          e.preventDefault();
+          decrement();
+          break;
+        case 'Home':
+          e.preventDefault();
+          onChange(min);
+          break;
+        case 'End':
+          e.preventDefault();
+          onChange(max);
+          break;
+        default:
+          break;
+      }
+    },
+    [increment, decrement, onChange, min, max],
+  );
+
+  const percent = Math.round(value * 100);
+  const isDefault = Math.abs(value - 1.0) < 1e-9;
+  const valueText = isDefault ? `${percent} percent, default` : `${percent} percent`;
+
+  // ARIA spinbutton values are integers (percentage representation)
+  const ariaValueMin = Math.round(min * 100);
+  const ariaValueMax = Math.round(max * 100);
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      {/* Label — left-aligned, takes flex space */}
+      <span className="text-[13px] font-medium text-text-secondary flex-1 min-w-0">
+        {label}
+      </span>
+
+      {/* +/– cluster — right side */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Decrement button */}
+        <button
+          type="button"
+          aria-label={decrementAriaLabel}
+          aria-disabled={atMin}
+          onClick={atMin ? undefined : decrement}
+          className={[
+            'w-7 h-7 flex items-center justify-center',
+            'rounded text-[14px] font-medium',
+            'bg-input border border-border text-text-secondary',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            atMin
+              ? 'opacity-40 cursor-not-allowed'
+              : 'hover:bg-hover hover:text-text-primary hover:border-border-strong cursor-pointer',
+          ].join(' ')}
+        >
+          <span aria-hidden="true">–</span>
+        </button>
+
+        {/* Value display — spinbutton role for arrow key support (#600 spec §4.3) */}
+        <div
+          role="spinbutton"
+          tabIndex={0}
+          aria-label={spinbuttonAriaLabel}
+          aria-valuenow={percent}
+          aria-valuemin={ariaValueMin}
+          aria-valuemax={ariaValueMax}
+          aria-valuetext={valueText}
+          onKeyDown={handleSpinbuttonKeyDown}
+          className={[
+            'min-w-[44px] text-center text-[13px] font-semibold text-text-primary',
+            'select-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 rounded-sm',
+          ].join(' ')}
+        >
+          {percent}%
+        </div>
+
+        {/* Increment button */}
+        <button
+          type="button"
+          aria-label={incrementAriaLabel}
+          aria-disabled={atMax}
+          onClick={atMax ? undefined : increment}
+          className={[
+            'w-7 h-7 flex items-center justify-center',
+            'rounded text-[14px] font-medium',
+            'bg-input border border-border text-text-secondary',
+            'transition-colors duration-fast',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1',
+            atMax
+              ? 'opacity-40 cursor-not-allowed'
+              : 'hover:bg-hover hover:text-text-primary hover:border-border-strong cursor-pointer',
+          ].join(' ')}
+        >
+          <span aria-hidden="true">+</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ReadingSection — the "Reading" section in ProviderSettingsPanel (#600).
+ *
+ * Two font scale steppers:
+ *   - Interface size (UI scale: 0.875–1.25)
+ *   - Message text size (content scale: 0.875–2.0)
+ *
+ * A single "Reset to defaults" affordance below both.
+ * Live preview: CSS custom properties on :root update on every stepper change.
+ */
+function ReadingSection() {
+  const [scales, setScales] = useState(() => getFontScalePreferences());
+
+  const applyScale = useCallback(
+    (updates: { ui?: number; content?: number }) => {
+      // Save to Gate storage
+      saveFontScalePreferences(updates);
+      // Update :root CSS vars immediately for live preview
+      if (updates.ui !== undefined) {
+        document.documentElement.style.setProperty('--font-scale-ui', String(updates.ui));
+      }
+      if (updates.content !== undefined) {
+        document.documentElement.style.setProperty('--font-scale-content', String(updates.content));
+      }
+      // Sync local state
+      setScales((prev) => ({
+        ui: updates.ui ?? prev.ui,
+        content: updates.content ?? prev.content,
+      }));
+    },
+    [],
+  );
+
+  const handleUiChange = useCallback(
+    (v: number) => applyScale({ ui: v }),
+    [applyScale],
+  );
+
+  const handleContentChange = useCallback(
+    (v: number) => applyScale({ content: v }),
+    [applyScale],
+  );
+
+  const bothAtDefault =
+    Math.abs(scales.ui - 1.0) < 1e-9 && Math.abs(scales.content - 1.0) < 1e-9;
+
+  const handleReset = useCallback(() => {
+    if (bothAtDefault) return;
+    applyScale({ ui: 1.0, content: 1.0 });
+  }, [applyScale, bothAtDefault]);
+
+  return (
+    <section className="border-t border-border pt-8 mb-8">
+      {/* Section heading — same typographic treatment as other section headings */}
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-4">
+        Reading
+      </h3>
+
+      <div className="flex flex-col gap-4">
+        <FontScaleStepper
+          label="Interface size"
+          value={scales.ui}
+          min={FONT_SCALE_MIN}
+          max={FONT_SCALE_UI_MAX}
+          step={FONT_SCALE_STEP}
+          decrementAriaLabel="Decrease interface size"
+          incrementAriaLabel="Increase interface size"
+          spinbuttonAriaLabel="Interface size"
+          onChange={handleUiChange}
+        />
+
+        <FontScaleStepper
+          label="Message text size"
+          value={scales.content}
+          min={FONT_SCALE_MIN}
+          max={FONT_SCALE_CONTENT_MAX}
+          step={FONT_SCALE_STEP}
+          decrementAriaLabel="Decrease message text size"
+          incrementAriaLabel="Increase message text size"
+          spinbuttonAriaLabel="Message text size"
+          onChange={handleContentChange}
+        />
+
+        {/* Reset to defaults — right-aligned, aria-disabled when already at defaults.
+            Per spec §4.5: not hidden when disabled — it stays visible with opacity-40.
+            WCAG 1.4.1: underline only on focus-visible (not at rest — this is a secondary
+            affordance, not a primary link). */}
+        <div className="flex justify-end mt-2">
+          <button
+            type="button"
+            aria-label="Reset interface size and message text size to defaults"
+            aria-disabled={bothAtDefault}
+            onClick={bothAtDefault ? undefined : handleReset}
+            className={[
+              'text-[12px] font-medium',
+              'inline-flex items-center min-h-[24px]',
+              'rounded-sm',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:underline',
+              'transition-colors duration-fast',
+              bothAtDefault
+                ? 'text-text-muted opacity-40 cursor-not-allowed pointer-events-none'
+                : 'text-text-muted hover:text-text-secondary cursor-pointer',
+            ].join(' ')}
+          >
+            Reset to defaults
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── ProviderSettingsPanel ────────────────────────────────────────────────────
 
 interface ProviderSettingsPanelProps {
@@ -2502,7 +2798,13 @@ export function ProviderSettingsPanel({
           <AddCustomForm onAdded={handleCustomAdded} />
         </section>
 
-        {/* ── Section 4: Appearance ─────────────────────────────────────── */}
+        {/* ── Section 4: Reading — font scale controls (#600) ───────────── */}
+        {/* UI scale (0.875–1.25) and content scale (0.875–2.0) steppers.
+            Spec: /_design/specs/font-scale-600.md §4.
+            ReadingSection manages its own state and updates :root CSS vars live. */}
+        <ReadingSection />
+
+        {/* ── Section 5: Appearance ─────────────────────────────────────── */}
         {/* Custom theme import — spec: /_design/specs/custom-theme-import.md */}
         <section className="border-t border-border pt-8 mb-8">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted mb-2">

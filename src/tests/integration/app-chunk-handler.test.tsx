@@ -115,7 +115,9 @@ vi.mock('@/storage', () => ({
   })),
 }));
 
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   // Plain arrow functions (not vi.fn()) to guarantee the mock value is always
   // available even during module initialization, before vi.fn() instances are set up.
   getProviderRoster: () => [
@@ -138,7 +140,8 @@ vi.mock('@/auth', () => ({
   getModelVersions: () => [],
   // #353: App.tsx calls refreshPricing() on mount to prefetch pricing data.
   refreshPricing: () => Promise.resolve(),
-}));
+};
+});
 
 // AppLayout spy — captures the props App passes down AND the context values
 // App delivers via RoundtableContext (post-#174 refactor), so we can observe

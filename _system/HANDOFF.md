@@ -1,4 +1,4 @@
-Last updated: 2026-08-13 (mobile touch targets + settings export proxy URL)
+Last updated: 2026-08-15 (font scale controls — #600)
 
 ## Current phase
 
@@ -12,6 +12,7 @@ Phase 5 — Full gate process active.
 - Sidebar min/default width (wave 31): 330 px — four desktop header icons need ~324 px; old default clipped the gear. Stored values below 330 auto-migrate via `parseStoredWidth`.
 - Touch targets (#595): `min-w-[44px] min-h-[44px]` added to all icon-only buttons. Nameplate chevrons, directed-reply ×, and attachment × buttons left at 24px WCAG floor (rationale in commit).
 - Settings export (#596): proxy URL travels through `preferences['proxyUrl']` (same pattern as `serverUrl`); omitted when not configured; silently skipped by older clients.
+- Font scale (#600): two independent CSS custom properties — `--font-scale-ui` (0.875–1.25) and `--font-scale-content` (0.875–2.0). Set on `:root` at startup from `getFontScalePreferences()`. UI scope: AppLayout root div. Content scope: MessageThread scroll container. Tailwind `text-*` classes are rem-based and do not auto-scale — only inline `style` overrides on targeted elements. Small metadata text (11–12px) uses `max(10px, calc(Xpx * var(--font-scale-content, 1)))` floor. Live preview via direct `document.documentElement.style.setProperty()` on each stepper change. `aria-valuemin` announces 88 (not 87) — correct, `Math.round(87.5)` = 88.
 
 ## Open issues
 
@@ -25,8 +26,10 @@ Forge wave: #568 + #569 + #570 as one coordinated upgrade pass.
 
 ## Recently shipped
 
-- **#595 Mobile touch targets** — 12 interactive controls upgraded to ≥44px across InputBar, Sidebar, ModelSelectorPanel, ThreadRow, MessageThread, SidebarChrome. 6 WCAG 2.5.8 regression tests added.
-- **#596 Settings export: proxy URL** — `exportSetup()` now includes proxy URL; `importSetup()` restores it. Additive change; backward-compatible.
+- **#600 Font scale controls** — "Reading" section in Settings with independent UI scale and content scale steppers. Storage key `roundtable:font-scale`. 42 a11y regression tests. Exports with settings.
+- **CI fix (ProviderSettingsPanel focus return)** — shared `ref` between mobile/desktop gear buttons caused ref to point to `display:none` element. Fixed: `document.activeElement` captured at open time as primary return target.
+- **#595 Mobile touch targets** — 12 interactive controls upgraded to ≥44px. 6 WCAG 2.5.8 regression tests.
+- **#596 Settings export: proxy URL** — additive, backward-compatible.
 
 ## Gotchas
 
@@ -35,7 +38,7 @@ Forge wave: #568 + #569 + #570 as one coordinated upgrade pass.
 - Backend CI uses Node 22 specifically
 - DeepSeek V4 active — migrated from retired deepseek-chat/reasoner to deepseek-v4-flash/v4-pro (#563)
 - DevProxyHint (#565): `/dev-proxy/` only for CORS-blocking providers; CORS-enabled (e.g. OpenRouter) use plain `https://` URL
-- Auto-scroll (#598): `prevScrollTop` ref is the mobile intent signal — if scrollTop decreases, user scrolled up.
+- Font scale: Tailwind `text-*` classes are rem-based — do NOT assume they inherit container font-size. Scale only works via inline `style` overrides or em-based classes on targeted elements.
 - Next new agent gender: NB (they/them) — roster is 9F/8M/2NB
 - Model sync bot commits to `main` daily at 06:00 UTC — `git pull --no-rebase origin main` before pushing if branch was open overnight
 - `border-blockquote` token at 2.11:1 on `bg-card` in Slate — acceptable

@@ -1189,7 +1189,7 @@ describe('MessageBubble — Fix #322: Nameplate zone structure (WCAG 1.3.1, 4.1.
     // It must be in the DOM and accessible to screen readers — it should NOT be
     // aria-hidden, since it communicates message recency.
     // We find it by its unique combination of size and color classes.
-    const timestampEl = container.querySelector('time.text-\\[11px\\].text-text-muted.shrink-0');
+    const timestampEl = container.querySelector('time.text-text-muted.shrink-0');
     expect(timestampEl).not.toBeNull();
     expect(timestampEl?.getAttribute('aria-hidden')).not.toBe('true');
     // The text content should be non-empty (formatRelativeTime returns a string)

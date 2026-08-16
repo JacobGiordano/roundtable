@@ -113,7 +113,9 @@ vi.mock('@/storage', () => ({
   })),
 }));
 
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   getProviderRoster: vi.fn(() => currentRoster),
   getModelVersion: () => undefined,
   setModelVersion: () => {},
@@ -132,7 +134,8 @@ vi.mock('@/auth', () => ({
   getModelVersions: () => [],
   // #353: App.tsx calls refreshPricing() on mount to prefetch pricing data.
   refreshPricing: () => Promise.resolve(),
-}));
+};
+});
 
 // AppLayout spy — captures props AND context values on every render.
 // After #174, most state is delivered via RoundtableContext rather than props.

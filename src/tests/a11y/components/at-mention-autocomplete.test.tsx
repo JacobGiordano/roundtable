@@ -560,7 +560,7 @@ describe('MessageBubble — routing label ARIA (#382, WCAG 1.3.1, 1.4.1)', () =>
     // (plain <span> or <div> without an explicit role). The routing label span
     // in the nameplate must not carry aria-label.
     const nameplate = container.querySelector('.h-\\[28px\\]');
-    const routingSpan = nameplate?.querySelector('span.text-\\[11px\\].font-normal.text-text-muted');
+    const routingSpan = nameplate?.querySelector('span.font-normal.text-text-muted');
     expect(routingSpan).not.toBeNull();
     expect(routingSpan?.getAttribute('aria-label')).toBeNull();
   });

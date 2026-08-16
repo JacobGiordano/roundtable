@@ -68,10 +68,13 @@ vi.mock('@/models', () => ({
 // models have image generation capability.
 // Return sensible empty values — the image gen toggle section won't render,
 // which is correct for a test focused on the deprecation warning.
-vi.mock('@/auth', () => ({
+vi.mock('@/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/auth')>();
+  return { ...actual,
   getModelAccentColors: vi.fn(() => ({})),
   getProviderRoster: vi.fn(() => []),
-}));
+};
+});
 
 // jsdom does not implement matchMedia — stub it so components using
 // window.matchMedia do not throw.

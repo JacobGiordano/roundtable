@@ -702,8 +702,21 @@ export function MessageThread({
               )}
             </div>
           )}
-          {/* Scroll container — ref used by the smart-scroll listener (#161) */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset">
+          {/* Scroll container — ref used by the smart-scroll listener (#161).
+              #600: Content scale scoping container. font-size: calc(1rem * var(--font-scale-content))
+              makes this element the base for em-based child text in the message thread.
+              --font-scale-content is set on :root by AppLayout.tsx on mount and updated live
+              by ProviderSettingsPanel's "Reading" stepper. The nested font-size overrides
+              the parent UI scale (set on the AppLayout root div) within this scroll region —
+              CSS cascades, so a more specific descendant's font-size wins. Elements inside
+              message bubbles that use text-[Npx] classes (px-based) will not automatically
+              scale; per spec §5.4 the four small-text metadata elements apply max() floors
+              via inline style. The message body, markdown, and code block text use rem-based
+              or em-based sizing and will scale relative to this container's font-size.
+              Exception: large heading classes from MarkdownContent (text-xl, text-lg, text-base)
+              are rem-based and won't scale — the spec acknowledged this Tailwind constraint
+              and chose the inline-style path over switching every class to em. */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset" style={{ fontSize: 'calc(1rem * var(--font-scale-content, 1))' }}>
             <div className="mx-auto w-full max-w-[720px] flex flex-col gap-2">
               {allMessages.map((message, index) => {
                 const modelConfig = findModelConfig(message.modelId, models);
