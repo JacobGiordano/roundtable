@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-21",
+  "updated": "2026-08-22",
   "providers": {
     "anthropic": [
       {
@@ -331,10 +331,6 @@
       {
         "id": "gpt-oss-20b",
         "displayName": "OpenAI: gpt-oss-20b"
-      },
-      {
-        "id": "gpt-oss-20b:free",
-        "displayName": "OpenAI: gpt-oss-20b (free)"
       },
       {
         "id": "o3-pro",
@@ -738,6 +734,10 @@
       }
     ],
     "deepseek": [
+      {
+        "id": "deepseek-v4-flash-vision-exp",
+        "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp"
+      },
       {
         "id": "deepseek-v4-pro-0813",
         "displayName": "DeepSeek: DeepSeek V4 Pro 0813"
