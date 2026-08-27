@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-26",
+  "updated": "2026-08-27",
   "providers": {
     "anthropic": [
       {
@@ -715,10 +715,6 @@
       {
         "id": "mistral-large-2407",
         "displayName": "Mistral Large 2407"
-      },
-      {
-        "id": "ministral-8b",
-        "displayName": "Mistral: Ministral 8B"
       },
       {
         "id": "mistral-nemo",
