@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-28",
+  "updated": "2026-08-29",
   "providers": {
     "anthropic": [
       {
@@ -249,8 +249,16 @@
         "displayName": "OpenAI: gpt-oss-120b"
       },
       {
+        "id": "gpt-oss-120b:batch",
+        "displayName": "OpenAI: gpt-oss-120b (batch)"
+      },
+      {
         "id": "gpt-oss-20b",
         "displayName": "OpenAI: gpt-oss-20b"
+      },
+      {
+        "id": "gpt-oss-20b:batch",
+        "displayName": "OpenAI: gpt-oss-20b (batch)"
       },
       {
         "id": "o3-pro",
@@ -413,6 +421,10 @@
       {
         "id": "gemma-4-31b-it",
         "displayName": "Google: Gemma 4 31B"
+      },
+      {
+        "id": "gemma-4-31b-it:batch",
+        "displayName": "Google: Gemma 4 31B (batch)"
       },
       {
         "id": "gemma-4-31b-it:free",
@@ -623,8 +635,16 @@
         "displayName": "DeepSeek: DeepSeek V4 Pro 0813"
       },
       {
+        "id": "deepseek-v4-pro-0813:batch",
+        "displayName": "DeepSeek: DeepSeek V4 Pro 0813 (batch)"
+      },
+      {
         "id": "deepseek-v4-flash-0731",
         "displayName": "DeepSeek: DeepSeek V4 Flash 0731"
+      },
+      {
+        "id": "deepseek-v4-flash-0731:batch",
+        "displayName": "DeepSeek: DeepSeek V4 Flash 0731 (batch)"
       },
       {
         "id": "deepseek-v4-pro",
