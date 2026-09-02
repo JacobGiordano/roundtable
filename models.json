@@ -1,10 +1,14 @@
 {
-  "updated": "2026-09-01",
+  "updated": "2026-09-02",
   "providers": {
     "anthropic": [
       {
-        "id": "claude-opus-5-fast",
-        "displayName": "Claude Opus 5 (Fast)"
+        "id": "claude-fable-5.1",
+        "displayName": "Anthropic: Claude Fable 5.1"
+      },
+      {
+        "id": "claude-fable-5.1:batch",
+        "displayName": "Anthropic: Claude Fable 5.1 (batch)"
       },
       {
         "id": "claude-opus-5",
@@ -31,20 +35,12 @@
         "displayName": "Anthropic: Claude Fable 5 (batch)"
       },
       {
-        "id": "claude-opus-4.8-fast",
-        "displayName": "Anthropic: Claude Opus 4.8 (Fast)"
-      },
-      {
         "id": "claude-opus-4.8",
         "displayName": "Anthropic: Claude Opus 4.8"
       },
       {
         "id": "claude-opus-4.8:batch",
         "displayName": "Anthropic: Claude Opus 4.8 (batch)"
-      },
-      {
-        "id": "claude-opus-4.7-fast",
-        "displayName": "Anthropic: Claude Opus 4.7 (Fast)"
       },
       {
         "id": "claude-opus-4.7",
