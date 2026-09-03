@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-02",
+  "updated": "2026-09-03",
   "providers": {
     "anthropic": [
       {
@@ -470,6 +470,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-3.8-flash",
+        "displayName": "Google: Gemini 3.8 Flash"
+      },
+      {
+        "id": "gemini-3.8-flash:batch",
+        "displayName": "Google: Gemini 3.8 Flash (batch)"
+      },
       {
         "id": "gemini-3.7-flash",
         "displayName": "Google: Gemini 3.7 Flash"
