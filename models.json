@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-04",
+  "updated": "2026-09-05",
   "providers": {
     "anthropic": [
       {
@@ -112,6 +112,22 @@
       }
     ],
     "openai": [
+      {
+        "id": "gpt-6-astra",
+        "displayName": "OpenAI: GPT-6 Astra"
+      },
+      {
+        "id": "gpt-6-astra:batch",
+        "displayName": "OpenAI: GPT-6 Astra (batch)"
+      },
+      {
+        "id": "gpt-6-astra-pro",
+        "displayName": "OpenAI: GPT-6 Astra Pro"
+      },
+      {
+        "id": "gpt-6-astra-pro:batch",
+        "displayName": "OpenAI: GPT-6 Astra Pro (batch)"
+      },
       {
         "id": "gpt-5.6-luna-pro",
         "displayName": "OpenAI: GPT-5.6 Luna Pro"
