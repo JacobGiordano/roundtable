@@ -1,10 +1,14 @@
 {
-  "updated": "2026-08-30",
+  "updated": "2026-09-06",
   "providers": {
     "anthropic": [
       {
-        "id": "claude-opus-5-fast",
-        "displayName": "Claude Opus 5 (Fast)"
+        "id": "claude-fable-5.1",
+        "displayName": "Anthropic: Claude Fable 5.1"
+      },
+      {
+        "id": "claude-fable-5.1:batch",
+        "displayName": "Anthropic: Claude Fable 5.1 (batch)"
       },
       {
         "id": "claude-opus-5",
@@ -31,20 +35,12 @@
         "displayName": "Anthropic: Claude Fable 5 (batch)"
       },
       {
-        "id": "claude-opus-4.8-fast",
-        "displayName": "Anthropic: Claude Opus 4.8 (Fast)"
-      },
-      {
         "id": "claude-opus-4.8",
         "displayName": "Anthropic: Claude Opus 4.8"
       },
       {
         "id": "claude-opus-4.8:batch",
         "displayName": "Anthropic: Claude Opus 4.8 (batch)"
-      },
-      {
-        "id": "claude-opus-4.7-fast",
-        "displayName": "Anthropic: Claude Opus 4.7 (Fast)"
       },
       {
         "id": "claude-opus-4.7",
@@ -117,28 +113,68 @@
     ],
     "openai": [
       {
+        "id": "gpt-6-astra",
+        "displayName": "OpenAI: GPT-6 Astra"
+      },
+      {
+        "id": "gpt-6-astra:batch",
+        "displayName": "OpenAI: GPT-6 Astra (batch)"
+      },
+      {
+        "id": "gpt-6-astra-pro",
+        "displayName": "OpenAI: GPT-6 Astra Pro"
+      },
+      {
+        "id": "gpt-6-astra-pro:batch",
+        "displayName": "OpenAI: GPT-6 Astra Pro (batch)"
+      },
+      {
         "id": "gpt-5.6-luna-pro",
         "displayName": "OpenAI: GPT-5.6 Luna Pro"
+      },
+      {
+        "id": "gpt-5.6-luna-pro:batch",
+        "displayName": "OpenAI: GPT-5.6 Luna Pro (batch)"
       },
       {
         "id": "gpt-5.6-luna",
         "displayName": "OpenAI: GPT-5.6 Luna"
       },
       {
+        "id": "gpt-5.6-luna:batch",
+        "displayName": "OpenAI: GPT-5.6 Luna (batch)"
+      },
+      {
         "id": "gpt-5.6-terra-pro",
         "displayName": "OpenAI: GPT-5.6 Terra Pro"
+      },
+      {
+        "id": "gpt-5.6-terra-pro:batch",
+        "displayName": "OpenAI: GPT-5.6 Terra Pro (batch)"
       },
       {
         "id": "gpt-5.6-terra",
         "displayName": "OpenAI: GPT-5.6 Terra"
       },
       {
+        "id": "gpt-5.6-terra:batch",
+        "displayName": "OpenAI: GPT-5.6 Terra (batch)"
+      },
+      {
         "id": "gpt-5.6-sol-pro",
         "displayName": "OpenAI: GPT-5.6 Sol Pro"
       },
       {
+        "id": "gpt-5.6-sol-pro:batch",
+        "displayName": "OpenAI: GPT-5.6 Sol Pro (batch)"
+      },
+      {
         "id": "gpt-5.6-sol",
         "displayName": "OpenAI: GPT-5.6 Sol"
+      },
+      {
+        "id": "gpt-5.6-sol:batch",
+        "displayName": "OpenAI: GPT-5.6 Sol (batch)"
       },
       {
         "id": "gpt-chat-latest",
@@ -149,8 +185,16 @@
         "displayName": "OpenAI: GPT-5.5 Pro"
       },
       {
+        "id": "gpt-5.5-pro:batch",
+        "displayName": "OpenAI: GPT-5.5 Pro (batch)"
+      },
+      {
         "id": "gpt-5.5",
         "displayName": "OpenAI: GPT-5.5"
+      },
+      {
+        "id": "gpt-5.5:batch",
+        "displayName": "OpenAI: GPT-5.5 (batch)"
       },
       {
         "id": "gpt-5.4-image-2",
@@ -161,16 +205,32 @@
         "displayName": "OpenAI: GPT-5.4 Nano"
       },
       {
+        "id": "gpt-5.4-nano:batch",
+        "displayName": "OpenAI: GPT-5.4 Nano (batch)"
+      },
+      {
         "id": "gpt-5.4-mini",
         "displayName": "OpenAI: GPT-5.4 Mini"
+      },
+      {
+        "id": "gpt-5.4-mini:batch",
+        "displayName": "OpenAI: GPT-5.4 Mini (batch)"
       },
       {
         "id": "gpt-5.4-pro",
         "displayName": "OpenAI: GPT-5.4 Pro"
       },
       {
+        "id": "gpt-5.4-pro:batch",
+        "displayName": "OpenAI: GPT-5.4 Pro (batch)"
+      },
+      {
         "id": "gpt-5.4",
         "displayName": "OpenAI: GPT-5.4"
+      },
+      {
+        "id": "gpt-5.4:batch",
+        "displayName": "OpenAI: GPT-5.4 (batch)"
       },
       {
         "id": "gpt-5.3-codex",
@@ -197,8 +257,16 @@
         "displayName": "OpenAI: GPT-5.2 Pro"
       },
       {
+        "id": "gpt-5.2-pro:batch",
+        "displayName": "OpenAI: GPT-5.2 Pro (batch)"
+      },
+      {
         "id": "gpt-5.2",
         "displayName": "OpenAI: GPT-5.2"
+      },
+      {
+        "id": "gpt-5.2:batch",
+        "displayName": "OpenAI: GPT-5.2 (batch)"
       },
       {
         "id": "gpt-5.1-codex-max",
@@ -207,6 +275,10 @@
       {
         "id": "gpt-5.1",
         "displayName": "OpenAI: GPT-5.1"
+      },
+      {
+        "id": "gpt-5.1:batch",
+        "displayName": "OpenAI: GPT-5.1 (batch)"
       },
       {
         "id": "gpt-5.1-codex",
@@ -233,16 +305,32 @@
         "displayName": "OpenAI: GPT-5 Pro"
       },
       {
+        "id": "gpt-5-pro:batch",
+        "displayName": "OpenAI: GPT-5 Pro (batch)"
+      },
+      {
         "id": "gpt-5",
         "displayName": "OpenAI: GPT-5"
+      },
+      {
+        "id": "gpt-5:batch",
+        "displayName": "OpenAI: GPT-5 (batch)"
       },
       {
         "id": "gpt-5-mini",
         "displayName": "OpenAI: GPT-5 Mini"
       },
       {
+        "id": "gpt-5-mini:batch",
+        "displayName": "OpenAI: GPT-5 Mini (batch)"
+      },
+      {
         "id": "gpt-5-nano",
         "displayName": "OpenAI: GPT-5 Nano"
+      },
+      {
+        "id": "gpt-5-nano:batch",
+        "displayName": "OpenAI: GPT-5 Nano (batch)"
       },
       {
         "id": "gpt-oss-120b",
@@ -273,20 +361,40 @@
         "displayName": "OpenAI: o3"
       },
       {
+        "id": "o3:batch",
+        "displayName": "OpenAI: o3 (batch)"
+      },
+      {
         "id": "o4-mini",
         "displayName": "OpenAI: o4 Mini"
+      },
+      {
+        "id": "o4-mini:batch",
+        "displayName": "OpenAI: o4 Mini (batch)"
       },
       {
         "id": "gpt-4.1",
         "displayName": "OpenAI: GPT-4.1"
       },
       {
+        "id": "gpt-4.1:batch",
+        "displayName": "OpenAI: GPT-4.1 (batch)"
+      },
+      {
         "id": "gpt-4.1-mini",
         "displayName": "OpenAI: GPT-4.1 Mini"
       },
       {
+        "id": "gpt-4.1-mini:batch",
+        "displayName": "OpenAI: GPT-4.1 Mini (batch)"
+      },
+      {
         "id": "gpt-4.1-nano",
         "displayName": "OpenAI: GPT-4.1 Nano"
+      },
+      {
+        "id": "gpt-4.1-nano:batch",
+        "displayName": "OpenAI: GPT-4.1 Nano (batch)"
       },
       {
         "id": "o1-pro",
@@ -299,6 +407,10 @@
       {
         "id": "o3-mini",
         "displayName": "OpenAI: o3 Mini"
+      },
+      {
+        "id": "o3-mini:batch",
+        "displayName": "OpenAI: o3 Mini (batch)"
       },
       {
         "id": "o1",
@@ -321,6 +433,10 @@
         "displayName": "OpenAI: GPT-4o-mini (2024-07-18)"
       },
       {
+        "id": "gpt-4o-mini:batch",
+        "displayName": "OpenAI: GPT-4o-mini (batch)"
+      },
+      {
         "id": "gpt-4o",
         "displayName": "OpenAI: GPT-4o"
       },
@@ -329,8 +445,16 @@
         "displayName": "OpenAI: GPT-4o (2024-05-13)"
       },
       {
+        "id": "gpt-4o:batch",
+        "displayName": "OpenAI: GPT-4o (batch)"
+      },
+      {
         "id": "gpt-4-turbo",
         "displayName": "OpenAI: GPT-4 Turbo"
+      },
+      {
+        "id": "gpt-4-turbo:batch",
+        "displayName": "OpenAI: GPT-4 Turbo (batch)"
       },
       {
         "id": "gpt-3.5-turbo-0613",
@@ -353,11 +477,23 @@
         "displayName": "OpenAI: GPT-3.5 Turbo"
       },
       {
+        "id": "gpt-3.5-turbo:batch",
+        "displayName": "OpenAI: GPT-3.5 Turbo (batch)"
+      },
+      {
         "id": "gpt-4",
         "displayName": "OpenAI: GPT-4"
       }
     ],
     "google": [
+      {
+        "id": "gemini-3.8-flash",
+        "displayName": "Google: Gemini 3.8 Flash"
+      },
+      {
+        "id": "gemini-3.8-flash:batch",
+        "displayName": "Google: Gemini 3.8 Flash (batch)"
+      },
       {
         "id": "gemini-3.7-flash",
         "displayName": "Google: Gemini 3.7 Flash"
@@ -537,10 +673,6 @@
         "displayName": "Mistral: Mistral Small 4"
       },
       {
-        "id": "mistral-small-2603:batch",
-        "displayName": "Mistral: Mistral Small 4 (batch)"
-      },
-      {
         "id": "devstral-2512",
         "displayName": "Mistral: Devstral 2 2512"
       },
@@ -553,20 +685,12 @@
         "displayName": "Mistral: Ministral 3 8B 2512"
       },
       {
-        "id": "ministral-8b-2512:batch",
-        "displayName": "Mistral: Ministral 3 8B 2512 (batch)"
-      },
-      {
         "id": "ministral-3b-2512",
         "displayName": "Mistral: Ministral 3 3B 2512"
       },
       {
         "id": "mistral-large-2512",
         "displayName": "Mistral: Mistral Large 3 2512"
-      },
-      {
-        "id": "mistral-large-2512:batch",
-        "displayName": "Mistral: Mistral Large 3 2512 (batch)"
       },
       {
         "id": "voxtral-small-24b-2507",
@@ -577,16 +701,8 @@
         "displayName": "Mistral: Mistral Medium 3.1"
       },
       {
-        "id": "mistral-medium-3.1:batch",
-        "displayName": "Mistral: Mistral Medium 3.1 (batch)"
-      },
-      {
         "id": "codestral-2508",
         "displayName": "Mistral: Codestral 2508"
-      },
-      {
-        "id": "codestral-2508:batch",
-        "displayName": "Mistral: Codestral 2508 (batch)"
       },
       {
         "id": "mistral-small-3.2-24b-instruct",
@@ -707,6 +823,10 @@
       {
         "id": "grok-4.3",
         "displayName": "SpaceXAI: Grok 4.3"
+      },
+      {
+        "id": "grok-4.3:batch",
+        "displayName": "SpaceXAI: Grok 4.3 (batch)"
       },
       {
         "id": "grok-4.20-multi-agent",
