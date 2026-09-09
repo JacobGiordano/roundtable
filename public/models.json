@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-08",
+  "updated": "2026-09-09",
   "providers": {
     "anthropic": [
       {
@@ -745,6 +745,10 @@
       {
         "id": "deepseek-v4-flash-vision-exp",
         "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp"
+      },
+      {
+        "id": "deepseek-v4-flash-vision-exp:batch",
+        "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp (batch)"
       },
       {
         "id": "deepseek-v4-pro-0813",
