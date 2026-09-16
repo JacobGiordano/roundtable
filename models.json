@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "providers": {
     "anthropic": [
       {
@@ -12,11 +12,11 @@
       },
       {
         "id": "claude-opus-5",
-        "displayName": "Claude Opus 5"
+        "displayName": "Anthropic: Claude Opus 5"
       },
       {
         "id": "claude-opus-5:batch",
-        "displayName": "Claude Opus 5 (batch)"
+        "displayName": "Anthropic: Claude Opus 5 (batch)"
       },
       {
         "id": "claude-sonnet-5",
@@ -345,10 +345,6 @@
         "displayName": "OpenAI: gpt-oss-20b"
       },
       {
-        "id": "gpt-oss-20b:batch",
-        "displayName": "OpenAI: gpt-oss-20b (batch)"
-      },
-      {
         "id": "o3-pro",
         "displayName": "OpenAI: o3 Pro"
       },
@@ -553,10 +549,6 @@
       {
         "id": "gemma-4-31b-it",
         "displayName": "Google: Gemma 4 31B"
-      },
-      {
-        "id": "gemma-4-31b-it:batch",
-        "displayName": "Google: Gemma 4 31B (batch)"
       },
       {
         "id": "gemma-4-31b-it:free",
