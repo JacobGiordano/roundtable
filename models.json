@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "providers": {
     "anthropic": [
       {
@@ -681,10 +681,6 @@
         "displayName": "Mistral: Ministral 3 3B 2512"
       },
       {
-        "id": "mistral-large-2512",
-        "displayName": "Mistral: Mistral Large 3 2512"
-      },
-      {
         "id": "mistral-large-2512:batch",
         "displayName": "Mistral: Mistral Large 3 2512 (batch)"
       },
@@ -773,6 +769,10 @@
       {
         "id": "deepseek-v4-flash-0731:batch",
         "displayName": "DeepSeek: DeepSeek V4 Flash 0731 (batch)"
+      },
+      {
+        "id": "deepseek-v4-flash-0731:free",
+        "displayName": "DeepSeek: DeepSeek V4 Flash 0731 (free)"
       },
       {
         "id": "deepseek-v4-pro",
