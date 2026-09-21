@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-13",
+  "updated": "2026-09-20",
   "providers": {
     "anthropic": [
       {
@@ -12,11 +12,11 @@
       },
       {
         "id": "claude-opus-5",
-        "displayName": "Claude Opus 5"
+        "displayName": "Anthropic: Claude Opus 5"
       },
       {
         "id": "claude-opus-5:batch",
-        "displayName": "Claude Opus 5 (batch)"
+        "displayName": "Anthropic: Claude Opus 5 (batch)"
       },
       {
         "id": "claude-sonnet-5",
@@ -345,10 +345,6 @@
         "displayName": "OpenAI: gpt-oss-20b"
       },
       {
-        "id": "gpt-oss-20b:batch",
-        "displayName": "OpenAI: gpt-oss-20b (batch)"
-      },
-      {
         "id": "o3-pro",
         "displayName": "OpenAI: o3 Pro"
       },
@@ -461,10 +457,6 @@
         "displayName": "OpenAI: GPT-3.5 Turbo (older v0613)"
       },
       {
-        "id": "gpt-4-turbo-preview",
-        "displayName": "OpenAI: GPT-4 Turbo Preview"
-      },
-      {
         "id": "gpt-3.5-turbo-instruct",
         "displayName": "OpenAI: GPT-3.5 Turbo Instruct"
       },
@@ -559,10 +551,6 @@
         "displayName": "Google: Gemma 4 31B"
       },
       {
-        "id": "gemma-4-31b-it:batch",
-        "displayName": "Google: Gemma 4 31B (batch)"
-      },
-      {
         "id": "gemma-4-31b-it:free",
         "displayName": "Google: Gemma 4 31B (free)"
       },
@@ -639,10 +627,6 @@
         "displayName": "Google: Gemini 2.5 Pro Preview 06-05"
       },
       {
-        "id": "gemini-2.5-pro-preview-05-06",
-        "displayName": "Google: Gemini 2.5 Pro Preview 05-06"
-      },
-      {
         "id": "gemma-3-4b-it",
         "displayName": "Google: Gemma 3 4B"
       },
@@ -695,10 +679,6 @@
       {
         "id": "ministral-3b-2512",
         "displayName": "Mistral: Ministral 3 3B 2512"
-      },
-      {
-        "id": "mistral-large-2512",
-        "displayName": "Mistral: Mistral Large 3 2512"
       },
       {
         "id": "mistral-large-2512:batch",
