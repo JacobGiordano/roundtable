@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-21",
+  "updated": "2026-09-22",
   "providers": {
     "anthropic": [
       {
@@ -97,10 +97,6 @@
       {
         "id": "claude-opus-4.1:batch",
         "displayName": "Anthropic: Claude Opus 4.1 (batch)"
-      },
-      {
-        "id": "claude-opus-4",
-        "displayName": "Anthropic: Claude Opus 4"
       },
       {
         "id": "claude-sonnet-4",
@@ -335,10 +331,6 @@
       {
         "id": "gpt-oss-120b",
         "displayName": "OpenAI: gpt-oss-120b"
-      },
-      {
-        "id": "gpt-oss-120b:batch",
-        "displayName": "OpenAI: gpt-oss-120b (batch)"
       },
       {
         "id": "gpt-oss-20b",
@@ -816,6 +808,10 @@
       }
     ],
     "x-ai": [
+      {
+        "id": "grok-4.7",
+        "displayName": "SpaceXAI: Grok 4.7"
+      },
       {
         "id": "grok-4.6",
         "displayName": "SpaceXAI: Grok 4.6"
