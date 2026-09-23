@@ -1,7 +1,15 @@
 {
-  "updated": "2026-09-22",
+  "updated": "2026-09-23",
   "providers": {
     "anthropic": [
+      {
+        "id": "claude-opus-5.5",
+        "displayName": "Anthropic: Claude Opus 5.5"
+      },
+      {
+        "id": "claude-opus-5.5:batch",
+        "displayName": "Anthropic: Claude Opus 5.5 (batch)"
+      },
       {
         "id": "claude-fable-5.1",
         "displayName": "Anthropic: Claude Fable 5.1"
@@ -108,6 +116,38 @@
       }
     ],
     "openai": [
+      {
+        "id": "gpt-6-luna-pro",
+        "displayName": "OpenAI: GPT-6 Luna Pro"
+      },
+      {
+        "id": "gpt-6-luna-pro:batch",
+        "displayName": "OpenAI: GPT-6 Luna Pro (batch)"
+      },
+      {
+        "id": "gpt-6-luna",
+        "displayName": "OpenAI: GPT-6 Luna"
+      },
+      {
+        "id": "gpt-6-luna:batch",
+        "displayName": "OpenAI: GPT-6 Luna (batch)"
+      },
+      {
+        "id": "gpt-6-sol-pro",
+        "displayName": "OpenAI: GPT-6 Sol Pro"
+      },
+      {
+        "id": "gpt-6-sol-pro:batch",
+        "displayName": "OpenAI: GPT-6 Sol Pro (batch)"
+      },
+      {
+        "id": "gpt-6-sol",
+        "displayName": "OpenAI: GPT-6 Sol"
+      },
+      {
+        "id": "gpt-6-sol:batch",
+        "displayName": "OpenAI: GPT-6 Sol (batch)"
+      },
       {
         "id": "gpt-6-astra",
         "displayName": "OpenAI: GPT-6 Astra"
@@ -335,6 +375,10 @@
       {
         "id": "gpt-oss-20b",
         "displayName": "OpenAI: gpt-oss-20b"
+      },
+      {
+        "id": "gpt-oss-20b:batch",
+        "displayName": "OpenAI: gpt-oss-20b (batch)"
       },
       {
         "id": "o3-pro",
@@ -739,28 +783,20 @@
         "displayName": "DeepSeek: DeepSeek V4.1 Flash"
       },
       {
-        "id": "deepseek-v4-flash-vision-exp",
-        "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp"
+        "id": "deepseek-v4.1-flash:batch",
+        "displayName": "DeepSeek: DeepSeek V4.1 Flash (batch)"
       },
       {
-        "id": "deepseek-v4-flash-vision-exp:batch",
-        "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp (batch)"
+        "id": "deepseek-v4-flash-vision-exp",
+        "displayName": "DeepSeek: DeepSeek V4 Flash Vision Exp"
       },
       {
         "id": "deepseek-v4-pro-0813",
         "displayName": "DeepSeek: DeepSeek V4 Pro 0813"
       },
       {
-        "id": "deepseek-v4-pro-0813:batch",
-        "displayName": "DeepSeek: DeepSeek V4 Pro 0813 (batch)"
-      },
-      {
         "id": "deepseek-v4-flash-0731",
         "displayName": "DeepSeek: DeepSeek V4 Flash 0731"
-      },
-      {
-        "id": "deepseek-v4-flash-0731:batch",
-        "displayName": "DeepSeek: DeepSeek V4 Flash 0731 (batch)"
       },
       {
         "id": "deepseek-v4-pro",
