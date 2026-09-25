@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-24",
+  "updated": "2026-09-25",
   "providers": {
     "anthropic": [
       {
@@ -701,6 +701,10 @@
         "displayName": "Mistral: Mistral Small 4 (batch)"
       },
       {
+        "id": "devstral-2512",
+        "displayName": "Mistral: Devstral 2 2512"
+      },
+      {
         "id": "ministral-14b-2512",
         "displayName": "Mistral: Ministral 3 14B 2512"
       },
@@ -715,6 +719,10 @@
       {
         "id": "ministral-3b-2512",
         "displayName": "Mistral: Ministral 3 3B 2512"
+      },
+      {
+        "id": "mistral-large-2512",
+        "displayName": "Mistral: Mistral Large 3 2512"
       },
       {
         "id": "mistral-large-2512:batch",
