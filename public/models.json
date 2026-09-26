@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-25",
+  "updated": "2026-09-26",
   "providers": {
     "anthropic": [
       {
@@ -109,10 +109,6 @@
       {
         "id": "claude-sonnet-4",
         "displayName": "Anthropic: Claude Sonnet 4"
-      },
-      {
-        "id": "claude-3-haiku",
-        "displayName": "Anthropic: Claude 3 Haiku"
       }
     ],
     "openai": [
