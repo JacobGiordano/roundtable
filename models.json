@@ -1,7 +1,15 @@
 {
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "providers": {
     "anthropic": [
+      {
+        "id": "claude-sonnet-5.5",
+        "displayName": "Anthropic: Claude Sonnet 5.5"
+      },
+      {
+        "id": "claude-sonnet-5.5:batch",
+        "displayName": "Anthropic: Claude Sonnet 5.5 (batch)"
+      },
       {
         "id": "claude-opus-5.5",
         "displayName": "Anthropic: Claude Opus 5.5"
@@ -833,10 +841,6 @@
       {
         "id": "deepseek-chat-v3-0324",
         "displayName": "DeepSeek: DeepSeek V3 0324"
-      },
-      {
-        "id": "deepseek-r1-distill-llama-70b",
-        "displayName": "DeepSeek: R1 Distill Llama 70B"
       },
       {
         "id": "deepseek-r1",
