@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-06",
+  "updated": "2026-10-07",
   "providers": {
     "anthropic": [
       {
@@ -531,6 +531,10 @@
     ],
     "google": [
       {
+        "id": "gemini-nano-banana-2.1",
+        "displayName": "Google: Nano Banana 2.1"
+      },
+      {
         "id": "gemini-3.8-flash",
         "displayName": "Google: Gemini 3.8 Flash"
       },
@@ -696,6 +700,10 @@
       }
     ],
     "mistralai": [
+      {
+        "id": "mistral-large-4-0",
+        "displayName": "Mistral: Mistral Large 4"
+      },
       {
         "id": "mistral-medium-3-5",
         "displayName": "Mistral: Mistral Medium 3.5"
