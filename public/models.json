@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-13",
+  "updated": "2026-10-14",
   "providers": {
     "anthropic": [
       {
@@ -546,6 +546,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-4-argon",
+        "displayName": "Google: Gemini 4 Argon"
+      },
+      {
+        "id": "gemini-4-argon:batch",
+        "displayName": "Google: Gemini 4 Argon (batch)"
+      },
       {
         "id": "gemini-nano-banana-2.1",
         "displayName": "Google: Nano Banana 2.1"
