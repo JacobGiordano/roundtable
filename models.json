@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-11",
+  "updated": "2026-10-18",
   "providers": {
     "anthropic": [
       {
@@ -121,10 +121,6 @@
       {
         "id": "claude-opus-4.1:batch",
         "displayName": "Anthropic: Claude Opus 4.1 (batch)"
-      },
-      {
-        "id": "claude-sonnet-4",
-        "displayName": "Anthropic: Claude Sonnet 4"
       }
     ],
     "openai": [
@@ -547,6 +543,14 @@
     ],
     "google": [
       {
+        "id": "gemini-4-argon",
+        "displayName": "Google: Gemini 4 Argon"
+      },
+      {
+        "id": "gemini-4-argon:batch",
+        "displayName": "Google: Gemini 4 Argon (batch)"
+      },
+      {
         "id": "gemini-nano-banana-2.1",
         "displayName": "Google: Nano Banana 2.1"
       },
@@ -822,6 +826,10 @@
       }
     ],
     "deepseek": [
+      {
+        "id": "deepseek-v4.1-flash-1017",
+        "displayName": "DeepSeek: DeepSeek V4.1 Flash 1017"
+      },
       {
         "id": "deepseek-v4.1-flash",
         "displayName": "DeepSeek: DeepSeek V4.1 Flash"
