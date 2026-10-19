@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-18",
+  "updated": "2026-10-19",
   "providers": {
     "anthropic": [
       {
@@ -881,10 +881,6 @@
       {
         "id": "deepseek-chat-v3-0324",
         "displayName": "DeepSeek: DeepSeek V3 0324"
-      },
-      {
-        "id": "deepseek-r1",
-        "displayName": "DeepSeek: R1"
       },
       {
         "id": "deepseek-chat",
