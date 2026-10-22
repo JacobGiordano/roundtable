@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-21",
+  "updated": "2026-10-22",
   "providers": {
     "anthropic": [
       {
@@ -677,10 +677,6 @@
       {
         "id": "gemini-2.5-flash-lite",
         "displayName": "Google: Gemini 2.5 Flash Lite"
-      },
-      {
-        "id": "gemini-2.5-flash-lite:batch",
-        "displayName": "Google: Gemini 2.5 Flash Lite (batch)"
       },
       {
         "id": "gemini-2.5-flash",
