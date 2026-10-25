@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-24",
+  "updated": "2026-10-25",
   "providers": {
     "anthropic": [
       {
@@ -521,20 +521,8 @@
         "displayName": "OpenAI: GPT-3.5 Turbo (older v0613)"
       },
       {
-        "id": "gpt-3.5-turbo-instruct",
-        "displayName": "OpenAI: GPT-3.5 Turbo Instruct"
-      },
-      {
         "id": "gpt-3.5-turbo-16k",
         "displayName": "OpenAI: GPT-3.5 Turbo 16k"
-      },
-      {
-        "id": "gpt-3.5-turbo",
-        "displayName": "OpenAI: GPT-3.5 Turbo"
-      },
-      {
-        "id": "gpt-3.5-turbo:batch",
-        "displayName": "OpenAI: GPT-3.5 Turbo (batch)"
       },
       {
         "id": "gpt-4",
