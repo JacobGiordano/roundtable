@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-18",
+  "updated": "2026-10-25",
   "providers": {
     "anthropic": [
       {
@@ -521,20 +521,8 @@
         "displayName": "OpenAI: GPT-3.5 Turbo (older v0613)"
       },
       {
-        "id": "gpt-3.5-turbo-instruct",
-        "displayName": "OpenAI: GPT-3.5 Turbo Instruct"
-      },
-      {
         "id": "gpt-3.5-turbo-16k",
         "displayName": "OpenAI: GPT-3.5 Turbo 16k"
-      },
-      {
-        "id": "gpt-3.5-turbo",
-        "displayName": "OpenAI: GPT-3.5 Turbo"
-      },
-      {
-        "id": "gpt-3.5-turbo:batch",
-        "displayName": "OpenAI: GPT-3.5 Turbo (batch)"
       },
       {
         "id": "gpt-4",
@@ -679,24 +667,12 @@
         "displayName": "Google: Gemini 2.5 Flash Lite"
       },
       {
-        "id": "gemini-2.5-flash-lite:batch",
-        "displayName": "Google: Gemini 2.5 Flash Lite (batch)"
-      },
-      {
         "id": "gemini-2.5-flash",
         "displayName": "Google: Gemini 2.5 Flash"
       },
       {
-        "id": "gemini-2.5-flash:batch",
-        "displayName": "Google: Gemini 2.5 Flash (batch)"
-      },
-      {
         "id": "gemini-2.5-pro",
         "displayName": "Google: Gemini 2.5 Pro"
-      },
-      {
-        "id": "gemini-2.5-pro:batch",
-        "displayName": "Google: Gemini 2.5 Pro (batch)"
       },
       {
         "id": "gemini-2.5-pro-preview",
@@ -881,10 +857,6 @@
       {
         "id": "deepseek-chat-v3-0324",
         "displayName": "DeepSeek: DeepSeek V3 0324"
-      },
-      {
-        "id": "deepseek-r1",
-        "displayName": "DeepSeek: R1"
       },
       {
         "id": "deepseek-chat",
