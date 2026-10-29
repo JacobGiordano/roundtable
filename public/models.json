@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-28",
+  "updated": "2026-10-29",
   "providers": {
     "anthropic": [
       {
@@ -429,20 +429,12 @@
         "displayName": "OpenAI: o3 Pro"
       },
       {
-        "id": "o4-mini-high",
-        "displayName": "OpenAI: o4 Mini High"
-      },
-      {
         "id": "o3",
         "displayName": "OpenAI: o3"
       },
       {
         "id": "o3:batch",
         "displayName": "OpenAI: o3 (batch)"
-      },
-      {
-        "id": "o4-mini",
-        "displayName": "OpenAI: o4 Mini"
       },
       {
         "id": "o4-mini:batch",
@@ -473,24 +465,8 @@
         "displayName": "OpenAI: GPT-4.1 Nano (batch)"
       },
       {
-        "id": "o1-pro",
-        "displayName": "OpenAI: o1-pro"
-      },
-      {
-        "id": "o3-mini-high",
-        "displayName": "OpenAI: o3 Mini High"
-      },
-      {
-        "id": "o3-mini",
-        "displayName": "OpenAI: o3 Mini"
-      },
-      {
         "id": "o3-mini:batch",
         "displayName": "OpenAI: o3 Mini (batch)"
-      },
-      {
-        "id": "o1",
-        "displayName": "OpenAI: o1"
       },
       {
         "id": "gpt-4o-2024-11-20",
@@ -523,10 +499,6 @@
       {
         "id": "gpt-4o:batch",
         "displayName": "OpenAI: GPT-4o (batch)"
-      },
-      {
-        "id": "gpt-4-turbo",
-        "displayName": "OpenAI: GPT-4 Turbo"
       },
       {
         "id": "gpt-4-turbo:batch",
