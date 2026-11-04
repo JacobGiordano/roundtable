@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-03",
+  "updated": "2026-11-04",
   "providers": {
     "anthropic": [
       {
@@ -837,8 +837,16 @@
         "displayName": "SpaceXAI: Grok 4.7"
       },
       {
+        "id": "grok-4.7:batch",
+        "displayName": "SpaceXAI: Grok 4.7 (batch)"
+      },
+      {
         "id": "grok-4.6",
         "displayName": "SpaceXAI: Grok 4.6"
+      },
+      {
+        "id": "grok-4.6:batch",
+        "displayName": "SpaceXAI: Grok 4.6 (batch)"
       },
       {
         "id": "grok-4.5",
