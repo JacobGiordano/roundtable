@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-05",
+  "updated": "2026-11-06",
   "providers": {
     "anthropic": [
       {
@@ -518,6 +518,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-omni-1.2-flash",
+        "displayName": "Google: Gemini Omni 1.2 Flash"
+      },
+      {
+        "id": "gemini-omni-1.1-flash",
+        "displayName": "Google: Gemini Omni 1.1 Flash"
+      },
       {
         "id": "gemini-4-argon",
         "displayName": "Google: Gemini 4 Argon"
