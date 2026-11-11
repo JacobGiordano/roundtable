@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-10",
+  "updated": "2026-11-11",
   "providers": {
     "anthropic": [
       {
@@ -526,6 +526,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-4-carbon",
+        "displayName": "Google: Gemini 4 Carbon"
+      },
+      {
+        "id": "gemini-4-carbon:batch",
+        "displayName": "Google: Gemini 4 Carbon (batch)"
+      },
       {
         "id": "gemini-omni-1.2-flash",
         "displayName": "Google: Gemini Omni 1.2 Flash"
