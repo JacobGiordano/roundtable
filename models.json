@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-12",
+  "updated": "2026-11-13",
   "providers": {
     "anthropic": [
       {
@@ -526,6 +526,14 @@
       }
     ],
     "google": [
+      {
+        "id": "gemini-4-hydrogen",
+        "displayName": "Google: Gemini 4 Hydrogen"
+      },
+      {
+        "id": "gemini-4-hydrogen:batch",
+        "displayName": "Google: Gemini 4 Hydrogen (batch)"
+      },
       {
         "id": "gemini-4-carbon",
         "displayName": "Google: Gemini 4 Carbon"
