@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-19",
+  "updated": "2026-11-20",
   "providers": {
     "anthropic": [
       {
@@ -757,6 +757,10 @@
     ],
     "mistralai": [
       {
+        "id": "pixtral-large-2502",
+        "displayName": "Mistral: Pixtral Large 2502"
+      },
+      {
         "id": "mistral-large-4-0",
         "displayName": "Mistral: Mistral Large 4"
       },
@@ -914,43 +918,39 @@
     "x-ai": [
       {
         "id": "grok-4.7",
-        "displayName": "SpaceXAI: Grok 4.7"
+        "displayName": "SpaceXSI: Grok 4.7"
       },
       {
         "id": "grok-4.7:batch",
-        "displayName": "SpaceXAI: Grok 4.7 (batch)"
+        "displayName": "SpaceXSI: Grok 4.7 (batch)"
       },
       {
         "id": "grok-4.6",
-        "displayName": "SpaceXAI: Grok 4.6"
+        "displayName": "SpaceXSI: Grok 4.6"
       },
       {
         "id": "grok-4.6:batch",
-        "displayName": "SpaceXAI: Grok 4.6 (batch)"
+        "displayName": "SpaceXSI: Grok 4.6 (batch)"
       },
       {
         "id": "grok-4.5",
-        "displayName": "SpaceXAI: Grok 4.5"
-      },
-      {
-        "id": "grok-build-0.1",
-        "displayName": "SpaceXAI: Grok Build 0.1"
+        "displayName": "SpaceXSI: Grok 4.5"
       },
       {
         "id": "grok-4.3",
-        "displayName": "SpaceXAI: Grok 4.3"
+        "displayName": "SpaceXSI: Grok 4.3"
       },
       {
         "id": "grok-4.3:batch",
-        "displayName": "SpaceXAI: Grok 4.3 (batch)"
+        "displayName": "SpaceXSI: Grok 4.3 (batch)"
       },
       {
         "id": "grok-4.20-multi-agent",
-        "displayName": "SpaceXAI: Grok 4.20 Multi-Agent"
+        "displayName": "SpaceXSI: Grok 4.20 Multi-Agent"
       },
       {
         "id": "grok-4.20",
-        "displayName": "SpaceXAI: Grok 4.20"
+        "displayName": "SpaceXSI: Grok 4.20"
       }
     ]
   }
