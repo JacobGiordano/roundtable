@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-25",
+  "updated": "2026-11-26",
   "providers": {
     "anthropic": [
       {
@@ -777,6 +777,10 @@
         "displayName": "Mistral: Mistral Small 4"
       },
       {
+        "id": "mistral-small-2603:batch",
+        "displayName": "Mistral: Mistral Small 4 (batch)"
+      },
+      {
         "id": "devstral-2512",
         "displayName": "Mistral: Devstral 2 2512"
       },
@@ -789,6 +793,10 @@
         "displayName": "Mistral: Ministral 3 8B 2512"
       },
       {
+        "id": "ministral-8b-2512:batch",
+        "displayName": "Mistral: Ministral 3 8B 2512 (batch)"
+      },
+      {
         "id": "ministral-3b-2512",
         "displayName": "Mistral: Ministral 3 3B 2512"
       },
@@ -797,12 +805,20 @@
         "displayName": "Mistral: Mistral Large 3 2512"
       },
       {
+        "id": "mistral-large-2512:batch",
+        "displayName": "Mistral: Mistral Large 3 2512 (batch)"
+      },
+      {
         "id": "voxtral-small-24b-2507",
         "displayName": "Mistral: Voxtral Small 24B 2507"
       },
       {
         "id": "codestral-2508",
         "displayName": "Mistral: Codestral 2508"
+      },
+      {
+        "id": "codestral-2508:batch",
+        "displayName": "Mistral: Codestral 2508 (batch)"
       },
       {
         "id": "mistral-small-3.2-24b-instruct",
